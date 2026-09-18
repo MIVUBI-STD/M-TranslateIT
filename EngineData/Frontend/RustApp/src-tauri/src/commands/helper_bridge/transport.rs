@@ -499,6 +499,16 @@ fn recover_live_meeting_helper_transport(
     recovery
 }
 
+fn retain_payload_for_live_retry(
+    task: &str,
+    priority: HelperTaskPriority,
+    outbound_generation: Option<u64>,
+) -> bool {
+    priority == HelperTaskPriority::MeetingOutbound
+        && outbound_generation.is_some()
+        && live_outbound_stage_retry_safe(task)
+}
+
 pub(super) fn send_worker_task(task: &str, payload: Value) -> HelperBridgeWorkerResponse {
     let priority = task_priority(task, &payload);
     let outbound_generation = if priority == HelperTaskPriority::MeetingOutbound
@@ -508,7 +518,8 @@ pub(super) fn send_worker_task(task: &str, payload: Value) -> HelperBridgeWorker
     } else {
         None
     };
-    let retry_payload = payload.clone();
+    let mut retry_payload = retain_payload_for_live_retry(task, priority, outbound_generation)
+        .then(|| payload.clone());
 
     // Reject new optional incoming stages immediately while a required outbound
     // utterance owns the helper pipeline. The post-permit check in the inner path
@@ -536,11 +547,23 @@ pub(super) fn send_worker_task(task: &str, payload: Value) -> HelperBridgeWorker
                 // the recovered worker is usable for later utterances.
                 match prepare_required_outbound_ai_runtime(generation) {
                     Ok(()) if retry_current_stage => {
+                        // Only retry-safe Live outbound stages retain a payload clone.
                         // ASR and translation have no Meeting playback side effect, so
                         // the same finalized input may be attempted exactly once after
                         // transport recovery + generation-bound functional re-proof.
                         // The retry itself is not recursive.
-                        response = send_worker_task_inner(task, retry_payload);
+                        if let Some(retry_payload) = retry_payload.take() {
+                            response = send_worker_task_inner(task, retry_payload);
+                        } else {
+                            clear_meeting_outbound_pipeline(generation);
+                            response.ok = false;
+                            response.state = "error".to_string();
+                            response.runtime_claim =
+                                "meeting_live_helper_retry_payload_contract_missing".to_string();
+                            response.message =
+                                "Live Meeting helper recovery completed, but the retry-safe payload contract was unavailable."
+                                    .to_string();
+                        }
                     }
                     Ok(()) => {
                         // Synthesis can have uncertain child-process/file state after a
@@ -584,4 +607,45 @@ pub(super) fn send_worker_task(task: &str, payload: Value) -> HelperBridgeWorker
         invalidate_required_outbound_ai_readiness();
     }
     response
+}
+
+#[cfg(test)]
+mod request_payload_retention_tests {
+    use super::retain_payload_for_live_retry;
+    use super::super::super::helper_bridge_runtime::HelperTaskPriority;
+
+    #[test]
+    fn only_retry_safe_live_outbound_stages_retain_payload_clone() {
+        assert!(retain_payload_for_live_retry(
+            "transcribe",
+            HelperTaskPriority::MeetingOutbound,
+            Some(7),
+        ));
+        assert!(retain_payload_for_live_retry(
+            "translate",
+            HelperTaskPriority::MeetingOutbound,
+            Some(7),
+        ));
+
+        assert!(!retain_payload_for_live_retry(
+            "voice_actor_synthesize",
+            HelperTaskPriority::MeetingOutbound,
+            Some(7),
+        ));
+        assert!(!retain_payload_for_live_retry(
+            "status",
+            HelperTaskPriority::MeetingOutbound,
+            Some(7),
+        ));
+        assert!(!retain_payload_for_live_retry(
+            "translate",
+            HelperTaskPriority::Text,
+            None,
+        ));
+        assert!(!retain_payload_for_live_retry(
+            "transcribe",
+            HelperTaskPriority::MeetingIncoming,
+            None,
+        ));
+    }
 }
