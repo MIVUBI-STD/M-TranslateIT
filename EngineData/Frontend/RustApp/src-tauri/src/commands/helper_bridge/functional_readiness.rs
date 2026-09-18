@@ -190,4 +190,25 @@ mod tests {
         assert_eq!(meeting.meeting_generation, 41);
         assert_ne!(meeting.meeting_generation, 0);
     }
+
+
+    #[test]
+    fn voice_change_invalidation_clears_functional_readiness() {
+        invalidate_required_outbound_ai_readiness();
+        remember_required_outbound_functional_readiness(
+            17,
+            0,
+            "actor-before-change".to_string(),
+        );
+        let mut status = HelperBridgeStatus::default();
+        status.state = "ready".to_string();
+        status.provider_ready = true;
+        status.generation_token = 17;
+
+        assert!(decorate_functional_readiness_status(status.clone()).functional_outbound_ready);
+
+        invalidate_required_outbound_ai_readiness();
+
+        assert!(!decorate_functional_readiness_status(status).functional_outbound_ready);
+    }
 }

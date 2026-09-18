@@ -106,6 +106,10 @@ pub fn send_helper_worker_task(task: &str, payload: Value) -> HelperBridgeWorker
     send_worker_task(task, payload)
 }
 
+pub(crate) fn invalidate_required_outbound_readiness_for_voice_change() {
+    invalidate_required_outbound_ai_readiness();
+}
+
 
 
 pub fn verify_required_outbound_ai_runtime() -> Result<(), &'static str> {

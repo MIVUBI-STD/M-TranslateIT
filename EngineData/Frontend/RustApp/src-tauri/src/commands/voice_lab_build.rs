@@ -9,6 +9,7 @@ use std::time::Duration;
 use crate::engine::paths::ProjectPaths;
 
 use super::bridge_paths::{resolve_worker_python_command, worker_root, worker_python_unavailable_message};
+use super::helper_bridge::invalidate_required_outbound_readiness_for_voice_change;
 use super::builtin_voice::{
     install_builtin_voice, is_supported_builtin_voice, meeting_blocks_voice_change,
 };
@@ -695,6 +696,7 @@ pub fn select_builtin_voice(
 
     match install_builtin_voice(&project_paths, &voice_id, &target, ENGINE_REVISION) {
         Ok(()) => {
+            invalidate_required_outbound_readiness_for_voice_change();
             let label = voice_id.trim_end_matches("Voice").to_lowercase();
             result(
                 true,
@@ -717,6 +719,7 @@ pub fn approve_voice_lab_candidate() -> VoiceLabBuildActionResult {
     let project_paths = ProjectPaths::discover();
     match promote_voice_actor_candidate(&project_paths) {
         Ok(()) => {
+            invalidate_required_outbound_readiness_for_voice_change();
             let paths = VoiceLabStoragePaths::from_project_paths(&project_paths);
             let _ = fs::remove_dir_all(evaluation_dir(&paths));
             result(true, "approved", "My Voice was approved and saved on this device.")
