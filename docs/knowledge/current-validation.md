@@ -6,9 +6,9 @@ This file owns **proof interpretation**, not a per-run diary. `next-action.md` o
 
 Repository: `MIVUBI-STD/M-TranslateIT`
 
-`Local` is the sole active branch for development, governance, CI, proof, continuation, and release-source validation.
+**Local-only source authority:** `Local` is the sole active branch for development, governance, CI, proof, continuation, and release-source validation.
 
-One SHA never proves another SHA. A later documentation-only commit may record proof without changing the validated runtime/source identity.
+one SHA does not prove another SHA. A later documentation-only commit may record proof without changing the validated runtime/source identity.
 
 ## Current Source Proof
 
@@ -31,11 +31,11 @@ The matching Code Health run establishes the selected frontend, Rust, and Python
 Latest later source candidate:
 
 ```text
-60c1cb334c611950beace20185bbfc2b78e04eca
-fix(voice): remove unowned review drafts
+aa25d6c515937e8bba5973a455ce7e2cdf39afd6
+feat(diagnostics): expose outbound performance metrics
 ```
 
-This later candidate is a bounded My Voice review-file cleanup. Until its matching Code Health completes, treat it as **SOURCE PRESENT / EXACT-HEAD EXECUTED PROOF PENDING**, not PASS.
+This candidate also includes the later reliability/validation repairs after `a8ce3e11...` and exposes existing outbound timing plus queue/drop counters in Diagnostics. Until matching Code Health completes, treat it as **SOURCE PRESENT / EXACT-HEAD EXECUTED PROOF PENDING**, not PASS.
 
 ## Current Source Claims
 
