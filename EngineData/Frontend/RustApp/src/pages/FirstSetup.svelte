@@ -6,7 +6,12 @@
     runtimeProductFacade,
     type ProductRuntimeSnapshot,
   } from "../app/bridge/runtimeProductFacade";
-  import { setupCheckpoint, safeSetupResumeStep, type SetupStep } from "../app/runtime/setupFlow";
+  import {
+    persistedSetupCheckpoint,
+    safeSetupResumeStep,
+    setupCheckpoint,
+    type SetupStep,
+  } from "../app/runtime/setupFlow";
   import { cloneSettings, compact, deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
   import SetupNavigation from "../components/setup/SetupNavigation.svelte";
@@ -106,7 +111,9 @@
   async function persistSetupFact(state: SetupState, nextCheckpoint: SetupStep): Promise<boolean> {
     const candidate = cloneSettings(settings);
     candidate.meeting_setup_state = state;
-    candidate.meeting_setup_checkpoint = Math.max(setupCheckpoint(candidate.meeting_setup_checkpoint), nextCheckpoint);
+    const currentCheckpoint = setupCheckpoint(candidate.meeting_setup_checkpoint);
+    const effectiveStep = Math.max(currentCheckpoint, nextCheckpoint) as SetupStep;
+    candidate.meeting_setup_checkpoint = persistedSetupCheckpoint(effectiveStep);
     try {
       const result = await runtimeApi.saveSettings(candidate);
       if (!result.ok) throw new Error("setup save failed");

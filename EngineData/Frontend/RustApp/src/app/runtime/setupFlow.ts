@@ -8,6 +8,10 @@ export function setupCheckpoint(value: unknown): SetupStep {
   return 4;
 }
 
+export function persistedSetupCheckpoint(value: SetupStep): number {
+  return value === 4 ? 5 : value;
+}
+
 export function safeSetupResumeStep(
   value: SetupStep,
   readiness: { microphoneReady: boolean; meetingRouteReady: boolean },
