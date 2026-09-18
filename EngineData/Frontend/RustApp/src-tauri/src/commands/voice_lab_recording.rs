@@ -274,14 +274,15 @@ pub fn start_voice_lab_guided_take(
     if !session.blocker.is_empty() || snapshot.owner_id != CAPTURE_OWNER_ID {
         return result(false, "microphone_in_use", "Stop Meeting translation or Mic Test before recording a VoiceLab line.");
     }
+    let generation = snapshot.generation;
     if let Err(blocker) = arm_guided_take(line_id) {
-        let _ = clear_runtime_session_if_generation(snapshot.generation);
+        let _ = clear_runtime_session_if_generation(generation);
         return result(false, "capture_unavailable", blocker);
     }
     let capture = start_live_capture_runtime(session);
     if !capture.ok {
         cancel_guided_take();
-        let _ = clear_runtime_session_if_generation(snapshot.generation);
+        let _ = clear_runtime_session_if_generation(generation);
         return result(false, "capture_failed", capture.message);
     }
     result(true, "recording", "Recording started. Read the line naturally, then press Stop.")

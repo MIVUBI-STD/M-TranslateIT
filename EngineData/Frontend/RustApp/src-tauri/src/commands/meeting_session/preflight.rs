@@ -27,10 +27,6 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let helper_ready = helper.state == "ready";
     let provider_ready = helper.provider_ready;
     let functional_outbound_ready = helper.functional_outbound_ready;
-    let helper_recoverable = helper_start_recoverable(
-        &helper.state,
-        helper.last_error.as_deref(),
-    );
     let functional_outbound_verified_unix_ms = helper.functional_outbound_verified_unix_ms;
     // `models_ready` remains the inexpensive required outbound capability view. C4
     // keeps functional truth separate so routine status stays cheap and Start can run

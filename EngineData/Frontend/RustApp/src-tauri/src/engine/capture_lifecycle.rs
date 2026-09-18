@@ -31,6 +31,7 @@ pub fn start_capture() -> CommandResult {
         );
     }
 
+    let generation = snapshot.generation;
     let capture = start_live_capture_runtime(session);
     if capture.ok {
         CommandResult::ok(
@@ -38,7 +39,7 @@ pub fn start_capture() -> CommandResult {
             "Microphone test recording started. This capture-only path does not run ASR, translation, or TTS.",
         )
     } else {
-        let _ = clear_runtime_session_if_generation(snapshot.generation);
+        let _ = clear_runtime_session_if_generation(generation);
         CommandResult::blocked(LifecycleState::Error, capture.message)
     }
 }
