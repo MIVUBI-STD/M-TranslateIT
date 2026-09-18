@@ -3,14 +3,11 @@ use serde_json::{json, Value};
 use std::fs;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::commands::diagnostic_trace::{
     trace_command_end, trace_command_error, trace_command_start,
 };
-use crate::engine::runtime_state::{
-    latest_runtime_session_state, runtime_generation_is_authoritative,
-};
+use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
 use super::bridge_paths::{
     helper_stderr_log_path, resolve_worker_python_command, slash_path,
@@ -26,6 +23,7 @@ use super::helper_bridge_runtime::{
 };
 
 mod functional_readiness;
+mod request_policy;
 
 use functional_readiness::{
     decorate_functional_readiness_status, failed_required_outbound_task_invalidates_cache,
@@ -34,10 +32,11 @@ use functional_readiness::{
     worker_response_value,
 };
 pub use functional_readiness::required_outbound_voice_actor_token;
-
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
-
-static MEETING_OUTBOUND_PIPELINE_GENERATION: AtomicU64 = AtomicU64::new(0);
+use request_policy::{
+    clear_any_meeting_outbound_pipeline, clear_meeting_outbound_pipeline, incoming_session_is_eligible, inject_request_metadata,
+    live_outbound_generation_is_authoritative, live_outbound_stage_retry_safe, mark_meeting_outbound_pipeline, meeting_generation,
+    meeting_lane, meeting_outbound_pipeline_active, meeting_session_id, meeting_start_prepare, task_priority,
+};
 
 const REQUIRED_OUTBOUND_FUNCTIONAL_ID_FIXTURE: &str = "selamat pagi";
 const REQUIRED_OUTBOUND_FUNCTIONAL_VOICE_OUTPUT: &str =
@@ -98,117 +97,6 @@ fn helper_transport_failure(response: &HelperBridgeWorkerResponse) -> bool {
     let blocker = worker_text(&value, "blocker").unwrap_or_default();
     blocker.starts_with("helper_bridge:")
         && (blocker.contains("_write_failed:") || blocker.contains("_read_failed:"))
-}
-
-fn live_outbound_generation_is_authoritative(generation: u64) -> bool {
-    if !runtime_generation_is_authoritative(generation) {
-        return false;
-    }
-    latest_runtime_session_state()
-        .snapshot
-        .map(|snapshot| {
-            snapshot.owner_id == APPLICATION_MEETING_OWNER_ID
-                && snapshot.generation == generation
-                && snapshot.authority_active
-                && snapshot.phase == "live"
-        })
-        .unwrap_or(false)
-}
-
-fn live_outbound_stage_retry_safe(task: &str) -> bool {
-    matches!(task, "transcribe" | "translate")
-}
-
-fn meeting_generation(payload: &Value) -> Option<u64> {
-    payload.get("meeting_generation").and_then(Value::as_u64)
-}
-
-fn meeting_session_id(payload: &Value) -> Option<String> {
-    payload
-        .get("meeting_session_id")
-        .and_then(Value::as_str)
-        .map(|value| clean_helper_text(value, 96))
-        .filter(|value| !value.is_empty())
-}
-
-fn meeting_lane(payload: &Value) -> Option<String> {
-    payload
-        .get("meeting_lane")
-        .and_then(Value::as_str)
-        .map(|value| clean_helper_text(value, 32).to_ascii_lowercase())
-        .filter(|value| matches!(value.as_str(), "you" | "incoming"))
-}
-
-fn meeting_start_prepare(payload: &Value) -> bool {
-    payload
-        .get("meeting_start_prepare")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-}
-
-fn meeting_outbound_pipeline_active() -> bool {
-    MEETING_OUTBOUND_PIPELINE_GENERATION.load(Ordering::Acquire) != 0
-}
-
-fn mark_meeting_outbound_pipeline(generation: u64) {
-    if generation != 0 {
-        MEETING_OUTBOUND_PIPELINE_GENERATION.store(generation, Ordering::Release);
-    }
-}
-
-fn clear_meeting_outbound_pipeline(generation: u64) {
-    let _ = MEETING_OUTBOUND_PIPELINE_GENERATION.compare_exchange(
-        generation,
-        0,
-        Ordering::AcqRel,
-        Ordering::Acquire,
-    );
-}
-
-fn clear_any_meeting_outbound_pipeline() {
-    MEETING_OUTBOUND_PIPELINE_GENERATION.store(0, Ordering::Release);
-}
-
-fn incoming_session_is_eligible(session_id: &str) -> bool {
-    latest_runtime_session_state()
-        .snapshot
-        .map(|snapshot| {
-            snapshot.owner_id == APPLICATION_MEETING_OWNER_ID
-                && snapshot.session_id == session_id
-                && snapshot.authority_active
-                && snapshot.phase == "live"
-        })
-        .unwrap_or(false)
-}
-
-fn task_priority(task: &str, payload: &Value) -> HelperTaskPriority {
-    if meeting_generation(payload).is_some() || meeting_start_prepare(payload) {
-        HelperTaskPriority::MeetingOutbound
-    } else if meeting_lane(payload).as_deref() == Some("incoming")
-        && meeting_session_id(payload).is_some()
-    {
-        HelperTaskPriority::MeetingIncoming
-    } else if task == "translate" {
-        HelperTaskPriority::Text
-    } else {
-        HelperTaskPriority::Diagnostic
-    }
-}
-
-fn inject_request_metadata(
-    payload: &mut Value,
-    task: &str,
-    request_id: &str,
-    priority: HelperTaskPriority,
-) {
-    if !payload.is_object() {
-        *payload = json!({});
-    }
-    if let Some(object) = payload.as_object_mut() {
-        object.insert("command".to_string(), json!(task));
-        object.insert("request_id".to_string(), json!(request_id));
-        object.insert("scheduler_priority".to_string(), json!(priority.label()));
-    }
 }
 
 fn response_with_runtime(
