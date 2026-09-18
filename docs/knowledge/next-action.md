@@ -4,16 +4,17 @@
 
 - `Local` remains the sole active authority for development, CI, proof, continuation, and release-source validation.
 - Development foundation, capability/proof taxonomy, toolchain authority, and one Windows developer entrypoint are active.
-- Structural remediation is complete across Meeting, helper bridge, My Voice, setup, native-close, diagnostics, and Windows-audio ownership.
-- Current source `49a7db2fcb511c822b3379924397fe4fd888863d` passed Code Health `35368207537`.
-- Current flow hardening includes legacy-safe setup checkpoint persistence, single-owned virtual-route prepare/bind, centralized Starting rollback cleanup, native app-exit helper shutdown, narrow My Voice exit guards, guided-corpus extraction, helper Start idempotence, power-transition readiness invalidation, reusable diagnostic readiness, and domain-level recording/build handoff.
+- Structural remediation is complete across Meeting, helper bridge, My Voice, setup, native-close, diagnostics, Windows audio, and local voice-runtime ownership.
+- Current source `0d1906299524b0c7ab95a80389ca95c4802ee868` passed Code Health `35369634034` and MiLMMT Repository Contract `35369634052`.
+- My Voice live inference/actor validation remains in `voice_lab_gpt_sovits.py`; one-shot dataset preparation, training, candidate evaluation and package construction now live in `voice_lab_gpt_sovits_build.py`. The live provider shrank from ~35.8 KB to ~13.7 KB without changing worker protocol.
+- Earlier flow hardening remains active: legacy-safe setup checkpoint persistence, single-owned virtual-route prepare/bind, centralized Starting rollback cleanup, native app-exit helper shutdown, narrow My Voice exit guards, helper Start idempotence, power-transition readiness invalidation, reusable diagnostic readiness, guided-corpus extraction, and domain-level recording/build handoff.
 - Diagnostics expose outbound stage timing and queue/drop counters needed for target performance evidence.
 
 ## Active Boundary
 
 REMOTE_GITHUB/source work is complete for the currently identified architecture and flow defects.
 
-No further source refactor should be introduced merely for file shape or speculative latency. Physical microphone/device behavior, real CUDA throughput, CPU/RAM/GPU/VRAM pressure, meeting-app reception, Start → Live timing, audible voice quality, and end-of-speech → first translated playback require **TARGET_WINDOWS / NATIVE_ACCEPTANCE**.
+Do not add more source abstractions merely for file shape or speculative latency. Physical microphone/device behavior, real CUDA throughput, CPU/RAM/GPU/VRAM pressure, meeting-app reception, Start → Live timing, audible voice quality, and end-of-speech → first translated playback require **TARGET_WINDOWS / NATIVE_ACCEPTANCE**.
 
 ## Next Step
 

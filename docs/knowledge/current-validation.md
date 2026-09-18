@@ -15,19 +15,20 @@ one SHA does not prove another SHA. A later documentation-only commit may record
 Current source identity:
 
 ```text
-49a7db2fcb511c822b3379924397fe4fd888863d
-test(route): lock prepare and bind ownership
+0d1906299524b0c7ab95a80389ca95c4802ee868
+style(voice): match provider formatter spacing
 ```
 
 Matching proof:
 
 ```text
-Code Health  35368207537  PASS
+Code Health                 35369634034  PASS
+MiLMMT Repository Contract  35369634052  PASS
 ```
 
-That exact-head run passed the path-selected frontend/Rust/Python health gates required by the changed source domains, including source-size, bridge/reachability/virtual-route contracts, compiler/dead-code, Clippy, and unit tests where selected.
+That exact-head Code Health run passed Linux and hosted Windows Python compile/static/format/contract tests for the changed local-worker domain. The matching MiLMMT contract also passed.
 
-Earlier MiLMMT contract proof remains owned by `a8ce3e11040b5511a9e0eed012e04bb04c72cc4a` / run `35332249965` for the unchanged canonical translation contract.
+Earlier frontend/Rust architecture and route ownership remain covered by exact-head source proof `49a7db2fcb511c822b3379924397fe4fd888863d` / Code Health `35368207537` for those unchanged domains.
 
 one SHA does not prove another SHA. Claims must use the matching proof surface for the source domain that changed.
 
@@ -54,6 +55,7 @@ The modernized source now establishes, subject to exact-head proof for the SHA b
 - suspend/resume invalidates cached functional readiness even if the helper survives;
 - diagnostic/setup readiness reuses only proof bound to the current helper generation; Meeting Start still performs generation-bound functional proof;
 - My Voice build consumes narrow recording-domain facts rather than the full UI recording DTO; the guided prompt corpus has its own static owner;
+- live GPT-SoVITS actor validation/runtime/synthesis is isolated from one-shot dataset preparation, bounded training, candidate evaluation, and candidate package construction; build orchestration does not sit on the worker inference hot path;
 - existing latency hardening remains intact: bounded capture storage, efficient finalized WAV preparation, deterministic MiLMMT generation/KV cache, warm actor reuse, and V2ProPlus reference-speaker embedding caching.
 
 ## Verification surfaces

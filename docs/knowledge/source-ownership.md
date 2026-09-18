@@ -63,7 +63,9 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Helper scheduler / admission / permit priority | `commands/helper_bridge_runtime/scheduler.rs` |
 | Canonical MiLMMT translation | `milmmt_translation_provider.py` + translation contract validator |
 | Model inventory/staging contract | `model_manifest.json`, `prepare_model_assets*.py` |
-| My Voice build/inference | `voice_lab_build.py`, `voice_lab_gpt_sovits.py`, Rust `commands/voice_lab*.rs` |
+| My Voice one-shot build child | `voice_lab_build.py` + Rust `commands/voice_lab_build.rs` |
+| My Voice GPT-SoVITS build/training/evaluation pipeline | `voice_lab_gpt_sovits_build.py` |
+| My Voice live actor validation/runtime/synthesis | `voice_lab_gpt_sovits.py` + `worker_io_runtime.py` |
 | My Voice dataset/storage/package validation/promotion | Rust `commands/voice_lab/storage.rs` |
 | My Voice guided recording/review transaction | Rust `commands/voice_lab_recording.rs` |
 | My Voice guided prompt corpus | Rust `commands/voice_lab_recording/guided_lines.rs` |
