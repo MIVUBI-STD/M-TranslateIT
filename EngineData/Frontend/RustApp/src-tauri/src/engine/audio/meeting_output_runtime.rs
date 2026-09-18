@@ -8,6 +8,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
+#[path = "meeting_output_runtime/audio_format.rs"]
 mod audio_format;
 
 use audio_format::{
@@ -45,8 +46,6 @@ pub struct MeetingOutputDeliveryReport {
     pub first_playback_unix_ms: Option<u128>,
     pub blocker: String,
 }
-
-#[derive(Debug, Clone)]
 
 #[derive(Clone)]
 struct MeetingOutputCancelControl {

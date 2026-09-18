@@ -7,7 +7,7 @@ use super::super::voice_lab::{
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 
-const MAX_EVALUATION_WAV_BYTES: u64 = 16 * 1024 * 1024;
+pub(super) const MAX_EVALUATION_WAV_BYTES: u64 = 16 * 1024 * 1024;
 
 const HELD_OUT_LINES: &[(u32, &str)] = &[
     (1001, "Please confirm the final schedule before we send the update to the client."),
@@ -15,6 +15,7 @@ const HELD_OUT_LINES: &[(u32, &str)] = &[
     (1003, "I can review the latest results tomorrow morning and share my decision with the team."),
 ];
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceLabEvaluationSample {
     pub line_id: u32,
     pub exact_text: String,
@@ -22,6 +23,7 @@ pub struct VoiceLabEvaluationSample {
     pub speaker_similarity: f64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
 pub(super) struct EvaluationManifest {
     schema_version: u32,
     engine: String,

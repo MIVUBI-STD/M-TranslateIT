@@ -17,8 +17,8 @@ use super::voice_lab::{
     approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
     finish_voice_lab_build, mark_voice_lab_build_evaluating, mark_voice_lab_build_training,
     prepare_guided_dataset, promote_voice_actor_candidate, request_voice_lab_build_cancel,
-    voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedEvaluationLineContract,
-    GuidedTakeContract, VoiceLabStoragePaths, VOICE_ACTOR_ENGINE,
+    voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedTakeContract,
+    VoiceLabStoragePaths, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::get_voice_lab_guided_recording_state;
@@ -26,7 +26,9 @@ use super::voice_lab_recording::get_voice_lab_guided_recording_state;
 mod evaluation;
 
 pub use evaluation::VoiceLabEvaluationSample;
-use evaluation::{evaluation_dir, evaluation_manifest, held_out_contract};
+use evaluation::{
+    evaluation_dir, evaluation_manifest, held_out_contract, MAX_EVALUATION_WAV_BYTES,
+};
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
 const CANCEL_WAIT: Duration = Duration::from_secs(10);
@@ -72,10 +74,6 @@ const TRAINING_COVERAGE_GROUPS: &[TrainingCoverageGroup] = &[
         label: "longer explanations",
     },
 ];
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-
-#[derive(Debug, Clone, Deserialize)]
 
 #[derive(Debug, Clone, Deserialize)]
 struct BuildChildStatusFile {
