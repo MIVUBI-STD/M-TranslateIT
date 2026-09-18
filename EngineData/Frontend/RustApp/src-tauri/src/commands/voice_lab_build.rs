@@ -18,13 +18,11 @@ use super::voice_lab::{
     finish_voice_lab_build, mark_voice_lab_build_evaluating, mark_voice_lab_build_training,
     prepare_guided_dataset, promote_voice_actor_candidate, request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedEvaluationLineContract,
-    GuidedTakeContract, VoiceLabStoragePaths,
+    GuidedTakeContract, VoiceLabStoragePaths, VOICE_ACTOR_VOICE_ACTOR_ENGINE,
+    VOICE_ACTOR_VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::get_voice_lab_guided_recording_state;
 
-const SCHEMA_VERSION: u32 = 1;
-const ENGINE: &str = "gpt-sovits-v2proplus";
-const ENGINE_REVISION: &str = "d523079fc05d9a8028d6085bffe4a2757c32abb6";
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
 const MAX_EVALUATION_WAV_BYTES: u64 = 16 * 1024 * 1024;
 const CANCEL_WAIT: Duration = Duration::from_secs(10);
@@ -248,9 +246,9 @@ fn child_status(paths: &VoiceLabStoragePaths) -> Option<BuildChildStatusFile> {
         return None;
     }
     let value = serde_json::from_slice::<BuildChildStatusFile>(&bytes).ok()?;
-    (value.schema_version == SCHEMA_VERSION
-        && value.engine == ENGINE
-        && value.engine_revision == ENGINE_REVISION)
+    (value.schema_version == VOICE_LAB_SCHEMA_VERSION
+        && value.engine == VOICE_ACTOR_ENGINE
+        && value.engine_revision == VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION)
         .then_some(value)
 }
 
@@ -261,9 +259,9 @@ fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifes
         return None;
     }
     let manifest = serde_json::from_slice::<EvaluationManifest>(&bytes).ok()?;
-    if manifest.schema_version != SCHEMA_VERSION
-        || manifest.engine != ENGINE
-        || manifest.engine_revision != ENGINE_REVISION
+    if manifest.schema_version != VOICE_LAB_SCHEMA_VERSION
+        || manifest.engine != VOICE_ACTOR_ENGINE
+        || manifest.engine_revision != VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION
         || manifest.samples.len() != HELD_OUT_LINES.len()
     {
         return None;
@@ -408,7 +406,7 @@ fn preflight_assets() -> Result<(PathBuf, PathBuf), String> {
     }
     let marker = source.join("TRANSLATEIT_GPTSOVITS_REVISION.txt");
     let revision = fs::read_to_string(marker).unwrap_or_default();
-    if revision.trim() != ENGINE_REVISION {
+    if revision.trim() != VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION {
         return Err("VoiceLab model assets do not match this TranslateIT build.".to_string());
     }
     Ok((script, source))
@@ -481,7 +479,7 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
     let paths = VoiceLabStoragePaths::from_project_paths(&project_paths);
     let (takes, _) = accepted_contract();
     let manifest = GuidedDatasetManifest {
-        schema_version: SCHEMA_VERSION,
+        schema_version: VOICE_LAB_SCHEMA_VERSION,
         authorized_voice_confirmed: true,
         takes,
         held_out_lines: held_out_contract(),
@@ -663,7 +661,7 @@ pub fn select_builtin_voice(
         );
     }
 
-    match install_builtin_voice(&project_paths, &voice_id, &target, ENGINE_REVISION) {
+    match install_builtin_voice(&project_paths, &voice_id, &target, VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION) {
         Ok(()) => {
             invalidate_required_outbound_readiness_for_voice_change();
             let label = voice_id.trim_end_matches("Voice").to_lowercase();

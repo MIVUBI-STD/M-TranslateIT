@@ -15,9 +15,9 @@ use storage::{
 };
 
 const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
-const VOICE_LAB_SCHEMA_VERSION: u32 = 1;
-const VOICE_ACTOR_ENGINE: &str = "gpt-sovits-v2proplus";
-const VOICE_ACTOR_ENGINE_REVISION: &str = "d523079fc05d9a8028d6085bffe4a2757c32abb6";
+pub(super) const VOICE_LAB_SCHEMA_VERSION: u32 = 1;
+pub(super) const VOICE_ACTOR_ENGINE: &str = "gpt-sovits-v2proplus";
+pub(super) const VOICE_ACTOR_ENGINE_REVISION: &str = "d523079fc05d9a8028d6085bffe4a2757c32abb6";
 const ACTOR_MANIFEST_FILE: &str = "actor.json";
 const GPT_WEIGHT_FILE: &str = "gpt.ckpt";
 const SOVITS_WEIGHT_FILE: &str = "sovits.pth";
