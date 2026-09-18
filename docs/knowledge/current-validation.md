@@ -12,30 +12,30 @@ one SHA does not prove another SHA. A later documentation-only commit may record
 
 ## Current Source Proof
 
-Source identity:
+Current source identity:
 
 ```text
-a8ce3e11040b5511a9e0eed012e04bb04c72cc4a
-fix(voice): invalidate failed synthesis runtime
+bee7e2293ed775feb74332c6694ff186f77f89cb
+fix(voice): restore storage test imports
 ```
 
 Matching proof:
 
 ```text
-Code Health                 35332249945  PASS
-MiLMMT Repository Contract  35332249965  PASS
+Code Health  35333999260  PASS
 ```
 
-The matching Code Health run establishes the selected frontend, Rust, and Python source-health surfaces for that exact source identity.
+That exact-head run passed frontend source health, Linux Rust compiler/Clippy/unit tests, and hosted Windows Rust compiler/Clippy/unit tests. Python was not selected because the exact-head change was Rust-only.
 
-Latest later source candidate:
+The Python/MiLMMT source in this tree is unchanged from:
 
 ```text
-aa25d6c515937e8bba5973a455ce7e2cdf39afd6
-feat(diagnostics): expose outbound performance metrics
+a8ce3e11040b5511a9e0eed012e04bb04c72cc4a
 ```
 
-This candidate also includes the later reliability/validation repairs after `a8ce3e11...` and exposes existing outbound timing plus queue/drop counters in Diagnostics. Until matching Code Health completes, treat it as **SOURCE PRESENT / EXACT-HEAD EXECUTED PROOF PENDING**, not PASS.
+where Code Health `35332249945` and MiLMMT Repository Contract `35332249965` passed.
+
+one SHA does not prove another SHA. Claims must use the matching proof surface for the source domain that changed.
 
 ## Current Source Claims
 
