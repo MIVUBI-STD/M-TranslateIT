@@ -21,8 +21,7 @@ mod suppression;
 use committed_turns::current_committed_turn_snapshot;
 use outbound_pipeline::process_outbound_wav;
 use preflight::current_status;
-use suppression::{begin_self_output_suppression, disable_optional_incoming_for_outbound};
-use session_state::{incoming_lane_enabled, record_first_playback_timing, OutboundTimingContext};
+use session_state::{incoming_lane_enabled, OutboundTimingContext};
 
 const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 
@@ -288,7 +287,8 @@ mod b3_preflight_snapshot_tests {
 
 #[cfg(test)]
 mod c2_latency_tests {
-    use super::{record_first_playback_timing, MeetingOutboundTiming, OutboundTimingContext};
+    use super::{MeetingOutboundTiming, OutboundTimingContext};
+    use super::session_state::record_first_playback_timing;
     use std::time::{Duration, Instant};
 
     #[test]

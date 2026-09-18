@@ -14,7 +14,7 @@ struct MeetingSelfOutputSuppression {
     active: Arc<AtomicBool>,
 }
 
-struct SelfOutputSuppressionGuard {
+pub(super) struct SelfOutputSuppressionGuard {
     active: Arc<AtomicBool>,
 }
 

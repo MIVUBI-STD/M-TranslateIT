@@ -10,7 +10,7 @@ Repository: `MIVUBI-STD/M-TranslateIT`
 
 One SHA never proves another SHA. A later documentation-only commit may record proof without changing the validated runtime/source identity.
 
-## Latest Proven Source
+## Current Source Proof
 
 Source identity:
 
@@ -54,7 +54,7 @@ The modernized source now establishes, subject to exact-head proof for the SHA b
 - MiLMMT remains the single canonical bidirectional translation model and keeps the established deterministic/context contracts;
 - existing latency hardening remains intact: bounded capture storage, efficient finalized WAV preparation, deterministic MiLMMT generation/KV cache, warm actor reuse, and V2ProPlus reference-speaker embedding caching.
 
-## Verification Surfaces
+## Verification surfaces
 
 ```text
 Repository Verify
@@ -89,6 +89,8 @@ It does **not** prove actual Windows microphone/device behavior, real CUDA throu
 ### LOCAL_CODE
 
 Can additionally prove the exact checkout/toolchain/filesystem/build that actually ran locally. It still does not automatically prove real target-device acceptance.
+
+## Target Windows
 
 ### TARGET_WINDOWS / NATIVE_ACCEPTANCE
 

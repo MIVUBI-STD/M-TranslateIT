@@ -18,6 +18,10 @@ use crate::engine::runtime_state::{
 
 use super::voice_lab::{current_voice_lab_build_snapshot, VoiceLabStoragePaths};
 
+mod storage_transaction;
+
+use storage_transaction::{accept_review_take, discard_review_take};
+
 const CAPTURE_OWNER_ID: &str = "translateit_rust_live_capture";
 const MAX_REPLAY_WAV_BYTES: u64 = 8 * 1024 * 1024;
 
@@ -367,15 +371,9 @@ pub fn retry_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult 
         return result(false, "line_mismatch", "The pending review take belongs to another guided line.");
     }
     let path = draft.path.clone();
-    if path.exists() {
-        if let Err(error) = fs::remove_file(&path) {
-            drop(guard);
-            return result(
-                false,
-                "discard_failed",
-                format!("VoiceLab could not remove the review take safely: {error}"),
-            );
-        }
+    if let Err(error) = discard_review_take(&path) {
+        drop(guard);
+        return result(false, "discard_failed", error);
     }
     *guard = None;
     drop(guard);
@@ -407,52 +405,10 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
             return result(false, "save_failed", format!("VoiceLab could not prepare take storage: {error}"));
         }
     }
-    let previous = target.with_extension("wav.previous");
-    if previous.exists() && !target.exists() {
-        if let Err(error) = fs::rename(&previous, &target) {
-            drop(guard);
-            return result(
-                false,
-                "save_failed",
-                format!(
-                    "VoiceLab found an interrupted previous-take backup but could not restore it safely: {error}"
-                ),
-            );
-        }
-    }
-    if previous.exists() && target.exists() {
-        if let Err(error) = fs::remove_file(&previous) {
-            drop(guard);
-            return result(
-                false,
-                "save_failed",
-                format!("VoiceLab could not clear the stale previous-take backup safely: {error}"),
-            );
-        }
-    }
-    if target.exists() {
-        if let Err(error) = fs::rename(&target, &previous) {
-            drop(guard);
-            return result(false, "save_failed", format!("VoiceLab could not preserve the previous accepted take: {error}"));
-        }
-    }
-    if let Err(error) = fs::rename(&draft.path, &target) {
-        if previous.exists() && !target.exists() {
-            if let Err(rollback_error) = fs::rename(&previous, &target) {
-                drop(guard);
-                return result(
-                    false,
-                    "save_failed",
-                    format!(
-                        "VoiceLab could not accept this take: {error}; previous accepted take rollback also failed: {rollback_error}"
-                    ),
-                );
-            }
-        }
+    if let Err(error) = accept_review_take(&draft.path, &target) {
         drop(guard);
-        return result(false, "save_failed", format!("VoiceLab could not accept this take: {error}"));
+        return result(false, "save_failed", error);
     }
-    if previous.exists() { let _ = fs::remove_file(previous); }
     *guard = None;
     drop(guard);
     result(true, "accepted", "Take accepted and saved for the Voice Actor dataset.")
