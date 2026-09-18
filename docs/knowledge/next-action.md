@@ -9,7 +9,9 @@
 - My Voice live inference remains isolated from one-shot build/training/evaluation/package construction.
 - Earlier flow hardening remains active across setup, virtual-route ownership, Starting rollback, native exit, helper lifecycle, readiness invalidation, and recording/build handoff.
 - Diagnostics expose outbound stage timing, queue/drop counters, and translation tokenize/inference/decode/throughput breakdown needed for target performance evidence.
-- Translation quality tooling now compares baseline vs candidate critical regressions, reports grouped critical-pass-rate deltas, emits authorized outbound Meeting-context evaluation requests, and carries a 35-case semantic-risk corpus.
+- Translation quality tooling compares matched baseline/candidate evidence with provenance and a 35-case semantic-risk corpus.
+- ASR quality tooling carries 28 linguistic/acoustic/device cases with WER/CER, critical regression and provenance gates.
+- TTS/My Voice quality tooling carries 10 held-out synthesis cases combining speaker similarity, intelligibility, artifact flags and provenance; audible acceptance remains native evidence.
 
 ## Active Boundary
 

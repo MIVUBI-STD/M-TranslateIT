@@ -36,6 +36,8 @@ Subject to matching proof for the changed domain, current source establishes:
 - latency hardening through bounded capture, finalized-WAV preparation, deterministic KV-cached MiLMMT generation, warm actor reuse, and reference-speaker embedding caching;
 - Meeting Diagnostics with queue/drop plus translation tokenize/inference/decode/throughput telemetry;
 - translation-quality tooling with baseline-vs-candidate critical regression detection, grouped critical-pass-rate deltas, authorized Meeting-context requests, and a 35-case semantic-risk corpus;
+- ASR quality tooling with a 28-case linguistic/acoustic/device corpus, WER/CER, grouped critical rates, matched provenance, and baseline-vs-candidate regression comparison;
+- TTS/My Voice quality tooling with a 10-case held-out synthesis corpus, speaker-similarity/intelligibility/artifact evidence, matched provenance, and fail-closed regression comparison;
 - My Voice live inference isolated from one-shot dataset/training/evaluation/package construction.
 
 ## Verification surfaces
@@ -52,6 +54,12 @@ Code Health
 
 MiLMMT Repository Contract
 → canonical translation provider/repository contract
+
+ASR Quality Contract
+→ ASR corpus/evaluator + canonical ASR source contract
+
+TTS Quality Contract
+→ TTS/My Voice corpus/evaluator + canonical held-out voice-evaluation source contract
 
 WorkerRuntime Lock Consistency
 → Python dependency-lock integrity
