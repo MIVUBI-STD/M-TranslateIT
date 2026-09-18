@@ -34,9 +34,13 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Meeting frontend polling / committed-turn refresh | `EngineData/Frontend/RustApp/src/app/runtime/meetingPoll.ts` |
 | Native close dialog presentation | `EngineData/Frontend/RustApp/src/components/runtime/NativeCloseDialog.svelte` |
 | First-setup navigation presentation | `EngineData/Frontend/RustApp/src/components/setup/SetupNavigation.svelte` |
+| Setup checkpoint decode/encode + safe resume policy | `EngineData/Frontend/RustApp/src/app/runtime/setupFlow.ts` |
 | Native safe-close I/O / close decision policy | `EngineData/Frontend/RustApp/src/app/runtime/nativeCloseRuntime.ts` + `closePolicy.ts` |
 | Rust app bootstrap / command registration | `EngineData/Frontend/RustApp/src-tauri/src/app_bootstrap.rs`, `commands/registry.rs` |
+| Native process-exit fail-safe / helper shutdown | `src-tauri/src/main.rs` + `commands/helper_bridge.rs` |
 | Meeting public command/status facade | `EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session.rs` |
+| Fresh Meeting virtual-route preparation | `EngineData/Frontend/RustApp/src-tauri/src/commands/runtime.rs` → `commands/virtual_mic_route.rs` |
+| Generation-bound route binding | `commands/meeting_session/lifecycle.rs` → `commands/virtual_mic_route.rs` |
 | Meeting Start/Stop lifecycle transactions | `commands/meeting_session/lifecycle.rs` + `engine/runtime_state.rs` |
 | Meeting preflight/status derivation | `commands/meeting_session/preflight.rs` + `session_state.rs` |
 | Meeting consumer ownership | `commands/meeting_session/consumer_runtime.rs` |
@@ -62,6 +66,8 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | My Voice build/inference | `voice_lab_build.py`, `voice_lab_gpt_sovits.py`, Rust `commands/voice_lab*.rs` |
 | My Voice dataset/storage/package validation/promotion | Rust `commands/voice_lab/storage.rs` |
 | My Voice guided recording/review transaction | Rust `commands/voice_lab_recording.rs` |
+| My Voice guided prompt corpus | Rust `commands/voice_lab_recording/guided_lines.rs` |
+| My Voice accepted-recording domain query | Rust `commands/voice_lab_recording.rs` consumed by `voice_lab_build.rs` |
 | My Voice held-out evaluation contract | Rust `commands/voice_lab_build/evaluation.rs` |
 | Built-in Meeting voice selection/reference assets | Rust `commands/voice_lab_build.rs`, `RuntimeAssets/Voice/BuiltInVoices/`, frontend My Voice bridge/page |
 

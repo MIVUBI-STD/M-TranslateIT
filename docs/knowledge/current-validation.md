@@ -15,25 +15,19 @@ one SHA does not prove another SHA. A later documentation-only commit may record
 Current source identity:
 
 ```text
-bee7e2293ed775feb74332c6694ff186f77f89cb
-fix(voice): restore storage test imports
+49a7db2fcb511c822b3379924397fe4fd888863d
+test(route): lock prepare and bind ownership
 ```
 
 Matching proof:
 
 ```text
-Code Health  35333999260  PASS
+Code Health  35368207537  PASS
 ```
 
-That exact-head run passed frontend source health, Linux Rust compiler/Clippy/unit tests, and hosted Windows Rust compiler/Clippy/unit tests. Python was not selected because the exact-head change was Rust-only.
+That exact-head run passed the path-selected frontend/Rust/Python health gates required by the changed source domains, including source-size, bridge/reachability/virtual-route contracts, compiler/dead-code, Clippy, and unit tests where selected.
 
-The Python/MiLMMT source in this tree is unchanged from:
-
-```text
-a8ce3e11040b5511a9e0eed012e04bb04c72cc4a
-```
-
-where Code Health `35332249945` and MiLMMT Repository Contract `35332249965` passed.
+Earlier MiLMMT contract proof remains owned by `a8ce3e11040b5511a9e0eed012e04bb04c72cc4a` / run `35332249965` for the unchanged canonical translation contract.
 
 one SHA does not prove another SHA. Claims must use the matching proof surface for the source domain that changed.
 
@@ -52,6 +46,14 @@ The modernized source now establishes, subject to exact-head proof for the SHA b
 - storage/promotion validates actor package identity, canonical WAV shape, held-out evaluation, staging, rollback, and interrupted promotion recovery;
 - CPU fallback remains explicit degraded operation for known capability absence; broad cloud/parallel fallback is absent;
 - MiLMMT remains the single canonical bidirectional translation model and keeps the established deterministic/context contracts;
+- First Setup persists compact step 4 through a legacy-safe checkpoint encoding, so relaunch does not regress to the route step;
+- fresh Meeting Start has one route-preparation owner in `commands/runtime.rs`; lifecycle binds that exact prepared pair to the authoritative generation before resource activation, and the validator forbids duplicate preparation;
+- common Starting rollback cleanup has one lifecycle owner instead of repeated cleanup tails;
+- native exit blocks active/pending My Voice and non-Meeting runtime ownership, converges Meeting Stop, and explicitly shuts down the helper worker before process exit;
+- public helper Start is idempotent when the canonical worker is already ready;
+- suspend/resume invalidates cached functional readiness even if the helper survives;
+- diagnostic/setup readiness reuses only proof bound to the current helper generation; Meeting Start still performs generation-bound functional proof;
+- My Voice build consumes narrow recording-domain facts rather than the full UI recording DTO; the guided prompt corpus has its own static owner;
 - existing latency hardening remains intact: bounded capture storage, efficient finalized WAV preparation, deterministic MiLMMT generation/KV cache, warm actor reuse, and V2ProPlus reference-speaker embedding caching.
 
 ## Verification surfaces
