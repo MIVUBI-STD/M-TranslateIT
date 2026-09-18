@@ -264,15 +264,10 @@ pub fn observe_finalized_incoming_i32_samples(
     sample_rate_hz: u32,
     source_channels: u16,
 ) {
-    let converted = samples
-        .iter()
-        .map(|sample| (*sample as f64 / i32::MAX as f64).clamp(-1.0, 1.0) as f32)
-        .collect::<Vec<_>>();
-    observe_finalized_mono_samples(
-        incoming_sync(),
-        &downmix_f32(&converted, source_channels),
-        sample_rate_hz,
-    );
+    let mono = convert_and_downmix(samples, source_channels, |sample| {
+        (sample as f64 / i32::MAX as f64).clamp(-1.0, 1.0) as f32
+    });
+    observe_finalized_mono_samples(incoming_sync(), &mono, sample_rate_hz);
 }
 
 pub fn observe_finalized_incoming_i64_samples(
@@ -280,15 +275,10 @@ pub fn observe_finalized_incoming_i64_samples(
     sample_rate_hz: u32,
     source_channels: u16,
 ) {
-    let converted = samples
-        .iter()
-        .map(|sample| (*sample as f64 / i64::MAX as f64).clamp(-1.0, 1.0) as f32)
-        .collect::<Vec<_>>();
-    observe_finalized_mono_samples(
-        incoming_sync(),
-        &downmix_f32(&converted, source_channels),
-        sample_rate_hz,
-    );
+    let mono = convert_and_downmix(samples, source_channels, |sample| {
+        (sample as f64 / i64::MAX as f64).clamp(-1.0, 1.0) as f32
+    });
+    observe_finalized_mono_samples(incoming_sync(), &mono, sample_rate_hz);
 }
 
 pub fn observe_finalized_incoming_u8_samples(
@@ -296,15 +286,10 @@ pub fn observe_finalized_incoming_u8_samples(
     sample_rate_hz: u32,
     source_channels: u16,
 ) {
-    let converted = samples
-        .iter()
-        .map(|sample| ((*sample as f32 / u8::MAX as f32) * 2.0 - 1.0).clamp(-1.0, 1.0))
-        .collect::<Vec<_>>();
-    observe_finalized_mono_samples(
-        incoming_sync(),
-        &downmix_f32(&converted, source_channels),
-        sample_rate_hz,
-    );
+    let mono = convert_and_downmix(samples, source_channels, |sample| {
+        ((sample as f32 / u8::MAX as f32) * 2.0 - 1.0).clamp(-1.0, 1.0)
+    });
+    observe_finalized_mono_samples(incoming_sync(), &mono, sample_rate_hz);
 }
 
 fn observe_f32(
@@ -327,15 +312,10 @@ fn observe_i16(
     sample_rate_hz: u32,
     source_channels: u16,
 ) {
-    let converted = samples
-        .iter()
-        .map(|sample| (*sample as f32 / i16::MAX as f32).clamp(-1.0, 1.0))
-        .collect::<Vec<_>>();
-    observe_finalized_mono_samples(
-        sync,
-        &downmix_f32(&converted, source_channels),
-        sample_rate_hz,
-    );
+    let mono = convert_and_downmix(samples, source_channels, |sample| {
+        (sample as f32 / i16::MAX as f32).clamp(-1.0, 1.0)
+    });
+    observe_finalized_mono_samples(sync, &mono, sample_rate_hz);
 }
 
 fn observe_finalized_mono_samples(
@@ -636,6 +616,30 @@ fn reset_current_utterance(state: &mut FinalizedProducerState) {
     state.pre_roll.clear();
 }
 
+fn convert_and_downmix<T: Copy>(
+    samples: &[T],
+    source_channels: u16,
+    convert: impl Fn(T) -> f32,
+) -> Vec<f32> {
+    let channel_count = usize::from(source_channels.max(1));
+    if channel_count == 1 {
+        return samples.iter().copied().map(convert).map(safe_sample).collect();
+    }
+
+    samples
+        .chunks(channel_count)
+        .map(|frame| {
+            let sum = frame
+                .iter()
+                .copied()
+                .map(&convert)
+                .map(safe_sample)
+                .sum::<f32>();
+            sum / frame.len().max(1) as f32
+        })
+        .collect()
+}
+
 fn downmix_f32(samples: &[f32], source_channels: u16) -> Vec<f32> {
     let channel_count = usize::from(source_channels.max(1));
     if channel_count == 1 {
@@ -790,6 +794,18 @@ mod tests {
         let mut retained = Vec::new();
         extend_safe_samples(&mut retained, &[f32::NAN, 2.0, -2.0, 0.25]);
         assert_eq!(retained, vec![0.0, 1.0, -1.0, 0.25]);
+
+        let i16_mono = convert_and_downmix(&[i16::MAX, 0, i16::MIN], 1, |sample| {
+            (sample as f32 / i16::MAX as f32).clamp(-1.0, 1.0)
+        });
+        assert_eq!(i16_mono, vec![1.0, 0.0, -1.0]);
+
+        let stereo = convert_and_downmix(&[i16::MAX, 0, 0, i16::MIN], 2, |sample| {
+            (sample as f32 / i16::MAX as f32).clamp(-1.0, 1.0)
+        });
+        assert_eq!(stereo.len(), 2);
+        assert!((stereo[0] - 0.5).abs() < 0.0001);
+        assert!((stereo[1] + 0.5).abs() < 0.0001);
     }
 
     fn silence_of(rate: u32, ms: u32) -> Vec<f32> {
