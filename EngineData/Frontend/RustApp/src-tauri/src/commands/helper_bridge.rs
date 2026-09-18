@@ -1,6 +1,5 @@
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::fs;
 use std::io::BufReader;
 use std::process::{Command, Stdio};
 
@@ -28,10 +27,8 @@ mod request_policy;
 
 use functional_probe::run_required_outbound_ai_probe;
 use functional_readiness::{
-    decorate_functional_readiness_status, failed_required_outbound_task_invalidates_cache,
-    functional_asr_output, functional_translation_output, functional_voice_actor_output_path,
-    invalidate_required_outbound_ai_readiness, remember_required_outbound_functional_readiness,
-    worker_response_value,
+    decorate_functional_readiness_status, invalidate_required_outbound_ai_readiness,
+    remember_required_outbound_functional_readiness,
 };
 pub use functional_readiness::required_outbound_voice_actor_token;
 use request_policy::{
@@ -40,7 +37,6 @@ use request_policy::{
     meeting_lane, meeting_outbound_pipeline_active, meeting_session_id, task_priority,
 };
 
-const REQUIRED_OUTBOUND_FUNCTIONAL_ID_FIXTURE: &str = "selamat pagi";
 const REQUIRED_OUTBOUND_FUNCTIONAL_VOICE_OUTPUT: &str =
     "UserData/CacheData/helper_functional_readiness/required_outbound_myvoice.wav";
 const REQUIRED_OUTBOUND_DIAGNOSTIC_VOICE_OUTPUT: &str =
@@ -965,9 +961,12 @@ pub fn helper_bridge_worker_status() -> HelperBridgeWorkerResponse {
 #[cfg(test)]
 mod c4_functional_readiness_tests {
     use super::{
+        helper_transport_failure, live_outbound_stage_retry_safe, HelperBridgeWorkerResponse,
+        HelperTaskPriority,
+    };
+    use super::functional_readiness::{
         failed_required_outbound_task_invalidates_cache, functional_asr_output,
-        functional_translation_output, helper_transport_failure, live_outbound_stage_retry_safe,
-        HelperBridgeWorkerResponse, HelperTaskPriority,
+        functional_translation_output,
     };
 
     fn response(ok: bool, body: &str) -> HelperBridgeWorkerResponse {

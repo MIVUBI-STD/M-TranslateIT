@@ -9,6 +9,8 @@ use super::functional_readiness::{
 };
 use super::{get_helper_bridge_status, send_worker_task, worker_text};
 
+const REQUIRED_OUTBOUND_FUNCTIONAL_ID_FIXTURE: &str = "selamat pagi";
+
 pub(super) fn run_required_outbound_ai_probe(
     meeting_generation: Option<u64>,
     output_path: &str,
