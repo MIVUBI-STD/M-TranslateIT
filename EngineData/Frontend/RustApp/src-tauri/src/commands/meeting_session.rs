@@ -60,7 +60,7 @@ use outbound_pipeline::process_outbound_wav;
 use session_state::{
     clear_all_start_preflight, clear_incoming_status, clear_outbound_status,
     clear_start_preflight_for_generation, current_incoming_status, current_outbound_status,
-    current_start_preflight, elapsed_millis, incoming_status_store,
+    current_start_preflight, elapsed_millis, incoming_lane_enabled,
     mark_incoming_cleanup_incomplete_status, record_first_playback_timing,
     remember_start_preflight, set_outbound_timing,
     timing_context_from_utterance, update_incoming_status, update_outbound_status,
@@ -469,13 +469,7 @@ fn generation_is_starting(generation: u64) -> bool {
 }
 
 fn incoming_session_is_eligible(session_id: &str) -> bool {
-    let lane_enabled = incoming_status_store()
-        .lock()
-        .map(|status| {
-            !(status.session_id.as_deref() == Some(session_id) && status.stage == "disabled")
-        })
-        .unwrap_or(false);
-    if !lane_enabled {
+    if !incoming_lane_enabled(session_id) {
         return false;
     }
 

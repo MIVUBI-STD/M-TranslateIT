@@ -67,7 +67,7 @@ pub(super) fn outbound_status_store() -> &'static Mutex<MeetingOutboundRuntimeSt
     MEETING_OUTBOUND_STATUS.get_or_init(|| Mutex::new(idle_outbound_status()))
 }
 
-pub(super) pub(super) fn incoming_status_store() -> &'static Mutex<MeetingIncomingRuntimeStatus> {
+fn incoming_status_store() -> &'static Mutex<MeetingIncomingRuntimeStatus> {
     MEETING_INCOMING_STATUS.get_or_init(|| Mutex::new(idle_incoming_status()))
 }
 
@@ -109,6 +109,15 @@ pub(super) fn current_outbound_status() -> MeetingOutboundRuntimeStatus {
         .lock()
         .map(|status| status.clone())
         .unwrap_or_else(|_| idle_outbound_status())
+}
+
+pub(super) fn incoming_lane_enabled(session_id: &str) -> bool {
+    incoming_status_store()
+        .lock()
+        .map(|status| {
+            !(status.session_id.as_deref() == Some(session_id) && status.stage == "disabled")
+        })
+        .unwrap_or(false)
 }
 
 pub(super) fn current_incoming_status() -> MeetingIncomingRuntimeStatus {
