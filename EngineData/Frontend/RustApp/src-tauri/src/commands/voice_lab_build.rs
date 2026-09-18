@@ -325,7 +325,7 @@ fn current_status() -> VoiceLabBuildStatus {
     let missing_coverage = missing_training_coverage_group(&takes);
     let evaluation = evaluation_manifest(&paths);
     let child = child_status(&paths);
-    let approved_ready = approved_voice_actor_ready(&ProjectPaths::discover());
+    let approved_ready = approved_voice_actor_ready(&paths);
     let terminal_message = process_store()
         .0
         .lock()

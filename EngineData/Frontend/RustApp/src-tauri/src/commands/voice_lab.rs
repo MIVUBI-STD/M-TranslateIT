@@ -301,8 +301,8 @@ pub fn promote_voice_actor_candidate(paths: &ProjectPaths) -> Result<(), String>
     promote_voice_actor_candidate_at(&VoiceLabStoragePaths::from_project_paths(paths))
 }
 
-pub fn approved_voice_actor_ready(paths: &ProjectPaths) -> bool {
-    validate_actor_package(&VoiceLabStoragePaths::from_project_paths(paths).approved_actor_dir).is_ok()
+pub fn approved_voice_actor_ready(storage: &VoiceLabStoragePaths) -> bool {
+    validate_actor_package(&storage.approved_actor_dir).is_ok()
 }
 
 fn ensure_build_generation(generation: u64, phase: BuildPhase) -> Result<(), String> {
