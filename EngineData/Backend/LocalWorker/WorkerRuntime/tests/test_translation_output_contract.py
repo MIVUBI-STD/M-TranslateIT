@@ -205,3 +205,41 @@ def test_standalone_reassembly_is_fail_closed_above_total_output_limit(monkeypat
     assert result["chunk_count"] == 2
     assert result["complete"] is False
     assert result["finished_with_eos"] is True
+
+
+def test_standalone_aggregates_chunk_translation_telemetry(monkeypatch) -> None:
+    worker = load_worker_module()
+    install_fake_standalone_runtime(worker, monkeypatch)
+    calls = 0
+
+    def fake_translate(_payload):
+        nonlocal calls
+        calls += 1
+        result = success_result(f"translated {calls}")
+        result.update(
+            {
+                "tokenization_ms": 1.25 * calls,
+                "inference_ms": 10.0 * calls,
+                "decode_ms": 0.5 * calls,
+            }
+        )
+        return result
+
+    set_original_translate(worker, monkeypatch, fake_translate)
+
+    result = worker.runtime.HANDLERS["translate"](
+        {
+            "text": "First sentence. Second sentence.",
+            "source_language": "id",
+            "target_language": "en",
+            "request_kind": "standalone_text",
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["chunk_count"] == 2
+    assert result["tokenization_ms"] == 3.75
+    assert result["inference_ms"] == 30.0
+    assert result["decode_ms"] == 1.5
+    assert result["generated_tokens"] == 6
+    assert result["inference_tokens_per_second"] == 200.0

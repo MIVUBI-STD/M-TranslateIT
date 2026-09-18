@@ -365,6 +365,7 @@ def handle_standalone_text_translate(payload: dict[str, Any]) -> dict[str, Any]:
         chunk_total = sum(len(paragraph) for paragraph in plan)
         outputs: list[list[str]] = []
         input_tokens = generated_tokens = max_budget = 0
+        tokenization_ms = inference_ms = decode_ms = 0.0
         hit_ceiling = False
         last: dict[str, Any] | None = None
         chunk_index = 0
@@ -408,6 +409,9 @@ def handle_standalone_text_translate(payload: dict[str, Any]) -> dict[str, Any]:
                 translated_paragraph.append(translated)
                 input_tokens += int(result.get("input_tokens") or 0)
                 generated_tokens += int(result.get("generated_tokens") or 0)
+                tokenization_ms += float(result.get("tokenization_ms") or 0.0)
+                inference_ms += float(result.get("inference_ms") or 0.0)
+                decode_ms += float(result.get("decode_ms") or 0.0)
                 max_budget = max(max_budget, int(result.get("generation_budget_tokens") or 0))
                 hit_ceiling = hit_ceiling or bool(result.get("hit_token_ceiling"))
                 last = result
@@ -429,6 +433,14 @@ def handle_standalone_text_translate(payload: dict[str, Any]) -> dict[str, Any]:
                 "generated_tokens": generated_tokens,
                 "generation_budget_tokens": max_budget,
                 "hit_token_ceiling": hit_ceiling,
+                "tokenization_ms": round(tokenization_ms, 2),
+                "inference_ms": round(inference_ms, 2),
+                "decode_ms": round(decode_ms, 2),
+                "inference_tokens_per_second": (
+                    round(generated_tokens / (inference_ms / 1000.0), 2)
+                    if inference_ms > 0
+                    else None
+                ),
                 "chunk_count": chunk_total,
                 "paragraph_count": len(plan),
                 "paragraph_structure_preserved": True,
