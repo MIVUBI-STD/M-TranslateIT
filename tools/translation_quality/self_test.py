@@ -22,7 +22,7 @@ def main() -> int:
     corpus = evaluator.load_corpus(CORPUS)
     validation = evaluator.validate_corpus(corpus)
     assert validation["ok"], validation
-    assert validation["case_count"] >= 26
+    assert validation["case_count"] >= 35
     assert set(validation["directions"]) == {"en-id", "id-en"}
     assert {
         "prompt_boundary",
@@ -30,6 +30,10 @@ def main() -> int:
         "repetition",
         "input_normalization",
         "contextual_meeting",
+        "modality_uncertainty",
+        "conditional_meaning",
+        "quantifier_scope",
+        "spoken_disfluency",
     }.issubset(set(validation["categories"]))
 
     perfect = {case["id"]: case["references"][0] for case in corpus["cases"]}

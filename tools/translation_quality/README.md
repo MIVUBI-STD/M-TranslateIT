@@ -21,7 +21,9 @@ It deliberately separates **quality measurement** from **quality claims**:
 - instruction-like/prompt-boundary text;
 - Unicode and exact technical literals;
 - repetition and unusual whitespace;
-- bounded outbound Meeting context, including correction/reference/terminology cases.
+- bounded outbound Meeting context, including correction/reference/terminology cases;
+- uncertainty/modality and conditional meaning;
+- quantifier scope and spoken disfluency.
 
 Cases may also contain up to three `context_pairs`. Those cases are emitted through the same authorized outbound Meeting-context shape used by the worker policy; standalone cases remain context-free.
 

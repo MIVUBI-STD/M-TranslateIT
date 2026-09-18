@@ -694,6 +694,173 @@
         "can be merged now",
         "merge it now"
       ]
+    },
+    {
+      "id": "id-en-modality-001",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Mungkin kita bisa deploy malam ini, tapi belum pasti.",
+      "references": [
+        "We might be able to deploy tonight, but it's not certain.",
+        "We may be able to deploy tonight, but it's not confirmed yet."
+      ],
+      "preserve": [
+        "deploy"
+      ],
+      "required_any": [
+        [
+          "might",
+          "may"
+        ],
+        [
+          "not certain",
+          "not confirmed",
+          "not definite"
+        ]
+      ],
+      "forbidden": [
+        "we will deploy tonight",
+        "we are deploying tonight"
+      ]
+    },
+    {
+      "id": "en-id-modality-001",
+      "direction": "en-id",
+      "category": "modality_uncertainty",
+      "source": "We might move the release to Monday, but nothing is confirmed yet.",
+      "references": [
+        "Kita mungkin memindahkan rilis ke hari Senin, tetapi belum ada yang dikonfirmasi."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mungkin"
+        ],
+        [
+          "senin"
+        ],
+        [
+          "belum",
+          "tidak ada yang dikonfirmasi"
+        ]
+      ],
+      "forbidden": [
+        "rilis akan dipindahkan ke hari senin"
+      ]
+    },
+    {
+      "id": "id-en-conditional-001",
+      "direction": "id-en",
+      "category": "conditional_meaning",
+      "source": "Kalau review selesai hari ini, kita kirim build-nya besok.",
+      "references": [
+        "If the review is finished today, we'll send the build tomorrow.",
+        "If the review finishes today, we will send the build tomorrow."
+      ],
+      "preserve": [
+        "build"
+      ],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "review"
+        ],
+        [
+          "tomorrow"
+        ]
+      ],
+      "forbidden": [
+        "the review is finished today"
+      ]
+    },
+    {
+      "id": "en-id-conditional-001",
+      "direction": "en-id",
+      "category": "conditional_meaning",
+      "source": "If the server is stable, we can start the migration tonight.",
+      "references": [
+        "Jika server stabil, kita bisa memulai migrasi malam ini."
+      ],
+      "preserve": [
+        "server"
+      ],
+      "required_any": [
+        [
+          "jika",
+          "kalau"
+        ],
+        [
+          "bisa"
+        ],
+        [
+          "migrasi"
+        ],
+        [
+          "malam ini"
+        ]
+      ],
+      "forbidden": [
+        "kita akan memulai migrasi malam ini"
+      ]
+    },
+    {
+      "id": "id-en-quantifier-001",
+      "direction": "id-en",
+      "category": "quantifier_scope",
+      "source": "Hampir semua file sudah selesai, tapi dua masih perlu direvisi.",
+      "references": [
+        "Almost all files are finished, but two still need to be revised."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "almost all"
+        ],
+        [
+          "two"
+        ],
+        [
+          "revised",
+          "revision"
+        ]
+      ],
+      "forbidden": [
+        "all files are finished"
+      ]
+    },
+    {
+      "id": "id-en-disfluency-001",
+      "direction": "id-en",
+      "category": "spoken_disfluency",
+      "source": "Jadi, eh, yang ini mungkin kita tahan dulu, jangan dikirim sekarang.",
+      "references": [
+        "So, uh, maybe we should hold this one for now; don't send it yet.",
+        "So, um, we might want to hold this one for now and not send it yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "maybe",
+          "might"
+        ],
+        [
+          "hold"
+        ],
+        [
+          "do not send",
+          "don't send",
+          "not send"
+        ],
+        [
+          "yet",
+          "for now"
+        ]
+      ],
+      "forbidden": [
+        "send it now"
+      ]
     }
   ]
 }
