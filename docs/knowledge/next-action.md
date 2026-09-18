@@ -3,22 +3,40 @@
 ## Current Status
 
 - `Local` remains the sole active authority for development, governance, CI, proof, continuation, and release-source validation.
-- REMOTE_GITHUB behavior-preserving latency hardening is complete at source identity `a098b81e23f3cc2496259085be4f19c3d7cb72cf`; Rust/audio-preparation proof remains owned by `417302f5365978d1822bacf4c0d01383ebff73b3`.
-- Current source keeps the canonical models/quality settings while reducing callback allocation, ASR WAV I/O, unused ASR timestamp decoding, MiLMMT decoding overhead, warm actor validation, and repeated V2ProPlus reference-speaker embedding work.
-- Code Health run `34262942632` passed Python compile/static/format/pytest on Linux and hosted Windows. MiLMMT Repository Contract run `34262942664` passed.
-- D-036 now locks the stability-first latency direction. `docs/foundation/04-realtime-latency-architecture.md` defines four isolated evidence-gated phases: bounded one-ahead playback decoupling, optional persistent output stream, strong Start-proof rebinding, then quality-preserving TTS fragments only if still justified.
-- None of those architecture phases is claimed implemented merely because the design is now recorded.
+- The development foundation is modernized: capability gate, proof taxonomy, development discipline, toolchain authority, repository enforcement, and one thin Windows developer entrypoint are active.
+- Structural remediation is complete for the former large native-runtime debt:
+  - Meeting orchestration is split into lifecycle, preflight, state, consumer, suppression, incoming-activation, pipeline, and committed-turn owners.
+  - Helper bridge is split into transport, request policy, functional readiness/probe, runtime, and scheduler owners.
+  - My Voice storage/promotion is split from build lifecycle.
+  - Former large-file exemptions for `helper_bridge.rs`, `helper_bridge_runtime.rs`, `meeting_session.rs`, `voice_lab.rs`, and `voice_lab_build.rs` are removed. `voice_lab_recording.rs` keeps a stricter 24 KB ratchet, below the normal Rust 30 KB budget.
+- Targeted reliability hardening now also covers:
+  - prepared Meeting output cleanup when Start authority acquisition fails;
+  - fail-closed ownership of My Voice child build processes;
+  - transactional My Voice review/accept/rollback cleanup;
+  - generation-bound functional re-proof after live helper transport recovery;
+  - invalidation of a cached My Voice runtime after hard synthesis failure;
+  - removal of unowned review WAVs if draft state cannot be retained.
+- Source identity `a8ce3e11040b5511a9e0eed012e04bb04c72cc4a` passed Code Health run `35332249945` and MiLMMT Repository Contract run `35332249965`.
+- Latest source candidate `60c1cb334c611950beace20185bbfc2b78e04eca` adds only the final unowned-review-draft cleanup. Do not claim its exact-head Code Health PASS until the matching run completes.
 
 ## Active Boundary
 
-REMOTE_GITHUB design and safe per-inference optimization are complete.
+REMOTE_GITHUB can now establish the modernized source ownership, static/runtime contracts, CI source health, bounded recovery policy, and the targeted reliability fixes above.
 
-Physical mic/driver scheduling, real CUDA throughput, CPU/RAM/GPU/VRAM pressure, Meeting Microphone reception, Start → Live time, speaker quality and actual end-of-speech → first translated playback remain **TARGET WINDOWS PROOF REQUIRED**.
+It still cannot establish physical microphone scheduling, real CUDA throughput, CPU/RAM/GPU/VRAM pressure, Meeting Microphone reception inside the actual meeting application, Start → Live time, speaker fidelity, or real end-of-speech → first translated playback latency.
 
-Do not implement all latency phases at once. Do not weaken model/beam/context/VAD/voice quality, output ordering, at-most-once delivery, bounded queues, or functional readiness.
+Those remain **NATIVE_ACCEPTANCE / TARGET_WINDOWS proof**.
+
+Do not reopen structural decomposition merely because a file can be split further. New refactors require evidence of a wrong owner, duplicated truth, unsafe lifecycle, or measured bottleneck.
 
 ## Next Step
 
-Run `docs/knowledge/operations/target-windows-performance.md` on TARGET_WINDOWS using the built-in voice outbound-only baseline first and return the measured first bottleneck.
+1. Require exact-head Code Health for the latest source candidate.
+2. Once green, run `docs/knowledge/operations/target-windows-performance.md` on TARGET_WINDOWS using the built-in voice outbound-only baseline.
+3. Measure the first real bottleneck before changing architecture:
+   - continuous-speech queue growth → bounded playback/AI decoupling;
+   - native output open/delivery jitter → persistent output-stream work;
+   - warm Start dominated by functional proof → stronger proof reuse/rebinding;
+   - TTS still dominant → quality-preserving fragment delivery only if justified.
 
-Route only that owner into `docs/foundation/04-realtime-latency-architecture.md`: continuous-speech queue growth → Phase A; native delivery/open jitter after A → Phase B; warm Start dominated by repeated AI proof → Phase C; TTS still dominant after safer work → Phase D.
+Preserve translation/model/voice quality, generation authority, at-most-once delivery, bounded queues, and fail-closed readiness.

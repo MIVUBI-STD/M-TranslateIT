@@ -32,7 +32,12 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Meeting frontend polling / committed-turn refresh | `EngineData/Frontend/RustApp/src/app/runtime/meetingPoll.ts` |
 | Native safe-close I/O / close decision policy | `EngineData/Frontend/RustApp/src/app/runtime/nativeCloseRuntime.ts` + `closePolicy.ts` |
 | Rust app bootstrap / command registration | `EngineData/Frontend/RustApp/src-tauri/src/app_bootstrap.rs`, `commands/registry.rs` |
-| Meeting application lifecycle | `EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session.rs` + `engine/runtime_state.rs` |
+| Meeting public command/status facade | `EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session.rs` |
+| Meeting Start/Stop lifecycle transactions | `commands/meeting_session/lifecycle.rs` + `engine/runtime_state.rs` |
+| Meeting preflight/status derivation | `commands/meeting_session/preflight.rs` + `session_state.rs` |
+| Meeting consumer ownership | `commands/meeting_session/consumer_runtime.rs` |
+| Meeting outbound/incoming processing | `commands/meeting_session/outbound_pipeline.rs`, `incoming_pipeline.rs`, `incoming_deferred.rs` |
+| Meeting self-output suppression / optional incoming activation | `commands/meeting_session/suppression.rs`, `incoming_activation.rs` |
 | Settings persistence/runtime settings | Rust `commands/settings.rs` + `engine/settings.rs` and frontend settings surface |
 
 ## Local AI / translation / voice
@@ -41,9 +46,18 @@ This file maps semantic responsibility to the current owner. It does not carry m
 |---|---|
 | Canonical worker entry | `EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker.py` |
 | Worker orchestration/base | `realtime_local_worker_base.py`, `worker_io_runtime.py`, `worker_runtime_common.py` |
+| Rust helper public bridge/process lifecycle | `commands/helper_bridge.rs` |
+| Helper worker transactions + bounded recovery | `commands/helper_bridge/transport.rs` |
+| Helper request classification / Meeting priority policy | `commands/helper_bridge/request_policy.rs` |
+| Required outbound functional readiness / actor binding | `commands/helper_bridge/functional_readiness.rs` |
+| Required outbound end-to-end AI probe | `commands/helper_bridge/functional_probe.rs` |
+| Helper runtime state / worker I/O / deadlines | `commands/helper_bridge_runtime.rs` |
+| Helper scheduler / admission / permit priority | `commands/helper_bridge_runtime/scheduler.rs` |
 | Canonical MiLMMT translation | `milmmt_translation_provider.py` + translation contract validator |
 | Model inventory/staging contract | `model_manifest.json`, `prepare_model_assets*.py` |
 | My Voice build/inference | `voice_lab_build.py`, `voice_lab_gpt_sovits.py`, Rust `commands/voice_lab*.rs` |
+| My Voice dataset/storage/package validation/promotion | Rust `commands/voice_lab/storage.rs` |
+| My Voice guided recording/review transaction | Rust `commands/voice_lab_recording.rs` |
 | Built-in Meeting voice selection/reference assets | Rust `commands/voice_lab_build.rs`, `RuntimeAssets/Voice/BuiltInVoices/`, frontend My Voice bridge/page |
 
 ## Windows audio
@@ -52,7 +66,7 @@ This file maps semantic responsibility to the current owner. It does not carry m
 |---|---|
 | Physical capture / finalized utterance / VAD | Rust `engine/audio/` |
 | Optional Meeting Sound capture | `engine/audio/meeting_sound_capture.rs` |
-| Meeting output delivery | `engine/audio/meeting_output.rs` |
+| Meeting output delivery | `engine/audio/meeting_output.rs` + `meeting_output_runtime.rs` |
 | Virtual route detection/setup behavior | `commands/virtual_mic_route.rs` + audio runtime owners |
 | Provider package delivery | release/package owner, not audio runtime |
 
