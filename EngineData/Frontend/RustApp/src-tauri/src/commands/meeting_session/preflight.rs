@@ -13,14 +13,6 @@ use super::{
     APPLICATION_MEETING_OWNER_ID,
 };
 
-pub(super) fn meeting_required_ai_ready(helper_ready: bool, provider_ready: bool) -> bool {
-    helper_ready && provider_ready
-}
-
-pub(super) fn meeting_start_ai_eligible(helper_ready: bool, provider_ready: bool) -> bool {
-    helper_ready && provider_ready
-}
-
 pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let input = get_input_status();
     let helper = get_helper_bridge_status();
@@ -34,14 +26,14 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     // `models_ready` remains the inexpensive required outbound capability view. C4
     // keeps functional truth separate so routine status stays cheap and Start can run
     // the bounded self-test only when needed.
-    let models_ready = meeting_required_ai_ready(helper_ready, provider_ready);
+    let models_ready = helper_ready && provider_ready;
     let meeting_route_ready = route.route_ready;
 
     let mut start_blockers = Vec::new();
     if !microphone_ready {
         start_blockers.push("meeting_session:microphone_not_ready".to_string());
     }
-    if !meeting_start_ai_eligible(helper_ready, provider_ready) {
+    if !models_ready {
         start_blockers.push("meeting_session:local_runtime_not_ready".to_string());
     }
     if !meeting_route_ready {

@@ -316,7 +316,6 @@ export function mapProductReadiness(input: {
       : false;
   const canTranslateText = textReady;
 
-  const voiceReady = microphoneReady && providerReady;
   const meetingRouteReady = meeting.meetingRouteReady;
   const approvedVoiceReady = typeof input.approvedVoiceReady === "boolean" ? input.approvedVoiceReady : null;
   const voiceGate = resolveMeetingVoiceGate({
@@ -326,7 +325,6 @@ export function mapProductReadiness(input: {
   });
   const meetingReady = voiceGate.meetingReady;
   const recording = productMeeting.captureActive;
-  const canRecordVoice = voiceReady && !recording && !productMeeting.hasSession;
   const blockers = collectBlockers({
     helper,
     worker,
@@ -384,20 +382,15 @@ export function mapProductReadiness(input: {
     level,
     textReady,
     helperReady,
-    providerReady,
     microphoneReady,
-    modelsReady,
-    functionalOutboundReady,
     asrReady,
     translationIdEnReady,
     translationEnIdReady,
     ttsReady,
-    voiceReady,
     meetingRouteReady,
     meetingReady,
     approvedVoiceReady,
     canTranslateText,
-    canRecordVoice,
     recording,
     nextAction,
     blockers,
@@ -432,7 +425,7 @@ export function mapProductReadiness(input: {
         : "Setup Needed",
     voiceStatus: runtimeUnavailable
       ? "Unavailable"
-      : voiceReady
+      : microphoneReady && providerReady
         ? "Required local outbound AI capabilities available"
         : "Local voice runtime needs setup",
     meetingStatus: productMeeting.label === "Unavailable"

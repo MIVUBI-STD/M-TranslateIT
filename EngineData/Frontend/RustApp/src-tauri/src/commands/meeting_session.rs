@@ -337,28 +337,6 @@ mod cleanup_truth_tests {
         assert!(!meeting_cleanup_complete(true, true, true, true, true, true, false));
     }
 }
-#[cfg(test)]
-mod a7_meeting_readiness_tests {
-    use super::preflight::meeting_required_ai_ready;
 
-    #[test]
-    fn meeting_required_ai_readiness_depends_on_live_worker_capability_only() {
-        assert!(meeting_required_ai_ready(true, true));
-        assert!(!meeting_required_ai_ready(false, true));
-        assert!(!meeting_required_ai_ready(true, false));
-        assert!(!meeting_required_ai_ready(false, false));
-    }
-}
 
-#[cfg(test)]
-mod c4_functional_preflight_tests {
-    use super::preflight::{meeting_required_ai_ready, meeting_start_ai_eligible};
 
-    #[test]
-    fn static_prerequisites_can_be_start_eligible_before_functional_ready() {
-        assert!(meeting_start_ai_eligible(true, true));
-        assert!(meeting_required_ai_ready(true, true));
-        assert!(!meeting_start_ai_eligible(true, false));
-        assert!(!meeting_required_ai_ready(false, true));
-    }
-}
