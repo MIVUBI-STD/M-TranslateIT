@@ -71,7 +71,7 @@ fn incoming_status_store() -> &'static Mutex<MeetingIncomingRuntimeStatus> {
     MEETING_INCOMING_STATUS.get_or_init(|| Mutex::new(idle_incoming_status()))
 }
 
-pub(super) fn start_preflight_store() -> &'static Mutex<Option<MeetingStartPreflightRuntime>> {
+fn start_preflight_store() -> &'static Mutex<Option<MeetingStartPreflightRuntime>> {
     MEETING_START_PREFLIGHT.get_or_init(|| Mutex::new(None))
 }
 

@@ -48,11 +48,11 @@ static MEETING_OUTBOUND_CONSUMER: OnceLock<Mutex<Option<MeetingOutboundConsumerR
 static MEETING_INCOMING_CONSUMER: OnceLock<Mutex<Option<MeetingIncomingConsumerRuntime>>> =
     OnceLock::new();
 
-pub(super) fn outbound_consumer_store() -> &'static Mutex<Option<MeetingOutboundConsumerRuntime>> {
+fn outbound_consumer_store() -> &'static Mutex<Option<MeetingOutboundConsumerRuntime>> {
     MEETING_OUTBOUND_CONSUMER.get_or_init(|| Mutex::new(None))
 }
 
-pub(super) fn incoming_consumer_store() -> &'static Mutex<Option<MeetingIncomingConsumerRuntime>> {
+fn incoming_consumer_store() -> &'static Mutex<Option<MeetingIncomingConsumerRuntime>> {
     MEETING_INCOMING_CONSUMER.get_or_init(|| Mutex::new(None))
 }
 

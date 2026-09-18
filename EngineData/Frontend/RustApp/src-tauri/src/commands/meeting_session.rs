@@ -3,7 +3,6 @@ use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
-use std::time::Instant;
 
 use crate::engine::audio::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, clear_finalized_meeting_sequence,
@@ -58,8 +57,8 @@ use session_state::{
     clear_start_preflight_for_generation, current_incoming_status, current_outbound_status,
     current_start_preflight, elapsed_millis, incoming_lane_enabled,
     mark_incoming_cleanup_incomplete_status, record_first_playback_timing,
-    remember_start_preflight, set_outbound_timing,
-    timing_context_from_utterance, update_incoming_status, update_outbound_status,
+    remember_start_preflight, set_outbound_timing, update_incoming_status,
+    update_outbound_status,
     OutboundTimingContext,
 };
 
@@ -515,7 +514,7 @@ fn clear_self_output_suppression_for_session(session_id: &str) {
     reset_finalized_incoming_speech_boundary();
 }
 
-pub fn process_authoritative_finalized_outbound_wav(
+fn process_authoritative_finalized_outbound_wav(
     generation: u64,
     session_id: &str,
     event_sequence: u64,
