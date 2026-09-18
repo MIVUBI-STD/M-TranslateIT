@@ -14,13 +14,7 @@ one SHA does not prove another SHA. A later documentation-only commit may record
 
 Exact proof identity is read from GitHub Actions for the exact `Local` SHA and changed domain under discussion. This file does not pin a mutable "current source SHA", because doing so becomes stale as soon as `Local` advances.
 
-Current interpretation rules:
-
-- use the latest completed matching verifier for the exact changed source domain;
-- ancestor proof remains valid only for source domains unchanged since that ancestor;
-- a documentation-only commit does not invalidate unchanged runtime proof, but it also does not create new runtime proof;
-- queued, running, skipped, cancelled, or unrelated jobs are not PASS;
-- one SHA does not prove another SHA where the relevant source changed.
+Interpretation: use the latest completed matching verifier for the changed domain. Ancestor proof applies only to unchanged domains. Documentation-only commits create no runtime proof. Queued/running/skipped/cancelled/unrelated jobs are not PASS.
 
 Recent verified baseline relevant to the current work:
 
@@ -29,37 +23,20 @@ Code Health                 a26d5e33b31eee6753ff1bc7f09b847f11770bc3  PASS
 MiLMMT Repository Contract  848329bb21b45d72eccde0a19160490c9d843f22  PASS
 ```
 
-Later translation-quality-only commits must use their own MiLMMT Repository Contract result before being claimed as verified. GitHub remains authoritative for exact run/job identifiers.
+Later translation-quality commits require their own MiLMMT Repository Contract result. GitHub is authoritative for exact run/job IDs.
 
 ## Current Source Claims
 
-The modernized source now establishes, subject to exact-head proof for the SHA being discussed:
+Subject to matching proof for the changed domain, current source establishes:
 
-- one canonical Meeting lifecycle authority with generation-bound Start/Stop and fail-closed cleanup;
-- prepared Meeting output state is cleared when authority acquisition fails before Starting can be established;
-- Meeting status, preflight, session state, consumers, suppression, optional incoming activation, outbound/incoming pipelines, committed turns, and Start/Stop lifecycle have explicit owners rather than one oversized command module;
-- helper scheduling, request policy, transport/recovery, functional readiness, functional probe, and process/runtime I/O have explicit owners;
-- live helper transport recovery remains bounded: ASR/translation may retry once only after the canonical worker restarts **and** the exact Meeting generation re-proves the required outbound AI/voice path; synthesis is not automatically replayed;
-- hard My Voice synthesis failure clears the cached actor runtime so later inference reloads from canonical actor state instead of reusing a runtime that has just proved unhealthy;
-- My Voice build process ownership is fail-closed: a spawned child that cannot be recorded in process state is terminated rather than left untracked;
-- My Voice recording accept/retry flows preserve or restore the previous accepted take transactionally and do not claim discard when review audio could not be removed;
-- storage/promotion validates actor package identity, canonical WAV shape, held-out evaluation, staging, rollback, and interrupted promotion recovery;
-- CPU fallback remains explicit degraded operation for known capability absence; broad cloud/parallel fallback is absent;
-- MiLMMT remains the single canonical bidirectional translation model and keeps the established deterministic/context contracts;
-- First Setup persists compact step 4 through a legacy-safe checkpoint encoding, so relaunch does not regress to the route step;
-- fresh Meeting Start has one route-preparation owner in `commands/runtime.rs`; lifecycle binds that exact prepared pair to the authoritative generation before resource activation, and the validator forbids duplicate preparation;
-- common Starting rollback cleanup has one lifecycle owner instead of repeated cleanup tails;
-- native exit blocks active/pending My Voice and non-Meeting runtime ownership, converges Meeting Stop, and explicitly shuts down the helper worker before process exit;
-- public helper Start is idempotent when the canonical worker is already ready;
-- suspend/resume invalidates cached functional readiness even if the helper survives;
-- diagnostic/setup readiness reuses only proof bound to the current helper generation; Meeting Start still performs generation-bound functional proof;
-- My Voice build consumes narrow recording-domain facts rather than the full UI recording DTO; the guided prompt corpus has its own static owner;
-- live GPT-SoVITS actor validation/runtime/synthesis is isolated from one-shot dataset preparation, bounded training, candidate evaluation, and candidate package construction; build orchestration does not sit on the worker inference hot path;
-- existing latency hardening remains intact: bounded capture storage, efficient finalized WAV preparation, deterministic MiLMMT generation/KV cache, warm actor reuse, and V2ProPlus reference-speaker embedding caching;
-- translation inference now exposes tokenization, model-inference, decode, and inference-throughput telemetry through Meeting Diagnostics without adding a second runtime owner;
-- standalone multi-chunk translation aggregates those telemetry values across the full request rather than reporting only the final chunk;
-- translation-quality evaluation supports baseline-vs-candidate critical-regression detection, grouped critical-pass-rate deltas, and bounded authorized outbound Meeting-context cases;
-- the versioned translation corpus now covers contextual Meeting turns, modality/uncertainty, conditional meaning, quantifier scope, and spoken disfluency in addition to earlier literal/negation/technical/adversarial cases.
+- one generation-bound Meeting lifecycle authority with fail-closed Start/Stop, cleanup, route binding, stale-work rejection, and bounded helper recovery;
+- explicit owners for Meeting state/consumers/pipelines, helper scheduling/transport/readiness, My Voice recording/build/inference, storage/promotion, and Windows audio;
+- one canonical MiLMMT ID↔EN pipeline, explicit degraded CPU fallback only for known capability absence, and no silent cloud/parallel fallback;
+- generation-bound functional readiness, bounded outbound context, at-most-once output, and explicit incoming degradation;
+- latency hardening through bounded capture, finalized-WAV preparation, deterministic KV-cached MiLMMT generation, warm actor reuse, and reference-speaker embedding caching;
+- Meeting Diagnostics with queue/drop plus translation tokenize/inference/decode/throughput telemetry;
+- translation-quality tooling with baseline-vs-candidate critical regression detection, grouped critical-pass-rate deltas, authorized Meeting-context requests, and a 35-case semantic-risk corpus;
+- My Voice live inference isolated from one-shot dataset/training/evaluation/package construction.
 
 ## Verification surfaces
 

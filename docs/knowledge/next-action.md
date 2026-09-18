@@ -6,8 +6,8 @@
 - Development foundation, capability/proof taxonomy, toolchain authority, and one Windows developer entrypoint are active.
 - Structural remediation is complete across Meeting, helper bridge, My Voice, setup, native-close, diagnostics, Windows audio, and local voice-runtime ownership.
 - Exact proof identity is read from GitHub for the current `Local` SHA/domain; continuation no longer pins a mutable source SHA in this file.
-- My Voice live inference/actor validation remains in `voice_lab_gpt_sovits.py`; one-shot dataset preparation, training, candidate evaluation and package construction now live in `voice_lab_gpt_sovits_build.py`. The live provider shrank from ~35.8 KB to ~13.7 KB without changing worker protocol.
-- Earlier flow hardening remains active: legacy-safe setup checkpoint persistence, single-owned virtual-route prepare/bind, centralized Starting rollback cleanup, native app-exit helper shutdown, narrow My Voice exit guards, helper Start idempotence, power-transition readiness invalidation, reusable diagnostic readiness, guided-corpus extraction, and domain-level recording/build handoff.
+- My Voice live inference remains isolated from one-shot build/training/evaluation/package construction.
+- Earlier flow hardening remains active across setup, virtual-route ownership, Starting rollback, native exit, helper lifecycle, readiness invalidation, and recording/build handoff.
 - Diagnostics expose outbound stage timing, queue/drop counters, and translation tokenize/inference/decode/throughput breakdown needed for target performance evidence.
 - Translation quality tooling now compares baseline vs candidate critical regressions, reports grouped critical-pass-rate deltas, emits authorized outbound Meeting-context evaluation requests, and carries a 35-case semantic-risk corpus.
 
