@@ -12,8 +12,8 @@ use super::request_policy::{
     meeting_outbound_pipeline_active, meeting_session_id, task_priority,
 };
 use super::{
-    get_helper_bridge_status, start_helper_bridge_internal, worker_message, worker_text,
-    HelperBridgeWorkerResponse,
+    get_helper_bridge_status, prepare_required_outbound_ai_runtime, start_helper_bridge_internal,
+    worker_message, worker_text, HelperBridgeWorkerResponse,
 };
 use super::super::helper_bridge_runtime::{
     acquire_helper_task_permit, apply_worker_response, clear_active_request,
@@ -530,23 +530,44 @@ pub(super) fn send_worker_task(task: &str, payload: Value) -> HelperBridgeWorker
             let retry_current_stage = live_outbound_stage_retry_safe(task);
             let recovery = recover_live_meeting_helper_transport(generation, retry_current_stage);
             if recovery.ok && live_outbound_generation_is_authoritative(generation) {
-                if retry_current_stage {
-                    // ASR and translation have no Meeting playback side effect, so the
-                    // same finalized input may be attempted exactly once after a
-                    // transport-only worker restart. The retry itself is not recursive.
-                    response = send_worker_task_inner(task, retry_payload);
-                } else {
-                    // Synthesis can have uncertain child-process/file state after a
-                    // transport failure. Restore the worker for the next utterance but
-                    // do not synthesize the current phrase again automatically.
-                    response.state = recovery.state;
-                    response.generation_token = recovery.generation_token;
-                    response.runtime_claim =
-                        "meeting_live_helper_recovered_current_stage_not_retried".to_string();
-                    response.message = format!(
-                        "{} The helper worker was restored for subsequent Meeting utterances; this synthesis stage was not retried.",
-                        response.message
-                    );
+                // Restarting the worker intentionally invalidates functional readiness
+                // and the generation-bound actor token. Re-prove the exact required
+                // outbound path before retrying a side-effect-safe stage or claiming
+                // the recovered worker is usable for later utterances.
+                match prepare_required_outbound_ai_runtime(generation) {
+                    Ok(()) if retry_current_stage => {
+                        // ASR and translation have no Meeting playback side effect, so
+                        // the same finalized input may be attempted exactly once after
+                        // transport recovery + generation-bound functional re-proof.
+                        // The retry itself is not recursive.
+                        response = send_worker_task_inner(task, retry_payload);
+                    }
+                    Ok(()) => {
+                        // Synthesis can have uncertain child-process/file state after a
+                        // transport failure. The worker and actor binding are restored
+                        // for subsequent utterances, but this phrase is not synthesized
+                        // again automatically.
+                        response.state = recovery.state;
+                        response.generation_token = recovery.generation_token;
+                        response.runtime_claim =
+                            "meeting_live_helper_recovered_current_stage_not_retried".to_string();
+                        response.message = format!(
+                            "{} The helper worker and Meeting voice authority were restored for subsequent utterances; this synthesis stage was not retried.",
+                            response.message
+                        );
+                    }
+                    Err(stage) => {
+                        clear_meeting_outbound_pipeline(generation);
+                        let current = get_helper_bridge_status();
+                        response.state = current.state;
+                        response.generation_token = current.generation_token;
+                        response.runtime_claim =
+                            "meeting_live_helper_recovery_functional_reproof_failed".to_string();
+                        response.message = format!(
+                            "{} The helper process restarted, but required outbound functional re-proof failed at {stage}. Stop and start Translation before producing more voice output.",
+                            response.message
+                        );
+                    }
                 }
             }
         }
