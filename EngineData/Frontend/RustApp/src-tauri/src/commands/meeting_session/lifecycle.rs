@@ -146,6 +146,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
 
     let starting = begin_application_meeting_session();
     if !starting.blocker.is_empty() {
+        clear_prepared_meeting_output_device();
         return MeetingSessionActionResult {
             ok: false,
             state: "start_authority_conflict".to_string(),
@@ -155,6 +156,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         };
     }
     let Some(start_snapshot) = starting.snapshot.as_ref() else {
+        clear_prepared_meeting_output_device();
         return blocked_result(
             "start_authority_failed",
             "Start Translation could not establish application-level Meeting authority. No Meeting resources were opened."
@@ -162,6 +164,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
     };
     if start_snapshot.owner_id != APPLICATION_MEETING_OWNER_ID || !start_snapshot.authority_active {
+        clear_prepared_meeting_output_device();
         return blocked_result(
             "start_authority_conflict",
             "Start Translation did not receive the expected Meeting session authority. No additional resources were opened."
