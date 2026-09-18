@@ -19,7 +19,8 @@ use crate::engine::runtime_state::{
 };
 
 use super::super::virtual_mic_route::{
-    bind_prepared_virtual_mic_route_to_generation, get_virtual_mic_route_selection,
+    bind_prepared_virtual_mic_route_to_generation, clear_prepared_virtual_mic_route_selection,
+    get_virtual_mic_route_selection,
 };
 use super::super::helper_bridge::{
     cancel_helper_bridge_meeting_session, get_helper_bridge_status,
