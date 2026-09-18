@@ -283,18 +283,24 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "blocker": MISSING_BLOCKER,
             "elapsed_ms": host["now_ms"]() - started,
         }
+    tokenization_ms: float | None = None
+    inference_ms: float | None = None
+    decode_ms: float | None = None
+    inference_tokens_per_second: float | None = None
     try:
         runtime = get_translation_runtime(source_language, target_language)
         tokenizer = runtime["tokenizer"]
         model = runtime["model"]
         context_pairs = normalize_context_pairs(payload.get("context_pairs"), host)
         prompt = build_prompt(source_language, target_language, text, context_pairs)
+        tokenization_started = time.perf_counter()
         inputs = tokenizer(
             prompt,
             add_special_tokens=False,
             return_tensors="pt",
             truncation=False,
         )
+        tokenization_ms = round((time.perf_counter() - tokenization_started) * 1000.0, 2)
         prompt_tokens = host["input_token_count"](inputs)
         if prompt_tokens is None:
             raise RuntimeError("translation:input_token_count_unavailable")
@@ -315,6 +321,7 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
         generation_budget = _generation_budget(prompt_tokens, payload)
         import torch
 
+        inference_started = time.perf_counter()
         with torch.inference_mode():
             generated = model.generate(
                 **inputs,
@@ -322,7 +329,13 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
                 do_sample=False,
                 use_cache=True,
             )
+        inference_ms = round((time.perf_counter() - inference_started) * 1000.0, 2)
         completion = _continuation(generated, prompt_tokens, tokenizer, model, generation_budget)
+        if inference_ms > 0:
+            inference_tokens_per_second = round(
+                completion["generated_tokens"] / (inference_ms / 1000.0),
+                2,
+            )
         if not completion["complete"]:
             return {
                 "ok": False,
@@ -335,9 +348,15 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
                 "finished_with_eos": completion["finished_with_eos"],
                 "generated_tokens": completion["generated_tokens"],
                 "hit_token_ceiling": completion["hit_token_ceiling"],
+                "tokenization_ms": tokenization_ms,
+                "inference_ms": inference_ms,
+                "decode_ms": decode_ms,
+                "inference_tokens_per_second": inference_tokens_per_second,
                 "elapsed_ms": host["now_ms"]() - started,
             }
+        decode_started = time.perf_counter()
         translated = tokenizer.decode(completion["ids"], skip_special_tokens=True).strip()
+        decode_ms = round((time.perf_counter() - decode_started) * 1000.0, 2)
         translated = host["translation_envelope"].compact_unit(translated)
         if not translated:
             raise RuntimeError("translation:empty_decoded_translation")
@@ -367,6 +386,10 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "finished_with_eos": True,
             "generated_tokens": completion["generated_tokens"],
             "hit_token_ceiling": completion["hit_token_ceiling"],
+            "tokenization_ms": tokenization_ms,
+            "inference_ms": inference_ms,
+            "decode_ms": decode_ms,
+            "inference_tokens_per_second": inference_tokens_per_second,
             "translated_text": translated,
             "elapsed_ms": host["now_ms"]() - started,
             "blocker": "",
@@ -380,6 +403,10 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "direction_pair": pair,
             "blocker": type(exc).__name__,
             "note": str(exc),
+            "tokenization_ms": tokenization_ms,
+            "inference_ms": inference_ms,
+            "decode_ms": decode_ms,
+            "inference_tokens_per_second": inference_tokens_per_second,
             "elapsed_ms": host["now_ms"]() - started,
         }
 

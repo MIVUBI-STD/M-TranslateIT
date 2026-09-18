@@ -46,3 +46,18 @@ def test_asr_text_only_path_disables_timestamp_token_decoding() -> None:
     assert _has_true_keyword(transcribe_calls, "without_timestamps"), (
         "Meeting ASR consumes text only and must not spend decoding work on timestamp tokens"
     )
+
+
+def test_milmmt_translation_reports_stage_level_inference_telemetry() -> None:
+    source = MILMMT_PROVIDER_PATH.read_text(encoding="utf-8")
+    for field in (
+        '"tokenization_ms"',
+        '"inference_ms"',
+        '"decode_ms"',
+        '"inference_tokens_per_second"',
+    ):
+        assert field in source, f"MiLMMT translation response must expose {field}"
+
+    assert "tokenization_started = time.perf_counter()" in source
+    assert "inference_started = time.perf_counter()" in source
+    assert "decode_started = time.perf_counter()" in source
