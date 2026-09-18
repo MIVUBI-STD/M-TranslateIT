@@ -574,10 +574,22 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
         }
     };
     let pid = child.id();
-    if let Ok(mut process) = process_store().0.lock() {
-        process.generation = Some(generation);
-        process.pid = Some(pid);
-        process.terminal_message.clear();
+    match process_store().0.lock() {
+        Ok(mut process) => {
+            process.generation = Some(generation);
+            process.pid = Some(pid);
+            process.terminal_message.clear();
+        }
+        Err(_) => {
+            let _ = terminate_process_tree(pid);
+            let _ = child.wait();
+            let _ = fail_voice_lab_build(generation);
+            return result(
+                false,
+                "build_state_unavailable",
+                "VoiceLab started the local build process, but process ownership could not be recorded safely. The child process was stopped.",
+            );
+        }
     }
 
     std::thread::spawn(move || {
