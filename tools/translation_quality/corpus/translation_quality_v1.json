@@ -771,9 +771,7 @@
           "tomorrow"
         ]
       ],
-      "forbidden": [
-        "the review is finished today"
-      ]
+      "forbidden": []
     },
     {
       "id": "en-id-conditional-001",
