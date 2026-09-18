@@ -36,6 +36,13 @@ fn remove_temporary_tts(path: &str) {
     }
 }
 
+fn remove_temporary_tts_paths(requested_path: &str, reported_path: &str) {
+    remove_temporary_tts(reported_path);
+    if requested_path.trim() != reported_path.trim() {
+        remove_temporary_tts(requested_path);
+    }
+}
+
 fn stale_outbound_result(
     generation: u64,
     session_id: &str,
@@ -274,12 +281,12 @@ pub(super) fn process_outbound_wav(
     );
     let tts_path = worker_text(&tts, "output_path").unwrap_or_default();
     if !generation_is_live(generation) {
-        remove_temporary_tts(&tts_path);
+        remove_temporary_tts_paths(&requested_tts_path, &tts_path);
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
     if !tts.ok || tts_path.is_empty() {
         let blocker = worker_blocker(&tts, "voice_actor:missing_output");
-        remove_temporary_tts(&tts_path);
+        remove_temporary_tts_paths(&requested_tts_path, &tts_path);
         let _ = update_committed_turn_delivery_state(
             session_id,
             generation,
@@ -367,7 +374,7 @@ pub(super) fn process_outbound_wav(
             "Incoming Meeting Sound resumed from a fresh speech boundary after TranslateIT TTS playback ended.",
         );
     }
-    remove_temporary_tts(&tts_path);
+    remove_temporary_tts_paths(&requested_tts_path, &tts_path);
     if !generation_is_live(generation) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
@@ -440,7 +447,17 @@ pub(super) fn process_outbound_wav(
 
 #[cfg(test)]
 mod tests {
-    use super::tts_output_path;
+    use super::{remove_temporary_tts_paths, tts_output_path};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_wav(label: &str) -> std::path::PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|value| value.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("translateit-{label}-{nonce}.wav"))
+    }
 
     #[test]
     fn tts_output_path_is_generation_and_event_scoped() {
@@ -448,5 +465,31 @@ mod tests {
             tts_output_path("session-a", 7, 11),
             "UserData/CacheData/meeting_tts/session-a_g7_s11.wav"
         );
+    }
+
+    #[test]
+    fn tts_cleanup_removes_requested_path_when_worker_response_has_no_path() {
+        let requested = temp_wav("requested");
+        fs::write(&requested, b"temporary").expect("write temporary wav");
+
+        remove_temporary_tts_paths(requested.to_string_lossy().as_ref(), "");
+
+        assert!(!requested.exists());
+    }
+
+    #[test]
+    fn tts_cleanup_removes_distinct_requested_and_reported_paths() {
+        let requested = temp_wav("requested");
+        let reported = temp_wav("reported");
+        fs::write(&requested, b"requested").expect("write requested");
+        fs::write(&reported, b"reported").expect("write reported");
+
+        remove_temporary_tts_paths(
+            requested.to_string_lossy().as_ref(),
+            reported.to_string_lossy().as_ref(),
+        );
+
+        assert!(!requested.exists());
+        assert!(!reported.exists());
     }
 }
