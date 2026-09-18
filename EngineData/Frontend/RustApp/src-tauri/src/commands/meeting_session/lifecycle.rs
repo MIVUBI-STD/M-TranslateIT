@@ -433,19 +433,20 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_finalized_incoming_utterance_producer();
         let deferred_cleanup = clear_deferred_incoming_queue();
         clear_finalized_meeting_sequence();
-        clear_all_committed_turns();
+        let transcript_cleanup_ok = clear_all_committed_turns();
         clear_outbound_status();
         clear_incoming_status();
-        if !incoming_capture_stop.ok || deferred_cleanup.is_err() {
+        if !incoming_capture_stop.ok || deferred_cleanup.is_err() || !transcript_cleanup_ok {
             return MeetingSessionActionResult {
                 ok: false,
                 state: "cleanup_incomplete".to_string(),
                 message: format!(
-                    "Translation has no active session, but optional incoming cleanup could not be confirmed. Meeting Sound: {} Deferred queue: {}",
+                    "Translation has no active session, but transient cleanup could not be confirmed. Meeting Sound: {} Deferred queue: {} Transcript state: {}",
                     incoming_capture_stop.message,
                     deferred_cleanup
                         .err()
-                        .unwrap_or_else(|| "clean".to_string())
+                        .unwrap_or_else(|| "clean".to_string()),
+                    if transcript_cleanup_ok { "clean" } else { "unverified" }
                 ),
                 status: status_from_report(current, build_preflight()),
             };
@@ -489,9 +490,9 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     let outbound_cleanup = stop_meeting_outbound_consumer(generation);
     let incoming_cleanup = stop_meeting_incoming_consumer(&session_id);
 
-    clear_self_output_suppression_for_session(&session_id);
+    let suppression_cleanup_ok = clear_self_output_suppression_for_session(&session_id);
     clear_finalized_meeting_sequence();
-    clear_committed_turns_for_session(&session_id);
+    let transcript_cleanup_ok = clear_committed_turns_for_session(&session_id);
     clear_outbound_status();
 
     let cleanup_complete = meeting_cleanup_complete(
@@ -500,6 +501,8 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         helper_cancel.ok,
         outbound_cleanup.ok,
         incoming_cleanup.ok,
+        suppression_cleanup_ok,
+        transcript_cleanup_ok,
     );
 
     if !cleanup_complete {
@@ -519,6 +522,12 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         if !incoming_cleanup.ok {
             failed.push("incoming consumer");
         }
+        if !suppression_cleanup_ok {
+            failed.push("self-output suppression state");
+        }
+        if !transcript_cleanup_ok {
+            failed.push("committed transcript state");
+        }
         let failed_summary = failed.join(", ");
         mark_incoming_cleanup_incomplete_status(
             &session_id,
@@ -536,12 +545,14 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
             ok: false,
             state: "cleanup_incomplete".to_string(),
             message: format!(
-                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {}",
+                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: {} Transcript: {}",
                 capture_stop.message,
                 incoming_capture_stop.message,
                 helper_cancel.message,
                 outbound_cleanup.message,
                 incoming_cleanup.message,
+                if suppression_cleanup_ok { "clean" } else { "unverified" },
+                if transcript_cleanup_ok { "clean" } else { "unverified" },
             ),
             status: status_from_report(retained, build_preflight()),
         };
@@ -568,7 +579,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         ok: true,
         state: "stopped".to_string(),
         message: format!(
-            "Translation stopped. Authority was revoked before both audio lanes/helper/consumers and transient transcript/session state were cleaned. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {}",
+            "Translation stopped. Authority was revoked before both audio lanes/helper/consumers and transient transcript/session state were cleaned. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: clean Transcript: clean",
             capture_stop.message,
             incoming_capture_stop.message,
             helper_cancel.message,
@@ -585,10 +596,14 @@ pub(super) fn meeting_cleanup_complete(
     helper_cleanup_ok: bool,
     outbound_consumer_ok: bool,
     incoming_consumer_ok: bool,
+    suppression_cleanup_ok: bool,
+    transcript_cleanup_ok: bool,
 ) -> bool {
     microphone_capture_ok
         && meeting_sound_capture_ok
         && helper_cleanup_ok
         && outbound_consumer_ok
         && incoming_consumer_ok
+        && suppression_cleanup_ok
+        && transcript_cleanup_ok
 }

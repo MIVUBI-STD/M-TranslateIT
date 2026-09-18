@@ -88,14 +88,19 @@ pub(super) fn disable_optional_incoming_for_outbound(session_id: &str) -> String
     cleanup_note
 }
 
-pub(super) fn clear_self_output_suppression_for_session(session_id: &str) {
-    if let Ok(mut guard) = suppression_store().lock() {
-        if let Some(value) = guard.as_ref() {
-            if value.session_id == session_id {
-                value.active.store(false, Ordering::Release);
-                *guard = None;
+pub(super) fn clear_self_output_suppression_for_session(session_id: &str) -> bool {
+    let cleared = match suppression_store().lock() {
+        Ok(mut guard) => {
+            if let Some(value) = guard.as_ref() {
+                if value.session_id == session_id {
+                    value.active.store(false, Ordering::Release);
+                    *guard = None;
+                }
             }
+            true
         }
-    }
+        Err(_) => false,
+    };
     reset_finalized_incoming_speech_boundary();
+    cleared
 }

@@ -219,22 +219,26 @@ pub(super) fn reset_committed_turns(session_id: &str) {
     }
 }
 
-pub(super) fn clear_committed_turns_for_session(session_id: &str) {
-    if let Ok(mut guard) = committed_turn_store().lock() {
-        if guard
-            .as_ref()
-            .map(|store| store.session_id == session_id)
-            .unwrap_or(false)
-        {
-            *guard = None;
-        }
-    }
-}
-
-pub(super) fn clear_all_committed_turns() {
-    if let Ok(mut guard) = committed_turn_store().lock() {
+pub(super) fn clear_committed_turns_for_session(session_id: &str) -> bool {
+    let Ok(mut guard) = committed_turn_store().lock() else {
+        return false;
+    };
+    if guard
+        .as_ref()
+        .map(|store| store.session_id == session_id)
+        .unwrap_or(false)
+    {
         *guard = None;
     }
+    true
+}
+
+pub(super) fn clear_all_committed_turns() -> bool {
+    let Ok(mut guard) = committed_turn_store().lock() else {
+        return false;
+    };
+    *guard = None;
+    true
 }
 
 pub(super) fn recent_outbound_context_pairs(
