@@ -243,3 +243,33 @@ def test_standalone_aggregates_chunk_translation_telemetry(monkeypatch) -> None:
     assert result["decode_ms"] == 1.5
     assert result["generated_tokens"] == 6
     assert result["inference_tokens_per_second"] == 200.0
+
+
+def test_translation_failure_taxonomy_preserves_stable_domain_blocker_from_note() -> None:
+    worker = load_worker_module()
+    result = worker._translation_failure_contract(
+        {
+            "ok": False,
+            "stage": "translate",
+            "blocker": "RuntimeError",
+            "note": "translation:cuda_bf16_unavailable",
+        },
+        "translation:provider_failed",
+    )
+
+    assert result["blocker"] == "translation:cuda_bf16_unavailable"
+
+
+def test_translation_failure_taxonomy_hides_unknown_exception_class() -> None:
+    worker = load_worker_module()
+    result = worker._translation_failure_contract(
+        {
+            "ok": False,
+            "stage": "translate",
+            "blocker": "ValueError",
+            "note": "unexpected internal implementation detail",
+        },
+        "translation:provider_failed",
+    )
+
+    assert result["blocker"] == "translation:provider_failed"
