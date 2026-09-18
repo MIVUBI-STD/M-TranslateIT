@@ -19,7 +19,7 @@ use super::super::helper_bridge_runtime::{
     acquire_helper_task_permit, apply_worker_response, clear_active_request,
     read_worker_response_direct_with_deadline, runtime, status_from_runtime, stop_child, unix_ms,
     worker_response_deadline_for_priority, write_worker_request_with_deadline,
-    HelperBridgeActionResult, HelperTaskPriority,
+    HelperBridgeActionResult, HelperBridgeRuntime, HelperTaskPriority,
 };
 
 pub(super) fn helper_transport_failure(response: &HelperBridgeWorkerResponse) -> bool {
@@ -40,7 +40,7 @@ fn response_with_runtime(
     priority: HelperTaskPriority,
     message: String,
     worker_response: Value,
-    runtime: &super::helper_bridge_runtime::HelperBridgeRuntime,
+    runtime: &HelperBridgeRuntime,
 ) -> HelperBridgeWorkerResponse {
     HelperBridgeWorkerResponse {
         ok,
@@ -100,7 +100,7 @@ fn blocked_response_from_runtime(
     request_id: &str,
     priority: HelperTaskPriority,
     message: &str,
-    runtime: &super::helper_bridge_runtime::HelperBridgeRuntime,
+    runtime: &HelperBridgeRuntime,
 ) -> HelperBridgeWorkerResponse {
     response_with_runtime(
         false,

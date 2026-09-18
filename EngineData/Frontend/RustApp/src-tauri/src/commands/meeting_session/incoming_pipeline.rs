@@ -9,7 +9,8 @@ use super::incoming_deferred::{
     take_due_deferred_incoming, DeferredIncomingJob, DeferredIncomingStage,
     IncomingAsrDisposition, MAX_DEFERRED_INCOMING,
 };
-use super::{incoming_session_is_eligible, update_incoming_status, worker_blocker, worker_text};
+use super::{incoming_session_is_eligible, worker_blocker, worker_text};
+use super::session_state::update_incoming_status;
 use super::super::helper_bridge::send_helper_worker_task;
 use super::super::helper_bridge_runtime::unix_ms;
 

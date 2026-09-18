@@ -22,10 +22,7 @@ use committed_turns::current_committed_turn_snapshot;
 use outbound_pipeline::process_outbound_wav;
 use preflight::current_status;
 use suppression::{begin_self_output_suppression, disable_optional_incoming_for_outbound};
-use session_state::{
-    clear_all_start_preflight, current_start_preflight, incoming_lane_enabled,
-    record_first_playback_timing, remember_start_preflight, OutboundTimingContext,
-};
+use session_state::{incoming_lane_enabled, record_first_playback_timing, OutboundTimingContext};
 
 const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 
@@ -252,9 +249,9 @@ pub fn stop_meeting_translation() -> MeetingSessionActionResult {
 
 #[cfg(test)]
 mod b3_preflight_snapshot_tests {
-    use super::{
+    use super::MeetingSessionPreflightStatus;
+    use super::session_state::{
         clear_all_start_preflight, current_start_preflight, remember_start_preflight,
-        MeetingSessionPreflightStatus,
     };
 
     fn ready_preflight() -> MeetingSessionPreflightStatus {

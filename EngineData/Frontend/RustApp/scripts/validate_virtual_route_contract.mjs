@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const files = {
   meeting: resolve(root, "src-tauri/src/commands/meeting_session.rs"),
+  meetingLifecycle: resolve(root, "src-tauri/src/commands/meeting_session/lifecycle.rs"),
   outboundPipeline: resolve(root, "src-tauri/src/commands/meeting_session/outbound_pipeline.rs"),
   route: resolve(root, "src-tauri/src/commands/virtual_mic_route.rs"),
   meetingOutput: resolve(root, "src-tauri/src/engine/audio/meeting_output.rs"),
@@ -34,19 +35,22 @@ function forbidMarkers(body, label, markers) {
 
 requireMarkers(source.audioMod, "Windows audio ownership", ["pub mod meeting_output;"]);
 forbidMarkers(source.commandsMod, "retired command-layer route owner", ["pub mod virtual_audio_route_runtime;"]);
-requireMarkers(source.meeting, "Meeting session output orchestration", [
+requireMarkers(source.meeting, "Meeting session output orchestration facade", [
+  "mod lifecycle;",
+  "mod outbound_pipeline;",
+  "process_outbound_wav",
+]);
+requireMarkers(source.meetingLifecycle, "Meeting lifecycle output orchestration", [
   "prepare_meeting_output_device",
   "cancel_meeting_output_for_generation",
   "get_virtual_mic_route_selection",
-  "mod outbound_pipeline;",
-  "process_outbound_wav",
 ]);
 requireMarkers(source.outboundPipeline, "Meeting outbound delivery ownership", [
   "pub(super) fn process_outbound_wav(",
   "deliver_meeting_output_wav",
   "get_bound_virtual_mic_output_device",
 ]);
-forbidMarkers(`${source.meeting}\n${source.outboundPipeline}`, "retired Python route ownership", [
+forbidMarkers(`${source.meeting}\n${source.meetingLifecycle}\n${source.outboundPipeline}`, "retired Python route ownership", [
   "TRANSLATEIT_ENABLE_VIRTUAL_AUDIO_ROUTE_PROVIDER",
   "dispatch_meeting_virtual_audio_route_provider",
   "prepare_meeting_virtual_audio_route_provider",
