@@ -5,7 +5,7 @@ This folder contains the Tauri command boundary for the current Meeting / Text /
 ## Active modules
 
 - `meeting_session.rs` — public Meeting status/Start/Stop orchestration and lifecycle coordination; child modules own committed turns, consumer thread lifecycle, lane pipelines, deferred incoming work, and internal session status/preflight stores.
-- `helper_bridge.rs` / `helper_bridge_runtime.rs` — persistent local Python worker bridge and scheduler; `helper_bridge/functional_readiness.rs` owns the required outbound functional-readiness cache and response-validation policy.
+- `helper_bridge.rs` / `helper_bridge_runtime.rs` — persistent local Python worker bridge and scheduler; `helper_bridge/functional_readiness.rs` owns the required outbound functional-readiness cache and response-validation policy; `helper_bridge_runtime/scheduler.rs` owns priority/admission/permit scheduling.
 - `audio.rs` — microphone/device status and device checks used by setup.
 - `mic_test.rs` — Microphone Test Start/Stop wrappers.
 - `runtime.rs` / `runtime_inventory.rs` — runtime readiness and explicit model-presence verification.
