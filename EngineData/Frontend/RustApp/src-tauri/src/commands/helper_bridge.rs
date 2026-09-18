@@ -385,6 +385,16 @@ fn start_helper_bridge_internal(clear_outbound_pipeline: bool) -> HelperBridgeAc
 }
 
 pub fn start_helper_bridge() -> HelperBridgeActionResult {
+    let current = get_helper_bridge_status();
+    if current.state == "ready" {
+        return HelperBridgeActionResult {
+            ok: true,
+            state: current.state,
+            message: "Python helper worker is already running and ready.".to_string(),
+            generation_token: current.generation_token,
+            runtime_claim: current.runtime_claim,
+        };
+    }
     start_helper_bridge_internal(true)
 }
 
