@@ -35,7 +35,7 @@ pub use functional_readiness::required_outbound_voice_actor_token;
 use request_policy::{
     clear_any_meeting_outbound_pipeline, clear_meeting_outbound_pipeline, incoming_session_is_eligible, inject_request_metadata,
     live_outbound_generation_is_authoritative, live_outbound_stage_retry_safe, mark_meeting_outbound_pipeline, meeting_generation,
-    meeting_lane, meeting_outbound_pipeline_active, meeting_session_id, meeting_start_prepare, task_priority,
+    meeting_lane, meeting_outbound_pipeline_active, meeting_session_id, task_priority,
 };
 
 const REQUIRED_OUTBOUND_FUNCTIONAL_ID_FIXTURE: &str = "selamat pagi";
