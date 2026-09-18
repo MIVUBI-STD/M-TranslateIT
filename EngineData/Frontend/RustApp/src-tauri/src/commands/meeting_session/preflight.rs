@@ -13,18 +13,6 @@ use super::{
     APPLICATION_MEETING_OWNER_ID,
 };
 
-fn generation_aware_outbound_stages_ready() -> bool {
-    true
-}
-
-fn finalized_utterance_source_connected() -> bool {
-    true
-}
-
-fn application_outbound_runtime_connected() -> bool {
-    generation_aware_outbound_stages_ready() && finalized_utterance_source_connected()
-}
-
 pub(super) fn meeting_required_ai_ready(helper_ready: bool, provider_ready: bool) -> bool {
     helper_ready && provider_ready
 }
@@ -48,9 +36,6 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     // the bounded self-test only when needed.
     let models_ready = meeting_required_ai_ready(helper_ready, provider_ready);
     let meeting_route_ready = route.route_ready;
-    let generation_aware_outbound_stages_ready = generation_aware_outbound_stages_ready();
-    let finalized_utterance_source_connected = finalized_utterance_source_connected();
-    let outbound_runtime_connected = application_outbound_runtime_connected();
 
     let mut start_blockers = Vec::new();
     if !microphone_ready {
@@ -65,17 +50,6 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
         } else {
             route.blocker.clone()
         });
-    }
-    if !generation_aware_outbound_stages_ready {
-        start_blockers
-            .push("meeting_session:generation_aware_outbound_stages_not_ready".to_string());
-    }
-    if !finalized_utterance_source_connected {
-        start_blockers.push("meeting_session:finalized_utterance_source_not_connected".to_string());
-    }
-    if !outbound_runtime_connected {
-        start_blockers
-            .push("meeting_session:continuous_outbound_runtime_not_connected".to_string());
     }
     start_blockers.sort();
     start_blockers.dedup();
@@ -97,9 +71,6 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
         helper_ready,
         provider_ready,
         meeting_route_ready,
-        generation_aware_outbound_stages_ready,
-        finalized_utterance_source_connected,
-        outbound_runtime_connected,
         blockers,
         summary: if ready_for_start {
             "Required outbound Meeting capabilities are functionally verified for the current local worker and current preflight prerequisites are ready. Incoming Meeting Sound remains optional/degradable."

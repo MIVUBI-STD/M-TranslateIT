@@ -69,9 +69,6 @@ export type MeetingSessionPreflightStatus = {
   helper_ready: boolean;
   provider_ready: boolean;
   meeting_route_ready: boolean;
-  generation_aware_outbound_stages_ready: boolean;
-  finalized_utterance_source_connected: boolean;
-  outbound_runtime_connected: boolean;
   blockers: string[];
   summary: string;
   runtime_claim: string;
