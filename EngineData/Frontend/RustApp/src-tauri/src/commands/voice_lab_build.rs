@@ -21,7 +21,9 @@ use super::voice_lab::{
     VoiceLabStoragePaths, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
-use super::voice_lab_recording::get_voice_lab_guided_recording_state;
+use super::voice_lab_recording::{
+    accepted_guided_recordings, voice_lab_recording_active,
+};
 
 mod evaluation;
 
@@ -191,20 +193,24 @@ fn a3_wav_duration_ms(path: &Path) -> Option<u64> {
 }
 
 fn accepted_contract() -> (Vec<GuidedTakeContract>, u64) {
-    let paths = storage();
-    let recording = get_voice_lab_guided_recording_state();
     let mut takes = Vec::new();
     let mut duration_ms = 0u64;
-    for line in recording.lines.into_iter().filter(|line| line.accepted) {
-        let wav_file = format!("take_{:04}.wav", line.line_id);
-        let wav = paths.takes_dir.join(&wav_file);
-        let Some(duration) = a3_wav_duration_ms(&wav) else {
+    for recording in accepted_guided_recordings() {
+        let Some(duration) = a3_wav_duration_ms(&recording.path) else {
+            continue;
+        };
+        let Some(wav_file) = recording
+            .path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .map(str::to_string)
+        else {
             continue;
         };
         duration_ms = duration_ms.saturating_add(duration);
         takes.push(GuidedTakeContract {
-            line_id: line.line_id,
-            exact_text: line.text,
+            line_id: recording.line_id,
+            exact_text: recording.text.to_string(),
             wav_file,
         });
     }
@@ -276,7 +282,7 @@ fn current_status() -> VoiceLabBuildStatus {
     let paths = storage();
     reconcile_phase(&paths);
     let snapshot = current_voice_lab_build_snapshot();
-    let recording_active = get_voice_lab_guided_recording_state().recording_line_id.is_some();
+    let recording_active = voice_lab_recording_active();
     let (takes, duration_ms) = accepted_contract();
     let missing_coverage = missing_training_coverage_group(&takes);
     let evaluation = evaluation_manifest(&paths);
@@ -403,7 +409,7 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
     if !authorized_voice_confirmed {
         return result(false, "authorization_required", "Confirm that this is your voice, or that you have permission to create it.");
     }
-    if get_voice_lab_guided_recording_state().recording_line_id.is_some() {
+    if voice_lab_recording_active() {
         return result(false, "recording_active", "Stop the current VoiceLab recording before creating My Voice.");
     }
     let current = current_status();

@@ -115,8 +115,33 @@ fn result(ok: bool, state: &str, message: impl Into<String>) -> GuidedRecordingA
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct AcceptedGuidedRecording {
+    pub(crate) line_id: u32,
+    pub(crate) text: &'static str,
+    pub(crate) path: PathBuf,
+}
+
+pub(crate) fn voice_lab_recording_active() -> bool {
+    active_guided_take_line_id().is_some()
+}
+
+pub(crate) fn accepted_guided_recordings() -> Vec<AcceptedGuidedRecording> {
+    GUIDED_LINES
+        .iter()
+        .filter_map(|(line_id, text)| {
+            let path = accepted_path(*line_id);
+            path.is_file().then_some(AcceptedGuidedRecording {
+                line_id: *line_id,
+                text,
+                path,
+            })
+        })
+        .collect()
+}
+
 pub(crate) fn voice_lab_recording_blocks_app_exit() -> bool {
-    if active_guided_take_line_id().is_some() {
+    if voice_lab_recording_active() {
         return true;
     }
     draft_store()
