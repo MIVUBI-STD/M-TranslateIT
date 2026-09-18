@@ -69,7 +69,6 @@ def _install_fake_generate_runtime(worker, sequences) -> dict:
     return captured
 
 
-
 def test_voice_provider_keeps_heavy_upstream_stage_off_worker_import_path() -> None:
     provider_path = WORKER_PATH.parent / "voice_lab_gpt_sovits.py"
     source = provider_path.read_text(encoding="utf-8")
