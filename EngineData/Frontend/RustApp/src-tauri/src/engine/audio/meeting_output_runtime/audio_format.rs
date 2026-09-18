@@ -8,9 +8,9 @@ use super::{
 use super::super::duration_ms;
 
 pub(super) struct DecodedWav {
-    sample_rate_hz: u32,
-    channels: u16,
-    samples: Vec<f32>,
+    pub(super) sample_rate_hz: u32,
+    pub(super) channels: u16,
+    pub(super) samples: Vec<f32>,
 }
 
 pub(super) fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, String> {

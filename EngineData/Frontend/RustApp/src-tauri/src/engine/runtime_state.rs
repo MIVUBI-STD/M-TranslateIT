@@ -194,6 +194,27 @@ pub fn latest_runtime_session_state() -> RuntimeSessionStateReport {
     }
 }
 
+#[cfg(test)]
+pub fn clear_runtime_session_state() -> RuntimeSessionStateReport {
+    invalidate_runtime_generation();
+    let store = RUNTIME_SESSION_STATE.get_or_init(|| Mutex::new(None));
+    let Ok(mut guard) = store.lock() else {
+        return state_unavailable_report(
+            "Runtime generation authority was invalidated, but test session storage could not be verified as cleared.",
+        );
+    };
+    *guard = None;
+    RuntimeSessionStateReport {
+        has_active_session: false,
+        snapshot: None,
+        active_age_ms: None,
+        ready_for_stop: false,
+        blocker: "runtime_session:cleared".to_string(),
+        note: "Test runtime session state was cleared and prior generation authority is invalid."
+            .to_string(),
+    }
+}
+
 pub fn clear_runtime_session_if_generation(generation: u64) -> RuntimeSessionStateReport {
     let store = RUNTIME_SESSION_STATE.get_or_init(|| Mutex::new(None));
     let Ok(mut guard) = store.lock() else {

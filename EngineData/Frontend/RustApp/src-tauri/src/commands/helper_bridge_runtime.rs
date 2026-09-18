@@ -52,6 +52,7 @@ pub fn worker_response_deadline_for_priority(task: &str, priority: HelperTaskPri
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(Default))]
 pub struct HelperBridgeStatus {
     pub state: String,
     pub message: String,
