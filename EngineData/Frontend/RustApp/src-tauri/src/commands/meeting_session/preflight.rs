@@ -25,11 +25,11 @@ fn application_outbound_runtime_connected() -> bool {
     generation_aware_outbound_stages_ready() && finalized_utterance_source_connected()
 }
 
-fn meeting_required_ai_ready(helper_ready: bool, provider_ready: bool) -> bool {
+pub(super) fn meeting_required_ai_ready(helper_ready: bool, provider_ready: bool) -> bool {
     helper_ready && provider_ready
 }
 
-fn meeting_start_ai_eligible(helper_ready: bool, provider_ready: bool) -> bool {
+pub(super) fn meeting_start_ai_eligible(helper_ready: bool, provider_ready: bool) -> bool {
     helper_ready && provider_ready
 }
 
