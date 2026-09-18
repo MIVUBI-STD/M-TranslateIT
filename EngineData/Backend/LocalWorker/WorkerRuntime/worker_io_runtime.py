@@ -49,6 +49,15 @@ def asr_runtime_config(payload: dict[str, Any] | None = None) -> tuple[str, str,
     return "cpu", "int8", str(gpu["fallback_reason"])
 
 
+def asr_blocker(exc: Exception) -> str:
+    detail = str(exc).strip()
+    if detail:
+        safe = "".join(ch for ch in detail if ch.isascii() and (ch.isalnum() or ch in "_:-"))
+        if safe.startswith(("asr:", "cuda:", "dependency:", "model:", "worker:")):
+            return safe[:160]
+    return f"asr:runtime_failed:{type(exc).__name__}"
+
+
 def get_asr_runtime(payload: dict[str, Any] | None = None) -> Any:
     global ASR_RUNTIME, ASR_RUNTIME_DEVICE, ASR_RUNTIME_COMPUTE, ASR_RUNTIME_MODEL_ID
     if ASR_RUNTIME is not None:
@@ -103,7 +112,7 @@ def handle_asr_preload(payload: dict[str, Any]) -> dict[str, Any]:
         return {
             "ok": False,
             "stage": "asr_preload",
-            "blocker": type(exc).__name__,
+            "blocker": asr_blocker(exc),
             "note": str(exc),
             "elapsed_ms": common.now_ms() - started,
         }
@@ -121,7 +130,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
         return {
             "ok": False,
             "stage": "transcribe",
-            "blocker": type(exc).__name__,
+            "blocker": asr_blocker(exc),
             "note": str(exc),
         }
     if not audio_path.is_file():
@@ -171,7 +180,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
         return {
             "ok": False,
             "stage": "transcribe",
-            "blocker": type(exc).__name__,
+            "blocker": asr_blocker(exc),
             "note": str(exc),
             "elapsed_ms": common.now_ms() - started,
         }

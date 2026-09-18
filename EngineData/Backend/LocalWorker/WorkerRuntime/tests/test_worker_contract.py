@@ -210,6 +210,40 @@ def test_configured_runtime_root_must_be_absolute(tmp_path: Path, monkeypatch) -
         worker.configured_absolute_root("TRANSLATEIT_TEST_ROOT", tmp_path)
 
 
+def test_asr_failure_contract_preserves_owned_security_blocker(monkeypatch) -> None:
+    worker = load_worker_module()
+
+    def reject_path(*_args, **_kwargs):
+        raise ValueError("worker:path_outside_allowed_roots")
+
+    monkeypatch.setattr(worker.io_runtime.common, "resolve_worker_path", reject_path)
+    result = worker.handle_transcribe({"audio_path": "outside.wav"})
+
+    assert result["ok"] is False
+    assert result["blocker"] == "worker:path_outside_allowed_roots"
+
+
+def test_asr_runtime_failure_is_namespaced(tmp_path: Path, monkeypatch) -> None:
+    worker = load_worker_module()
+    audio = tmp_path / "segment.wav"
+    audio.write_bytes(b"RIFF" + b"0" * 64)
+
+    monkeypatch.setattr(
+        worker.io_runtime.common,
+        "resolve_worker_path",
+        lambda *_args, **_kwargs: audio,
+    )
+
+    def fail_runtime(_payload=None):
+        raise RuntimeError("unexpected inference failure")
+
+    monkeypatch.setattr(worker.io_runtime, "get_asr_runtime", fail_runtime)
+    result = worker.handle_transcribe({"audio_path": str(audio)})
+
+    assert result["ok"] is False
+    assert result["blocker"] == "asr:runtime_failed:RuntimeError"
+
+
 def test_newline_json_protocol_rejects_unknown_command() -> None:
     completed = subprocess.run(
         [sys.executable, str(WORKER_PATH)],
