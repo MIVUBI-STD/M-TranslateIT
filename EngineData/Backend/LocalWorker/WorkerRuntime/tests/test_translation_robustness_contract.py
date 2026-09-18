@@ -83,7 +83,9 @@ def test_instruction_like_source_is_forwarded_as_source_data(monkeypatch) -> Non
 def test_standalone_cannot_smuggle_context_pairs(monkeypatch) -> None:
     worker = load_module("translateit_robustness_context_worker", WORKER_PATH)
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
-    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(inference_mode=_FakeInferenceMode))
+    monkeypatch.setitem(
+        sys.modules, "torch", types.SimpleNamespace(inference_mode=_FakeInferenceMode)
+    )
     prompts: list[str] = []
     install_runtime(worker, prompts)
 
