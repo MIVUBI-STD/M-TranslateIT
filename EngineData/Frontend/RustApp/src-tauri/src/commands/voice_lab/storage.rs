@@ -242,7 +242,24 @@ pub(super) fn promote_voice_actor_candidate_at(storage: &VoiceLabStoragePaths) -
         return Err(format!("voice_lab:actor_promotion_failed:{error}"));
     }
 
-    validate_actor_package(&storage.approved_actor_dir)?;
+    if let Err(validation_error) = validate_actor_package(&storage.approved_actor_dir) {
+        let remove_result = fs::remove_dir_all(&storage.approved_actor_dir);
+        if let Err(remove_error) = remove_result {
+            return Err(format!(
+                "voice_lab:promoted_actor_validation_failed:{validation_error};rollback_remove_failed:{remove_error}"
+            ));
+        }
+        if previous.exists() {
+            if let Err(rollback_error) = fs::rename(&previous, &storage.approved_actor_dir) {
+                return Err(format!(
+                    "voice_lab:promoted_actor_validation_failed:{validation_error};rollback_failed:{rollback_error}"
+                ));
+            }
+        }
+        return Err(format!(
+            "voice_lab:promoted_actor_validation_failed:{validation_error}"
+        ));
+    }
     if previous.exists() {
         let _ = fs::remove_dir_all(previous);
     }
