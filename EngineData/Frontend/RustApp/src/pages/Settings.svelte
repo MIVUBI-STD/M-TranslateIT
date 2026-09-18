@@ -12,6 +12,7 @@
   import { sanitizeDiagnosticText } from "../app/shared/diagnosticPrivacy";
   import { deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
+  import MeetingPerformanceDiagnostics from "../components/settings/MeetingPerformanceDiagnostics.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
   import StatusRow from "../components/ui/StatusRow.svelte";
 
@@ -58,13 +59,7 @@
     String(routeStatus?.selected_input_device ?? "").trim() || "Meeting microphone not configured",
   );
 
-  function formatTiming(value: number | null | undefined): string {
-    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return "Not measured";
-    return `${Math.round(value)} ms`;
-  }
-
   const workerDiagnostics = $derived(parseWorkerCapabilities(snapshot.workerStatus));
-  const outboundTiming = $derived(snapshot.meetingSession?.outbound?.timing ?? null);
   const helperDiagnosticMessage = $derived(
     sanitizeDiagnosticText(snapshot.helper?.message, "Refresh status to check the local worker."),
   );
@@ -336,20 +331,7 @@
           <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Selected execution: {workerDiagnostics.executionDisplay}. Refresh after Meeting Start to see the loaded runtime state.</p>
         </article>
 
-        <article class="ti-panel p-5">
-          <div>
-            <span class="ti-field-label">Latest outbound phrase</span>
-            <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">Meeting stage timing</h4>
-          </div>
-          <div class="mt-4 grid grid-cols-[repeat(5,minmax(0,1fr))] gap-3">
-            <div class="ti-state-card"><span class="ti-field-label">Total</span><strong class="mt-2 block text-[12px]">{formatTiming(outboundTiming?.outbound_latency_ms)}</strong></div>
-            <div class="ti-state-card"><span class="ti-field-label">ASR</span><strong class="mt-2 block text-[12px]">{formatTiming(outboundTiming?.asr_ms)}</strong></div>
-            <div class="ti-state-card"><span class="ti-field-label">Translation</span><strong class="mt-2 block text-[12px]">{formatTiming(outboundTiming?.translation_ms)}</strong></div>
-            <div class="ti-state-card"><span class="ti-field-label">Voice TTS</span><strong class="mt-2 block text-[12px]">{formatTiming(outboundTiming?.tts_ms)}</strong></div>
-            <div class="ti-state-card"><span class="ti-field-label">Delivery</span><strong class="mt-2 block text-[12px]">{formatTiming(outboundTiming?.delivery_ms)}</strong></div>
-          </div>
-          <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">VRAM should be measured with the Windows/NVIDIA GPU monitor during target testing. TranslateIT does not report a PyTorch-only allocator number as whole-product VRAM because ASR uses a separate CTranslate2 CUDA runtime.</p>
-        </article>
+        <MeetingPerformanceDiagnostics status={snapshot.meetingSession} />
 
         <article class="ti-panel p-5">
           <div class="flex items-end justify-between gap-5">
