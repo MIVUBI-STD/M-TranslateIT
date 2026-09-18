@@ -51,6 +51,10 @@ pub struct MeetingOutboundTiming {
     pub audio_prepare_ms: u64,
     pub asr_ms: Option<u64>,
     pub translation_ms: Option<u64>,
+    pub translation_tokenization_ms: Option<f64>,
+    pub translation_inference_ms: Option<f64>,
+    pub translation_decode_ms: Option<f64>,
+    pub translation_tokens_per_second: Option<f64>,
     pub tts_ms: Option<u64>,
     pub delivery_ms: Option<u64>,
     pub outbound_latency_ms: Option<u64>,
@@ -169,6 +173,10 @@ fn worker_text(response: &HelperBridgeWorkerResponse, key: &str) -> Option<Strin
 
 fn worker_blocker(response: &HelperBridgeWorkerResponse, fallback: &str) -> String {
     worker_text(response, "blocker").unwrap_or_else(|| fallback.to_string())
+}
+
+fn worker_number(response: &HelperBridgeWorkerResponse, key: &str) -> Option<f64> {
+    worker_json(response).get(key).and_then(Value::as_f64)
 }
 
 fn generation_is_live(generation: u64) -> bool {
@@ -301,6 +309,10 @@ mod c2_latency_tests {
                 audio_prepare_ms: 5,
                 asr_ms: Some(900),
                 translation_ms: Some(120),
+                translation_tokenization_ms: Some(4.5),
+                translation_inference_ms: Some(110.0),
+                translation_decode_ms: Some(2.0),
+                translation_tokens_per_second: Some(72.0),
                 tts_ms: Some(160),
                 delivery_ms: None,
                 outbound_latency_ms: None,

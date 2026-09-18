@@ -83,6 +83,10 @@ export type MeetingOutboundTiming = {
   audio_prepare_ms: number;
   asr_ms: number | null;
   translation_ms: number | null;
+  translation_tokenization_ms: number | null;
+  translation_inference_ms: number | null;
+  translation_decode_ms: number | null;
+  translation_tokens_per_second: number | null;
   tts_ms: number | null;
   delivery_ms: number | null;
   outbound_latency_ms: number | null;

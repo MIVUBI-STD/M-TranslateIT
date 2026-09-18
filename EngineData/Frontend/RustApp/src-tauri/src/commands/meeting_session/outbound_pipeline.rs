@@ -15,7 +15,7 @@ use super::committed_turns::{
 use super::super::helper_bridge::{required_outbound_voice_actor_token, send_helper_worker_task};
 use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
 use super::{
-    generation_is_live, incoming_session_is_eligible, worker_blocker, worker_text,
+    generation_is_live, incoming_session_is_eligible, worker_blocker, worker_number, worker_text,
     MeetingOutboundProcessResult,
 };
 use super::session_state::{
@@ -226,6 +226,11 @@ pub(super) fn process_outbound_wav(
         }),
     );
     timing.metrics.translation_ms = Some(elapsed_millis(translation_started_at, Instant::now()));
+    timing.metrics.translation_tokenization_ms = worker_number(&translation, "tokenization_ms");
+    timing.metrics.translation_inference_ms = worker_number(&translation, "inference_ms");
+    timing.metrics.translation_decode_ms = worker_number(&translation, "decode_ms");
+    timing.metrics.translation_tokens_per_second =
+        worker_number(&translation, "inference_tokens_per_second");
     set_outbound_timing(generation, session_id, event_sequence, &timing.metrics);
     if !generation_is_live(generation) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);

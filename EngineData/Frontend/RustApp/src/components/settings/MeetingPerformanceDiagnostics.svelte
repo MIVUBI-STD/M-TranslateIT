@@ -16,6 +16,12 @@
       ? String(Math.round(value))
       : "Not measured";
   }
+
+  function formatRate(value: number | null | undefined): string {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0
+      ? `${value.toFixed(1)} tok/s`
+      : "Not measured";
+  }
 </script>
 
 <article class="ti-panel p-5">
@@ -30,6 +36,13 @@
     <div class="ti-state-card"><span class="ti-field-label">Translation</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Voice TTS</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.tts_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Delivery</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.delivery_ms)}</strong></div>
+  </div>
+
+  <div class="mt-3 grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3">
+    <div class="ti-state-card"><span class="ti-field-label">Translate tokenize</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_tokenization_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">Translate inference</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_inference_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">Translate decode</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_decode_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">Translate throughput</span><strong class="mt-2 block text-[12px]">{formatRate(timing?.translation_tokens_per_second)}</strong></div>
   </div>
 
   <div class="mt-3 grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3">
