@@ -8,10 +8,10 @@ use crate::engine::runtime_state::latest_runtime_session_state;
 mod storage;
 
 pub use storage::VoiceLabStoragePaths;
-use storage::{prepare_guided_dataset_at, promote_voice_actor_candidate_at};
+use storage::{prepare_guided_dataset_at, promote_voice_actor_candidate_at, validate_actor_package};
 #[cfg(test)]
 use storage::{
-    canonical_take_file_name, validate_actor_package, validate_guided_dataset_manifest, write_json,
+    canonical_take_file_name, validate_guided_dataset_manifest, write_json,
 };
 
 const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
@@ -299,6 +299,10 @@ pub fn promote_voice_actor_candidate(paths: &ProjectPaths) -> Result<(), String>
         return Err("voice_lab:build_active".to_string());
     }
     promote_voice_actor_candidate_at(&VoiceLabStoragePaths::from_project_paths(paths))
+}
+
+pub fn approved_voice_actor_ready(paths: &ProjectPaths) -> bool {
+    validate_actor_package(&VoiceLabStoragePaths::from_project_paths(paths).approved_actor_dir).is_ok()
 }
 
 fn ensure_build_generation(generation: u64, phase: BuildPhase) -> Result<(), String> {

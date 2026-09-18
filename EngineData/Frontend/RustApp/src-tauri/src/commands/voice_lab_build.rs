@@ -14,7 +14,7 @@ use super::builtin_voice::{
     install_builtin_voice, is_supported_builtin_voice, meeting_blocks_voice_change,
 };
 use super::voice_lab::{
-    begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
+    approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
     finish_voice_lab_build, mark_voice_lab_build_evaluating, mark_voice_lab_build_training,
     prepare_guided_dataset, promote_voice_actor_candidate, request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedEvaluationLineContract,
@@ -102,13 +102,6 @@ struct BuildChildStatusFile {
     message: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct ActorManifestProbe {
-    schema_version: u32,
-    engine: String,
-    engine_revision: String,
-    held_out_evaluation_complete: bool,
-}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VoiceLabBuildStatus {
@@ -296,31 +289,7 @@ fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifes
     Some(manifest)
 }
 
-fn approved_actor_ready(paths: &VoiceLabStoragePaths) -> bool {
-    let root = &paths.approved_actor_dir;
-    let bytes = match fs::read(root.join("actor.json")) {
-        Ok(bytes) if !bytes.is_empty() && bytes.len() <= 64 * 1024 => bytes,
-        _ => return false,
-    };
-    let manifest = match serde_json::from_slice::<ActorManifestProbe>(&bytes) {
-        Ok(manifest) => manifest,
-        Err(_) => return false,
-    };
-    if manifest.schema_version != SCHEMA_VERSION
-        || manifest.engine != ENGINE
-        || manifest.engine_revision != ENGINE_REVISION
-        || !manifest.held_out_evaluation_complete
-    {
-        return false;
-    }
-    ["gpt.ckpt", "sovits.pth", "reference.wav"]
-        .iter()
-        .all(|name| {
-            fs::symlink_metadata(root.join(name))
-                .map(|meta| meta.is_file() && !meta.file_type().is_symlink() && meta.len() > 0)
-                .unwrap_or(false)
-        })
-}
+
 
 fn reconcile_phase(paths: &VoiceLabStoragePaths) {
     let snapshot = current_voice_lab_build_snapshot();
@@ -358,7 +327,7 @@ fn current_status() -> VoiceLabBuildStatus {
     let missing_coverage = missing_training_coverage_group(&takes);
     let evaluation = evaluation_manifest(&paths);
     let child = child_status(&paths);
-    let approved_ready = approved_actor_ready(&paths);
+    let approved_ready = approved_voice_actor_ready(&ProjectPaths::discover());
     let terminal_message = process_store()
         .0
         .lock()
