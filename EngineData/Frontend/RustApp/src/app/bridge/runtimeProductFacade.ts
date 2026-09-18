@@ -106,17 +106,21 @@ export async function loadProductRuntimeSnapshot(knownSettings?: RuntimeSettings
   const settings = knownSettings ?? await runtimeApi.loadSettings();
   if (!settings) throw new Error("TranslateIT settings are unavailable.");
 
-  // Fresh setup remains Python-free. App.svelte normally guards this boundary,
-  // and the helper lifecycle keeps the same invariant if called directly.
-  const helper = await ensurePostSetupHelperLifecycle(settings);
-  const [meetingSession, inputStatus, approvedVoiceReady] = await Promise.all([
+  // Fresh setup remains Python-free. Input and selected-voice checks are
+  // independent of helper startup, so overlap them with the helper lifecycle.
+  // Meeting preflight waits for the final helper state so readiness cannot be
+  // derived from a stale pre-start helper snapshot.
+  const helperPromise = ensurePostSetupHelperLifecycle(settings);
+  const inputPromise = runtimeApi.getInputStatus();
+  const approvedVoicePromise = loadApprovedVoiceReady();
+
+  const helper = await helperPromise;
+  const [meetingSession, workerStatus, inputStatus, approvedVoiceReady] = await Promise.all([
     runtimeApi.getMeetingSessionStatus(),
-    runtimeApi.getInputStatus(),
-    loadApprovedVoiceReady(),
+    helper.state === "ready" ? runtimeApi.helperBridgeWorkerStatus() : Promise.resolve(null),
+    inputPromise,
+    approvedVoicePromise,
   ]);
-  const workerStatus = helper.state === "ready"
-    ? await runtimeApi.helperBridgeWorkerStatus()
-    : null;
   const meeting = mapProductMeetingState(meetingSession);
   const readiness = mapProductReadiness({
     settings,

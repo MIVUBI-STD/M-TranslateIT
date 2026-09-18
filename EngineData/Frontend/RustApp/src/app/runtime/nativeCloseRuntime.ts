@@ -27,9 +27,11 @@ export async function destroyNativeWindow(): Promise<void> {
 }
 
 export async function resolveNativeCloseVerdict(): Promise<CloseVerdict> {
-  const myVoice = await myVoiceApi.getState();
-  const build = await myVoiceBuildApi.getStatus();
-  const status = await runtimeApi.getMeetingSessionStatus();
+  const [myVoice, build, status] = await Promise.all([
+    myVoiceApi.getState(),
+    myVoiceBuildApi.getStatus(),
+    runtimeApi.getMeetingSessionStatus(),
+  ]);
   const meeting = mapProductMeetingState(status);
 
   return resolveClosePolicy({
