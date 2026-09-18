@@ -152,6 +152,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     }
     let prepared_route = get_virtual_mic_route_selection();
     let Some(output_device) = prepared_route.selected_output_device.as_deref() else {
+        clear_prepared_virtual_mic_route_selection();
         return blocked_result(
             "meeting_output_prepare_failed",
             "Start Translation couldn't resolve the prepared Meeting virtual output endpoint."
@@ -159,6 +160,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
     };
     if let Err(blocker) = prepare_meeting_output_device(output_device) {
+        clear_prepared_virtual_mic_route_selection();
         return blocked_result(
             "meeting_output_prepare_failed",
             format!(
