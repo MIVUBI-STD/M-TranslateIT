@@ -15,7 +15,10 @@ It does **not** contain fabricated audio or claim that faster-whisper is accurat
 - names and identifiers;
 - natural pauses and filler speech;
 - soft/fast speech;
-- moderate room noise and room echo.
+- moderate room noise and room echo;
+- far-field room capture, fan/keyboard noise and light crosstalk;
+- mild clipping and low-gain speech;
+- Bluetooth headset and built-in laptop microphone profiles.
 
 `recording_profile` describes the intended acoustic condition. It is part of the fixture identity and must not be silently normalized away when real audio is captured.
 
@@ -26,7 +29,9 @@ The evaluator reports:
 - word error rate (WER);
 - character error rate (CER);
 - critical literal/concept preservation;
-- grouped WER/CER by linguistic category and recording profile.
+- grouped WER/CER by linguistic category and recording profile;
+- grouped critical-invariant pass rates;
+- baseline-vs-candidate critical regression/recovery deltas.
 
 WER/CER are useful regression metrics, not a standalone user-quality verdict. A transcript can have a moderate WER yet still contain a critical reversal such as losing the word "tidak", so critical invariants are evaluated separately.
 
@@ -54,11 +59,21 @@ Expected result format:
 
 ```json
 {
+  "corpus_fingerprint": "<sha256 from fixture-plan>",
+  "source_identity": "<exact Local/model/settings/runtime identity>",
   "results": [
     {"case_id": "asr-negation-001", "transcript_text": "..."}
   ]
 }
 ```
+
+Compare matched baseline and candidate captures:
+
+```powershell
+python tools/asr_quality/evaluate_asr_quality.py compare --corpus tools/asr_quality/corpus/asr_quality_v1.json --baseline <baseline.json> --candidate <candidate.json>
+```
+
+Promotion comparison requires both result sets to identify their source and match the same corpus fingerprint. This prevents WER/CER improvements from being compared across silently different fixture specifications.
 
 ## Evidence boundary
 

@@ -342,6 +342,199 @@
           "sekarang"
         ]
       ]
+    },
+    {
+      "id": "asr-far-field-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "far_field_room",
+      "reference": "Tolong buka dokumen terakhir yang tadi kita bahas.",
+      "preserve": [],
+      "required_any": [
+        [
+          "buka"
+        ],
+        [
+          "dokumen"
+        ],
+        [
+          "terakhir"
+        ],
+        [
+          "bahas"
+        ]
+      ]
+    },
+    {
+      "id": "asr-laptop-fan-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "laptop_mic_fan_noise",
+      "reference": "Jangan hentikan server sebelum backup selesai.",
+      "preserve": [
+        "server",
+        "backup"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "sebelum"
+        ],
+        [
+          "selesai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-keyboard-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "keyboard_noise",
+      "reference": "Kita lanjut setelah semua perubahan tersimpan.",
+      "preserve": [],
+      "required_any": [
+        [
+          "lanjut"
+        ],
+        [
+          "setelah"
+        ],
+        [
+          "perubahan"
+        ],
+        [
+          "tersimpan"
+        ]
+      ]
+    },
+    {
+      "id": "asr-crosstalk-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "light_crosstalk",
+      "reference": "Saya belum setuju, tolong tunggu sebentar.",
+      "preserve": [],
+      "required_any": [
+        [
+          "belum"
+        ],
+        [
+          "setuju"
+        ],
+        [
+          "tunggu"
+        ]
+      ]
+    },
+    {
+      "id": "asr-clipping-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "mild_clipping",
+      "reference": "Angka yang benar seratus dua puluh lima, bukan seratus lima puluh.",
+      "preserve": [],
+      "required_any": [
+        [
+          "seratus dua puluh lima"
+        ],
+        [
+          "bukan"
+        ],
+        [
+          "seratus lima puluh"
+        ]
+      ]
+    },
+    {
+      "id": "asr-low-gain-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "low_gain",
+      "reference": "Versi ini belum siap untuk dirilis.",
+      "preserve": [],
+      "required_any": [
+        [
+          "belum"
+        ],
+        [
+          "siap"
+        ],
+        [
+          "dirilis"
+        ]
+      ]
+    },
+    {
+      "id": "asr-bluetooth-001",
+      "category": "device_robustness",
+      "recording_profile": "bluetooth_headset",
+      "reference": "Audio saya masuk dengan jelas ke meeting?",
+      "preserve": [],
+      "required_any": [
+        [
+          "audio"
+        ],
+        [
+          "jelas"
+        ],
+        [
+          "meeting"
+        ]
+      ]
+    },
+    {
+      "id": "asr-laptop-mic-001",
+      "category": "device_robustness",
+      "recording_profile": "laptop_builtin_mic",
+      "reference": "Tolong cek apakah mikrofon laptop ini masih aktif.",
+      "preserve": [],
+      "required_any": [
+        [
+          "mikrofon"
+        ],
+        [
+          "laptop"
+        ],
+        [
+          "aktif"
+        ]
+      ]
+    },
+    {
+      "id": "asr-code-switch-noise-001",
+      "category": "code_switching",
+      "recording_profile": "moderate_room_noise",
+      "reference": "Jangan merge branch ini sebelum final review selesai.",
+      "preserve": [
+        "merge",
+        "branch",
+        "review"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "sebelum"
+        ],
+        [
+          "selesai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-number-noise-001",
+      "category": "numbers_dates_units",
+      "recording_profile": "moderate_room_noise",
+      "reference": "Batas upload-nya dua ratus lima puluh megabyte per file.",
+      "preserve": [],
+      "required_any": [
+        [
+          "dua ratus lima puluh"
+        ],
+        [
+          "megabyte"
+        ],
+        [
+          "per file"
+        ]
+      ]
     }
   ]
 }
