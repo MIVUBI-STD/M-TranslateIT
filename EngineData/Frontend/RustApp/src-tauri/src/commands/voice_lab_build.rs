@@ -266,6 +266,19 @@ fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifes
     {
         return None;
     }
+    for (expected_line_id, expected_text) in HELD_OUT_LINES {
+        let matches = manifest
+            .samples
+            .iter()
+            .filter(|sample| {
+                sample.line_id == *expected_line_id
+                    && sample.exact_text.trim() == expected_text.trim()
+            })
+            .count();
+        if matches != 1 {
+            return None;
+        }
+    }
     for sample in &manifest.samples {
         if !sample.speaker_similarity.is_finite()
             || sample.wav_file.trim().is_empty()
