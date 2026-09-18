@@ -38,6 +38,7 @@ Subject to matching proof for the changed domain, current source establishes:
 - translation-quality tooling with baseline-vs-candidate critical regression detection, grouped critical-pass-rate deltas, authorized Meeting-context requests, and a 35-case semantic-risk corpus;
 - ASR quality tooling with a 28-case linguistic/acoustic/device corpus, WER/CER, grouped critical rates, matched provenance, and baseline-vs-candidate regression comparison;
 - TTS/My Voice quality tooling with a 10-case held-out synthesis corpus, speaker-similarity/intelligibility/artifact evidence, matched provenance, and fail-closed regression comparison;
+- Quality Readiness aggregates Translation + ASR + TTS comparison evidence without recalculating domain metrics, verifies expected candidate identities and input-report SHA-256, and fails closed if any domain is incomplete or regressed;
 - My Voice live inference isolated from one-shot dataset/training/evaluation/package construction.
 
 ## Verification surfaces
@@ -60,6 +61,9 @@ ASR Quality Contract
 
 TTS Quality Contract
 → TTS/My Voice corpus/evaluator + canonical held-out voice-evaluation source contract
+
+Quality Readiness Contract
+→ cross-domain aggregation contract over Translation + ASR + TTS comparison reports
 
 WorkerRuntime Lock Consistency
 → Python dependency-lock integrity

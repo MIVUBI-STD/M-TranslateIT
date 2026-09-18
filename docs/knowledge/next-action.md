@@ -12,6 +12,7 @@
 - Translation quality tooling compares matched baseline/candidate evidence with provenance and a 35-case semantic-risk corpus.
 - ASR quality tooling carries 28 linguistic/acoustic/device cases with WER/CER, critical regression and provenance gates.
 - TTS/My Voice quality tooling carries 10 held-out synthesis cases combining speaker similarity, intelligibility, artifact flags and provenance; audible acceptance remains native evidence.
+- Quality Readiness combines all three domain comparison reports into one fail-closed release evidence result with expected candidate identities and report SHA-256 binding.
 
 ## Active Boundary
 
