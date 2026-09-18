@@ -17,12 +17,8 @@ import wave
 from pathlib import Path
 from typing import Any
 
-from voice_lab_gpt_sovits import (
-    ENGINE,
-    ENGINE_REVISION,
-    VoiceLabProviderError,
-    build_candidate,
-)
+from voice_lab_gpt_sovits import ENGINE, ENGINE_REVISION, VoiceLabProviderError
+from voice_lab_gpt_sovits_build import build_candidate
 
 SCHEMA_VERSION = 1
 SILENCE_ABS_PCM16 = 128
