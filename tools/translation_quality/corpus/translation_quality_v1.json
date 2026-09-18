@@ -603,6 +603,97 @@
         ]
       ],
       "forbidden": []
+    },
+    {
+      "id": "id-en-context-correction-001",
+      "direction": "id-en",
+      "category": "contextual_meeting",
+      "source": "Bukan Selasa, tetap Jumat.",
+      "context_pairs": [
+        [
+          "Kita tadi membahas jadwal rilis hari Selasa.",
+          "We were discussing the Tuesday release schedule."
+        ]
+      ],
+      "references": [
+        "Not Tuesday, keep it on Friday.",
+        "Not Tuesday; it stays on Friday."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not tuesday"
+        ],
+        [
+          "friday"
+        ]
+      ],
+      "forbidden": [
+        "keep it on tuesday",
+        "it stays on tuesday"
+      ]
+    },
+    {
+      "id": "id-en-context-reference-001",
+      "direction": "id-en",
+      "category": "contextual_meeting",
+      "source": "Yang itu jangan diubah dulu.",
+      "context_pairs": [
+        [
+          "Kita sedang review API contract yang sekarang.",
+          "We are reviewing the current API contract."
+        ]
+      ],
+      "references": [
+        "Don't change that one yet.",
+        "Do not change it yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "do not change",
+          "don't change"
+        ],
+        [
+          "yet"
+        ]
+      ],
+      "forbidden": [
+        "change it now"
+      ]
+    },
+    {
+      "id": "id-en-context-terminology-001",
+      "direction": "id-en",
+      "category": "contextual_meeting",
+      "source": "Branch itu belum boleh digabung.",
+      "context_pairs": [
+        [
+          "Kita tetap pakai istilah branch dan merge untuk pembahasan repository.",
+          "We will keep using the terms branch and merge when discussing the repository."
+        ]
+      ],
+      "references": [
+        "That branch must not be merged yet.",
+        "That branch cannot be merged yet."
+      ],
+      "preserve": [
+        "branch"
+      ],
+      "required_any": [
+        [
+          "must not be merged",
+          "cannot be merged",
+          "should not be merged"
+        ],
+        [
+          "yet"
+        ]
+      ],
+      "forbidden": [
+        "can be merged now",
+        "merge it now"
+      ]
     }
   ]
 }

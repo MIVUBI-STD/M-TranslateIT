@@ -24,7 +24,13 @@ def main() -> int:
     assert validation["ok"], validation
     assert validation["case_count"] >= 26
     assert set(validation["directions"]) == {"en-id", "id-en"}
-    assert {"prompt_boundary", "unicode", "repetition", "input_normalization"}.issubset(set(validation["categories"]))
+    assert {
+        "prompt_boundary",
+        "unicode",
+        "repetition",
+        "input_normalization",
+        "contextual_meeting",
+    }.issubset(set(validation["categories"]))
 
     perfect = {case["id"]: case["references"][0] for case in corpus["cases"]}
     report = evaluator.evaluate(corpus, perfect)
@@ -54,7 +60,21 @@ def main() -> int:
 
     requests = evaluator.emit_requests(corpus)
     assert len(requests["requests"]) == validation["case_count"]
-    assert all(item["request"]["request_kind"] == "standalone_text" for item in requests["requests"])
+    contextual = [
+        item
+        for item in requests["requests"]
+        if item["request"]["request_kind"] == "meeting_context_quality"
+    ]
+    standalone = [
+        item
+        for item in requests["requests"]
+        if item["request"]["request_kind"] == "standalone_text"
+    ]
+    assert len(contextual) == 3
+    assert standalone
+    assert all(item["request"]["meeting_lane"] == "you" for item in contextual)
+    assert all(item["request"]["meeting_generation"] == 1 for item in contextual)
+    assert all(item["request"]["context_pairs"] for item in contextual)
     print(json.dumps({"ok": True, "case_count": validation["case_count"]}, indent=2))
     return 0
 

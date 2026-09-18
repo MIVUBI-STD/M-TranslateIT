@@ -65,6 +65,23 @@ def load_corpus(path: Path) -> dict:
         for field in ("preserve", "required_any", "forbidden"):
             if field not in case:
                 raise ValueError(f"{case_id}: missing {field}")
+        context_pairs = case.get("context_pairs")
+        if context_pairs is not None:
+            if case["direction"] != "id-en":
+                raise ValueError(f"{case_id}: contextual evaluation is outbound id-en only")
+            if (
+                not isinstance(context_pairs, list)
+                or not context_pairs
+                or len(context_pairs) > 3
+            ):
+                raise ValueError(f"{case_id}: context_pairs must contain one to three pairs")
+            for pair in context_pairs:
+                if (
+                    not isinstance(pair, list)
+                    or len(pair) != 2
+                    or not all(isinstance(value, str) and value.strip() for value in pair)
+                ):
+                    raise ValueError(f"{case_id}: invalid context pair")
     return data
 
 
@@ -199,16 +216,25 @@ def emit_requests(corpus: dict) -> dict:
     requests = []
     for case in corpus["cases"]:
         source_language, target_language = case["direction"].split("-")
-        requests.append({
-            "case_id": case["id"],
-            "request": {
-                "command": "translate",
-                "request_kind": "standalone_text",
-                "text": case["source"],
-                "source_language": source_language,
-                "target_language": target_language,
-            },
-        })
+        request = {
+            "command": "translate",
+            "request_kind": "standalone_text",
+            "text": case["source"],
+            "source_language": source_language,
+            "target_language": target_language,
+        }
+        context_pairs = case.get("context_pairs")
+        if context_pairs:
+            request.update(
+                {
+                    "request_kind": "meeting_context_quality",
+                    "context_pairs": context_pairs,
+                    "meeting_lane": "you",
+                    "meeting_session_id": "translation-quality-eval",
+                    "meeting_generation": 1,
+                }
+            )
+        requests.append({"case_id": case["id"], "request": request})
     return {"schema": "translateit.translation_quality.requests.v1", "requests": requests}
 
 
