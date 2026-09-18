@@ -28,8 +28,10 @@ ACTOR_SOVITS_WEIGHT_FILE = "sovits.pth"
 ACTOR_REFERENCE_WAV_FILE = "reference.wav"
 MAX_ACTOR_MANIFEST_BYTES = 64 * 1024
 
+
 class VoiceLabProviderError(RuntimeError):
     pass
+
 
 class _CachedReferenceSpeakerModel:
     def __init__(self, base: Any, cached_embeddings: list[tuple[Any, Any]]) -> None:
@@ -207,6 +209,7 @@ def write_wav(path: Path, sample_rate: int, audio: Any) -> None:
         writer.setframerate(sample_rate)
         writer.writeframes(values.tobytes())
 
+
 @contextmanager
 def source_working_directory(source_root: Path) -> Iterator[None]:
     previous = Path.cwd()
@@ -232,6 +235,7 @@ def reference_speaker_embeddings(tts: Any) -> list[tuple[Any, Any]]:
         audio = entry[1]
         cached.append((audio, sv_model.compute_embedding3(audio)))
     return cached
+
 
 @contextmanager
 def reuse_reference_speaker_embeddings(runtime: dict[str, Any]) -> Iterator[None]:
