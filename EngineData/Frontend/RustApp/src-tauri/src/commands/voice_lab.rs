@@ -338,6 +338,8 @@ fn ensure_build_generation(generation: u64, phase: BuildPhase) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::Path;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn test_root(label: &str) -> PathBuf {
