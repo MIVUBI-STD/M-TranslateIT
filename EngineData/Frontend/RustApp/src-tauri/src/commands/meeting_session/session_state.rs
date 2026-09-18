@@ -67,7 +67,7 @@ pub(super) fn outbound_status_store() -> &'static Mutex<MeetingOutboundRuntimeSt
     MEETING_OUTBOUND_STATUS.get_or_init(|| Mutex::new(idle_outbound_status()))
 }
 
-pub(super) fn incoming_status_store() -> &'static Mutex<MeetingIncomingRuntimeStatus> {
+pub(super) pub(super) fn incoming_status_store() -> &'static Mutex<MeetingIncomingRuntimeStatus> {
     MEETING_INCOMING_STATUS.get_or_init(|| Mutex::new(idle_incoming_status()))
 }
 
