@@ -4,6 +4,7 @@ import { compact, defaultSettings } from "../shared/state";
 import { APPLICATION_MEETING_OWNER_ID } from "../shared/types";
 import type {
   HelperBridgeStatus,
+  HelperBridgeWorkerResponse,
   InputPreparationStatus,
   RuntimeSettings,
 } from "../shared/types";
