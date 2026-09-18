@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-
 ENGINE = "gpt-sovits-v2proplus"
 ENGINE_REVISION = "d523079fc05d9a8028d6085bffe4a2757c32abb6"
 VERSION = "v2ProPlus"
