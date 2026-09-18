@@ -11,6 +11,15 @@ use super::{get_helper_bridge_status, send_worker_task, worker_text};
 
 const REQUIRED_OUTBOUND_FUNCTIONAL_ID_FIXTURE: &str = "selamat pagi";
 
+fn remove_probe_output_paths(requested_path: &str, reported_path: Option<&str>) {
+    if let Some(path) = reported_path.filter(|path| !path.trim().is_empty()) {
+        let _ = fs::remove_file(path);
+    }
+    if reported_path.map(str::trim) != Some(requested_path.trim()) && !requested_path.trim().is_empty() {
+        let _ = fs::remove_file(requested_path);
+    }
+}
+
 pub(super) fn run_required_outbound_ai_probe(
     meeting_generation: Option<u64>,
     output_path: &str,
@@ -99,6 +108,7 @@ pub(super) fn run_required_outbound_ai_probe(
         }),
     );
     let Some(functional_voice_path) = functional_voice_actor_output_path(&voice) else {
+        remove_probe_output_paths(output_path, None);
         invalidate_required_outbound_ai_readiness();
         return Err("My Voice");
     };
@@ -114,13 +124,11 @@ pub(super) fn run_required_outbound_ai_probe(
             "meeting_generation": meeting_generation,
         }),
     );
-    let functional_voice_path = worker_response_value(&voice)
+    let reported_voice_path = worker_response_value(&voice)
         .get("output_path")
         .and_then(Value::as_str)
         .map(str::to_string);
-    if let Some(path) = functional_voice_path.as_deref() {
-        let _ = fs::remove_file(path);
-    }
+    remove_probe_output_paths(output_path, reported_voice_path.as_deref());
     if !functional_asr_output(&asr_inference) {
         invalidate_required_outbound_ai_readiness();
         return Err("speech recognition");
@@ -153,4 +161,46 @@ pub(super) fn run_required_outbound_ai_probe(
     }
 
     Ok((generation_token, actor_token))
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::remove_probe_output_paths;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_path(label: &str) -> std::path::PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|value| value.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("translateit-probe-{label}-{nonce}.wav"))
+    }
+
+    #[test]
+    fn probe_cleanup_removes_requested_file_without_worker_report() {
+        let requested = temp_path("requested");
+        fs::write(&requested, b"probe").expect("write probe");
+
+        remove_probe_output_paths(requested.to_string_lossy().as_ref(), None);
+
+        assert!(!requested.exists());
+    }
+
+    #[test]
+    fn probe_cleanup_removes_distinct_requested_and_reported_files() {
+        let requested = temp_path("requested");
+        let reported = temp_path("reported");
+        fs::write(&requested, b"requested").expect("write requested");
+        fs::write(&reported, b"reported").expect("write reported");
+
+        remove_probe_output_paths(
+            requested.to_string_lossy().as_ref(),
+            Some(reported.to_string_lossy().as_ref()),
+        );
+
+        assert!(!requested.exists());
+        assert!(!reported.exists());
+    }
 }
