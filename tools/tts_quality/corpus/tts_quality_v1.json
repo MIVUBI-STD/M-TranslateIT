@@ -1,0 +1,186 @@
+{
+  "schema": "translateit.tts_quality.v1",
+  "language": "en",
+  "purpose": "Versioned English TTS regression specification for selected Meeting voice. Repository validation does not claim audible quality; real generated WAV evidence is required.",
+  "cases": [
+    {
+      "id": "tts-meeting-001",
+      "category": "meeting_core",
+      "text": "Please confirm the final schedule before we send the update to the client.",
+      "preserve": [],
+      "required_any": [
+        [
+          "confirm"
+        ],
+        [
+          "final schedule"
+        ],
+        [
+          "client"
+        ]
+      ]
+    },
+    {
+      "id": "tts-technical-001",
+      "category": "technical",
+      "text": "Do not change the API endpoint or JSON schema before the final review.",
+      "preserve": [
+        "API",
+        "JSON"
+      ],
+      "required_any": [
+        [
+          "do not change"
+        ],
+        [
+          "endpoint"
+        ],
+        [
+          "final review"
+        ]
+      ]
+    },
+    {
+      "id": "tts-numbers-001",
+      "category": "numbers_dates_units",
+      "text": "The upload limit is two hundred fifty megabytes per file.",
+      "preserve": [],
+      "required_any": [
+        [
+          "two hundred fifty"
+        ],
+        [
+          "megabytes"
+        ],
+        [
+          "per file"
+        ]
+      ]
+    },
+    {
+      "id": "tts-date-001",
+      "category": "numbers_dates_units",
+      "text": "The maintenance window starts on September twenty first at seven thirty PM.",
+      "preserve": [
+        "September"
+      ],
+      "required_any": [
+        [
+          "twenty first"
+        ],
+        [
+          "seven thirty"
+        ],
+        [
+          "PM"
+        ]
+      ]
+    },
+    {
+      "id": "tts-code-switch-001",
+      "category": "technical_terms",
+      "text": "Please keep the branch open and do not merge the hotfix yet.",
+      "preserve": [
+        "branch",
+        "merge",
+        "hotfix"
+      ],
+      "required_any": [
+        [
+          "do not"
+        ],
+        [
+          "yet"
+        ]
+      ]
+    },
+    {
+      "id": "tts-name-001",
+      "category": "entities",
+      "text": "Younes will review Clockwork tomorrow morning.",
+      "preserve": [
+        "Younes",
+        "Clockwork"
+      ],
+      "required_any": [
+        [
+          "review"
+        ],
+        [
+          "tomorrow morning"
+        ]
+      ]
+    },
+    {
+      "id": "tts-negation-001",
+      "category": "meaning_control",
+      "text": "I did not approve the payment, so please do not send it yet.",
+      "preserve": [],
+      "required_any": [
+        [
+          "did not approve"
+        ],
+        [
+          "do not send"
+        ],
+        [
+          "yet"
+        ]
+      ]
+    },
+    {
+      "id": "tts-correction-001",
+      "category": "meaning_control",
+      "text": "I said fifteen, not fifty, and the distinction is important.",
+      "preserve": [],
+      "required_any": [
+        [
+          "fifteen"
+        ],
+        [
+          "not fifty"
+        ],
+        [
+          "important"
+        ]
+      ]
+    },
+    {
+      "id": "tts-long-001",
+      "category": "long_form",
+      "text": "The system should remain clear and natural during a longer technical discussion, even when the sentence contains several clauses and multiple pieces of information.",
+      "preserve": [],
+      "required_any": [
+        [
+          "clear and natural"
+        ],
+        [
+          "technical discussion"
+        ],
+        [
+          "multiple pieces of information"
+        ]
+      ]
+    },
+    {
+      "id": "tts-punctuation-001",
+      "category": "prosody_challenge",
+      "text": "Wait, please: do not restart it yet; first, confirm that everyone is ready.",
+      "preserve": [],
+      "required_any": [
+        [
+          "wait"
+        ],
+        [
+          "do not restart"
+        ],
+        [
+          "confirm"
+        ],
+        [
+          "ready"
+        ]
+      ]
+    }
+  ]
+}

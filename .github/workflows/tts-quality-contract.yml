@@ -1,0 +1,72 @@
+name: TTS Quality Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Local
+    paths:
+      - "tools/tts_quality/**"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"
+      - "EngineData/Frontend/RustApp/src-tauri/src/commands/voice_lab_build/evaluation.rs"
+      - ".github/workflows/tts-quality-contract.yml"
+  pull_request:
+    branches:
+      - Local
+    paths:
+      - "tools/tts_quality/**"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"
+      - "EngineData/Frontend/RustApp/src-tauri/src/commands/voice_lab_build/evaluation.rs"
+      - ".github/workflows/tts-quality-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+      - name: Validate TTS quality corpus
+        run: >-
+          python tools/tts_quality/evaluate_tts_quality.py
+          validate-corpus
+          --corpus tools/tts_quality/corpus/tts_quality_v1.json
+      - name: Self-test TTS quality evaluator
+        run: python tools/tts_quality/self_test.py
+      - name: Verify canonical held-out voice evaluation contract
+        shell: python
+        run: |
+          from pathlib import Path
+
+          rust = Path("EngineData/Frontend/RustApp/src-tauri/src/commands/voice_lab_build/evaluation.rs").read_text(encoding="utf-8")
+          build = Path("EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py").read_text(encoding="utf-8")
+          required_rust = (
+              "speaker_similarity",
+              "HELD_OUT_LINES",
+              "VOICE_ACTOR_ENGINE_REVISION",
+          )
+          required_build = (
+              "mean_speaker_similarity",
+              "minimum_speaker_similarity",
+              "held_out_mean_speaker_similarity_then_minimum_tiebreak",
+          )
+          missing = [
+              item
+              for item in required_rust
+              if item not in rust
+          ] + [
+              item
+              for item in required_build
+              if item not in build
+          ]
+          if missing:
+              raise SystemExit(f"canonical TTS evaluation contract missing: {missing}")

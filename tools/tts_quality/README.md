@@ -1,0 +1,66 @@
+# TTS / My Voice Quality
+
+This directory owns source-level regression evaluation for TranslateIT's selected English Meeting voice.
+
+It does **not** claim audible quality from CI. Real evidence requires generated WAVs from the exact selected voice/runtime and an independent intelligibility/artifact review process.
+
+## What it measures
+
+The evaluator combines four independent signals:
+
+- speaker similarity supplied by the exact voice-evaluation runtime;
+- intelligibility WER from an independently captured transcript of the generated speech;
+- declared critical word/meaning preservation;
+- explicit artifact flags: clipping, dropout, repetition, truncation, unexpected silence, noise burst, or unstable pitch.
+
+A higher speaker-similarity score does not override an intelligibility or artifact regression.
+
+## Corpus
+
+`corpus/tts_quality_v1.json` contains English Meeting synthesis cases covering meeting language, technical terms, names, numbers/dates, negation/corrections, longer speech and punctuation/prosody challenges.
+
+## Commands
+
+Validate the corpus:
+
+```powershell
+python tools/tts_quality/evaluate_tts_quality.py validate-corpus --corpus tools/tts_quality/corpus/tts_quality_v1.json
+```
+
+Generate the exact fixture plan:
+
+```powershell
+python tools/tts_quality/evaluate_tts_quality.py fixture-plan --corpus tools/tts_quality/corpus/tts_quality_v1.json
+```
+
+Evaluate captured evidence:
+
+```powershell
+python tools/tts_quality/evaluate_tts_quality.py evaluate --corpus tools/tts_quality/corpus/tts_quality_v1.json --results <results.json>
+```
+
+Compare baseline and candidate:
+
+```powershell
+python tools/tts_quality/evaluate_tts_quality.py compare --corpus tools/tts_quality/corpus/tts_quality_v1.json --baseline <baseline.json> --candidate <candidate.json>
+```
+
+Result bundles use:
+
+```json
+{
+  "corpus_fingerprint": "<fixture-plan sha256>",
+  "source_identity": "<exact actor/runtime/build identity>",
+  "results": [
+    {
+      "case_id": "tts-meeting-001",
+      "intelligibility_text": "...",
+      "speaker_similarity": 0.91,
+      "artifact_flags": [],
+      "wav_sha256": "<64 hex>"
+    }
+  ]
+}
+```
+
+Promotion comparison is fail-closed when provenance is missing/mismatched or when a new critical/artifact regression appears. It is deliberately not a standalone verdict on naturalness or speaker fidelity; listening acceptance remains TARGET_WINDOWS evidence.
