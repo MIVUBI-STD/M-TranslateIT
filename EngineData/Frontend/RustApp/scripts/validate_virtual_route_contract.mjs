@@ -41,9 +41,7 @@ requireMarkers(source.meeting, "Meeting session output orchestration facade", [
   "process_outbound_wav",
 ]);
 requireMarkers(source.meetingLifecycle, "Meeting lifecycle output orchestration", [
-  "prepare_current_virtual_mic_route_for_meeting",
   "bind_prepared_virtual_mic_route_to_generation",
-  "clear_prepared_virtual_mic_route_selection",
   "prepare_meeting_output_device",
   "cancel_meeting_output_for_generation",
   "get_virtual_mic_route_selection",

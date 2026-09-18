@@ -5,8 +5,7 @@ use super::helper_bridge_runtime::HelperBridgeActionResult;
 use super::meeting_session::{self, MeetingSessionActionResult};
 use super::runtime_inventory::{self, ModelInventoryReport};
 use super::virtual_mic_route::{
-    bind_prepared_virtual_mic_route_to_generation, clear_prepared_virtual_mic_route_selection,
-    prepare_current_virtual_mic_route_for_meeting,
+    clear_prepared_virtual_mic_route_selection, prepare_current_virtual_mic_route_for_meeting,
 };
 use super::voice_lab::voice_lab_build_blocks_meeting as my_voice_build_blocks_meeting;
 
@@ -131,14 +130,7 @@ pub fn start_meeting_translation() -> MeetingSessionActionResult {
     }
 
     let result = meeting_session::start_meeting_translation();
-    if result.ok {
-        if let Some(generation) = result.status.generation {
-            // The route owner also binds lazily on the first active-session read so
-            // playback cannot race this wrapper. This explicit bind records the same
-            // generation relationship once the Start result returns.
-            let _ = bind_prepared_virtual_mic_route_to_generation(generation);
-        }
-    } else {
+    if !result.ok {
         clear_prepared_virtual_mic_route_selection();
     }
     result

@@ -18,8 +18,7 @@ use crate::engine::runtime_state::{
 };
 
 use super::super::virtual_mic_route::{
-    bind_prepared_virtual_mic_route_to_generation, clear_prepared_virtual_mic_route_selection,
-    get_virtual_mic_route_selection, prepare_current_virtual_mic_route_for_meeting,
+    bind_prepared_virtual_mic_route_to_generation, get_virtual_mic_route_selection,
 };
 use super::super::helper_bridge::{
     cancel_helper_bridge_meeting_session, get_helper_bridge_status,
@@ -57,7 +56,6 @@ fn clear_starting_meeting_resources(generation: u64, session_id: &str) {
     clear_committed_turns_for_session(session_id);
     clear_start_preflight_for_generation(generation);
     clear_prepared_meeting_output_device();
-    clear_prepared_virtual_mic_route_selection();
     let _ = clear_runtime_session_if_generation(generation);
 }
 
@@ -113,7 +111,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
 
     clear_all_start_preflight();
     clear_prepared_meeting_output_device();
-    clear_prepared_virtual_mic_route_selection();
 
     if let Err(message) = recover_helper_after_meeting_stop_if_needed() {
         return blocked_result(
@@ -139,20 +136,8 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         };
     }
 
-    // Freeze one exact matched virtual-cable pair before Meeting authority exists.
-    // The same pair is then bound to the authoritative generation so later delivery
-    // cannot silently switch to a newly enumerated device mid-session.
-    if let Err(blocker) = prepare_current_virtual_mic_route_for_meeting() {
-        return blocked_result(
-            "meeting_route_prepare_failed",
-            format!(
-                "Start Translation couldn't prepare the exact TranslateIT Meeting Microphone route: {blocker}"
-            ),
-        );
-    }
     let prepared_route = get_virtual_mic_route_selection();
     let Some(output_device) = prepared_route.selected_output_device.as_deref() else {
-        clear_prepared_virtual_mic_route_selection();
         return blocked_result(
             "meeting_output_prepare_failed",
             "Start Translation couldn't resolve the prepared Meeting virtual output endpoint."
@@ -160,7 +145,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
     };
     if let Err(blocker) = prepare_meeting_output_device(output_device) {
-        clear_prepared_virtual_mic_route_selection();
         return blocked_result(
             "meeting_output_prepare_failed",
             format!(
@@ -172,7 +156,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     let starting = begin_application_meeting_session();
     if !starting.blocker.is_empty() {
         clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
         return MeetingSessionActionResult {
             ok: false,
             state: "start_authority_conflict".to_string(),
@@ -183,7 +166,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     }
     let Some(start_snapshot) = starting.snapshot.as_ref() else {
         clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
         return blocked_result(
             "start_authority_failed",
             "Start Translation could not establish application-level Meeting authority. No Meeting resources were opened."
@@ -192,7 +174,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     };
     if start_snapshot.owner_id != APPLICATION_MEETING_OWNER_ID || !start_snapshot.authority_active {
         clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
         return blocked_result(
             "start_authority_conflict",
             "Start Translation did not receive the expected Meeting session authority. No additional resources were opened."
@@ -208,7 +189,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             "Prepared Meeting route could not bind to the new generation. Authority was revoked before opening Meeting resources.",
         );
         clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
         let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "meeting_route_bind_failed",
@@ -440,7 +420,6 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     let Some(snapshot) = current.snapshot.as_ref() else {
         clear_all_start_preflight();
         clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
         let incoming_capture_stop = stop_meeting_sound_capture_runtime();
         clear_finalized_incoming_utterance_producer();
         let deferred_cleanup = clear_deferred_incoming_queue();
@@ -496,7 +475,6 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     interrupt_committed_turns_for_generation(&session_id, generation);
     let _ = cancel_meeting_output_for_generation(generation);
     clear_prepared_meeting_output_device();
-    clear_prepared_virtual_mic_route_selection();
     let capture_stop = stop_live_capture_runtime();
     let incoming_capture_stop = stop_meeting_sound_capture_runtime();
     let helper_cancel = cancel_helper_bridge_meeting_session(&session_id);
