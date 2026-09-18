@@ -13,6 +13,9 @@ REQUIRED_PATHS = (
     "CONTEXT.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
+    "DEV.cmd",
+    "toolchain.json",
+    "tooling/windows-toolchain/dev.ps1",
     ".editorconfig",
     ".gitattributes",
     ".gitignore",
@@ -28,6 +31,7 @@ REQUIRED_PATHS = (
     "docs/foundation/03-acceptance-scenarios.md",
     "docs/knowledge/README.md",
     "docs/knowledge/flow.md",
+    "docs/knowledge/development-discipline.md",
     "docs/knowledge/next-action.md",
     "docs/knowledge/current-validation.md",
     "docs/knowledge/source-ownership.md",
@@ -130,6 +134,34 @@ def check_compactness(errors: list[str]) -> None:
         path = ROOT / rel
         if path.is_file() and path.stat().st_size > maximum:
             fail(errors, f"{rel} exceeds compactness budget: {path.stat().st_size} > {maximum}")
+
+
+def check_development_foundation(errors: list[str]) -> None:
+    agents = text("AGENTS.md")
+    discipline = text("docs/knowledge/development-discipline.md")
+    ownership = text("docs/knowledge/source-ownership.md")
+    toolchain = text("toolchain.json")
+    dev = text("tooling/windows-toolchain/dev.ps1")
+
+    for marker in ("REPO_READ", "REPO_WRITE", "LOCAL_SHELL", "CI_CONTROL", "ARTIFACT_ACCESS", "NATIVE_HOST"):
+        if marker not in agents:
+            fail(errors, f"AGENTS.md missing capability marker: {marker}")
+    for marker in ("STATIC_SOURCE", "EXECUTED_SOURCE", "INTEGRATION_FIXTURE", "PACKAGE_SMOKE", "LIVE_RUNTIME", "NATIVE_ACCEPTANCE"):
+        if marker not in discipline:
+            fail(errors, f"development discipline missing proof type: {marker}")
+    for marker in ("No change required?", "first wrong owner", "smallest complete change"):
+        if marker not in discipline:
+            fail(errors, f"development discipline missing minimum-flow marker: {marker}")
+    for marker in ('"major": 22', '"version": "3.12.10"', '"minimum": "1.77"', '"minimum": "0.12.0"'):
+        if marker not in toolchain:
+            fail(errors, f"toolchain.json missing repository-derived policy: {marker}")
+    for marker in ('"doctor"', '"setup"', '"check"', '"build"', '"test"', '"package"'):
+        if marker not in dev:
+            fail(errors, f"developer router missing command: {marker}")
+    if "doctorMustNotInstallOrRepairAutomatically" not in toolchain or "No installation or repair was performed." not in dev:
+        fail(errors, "developer doctor must remain observation-only")
+    if "Unified Windows developer routing" not in ownership:
+        fail(errors, "source ownership must identify the developer router owner")
 
 
 def check_branch_authority(errors: list[str]) -> None:
@@ -307,6 +339,7 @@ def main() -> int:
     errors: list[str] = []
     check_structure(errors)
     check_compactness(errors)
+    check_development_foundation(errors)
     check_branch_authority(errors)
     check_continuation_and_product(errors)
     check_governance_links(errors)
@@ -322,6 +355,7 @@ def main() -> int:
     print("REPOSITORY VERIFY PASSED")
     print("- repository authority: Local only")
     print("- canonical skills: exact inventory")
+    print("- development foundation: capability/proof/toolchain/dev routing contracts")
     print("- governance links: resolved")
     print("- workflows: immutable/read-only/bounded and Local-routed")
     print("- CI: selective domains + canonical bridge contract + frontend reachability")

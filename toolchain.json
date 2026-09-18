@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "package": "TranslateIT Windows Development Toolchain",
+  "target": {
+    "os": ["Windows 10 x64", "Windows 11 x64"],
+    "architecture": "x86_64",
+    "productRuntime": "Windows desktop"
+  },
+  "policy": {
+    "localOnlyRepositoryAuthority": true,
+    "lockfilesRequired": true,
+    "endUserMustNotRequireDeveloperToolchain": true,
+    "doctorMustNotInstallOrRepairAutomatically": true
+  },
+  "node": {
+    "major": 22,
+    "source": ".github/workflows/code-health.yml",
+    "lockfile": "EngineData/Frontend/RustApp/package-lock.json"
+  },
+  "rust": {
+    "minimum": "1.77",
+    "source": "EngineData/Frontend/RustApp/src-tauri/Cargo.toml",
+    "lockfile": "EngineData/Frontend/RustApp/src-tauri/Cargo.lock",
+    "pinPolicy": "minimum compiler is source-authoritative; exact installed compiler is not currently pinned"
+  },
+  "python": {
+    "version": "3.12.10",
+    "source": "EngineData/Backend/LocalWorker/WorkerRuntime/.python-version",
+    "lockfile": "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
+  },
+  "uv": {
+    "minimum": "0.12.0",
+    "source": "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
+  },
+  "tauri": {
+    "major": 2,
+    "source": "EngineData/Frontend/RustApp/package-lock.json + src-tauri/Cargo.lock"
+  }
+}

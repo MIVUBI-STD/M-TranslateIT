@@ -143,29 +143,20 @@ Routine work lands directly on `Local` as one logical delivery. Do not create pr
 
 ## Development entrypoints
 
-Desktop:
-
-```bash
-cd EngineData/Frontend/RustApp
-npm ci
-npm run validate:quick
-npm run build:frontend
-```
-
-Worker:
+Canonical Windows developer surface:
 
 ```text
-EngineData/Backend/LocalWorker/WorkerRuntime/
-pyproject.toml + uv.lock
+DEV.cmd doctor
+DEV.cmd setup
+DEV.cmd check
+DEV.cmd build
+DEV.cmd test
+DEV.cmd package
 ```
 
-Repository policy:
+`DEV.cmd` is only a thin router. Existing npm/Cargo/uv/release owners remain authoritative; it does not create a second build system. Supported toolchain policy is recorded in `toolchain.json`.
 
-```bash
-python tools/verify_repository.py
-```
-
-Use only proof required by the changed claim. Hosted/static proof does not become target-Windows proof.
+Direct subsystem commands remain valid for targeted work. Use only proof required by the changed claim; hosted/static proof does not become native Windows acceptance.
 
 ## Release boundary
 

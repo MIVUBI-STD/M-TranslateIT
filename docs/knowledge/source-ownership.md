@@ -8,6 +8,9 @@ This file maps semantic responsibility to the current owner. It does not carry m
 |---|---|
 | GitHub branch/ref/history, atomic delivery, transfer, CI security, retry, STOP | `GITHUB_RULES.md` |
 | Agent execution context, work mode, routing, skill budget | `AGENTS.md` |
+| Development discipline / proof taxonomy / ownership economy | `docs/knowledge/development-discipline.md` |
+| Supported developer toolchain policy | `toolchain.json` |
+| Unified Windows developer routing | `DEV.cmd` → `tooling/windows-toolchain/dev.ps1` |
 | Stable orientation / current architecture vocabulary | `CONTEXT.md` |
 | Product/system law | `docs/foundation/` |
 | Active continuation | `docs/knowledge/next-action.md` |

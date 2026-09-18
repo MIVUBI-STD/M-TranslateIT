@@ -11,6 +11,21 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 - Do not create alternate development branches as part of the normal method.
 - Historical branches/reports are recovery evidence only and are not current task or product authority.
 
+## Capability Gate
+
+Resolve actual capability before choosing execution mechanics. Capability describes what the current session can do; it is not proof by itself.
+
+```text
+REPO_READ       = inspect current repository source/history/docs
+REPO_WRITE      = mutate the authoritative Local ref
+LOCAL_SHELL     = execute commands against an exact local checkout/toolchain
+CI_CONTROL      = inspect/dispatch matching CI and exact-run evidence
+ARTIFACT_ACCESS = inspect/download exact build or proof artifacts
+NATIVE_HOST     = exercise installed TranslateIT on the target Windows machine
+```
+
+Capabilities are additive. `REPO_WRITE` does not imply `LOCAL_SHELL`; hosted Windows CI does not imply `NATIVE_HOST`. Use the smallest capability set that can satisfy the claim and finish lower-capability partitions before handing off only the remaining residue.
+
 ## Execution Context Gate
 
 Classify by actual capability:
@@ -199,19 +214,20 @@ Do not hide unknown causes with blind retry, arbitrary delay, broad catch/fallba
 
 ## Evidence language
 
-Use only evidence labels supported by the execution context:
+Capability and proof type are separate. Use the cheapest proof capable of falsifying the changed claim.
 
 ```text
-SOURCE VERIFIED
-LOCAL CODE VERIFIED
-TARGET WINDOWS VERIFIED
-LOCAL PROOF REQUIRED
-TARGET WINDOWS PROOF REQUIRED
-UNSUPPORTED
-UNKNOWN
+STATIC_SOURCE       = source/config/docs inspection only
+EXECUTED_SOURCE     = source-level build/lint/unit execution
+INTEGRATION_FIXTURE = controlled multi-component or protocol fixture
+PACKAGE_SMOKE       = packaged artifact/install boundary exercised
+LIVE_RUNTIME        = exact live application/runtime path exercised
+NATIVE_ACCEPTANCE   = target Windows GPU/audio/device/meeting behavior exercised
+UNKNOWN             = evidence cannot yet separate the owner; name the next separating evidence
+UNSUPPORTED         = required capability is unavailable
 ```
 
-Build success is not runtime success. Hosted Windows is not automatically target-PC proof. Historical proof is not current proof unless the claim and source identity still match.
+Build success is not runtime success. Hosted Windows is not automatically native acceptance. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
 
 ## User-facing reporting
 
