@@ -1,13 +1,9 @@
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 
 use crate::engine::audio::finalized_utterance::{
-    clear_finalized_incoming_utterance_producer, clear_finalized_meeting_sequence,
-    reset_finalized_incoming_speech_boundary,
-    reset_finalized_meeting_sequence,
+    clear_finalized_meeting_sequence, reset_finalized_meeting_sequence,
 };
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
 use crate::engine::audio::meeting_output::{
@@ -23,23 +19,22 @@ use crate::engine::runtime_state::{
     clear_runtime_session_state, commit_application_meeting_session_live,
     latest_runtime_session_state, mark_runtime_session_cleanup_incomplete,
     revoke_runtime_session_authority, runtime_generation_is_authoritative,
-    RuntimeSessionStateReport,
 };
 
-use super::audio::get_input_status;
 use super::helper_bridge::{
     cancel_helper_bridge_meeting_session, get_helper_bridge_status,
     prepare_required_outbound_ai_runtime, required_outbound_voice_actor_token,
     send_helper_worker_task, start_helper_bridge, HelperBridgeWorkerResponse,
 };
-use super::virtual_mic_route::get_virtual_mic_route_selection;
 
 mod committed_turns;
 mod consumer_runtime;
 mod incoming_deferred;
 mod incoming_pipeline;
 mod outbound_pipeline;
+mod preflight;
 mod session_state;
+mod suppression;
 
 use committed_turns::{
     clear_all_committed_turns, clear_committed_turns_for_session,
@@ -52,6 +47,12 @@ use consumer_runtime::{
 };
 use incoming_deferred::clear_deferred_incoming_queue;
 use outbound_pipeline::process_outbound_wav;
+use preflight::{blocked_result, build_preflight, current_status, status_from_report};
+use suppression::{
+    begin_self_output_suppression, clear_self_output_suppression_for_session,
+    disable_optional_incoming_for_outbound, reset_self_output_suppression,
+    suppression_handle_for_session,
+};
 use session_state::{
     clear_all_start_preflight, clear_incoming_status, clear_outbound_status,
     clear_start_preflight_for_generation, current_incoming_status, current_outbound_status,
@@ -195,189 +196,6 @@ pub struct MeetingCommittedTurnsSnapshot {
     pub runtime_claim: String,
 }
 
-struct MeetingSelfOutputSuppression {
-    session_id: String,
-    active: Arc<AtomicBool>,
-}
-
-struct SelfOutputSuppressionGuard {
-    active: Arc<AtomicBool>,
-}
-
-impl Drop for SelfOutputSuppressionGuard {
-    fn drop(&mut self) {
-        self.active.store(false, Ordering::Release);
-        reset_finalized_incoming_speech_boundary();
-    }
-}
-
-static MEETING_SELF_OUTPUT_SUPPRESSION: OnceLock<Mutex<Option<MeetingSelfOutputSuppression>>> =
-    OnceLock::new();
-
-fn suppression_store() -> &'static Mutex<Option<MeetingSelfOutputSuppression>> {
-    MEETING_SELF_OUTPUT_SUPPRESSION.get_or_init(|| Mutex::new(None))
-}
-
-fn generation_aware_outbound_stages_ready() -> bool {
-    true
-}
-
-fn finalized_utterance_source_connected() -> bool {
-    true
-}
-
-fn application_outbound_runtime_connected() -> bool {
-    generation_aware_outbound_stages_ready() && finalized_utterance_source_connected()
-}
-
-fn meeting_required_ai_ready(helper_ready: bool, provider_ready: bool) -> bool {
-    helper_ready && provider_ready
-}
-
-fn meeting_start_ai_eligible(helper_ready: bool, provider_ready: bool) -> bool {
-    helper_ready && provider_ready
-}
-
-fn build_preflight() -> MeetingSessionPreflightStatus {
-    let input = get_input_status();
-    let helper = get_helper_bridge_status();
-    let route = get_virtual_mic_route_selection();
-
-    let microphone_ready = input.prepared;
-    let helper_ready = helper.state == "ready";
-    let provider_ready = helper.provider_ready;
-    let functional_outbound_ready = helper.functional_outbound_ready;
-    let functional_outbound_verified_unix_ms = helper.functional_outbound_verified_unix_ms;
-    // `models_ready` remains the inexpensive required outbound capability view. C4
-    // keeps functional truth separate so routine status stays cheap and Start can run
-    // the bounded self-test only when needed.
-    let models_ready = meeting_required_ai_ready(helper_ready, provider_ready);
-    let meeting_route_ready = route.route_ready;
-    let generation_aware_outbound_stages_ready = generation_aware_outbound_stages_ready();
-    let finalized_utterance_source_connected = finalized_utterance_source_connected();
-    let outbound_runtime_connected = application_outbound_runtime_connected();
-
-    let mut start_blockers = Vec::new();
-    if !microphone_ready {
-        start_blockers.push("meeting_session:microphone_not_ready".to_string());
-    }
-    if !meeting_start_ai_eligible(helper_ready, provider_ready) {
-        start_blockers.push("meeting_session:local_runtime_not_ready".to_string());
-    }
-    if !meeting_route_ready {
-        start_blockers.push(if route.blocker.is_empty() {
-            "meeting_session:meeting_microphone_route_not_ready".to_string()
-        } else {
-            route.blocker.clone()
-        });
-    }
-    if !generation_aware_outbound_stages_ready {
-        start_blockers
-            .push("meeting_session:generation_aware_outbound_stages_not_ready".to_string());
-    }
-    if !finalized_utterance_source_connected {
-        start_blockers.push("meeting_session:finalized_utterance_source_not_connected".to_string());
-    }
-    if !outbound_runtime_connected {
-        start_blockers
-            .push("meeting_session:continuous_outbound_runtime_not_connected".to_string());
-    }
-    start_blockers.sort();
-    start_blockers.dedup();
-
-    let start_eligible = start_blockers.is_empty();
-    let ready_for_start = start_eligible && functional_outbound_ready;
-    let mut blockers = start_blockers;
-    if start_eligible && !functional_outbound_ready {
-        blockers.push("meeting_session:functional_outbound_not_verified".to_string());
-    }
-
-    MeetingSessionPreflightStatus {
-        ready_for_start,
-        start_eligible,
-        functional_outbound_ready,
-        functional_outbound_verified_unix_ms,
-        microphone_ready,
-        models_ready,
-        helper_ready,
-        provider_ready,
-        meeting_route_ready,
-        generation_aware_outbound_stages_ready,
-        finalized_utterance_source_connected,
-        outbound_runtime_connected,
-        blockers,
-        summary: if ready_for_start {
-            "Required outbound Meeting capabilities are functionally verified for the current local worker and current preflight prerequisites are ready. Incoming Meeting Sound remains optional/degradable."
-                .to_string()
-        } else if start_eligible {
-            "Required Meeting setup is available. A bounded local translation check must complete before Translation can become Live."
-                .to_string()
-        } else {
-            "Start Translation remains blocked until all required current outbound Meeting prerequisites are available."
-                .to_string()
-        },
-        runtime_claim: "meeting_start_preflight_source_contract_not_windows_runtime_proof"
-            .to_string(),
-    }
-}
-
-fn status_from_report(
-    report: RuntimeSessionStateReport,
-    preflight: MeetingSessionPreflightStatus,
-) -> MeetingSessionStatus {
-    let snapshot = report.snapshot.as_ref();
-    MeetingSessionStatus {
-        lifecycle: snapshot
-            .map(|value| value.phase.clone())
-            .unwrap_or_else(|| "idle".to_string()),
-        has_session: report.has_active_session,
-        authority_active: snapshot
-            .map(|value| value.authority_active)
-            .unwrap_or(false),
-        session_id: snapshot.map(|value| value.session_id.clone()),
-        generation: snapshot.map(|value| value.generation),
-        started_unix_ms: snapshot.map(|value| value.started_unix_ms),
-        active_age_ms: report.active_age_ms,
-        capture_active: snapshot
-            .map(|value| value.live_capture_stream_active)
-            .unwrap_or(false),
-        owner_id: snapshot.map(|value| value.owner_id.clone()),
-        blocker: report.blocker,
-        note: report.note,
-        preflight,
-        outbound: current_outbound_status(),
-        incoming: current_incoming_status(),
-        runtime_claim: "application_meeting_session_source_contract_not_windows_runtime_proof"
-            .to_string(),
-    }
-}
-
-fn preflight_for_report(report: &RuntimeSessionStateReport) -> MeetingSessionPreflightStatus {
-    if let Some(snapshot) = report.snapshot.as_ref() {
-        if snapshot.owner_id == APPLICATION_MEETING_OWNER_ID {
-            if let Some(cached) = current_start_preflight(snapshot.generation) {
-                return cached;
-            }
-        }
-    }
-    build_preflight()
-}
-
-fn current_status() -> MeetingSessionStatus {
-    let report = latest_runtime_session_state();
-    let preflight = preflight_for_report(&report);
-    status_from_report(report, preflight)
-}
-
-fn blocked_result(state: &str, message: String) -> MeetingSessionActionResult {
-    MeetingSessionActionResult {
-        ok: false,
-        state: state.to_string(),
-        message,
-        status: current_status(),
-    }
-}
-
 fn recover_helper_after_meeting_stop_if_needed() -> Result<(), String> {
     let helper = get_helper_bridge_status();
     if helper.state != "stopped"
@@ -448,70 +266,6 @@ fn incoming_session_is_eligible(session_id: &str) -> bool {
                 && snapshot.phase == "live"
         })
         .unwrap_or(false)
-}
-
-fn reset_self_output_suppression(session_id: &str) -> Arc<AtomicBool> {
-    let active = Arc::new(AtomicBool::new(false));
-    if let Ok(mut guard) = suppression_store().lock() {
-        *guard = Some(MeetingSelfOutputSuppression {
-            session_id: session_id.to_string(),
-            active: Arc::clone(&active),
-        });
-    }
-    active
-}
-
-fn suppression_handle_for_session(session_id: &str) -> Option<Arc<AtomicBool>> {
-    suppression_store()
-        .lock()
-        .ok()
-        .and_then(|guard| {
-            guard
-                .as_ref()
-                .map(|value| (value.session_id.clone(), Arc::clone(&value.active)))
-        })
-        .filter(|(stored_session, _)| stored_session == session_id)
-        .map(|(_, active)| active)
-}
-
-fn begin_self_output_suppression(session_id: &str) -> Option<SelfOutputSuppressionGuard> {
-    let active = suppression_handle_for_session(session_id)?;
-    reset_finalized_incoming_speech_boundary();
-    active.store(true, Ordering::Release);
-    update_incoming_status(
-        session_id,
-        "suppressed",
-        false,
-        "",
-        "Incoming Meeting Sound is temporarily suppressed while TranslateIT's own English TTS is routed to the Meeting Microphone.",
-    );
-    Some(SelfOutputSuppressionGuard { active })
-}
-
-fn disable_optional_incoming_for_outbound(session_id: &str) -> String {
-    clear_finalized_incoming_utterance_producer();
-    clear_deferred_incoming_queue();
-    let capture_stop = stop_meeting_sound_capture_runtime();
-    update_incoming_status(
-        session_id,
-        "disabled",
-        true,
-        "meeting_incoming:self_output_suppression_unavailable",
-        "Incoming Meeting Sound was disabled because TranslateIT could not establish self-output suppression. Required outbound translation continues through the Meeting Microphone.",
-    );
-    capture_stop.message
-}
-
-fn clear_self_output_suppression_for_session(session_id: &str) {
-    if let Ok(mut guard) = suppression_store().lock() {
-        if let Some(value) = guard.as_ref() {
-            if value.session_id == session_id {
-                value.active.store(false, Ordering::Release);
-                *guard = None;
-            }
-        }
-    }
-    reset_finalized_incoming_speech_boundary();
 }
 
 fn process_authoritative_finalized_outbound_wav(
