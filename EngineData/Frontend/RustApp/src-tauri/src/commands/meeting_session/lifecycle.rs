@@ -49,6 +49,18 @@ use super::{
     generation_is_starting, MeetingSessionActionResult, APPLICATION_MEETING_OWNER_ID,
 };
 
+fn clear_starting_meeting_resources(generation: u64, session_id: &str) {
+    let _ = stop_live_capture_runtime();
+    let _ = stop_meeting_sound_capture_runtime();
+    clear_finalized_meeting_sequence();
+    clear_self_output_suppression_for_session(session_id);
+    clear_committed_turns_for_session(session_id);
+    clear_start_preflight_for_generation(generation);
+    clear_prepared_meeting_output_device();
+    clear_prepared_virtual_mic_route_selection();
+    let _ = clear_runtime_session_if_generation(generation);
+}
+
 fn recover_helper_after_meeting_stop_if_needed() -> Result<(), String> {
     let helper = get_helper_bridge_status();
     if helper.state != "stopped"
@@ -214,15 +226,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             generation,
             "Start Translation failed while opening the required microphone resource. Authority was revoked before rollback.",
         );
-        let _ = stop_live_capture_runtime();
-        let _ = stop_meeting_sound_capture_runtime();
-        clear_finalized_meeting_sequence();
-        clear_self_output_suppression_for_session(&session_id);
-        clear_committed_turns_for_session(&session_id);
-        clear_start_preflight_for_generation(generation);
-        clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
-        let _ = clear_runtime_session_if_generation(generation);
+        clear_starting_meeting_resources(generation, &session_id);
         return blocked_result(
             "rolled_back",
             format!(
@@ -241,15 +245,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             generation,
             "Required outbound AI/My Voice verification failed during Starting. Authority was revoked before rollback.",
         );
-        let _ = stop_live_capture_runtime();
-        let _ = stop_meeting_sound_capture_runtime();
-        clear_finalized_meeting_sequence();
-        clear_self_output_suppression_for_session(&session_id);
-        clear_committed_turns_for_session(&session_id);
-        clear_start_preflight_for_generation(generation);
-        clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
-        let _ = clear_runtime_session_if_generation(generation);
+        clear_starting_meeting_resources(generation, &session_id);
         return blocked_result(
             "rolled_back",
             format!(
@@ -258,15 +254,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
     }
     if !generation_is_starting(generation) {
-        let _ = stop_live_capture_runtime();
-        let _ = stop_meeting_sound_capture_runtime();
-        clear_finalized_meeting_sequence();
-        clear_self_output_suppression_for_session(&session_id);
-        clear_committed_turns_for_session(&session_id);
-        clear_start_preflight_for_generation(generation);
-        clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
-        let _ = clear_runtime_session_if_generation(generation);
+        clear_starting_meeting_resources(generation, &session_id);
         return blocked_result(
             "rolled_back",
             "Start Translation lost Starting authority while verifying the required local AI/My Voice path. No Meeting output was activated.".to_string(),
@@ -279,15 +267,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             generation,
             "Meeting prerequisites changed after required AI/My Voice verification. Authority was revoked before rollback.",
         );
-        let _ = stop_live_capture_runtime();
-        let _ = stop_meeting_sound_capture_runtime();
-        clear_finalized_meeting_sequence();
-        clear_self_output_suppression_for_session(&session_id);
-        clear_committed_turns_for_session(&session_id);
-        clear_start_preflight_for_generation(generation);
-        clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
-        let _ = clear_runtime_session_if_generation(generation);
+        clear_starting_meeting_resources(generation, &session_id);
         return MeetingSessionActionResult {
             ok: false,
             state: "rolled_back".to_string(),
@@ -308,15 +288,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             "Meeting output functional verification failed during Starting. Authority was revoked before rollback.",
         );
         let _ = cancel_meeting_output_for_generation(generation);
-        let _ = stop_live_capture_runtime();
-        let _ = stop_meeting_sound_capture_runtime();
-        clear_finalized_meeting_sequence();
-        clear_self_output_suppression_for_session(&session_id);
-        clear_committed_turns_for_session(&session_id);
-        clear_start_preflight_for_generation(generation);
-        clear_prepared_meeting_output_device();
-        clear_prepared_virtual_mic_route_selection();
-        let _ = clear_runtime_session_if_generation(generation);
+        clear_starting_meeting_resources(generation, &session_id);
         return blocked_result(
             "rolled_back",
             format!(
