@@ -45,13 +45,16 @@ class _CachedReferenceSpeakerModel:
                 return cached_embedding
         return self._base.compute_embedding3(audio)
 
+
 def require_file(path: Path, label: str) -> None:
     if not path.is_file() or path.stat().st_size <= 0:
         raise VoiceLabProviderError(f"missing_asset:{label}")
 
+
 def require_dir(path: Path, label: str) -> None:
     if not path.is_dir():
         raise VoiceLabProviderError(f"missing_asset:{label}")
+
 
 def validate_source_revision(source_root: Path) -> Path:
     marker = source_root / "TRANSLATEIT_GPTSOVITS_REVISION.txt"
@@ -61,6 +64,7 @@ def validate_source_revision(source_root: Path) -> Path:
     gsv = source_root / "GPT_SoVITS"
     require_dir(gsv, "GPT_SoVITS")
     return gsv
+
 
 def inference_source_assets(source_root: Path) -> dict[str, Path]:
     gsv = validate_source_revision(source_root)
@@ -85,6 +89,7 @@ def inference_source_assets(source_root: Path) -> dict[str, Path]:
     )
     return assets
 
+
 def wav_duration_ms(path: Path) -> int:
     try:
         with wave.open(str(path), "rb") as reader:
@@ -103,6 +108,7 @@ def wav_duration_ms(path: Path) -> int:
         raise VoiceLabProviderError(f"empty_take:{path.name}")
     return frames * 1_000 // 32_000
 
+
 def require_regular_file(path: Path, label: str) -> tuple[int, int]:
     if path.is_symlink() or not path.is_file():
         raise VoiceLabProviderError(f"invalid_actor_asset:{label}")
@@ -111,12 +117,14 @@ def require_regular_file(path: Path, label: str) -> tuple[int, int]:
         raise VoiceLabProviderError(f"invalid_actor_asset:{label}")
     return int(stat.st_size), int(stat.st_mtime_ns)
 
+
 def wav_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
 
 def validate_actor_package(actor_dir: Path) -> dict[str, Any]:
     if actor_dir.is_symlink() or not actor_dir.is_dir():
@@ -183,6 +191,7 @@ def validate_actor_package(actor_dir: Path) -> dict[str, Any]:
         "fingerprint": fingerprint,
     }
 
+
 def write_wav(path: Path, sample_rate: int, audio: Any) -> None:
     import numpy as np
 
@@ -206,6 +215,7 @@ def source_working_directory(source_root: Path) -> Iterator[None]:
         yield
     finally:
         os.chdir(previous)
+
 
 def reference_speaker_embeddings(tts: Any) -> list[tuple[Any, Any]]:
     if not bool(getattr(tts, "is_v2pro", False)):
@@ -239,6 +249,7 @@ def reuse_reference_speaker_embeddings(runtime: dict[str, Any]) -> Iterator[None
         yield
     finally:
         tts.sv_model = original
+
 
 def create_tts_runtime(
     source_root: Path,
@@ -298,6 +309,7 @@ def create_tts_runtime(
         "reference_speaker_embeddings": cached_embeddings,
     }
 
+
 def english_tts_inputs(text: str, reference_wav: Path, reference_text: str) -> dict[str, Any]:
     return {
         "text": text,
@@ -311,6 +323,7 @@ def english_tts_inputs(text: str, reference_wav: Path, reference_text: str) -> d
         "streaming_mode": False,
         "seed": 233333,
     }
+
 
 def load_voice_actor_runtime(source_root: Path, actor_dir: Path) -> dict[str, Any]:
     package = validate_actor_package(actor_dir)
@@ -332,6 +345,7 @@ def load_voice_actor_runtime(source_root: Path, actor_dir: Path) -> dict[str, An
     )
     return runtime
 
+
 def synthesize_voice_actor(runtime: dict[str, Any], text: str, output_path: Path) -> dict[str, Any]:
     tts = runtime.get("tts")
     reference_wav = runtime.get("reference_wav")
@@ -351,4 +365,3 @@ def synthesize_voice_actor(runtime: dict[str, Any], text: str, output_path: Path
         "device": str(runtime.get("device", "unknown")),
         "reference_cached": bool(runtime.get("reference_cached")),
     }
-

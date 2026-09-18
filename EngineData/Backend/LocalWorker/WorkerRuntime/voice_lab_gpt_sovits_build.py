@@ -78,6 +78,7 @@ def source_assets(source_root: Path) -> dict[str, Path]:
     require_file(source_root / "ffmpeg.exe", "ffmpeg")
     return assets
 
+
 def training_takes(dataset_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     ids: set[int] = set()
@@ -114,6 +115,7 @@ def training_takes(dataset_dir: Path, manifest: dict[str, Any]) -> list[dict[str
         seen.add(line_id)
     return result
 
+
 def select_reference(takes: list[dict[str, Any]]) -> dict[str, Any]:
     eligible = [x for x in takes if REFERENCE_MIN_MS <= int(x["duration_ms"]) <= REFERENCE_MAX_MS]
     if not eligible:
@@ -125,6 +127,7 @@ def select_reference(takes: list[dict[str, Any]]) -> dict[str, Any]:
             int(x["line_id"]),
         ),
     )
+
 
 def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) -> None:
     child_env = os.environ.copy()
@@ -142,6 +145,7 @@ def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) 
     if result.returncode != 0:
         raise VoiceLabProviderError(f"upstream_stage_failed:{script.name}:{result.returncode}")
 
+
 def merge_part(source: Path, target: Path, header: str | None = None) -> None:
     require_file(source, source.name)
     body = source.read_text(encoding="utf-8").strip()
@@ -153,6 +157,7 @@ def merge_part(source: Path, target: Path, header: str | None = None) -> None:
         newline="\n",
     )
     source.unlink(missing_ok=True)
+
 
 def prepare_dataset(
     source_root: Path,
@@ -200,6 +205,7 @@ def prepare_dataset(
         "item_name\tsemantic_audio",
     )
 
+
 def batch_and_half() -> tuple[int, bool]:
     import torch
 
@@ -207,6 +213,7 @@ def batch_and_half() -> tuple[int, bool]:
         return 1, False
     memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3) + 0.4
     return max(1, int(memory_gb // 2)), True
+
 
 def training_configs(
     assets: dict[str, Path], exp: Path, sovits_dir: Path, gpt_dir: Path
@@ -274,6 +281,7 @@ def training_configs(
         },
     )
 
+
 def checkpoint_epoch(path: Path, family: str) -> int:
     if family == "sovits":
         match = re.search(r"_e(\d+)_s\d+\.pth$", path.name)
@@ -284,6 +292,7 @@ def checkpoint_epoch(path: Path, family: str) -> int:
     if not match:
         raise VoiceLabProviderError(f"{family}_checkpoint_epoch_unparseable:{path.name}")
     return int(match.group(1))
+
 
 def epoch_weights(directory: Path, suffix: str, family: str) -> dict[int, Path]:
     result: dict[int, Path] = {}
@@ -298,12 +307,14 @@ def epoch_weights(directory: Path, suffix: str, family: str) -> dict[int, Path]:
         raise VoiceLabProviderError(f"{family}_candidate_checkpoints_missing")
     return result
 
+
 def nearest_epoch(checkpoints: dict[int, Path], total_epochs: int, progress_numerator: int) -> int:
     if not checkpoints or total_epochs <= 0:
         raise VoiceLabProviderError("candidate_checkpoint_set_invalid")
     denominator = MAX_TRAINING_CANDIDATES
     target = total_epochs * progress_numerator
     return min(checkpoints, key=lambda epoch: (abs(epoch * denominator - target), -epoch))
+
 
 def select_training_candidates(sovits_dir: Path, gpt_dir: Path) -> list[dict[str, Any]]:
     sovits = epoch_weights(sovits_dir, ".pth", "sovits")
@@ -333,6 +344,7 @@ def select_training_candidates(sovits_dir: Path, gpt_dir: Path) -> list[dict[str
         raise VoiceLabProviderError(f"candidate_checkpoint_set_too_small:{len(candidates)}")
     return candidates[:MAX_TRAINING_CANDIDATES]
 
+
 def train(
     source_root: Path,
     assets: dict[str, Path],
@@ -348,6 +360,7 @@ def train(
     run_stage(source_root, assets["gpt_train"], env, "--config_file", str(s1))
     return select_training_candidates(sovits_dir, gpt_dir)
 
+
 def embedding(tts: Any, wav_path: Path) -> Any:
     import torchaudio
 
@@ -357,12 +370,14 @@ def embedding(tts: Any, wav_path: Path) -> Any:
         wav = torchaudio.functional.resample(wav, sr, 16_000)
     return tts.sv_model.compute_embedding3(wav.to(tts.configs.device)).detach().float().cpu()
 
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
 
 def evaluate_candidate(
     source_root: Path,
@@ -453,6 +468,7 @@ def evaluate_candidate(
         "samples": samples,
     }
 
+
 def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
     if len(evidence) < 2 or len(evidence) > MAX_TRAINING_CANDIDATES:
         raise VoiceLabProviderError(f"candidate_evidence_count_invalid:{len(evidence)}")
@@ -479,6 +495,7 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
         ),
     )
 
+
 def public_candidate_evidence(candidate: dict[str, Any]) -> dict[str, Any]:
     return {
         "candidate_id": str(candidate["candidate_id"]),
@@ -496,6 +513,7 @@ def public_candidate_evidence(candidate: dict[str, Any]) -> dict[str, Any]:
             for sample in candidate["samples"]
         ],
     }
+
 
 def promote_selected_candidate(
     selected: dict[str, Any],
@@ -524,6 +542,7 @@ def promote_selected_candidate(
             }
         )
     return selected_samples
+
 
 def build_candidate(
     *,
