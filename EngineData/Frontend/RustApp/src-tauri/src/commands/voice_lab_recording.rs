@@ -333,11 +333,19 @@ pub fn stop_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
         GUIDED_TAKE_CHANNELS,
         &captured.samples_mono,
     ) {
+        let _ = fs::remove_file(&draft);
         return result(false, "draft_write_failed", format!("VoiceLab could not save the review take: {error}"));
     }
     let mut guard = match draft_store().lock() {
         Ok(guard) => guard,
-        Err(_) => return result(false, "draft_state_unavailable", "VoiceLab could not retain the review take state."),
+        Err(_) => {
+            let _ = fs::remove_file(&draft);
+            return result(
+                false,
+                "draft_state_unavailable",
+                "VoiceLab could not retain the review take state; the unowned review audio was removed.",
+            );
+        }
     };
     *guard = Some(PendingDraft { line_id, path: draft, review });
     drop(guard);
