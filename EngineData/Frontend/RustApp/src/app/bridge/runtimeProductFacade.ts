@@ -4,6 +4,10 @@ import {
   type MeetingSessionActionResult,
 } from "./runtimeApi";
 import { compact, errorMessage } from "../shared/state";
+import {
+  shouldAutoStartHelper,
+  shouldExplicitlyRestartHelper,
+} from "../runtime/helperLifecyclePolicy";
 import type {
   AudioDeviceListReport,
   HelperBridgeStatus,
@@ -72,16 +76,12 @@ export type ProductAudioDeviceSelectionResult = ProductAudioDeviceProbe & {
 export type ProductSetupAction = "check-readiness" | "verify-models";
 export type ProductRecoveryAction = "fix-setup";
 
-function helperNeedsLazyStart(helper: HelperBridgeStatus): boolean {
-  return helper.state === "not_started" || helper.state === "stopped";
-}
-
 async function ensurePostSetupHelperLifecycle(settings: RuntimeSettings): Promise<HelperBridgeStatus> {
   const helper = await runtimeApi.getHelperBridgeStatus();
   if (
     settings.meeting_setup_state === "new" ||
     helperBridgeUnavailable(helper) ||
-    !helperNeedsLazyStart(helper)
+    !shouldAutoStartHelper(helper.state)
   ) {
     return helper;
   }
@@ -267,7 +267,7 @@ export async function runProductRecoveryAction(action: ProductRecoveryAction): P
   if (action !== "fix-setup") return "No product recovery action was selected.";
 
   let helper = await runtimeApi.getHelperBridgeStatus().catch(() => null);
-  if (helper && helperNeedsLazyStart(helper)) {
+  if (helper && shouldExplicitlyRestartHelper(helper.state)) {
     const started = await runtimeApi.startHelperBridge().catch(() => null);
     if (!started?.ok) return "Setup still needs attention. Open Diagnostics for technical details.";
     helper = await runtimeApi.getHelperBridgeStatus().catch(() => null);

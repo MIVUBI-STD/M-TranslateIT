@@ -247,7 +247,7 @@
       return;
     }
     const micTestOwnsRuntime = snapshot.meeting.hasSession && !snapshot.meeting.applicationOwned;
-    if (!snapshot.readiness.voiceReady && !snapshot.readiness.recording && !micTestOwnsRuntime) {
+    if (!snapshot.readiness.microphoneReady && !snapshot.readiness.recording && !micTestOwnsRuntime) {
       setNotice("Microphone setup isn't ready yet.");
       return;
     }
