@@ -135,12 +135,14 @@ pub(super) fn take_due_deferred_incoming(
     None
 }
 
-pub(super) fn clear_deferred_incoming_queue() {
-    if let Ok(mut guard) = deferred_incoming_queue().lock() {
-        while let Some(job) = guard.pop_front() {
-            cleanup_deferred_incoming_job(job);
-        }
+pub(super) fn clear_deferred_incoming_queue() -> Result<(), String> {
+    let mut guard = deferred_incoming_queue()
+        .lock()
+        .map_err(|_| "meeting_incoming:deferred_queue_lock_failed".to_string())?;
+    while let Some(job) = guard.pop_front() {
+        cleanup_deferred_incoming_job(job);
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -186,7 +188,7 @@ mod tests {
 
     #[test]
     fn deferred_retry_preserves_first_deferral_age_budget() {
-        clear_deferred_incoming_queue();
+        clear_deferred_incoming_queue().expect("clear deferred queue");
         let first_deferred_unix_ms = 10_000;
         let retry_unix_ms = 29_000;
         let preserved = deferred_enqueue_unix_ms(Some(first_deferred_unix_ms), retry_unix_ms);
@@ -207,12 +209,12 @@ mod tests {
             DEFERRED_DROPPED_STALE.load(Ordering::Relaxed) - stale_before,
             1
         );
-        clear_deferred_incoming_queue();
+        clear_deferred_incoming_queue().expect("clear deferred queue");
     }
 
     #[test]
     fn deferred_queue_caps_evicts_expired_and_respects_session() {
-        clear_deferred_incoming_queue();
+        clear_deferred_incoming_queue().expect("clear deferred queue");
         assert!(deferred_incoming_queue().lock().unwrap().is_empty());
 
         enqueue_deferred_incoming(job("sess", 1, "t", 1_000));
@@ -252,7 +254,7 @@ mod tests {
         assert_eq!(first.event_sequence, 7);
         assert_eq!(second.event_sequence, 8);
 
-        clear_deferred_incoming_queue();
+        clear_deferred_incoming_queue().expect("clear deferred queue");
         assert!(deferred_incoming_queue().lock().unwrap().is_empty());
     }
 }

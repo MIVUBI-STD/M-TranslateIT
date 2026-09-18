@@ -431,18 +431,21 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_prepared_meeting_output_device();
         let incoming_capture_stop = stop_meeting_sound_capture_runtime();
         clear_finalized_incoming_utterance_producer();
-        clear_deferred_incoming_queue();
+        let deferred_cleanup = clear_deferred_incoming_queue();
         clear_finalized_meeting_sequence();
         clear_all_committed_turns();
         clear_outbound_status();
         clear_incoming_status();
-        if !incoming_capture_stop.ok {
+        if !incoming_capture_stop.ok || deferred_cleanup.is_err() {
             return MeetingSessionActionResult {
                 ok: false,
                 state: "cleanup_incomplete".to_string(),
                 message: format!(
-                    "Translation has no active session, but optional Meeting Sound cleanup could not be confirmed: {}",
-                    incoming_capture_stop.message
+                    "Translation has no active session, but optional incoming cleanup could not be confirmed. Meeting Sound: {} Deferred queue: {}",
+                    incoming_capture_stop.message,
+                    deferred_cleanup
+                        .err()
+                        .unwrap_or_else(|| "clean".to_string())
                 ),
                 status: status_from_report(current, build_preflight()),
             };

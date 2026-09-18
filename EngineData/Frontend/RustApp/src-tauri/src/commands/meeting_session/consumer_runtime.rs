@@ -286,7 +286,7 @@ pub(super) fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), St
 
 pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsumerCleanupResult {
     clear_finalized_incoming_utterance_producer();
-    clear_deferred_incoming_queue();
+    let deferred_cleanup = clear_deferred_incoming_queue();
     let store = incoming_consumer_store();
     let runtime = match store.lock() {
         Ok(mut guard) => {
@@ -310,8 +310,13 @@ pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsume
 
     let Some(mut runtime) = runtime else {
         return MeetingConsumerCleanupResult {
-            ok: true,
-            message: "No matching Meeting incoming consumer required cleanup.".to_string(),
+            ok: deferred_cleanup.is_ok(),
+            message: match deferred_cleanup {
+                Ok(()) => "No matching Meeting incoming consumer required cleanup.".to_string(),
+                Err(error) => format!(
+                    "No matching Meeting incoming consumer required cleanup, but deferred incoming cleanup failed: {error}"
+                ),
+            },
         };
     };
     let joined = runtime
@@ -319,12 +324,20 @@ pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsume
         .take()
         .map(|handle| handle.join().is_ok())
         .unwrap_or(true);
+    let queue_ok = deferred_cleanup.is_ok();
     MeetingConsumerCleanupResult {
-        ok: joined,
-        message: if joined {
-            format!("Meeting incoming consumer stopped for session {session_id}.")
-        } else {
-            format!("Meeting incoming consumer for session {session_id} exited unexpectedly during cleanup.")
+        ok: joined && queue_ok,
+        message: match (joined, deferred_cleanup) {
+            (true, Ok(())) => format!("Meeting incoming consumer stopped for session {session_id}."),
+            (false, Ok(())) => format!(
+                "Meeting incoming consumer for session {session_id} exited unexpectedly during cleanup."
+            ),
+            (true, Err(error)) => format!(
+                "Meeting incoming consumer stopped, but deferred incoming cleanup failed: {error}"
+            ),
+            (false, Err(error)) => format!(
+                "Meeting incoming consumer exited unexpectedly and deferred incoming cleanup failed: {error}"
+            ),
         },
     }
 }

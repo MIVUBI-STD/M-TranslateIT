@@ -72,8 +72,12 @@ pub(super) fn begin_self_output_suppression(session_id: &str) -> Option<SelfOutp
 
 pub(super) fn disable_optional_incoming_for_outbound(session_id: &str) -> String {
     clear_finalized_incoming_utterance_producer();
-    clear_deferred_incoming_queue();
+    let deferred_cleanup = clear_deferred_incoming_queue();
     let capture_stop = stop_meeting_sound_capture_runtime();
+    let cleanup_note = match deferred_cleanup {
+        Ok(()) => capture_stop.message.clone(),
+        Err(error) => format!("{} Deferred incoming cleanup: {error}", capture_stop.message),
+    };
     update_incoming_status(
         session_id,
         "disabled",
@@ -81,7 +85,7 @@ pub(super) fn disable_optional_incoming_for_outbound(session_id: &str) -> String
         "meeting_incoming:self_output_suppression_unavailable",
         "Incoming Meeting Sound was disabled because TranslateIT could not establish self-output suppression. Required outbound translation continues through the Meeting Microphone.",
     );
-    capture_stop.message
+    cleanup_note
 }
 
 pub(super) fn clear_self_output_suppression_for_session(session_id: &str) {
