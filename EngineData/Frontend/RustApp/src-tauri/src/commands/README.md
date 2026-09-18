@@ -12,7 +12,7 @@ This folder contains the Tauri command boundary for the current Meeting / Text /
 - `settings.rs` — runtime settings load/save and audio-device selection.
 - `text_translation.rs` — standalone Text translation through the same worker.
 - `virtual_mic_route.rs` — managed virtual microphone used by the meeting application.
-- `voice_lab.rs`, `voice_lab_recording.rs`, `voice_lab_build.rs` — legacy internal protocol/storage implementation identifiers for the product feature now named **My Voice**. These names remain only where changing them requires an explicit compatibility migration; they are not product vocabulary.
+- `voice_lab.rs`, `voice_lab_recording.rs`, `voice_lab_build.rs` — legacy internal protocol/storage implementation identifiers for the product feature now named **My Voice**; `voice_lab/storage.rs` owns dataset freezing, actor-package validation, WAV inspection, and transactional candidate promotion. These names remain only where changing them requires an explicit compatibility migration; they are not product vocabulary.
 - `diagnostic_trace.rs` — bounded diagnostics trace command support.
 - `bridge_paths.rs` — packaged private Python/runtime path resolution.
 - `registry.rs` — Tauri invoke registration list.
