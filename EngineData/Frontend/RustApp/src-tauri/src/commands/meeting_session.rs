@@ -2,20 +2,15 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::thread::{self, JoinHandle};
+use std::thread;
 use std::time::Instant;
 
 use crate::engine::audio::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, clear_finalized_meeting_sequence,
-    clear_finalized_outbound_utterance_producer, reset_finalized_incoming_speech_boundary,
-    reset_finalized_meeting_sequence, try_take_finalized_incoming_utterance,
-    wait_take_finalized_incoming_utterance, wait_take_finalized_outbound_utterance,
+    reset_finalized_incoming_speech_boundary,
+    reset_finalized_meeting_sequence,
 };
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
-use crate::engine::audio::live_segment_writer::{
-    remove_finalized_meeting_utterance_wav, write_finalized_incoming_utterance_wav,
-    write_finalized_outbound_utterance_wav,
-};
 use crate::engine::audio::meeting_output::{
     cancel_meeting_output_for_generation, clear_prepared_meeting_output_device,
     prepare_meeting_output_device, probe_prepared_meeting_output_device_functionally,
@@ -41,6 +36,7 @@ use super::helper_bridge::{
 use super::virtual_mic_route::get_virtual_mic_route_selection;
 
 mod committed_turns;
+mod consumer_runtime;
 mod incoming_deferred;
 mod incoming_pipeline;
 mod outbound_pipeline;
@@ -51,11 +47,11 @@ use committed_turns::{
     current_committed_turn_snapshot, interrupt_committed_turns_for_generation,
     reset_committed_turns,
 };
-use incoming_deferred::clear_deferred_incoming_queue;
-use incoming_pipeline::{
-    drain_due_deferred_incoming, process_authoritative_finalized_incoming_wav,
-    IncomingAudioProcessResult,
+use consumer_runtime::{
+    start_meeting_incoming_consumer, start_meeting_outbound_consumer,
+    stop_meeting_incoming_consumer, stop_meeting_outbound_consumer,
 };
+use incoming_deferred::clear_deferred_incoming_queue;
 use outbound_pipeline::process_outbound_wav;
 use session_state::{
     clear_all_start_preflight, clear_incoming_status, clear_outbound_status,
@@ -200,22 +196,6 @@ pub struct MeetingCommittedTurnsSnapshot {
     pub runtime_claim: String,
 }
 
-struct MeetingOutboundConsumerRuntime {
-    generation: u64,
-    session_id: String,
-    thread: Option<JoinHandle<()>>,
-}
-
-struct MeetingIncomingConsumerRuntime {
-    session_id: String,
-    thread: Option<JoinHandle<()>>,
-}
-
-struct MeetingConsumerCleanupResult {
-    ok: bool,
-    message: String,
-}
-
 struct MeetingSelfOutputSuppression {
     session_id: String,
     active: Arc<AtomicBool>,
@@ -232,20 +212,8 @@ impl Drop for SelfOutputSuppressionGuard {
     }
 }
 
-static MEETING_OUTBOUND_CONSUMER: OnceLock<Mutex<Option<MeetingOutboundConsumerRuntime>>> =
-    OnceLock::new();
-static MEETING_INCOMING_CONSUMER: OnceLock<Mutex<Option<MeetingIncomingConsumerRuntime>>> =
-    OnceLock::new();
 static MEETING_SELF_OUTPUT_SUPPRESSION: OnceLock<Mutex<Option<MeetingSelfOutputSuppression>>> =
     OnceLock::new();
-
-fn outbound_consumer_store() -> &'static Mutex<Option<MeetingOutboundConsumerRuntime>> {
-    MEETING_OUTBOUND_CONSUMER.get_or_init(|| Mutex::new(None))
-}
-
-fn incoming_consumer_store() -> &'static Mutex<Option<MeetingIncomingConsumerRuntime>> {
-    MEETING_INCOMING_CONSUMER.get_or_init(|| Mutex::new(None))
-}
 
 fn suppression_store() -> &'static Mutex<Option<MeetingSelfOutputSuppression>> {
     MEETING_SELF_OUTPUT_SUPPRESSION.get_or_init(|| Mutex::new(None))
@@ -563,279 +531,6 @@ pub fn process_authoritative_finalized_outbound_wav(
         audio_path,
         timing,
     )
-}
-
-fn start_meeting_outbound_consumer(generation: u64, session_id: &str) -> Result<(), String> {
-    let store = outbound_consumer_store();
-    let mut guard = store
-        .lock()
-        .map_err(|_| "meeting_outbound:consumer_state_lock_failed".to_string())?;
-    if guard.is_some() {
-        return Err("meeting_outbound:consumer_already_active".to_string());
-    }
-
-    let thread_session_id = session_id.to_string();
-    let thread_session_for_runtime = thread_session_id.clone();
-    let handle = thread::Builder::new()
-        .name("translateit-meeting-outbound".to_string())
-        .spawn(move || {
-            while let Some(utterance) = wait_take_finalized_outbound_utterance(generation) {
-                let queue_ms = elapsed_millis(utterance.enqueued_at, Instant::now());
-                if utterance.generation != Some(generation)
-                    || utterance.lane != "you"
-                    || utterance.session_id != thread_session_id
-                    || !generation_is_live(generation)
-                {
-                    continue;
-                }
-
-                let audio_prepare_started_at = Instant::now();
-                let write = write_finalized_outbound_utterance_wav(&utterance);
-                let audio_prepare_ms = elapsed_millis(audio_prepare_started_at, Instant::now());
-                let timing = timing_context_from_utterance(&utterance, queue_ms, audio_prepare_ms);
-                if !write.ok {
-                    update_outbound_status(
-                        generation,
-                        &thread_session_id,
-                        "attention_needed",
-                        utterance.sequence,
-                        false,
-                        false,
-                        &write.blocker,
-                        "Finalized speech could not be written to its temporary ASR WAV. No AI/output stage consumed it.",
-                    );
-                    set_outbound_timing(
-                        generation,
-                        &thread_session_id,
-                        utterance.sequence,
-                        &timing.metrics,
-                    );
-                    continue;
-                }
-
-                let Some(audio_path) = write.audio_path else {
-                    update_outbound_status(
-                        generation,
-                        &thread_session_id,
-                        "attention_needed",
-                        utterance.sequence,
-                        false,
-                        false,
-                        "meeting_outbound:finalized_audio_path_missing",
-                        "Finalized speech writer returned no temporary audio path. No AI/output stage consumed it.",
-                    );
-                    set_outbound_timing(
-                        generation,
-                        &thread_session_id,
-                        utterance.sequence,
-                        &timing.metrics,
-                    );
-                    continue;
-                };
-
-                if !generation_is_live(generation) {
-                    remove_finalized_meeting_utterance_wav(&audio_path);
-                    break;
-                }
-
-                let _ = process_authoritative_finalized_outbound_wav(
-                    generation,
-                    &utterance.session_id,
-                    utterance.sequence,
-                    utterance.utterance_id,
-                    audio_path.clone(),
-                    timing,
-                );
-                remove_finalized_meeting_utterance_wav(&audio_path);
-
-                if !runtime_generation_is_authoritative(generation) {
-                    break;
-                }
-            }
-        })
-        .map_err(|error| format!("meeting_outbound:consumer_spawn_failed:{error}"))?;
-
-    *guard = Some(MeetingOutboundConsumerRuntime {
-        generation,
-        session_id: thread_session_for_runtime,
-        thread: Some(handle),
-    });
-    Ok(())
-}
-
-fn stop_meeting_outbound_consumer(generation: u64) -> MeetingConsumerCleanupResult {
-    clear_finalized_outbound_utterance_producer();
-
-    let store = outbound_consumer_store();
-    let runtime = match store.lock() {
-        Ok(mut guard) => {
-            if guard
-                .as_ref()
-                .map(|value| value.generation == generation)
-                .unwrap_or(false)
-            {
-                guard.take()
-            } else {
-                None
-            }
-        }
-        Err(_) => {
-            return MeetingConsumerCleanupResult {
-                ok: false,
-                message: "Meeting outbound consumer state lock failed during cleanup.".to_string(),
-            };
-        }
-    };
-
-    let Some(mut runtime) = runtime else {
-        return MeetingConsumerCleanupResult {
-            ok: true,
-            message: "No matching Meeting outbound consumer required cleanup.".to_string(),
-        };
-    };
-    let session_id = runtime.session_id.clone();
-    let joined = runtime
-        .thread
-        .take()
-        .map(|handle| handle.join().is_ok())
-        .unwrap_or(true);
-    MeetingConsumerCleanupResult {
-        ok: joined,
-        message: if joined {
-            format!("Meeting outbound consumer stopped for {session_id} generation {generation}.")
-        } else {
-            format!("Meeting outbound consumer for {session_id} generation {generation} exited unexpectedly during cleanup.")
-        },
-    }
-}
-
-fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), String> {
-    let store = incoming_consumer_store();
-    let mut guard = store
-        .lock()
-        .map_err(|_| "meeting_incoming:consumer_state_lock_failed".to_string())?;
-    if guard.is_some() {
-        return Err("meeting_incoming:consumer_already_active".to_string());
-    }
-
-    let thread_session_id = session_id.to_string();
-    let runtime_session_id = thread_session_id.clone();
-    let handle = thread::Builder::new()
-        .name("translateit-meeting-incoming".to_string())
-        .spawn(move || {
-            loop {
-                drain_due_deferred_incoming(&thread_session_id);
-
-                let utterance = match try_take_finalized_incoming_utterance(&thread_session_id) {
-                    Some(utterance) => utterance,
-                    None => {
-                        let Some(utterance) =
-                            wait_take_finalized_incoming_utterance(&thread_session_id)
-                        else {
-                            break;
-                        };
-                        utterance
-                    }
-                };
-
-                if utterance.session_id != thread_session_id
-                    || utterance.lane != "incoming"
-                    || utterance.generation.is_some()
-                    || !incoming_session_is_eligible(&thread_session_id)
-                {
-                    continue;
-                }
-
-                let write = write_finalized_incoming_utterance_wav(&utterance);
-                if !write.ok {
-                    update_incoming_status(
-                        &thread_session_id,
-                        "degraded",
-                        true,
-                        &write.blocker,
-                        "Finalized incoming speech could not be written to its temporary ASR WAV. Outbound remains available.",
-                    );
-                    continue;
-                }
-                let Some(audio_path) = write.audio_path else {
-                    update_incoming_status(
-                        &thread_session_id,
-                        "degraded",
-                        true,
-                        "meeting_incoming:finalized_audio_path_missing",
-                        "Finalized incoming speech writer returned no temporary audio path.",
-                    );
-                    continue;
-                };
-
-                if !incoming_session_is_eligible(&thread_session_id) {
-                    remove_finalized_meeting_utterance_wav(&audio_path);
-                    break;
-                }
-                let result = process_authoritative_finalized_incoming_wav(
-                    &thread_session_id,
-                    utterance.sequence,
-                    utterance.utterance_id,
-                    &audio_path,
-                    None,
-                );
-                if result != IncomingAudioProcessResult::DeferredAsr {
-                    remove_finalized_meeting_utterance_wav(&audio_path);
-                }
-            }
-        })
-        .map_err(|error| format!("meeting_incoming:consumer_spawn_failed:{error}"))?;
-
-    *guard = Some(MeetingIncomingConsumerRuntime {
-        session_id: runtime_session_id,
-        thread: Some(handle),
-    });
-    Ok(())
-}
-
-fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsumerCleanupResult {
-    clear_finalized_incoming_utterance_producer();
-    clear_deferred_incoming_queue();
-    let store = incoming_consumer_store();
-    let runtime = match store.lock() {
-        Ok(mut guard) => {
-            if guard
-                .as_ref()
-                .map(|value| value.session_id == session_id)
-                .unwrap_or(false)
-            {
-                guard.take()
-            } else {
-                None
-            }
-        }
-        Err(_) => {
-            return MeetingConsumerCleanupResult {
-                ok: false,
-                message: "Meeting incoming consumer state lock failed during cleanup.".to_string(),
-            };
-        }
-    };
-
-    let Some(mut runtime) = runtime else {
-        return MeetingConsumerCleanupResult {
-            ok: true,
-            message: "No matching Meeting incoming consumer required cleanup.".to_string(),
-        };
-    };
-    let joined = runtime
-        .thread
-        .take()
-        .map(|handle| handle.join().is_ok())
-        .unwrap_or(true);
-    MeetingConsumerCleanupResult {
-        ok: joined,
-        message: if joined {
-            format!("Meeting incoming consumer stopped for session {session_id}.")
-        } else {
-            format!("Meeting incoming consumer for session {session_id} exited unexpectedly during cleanup.")
-        },
-    }
 }
 
 fn start_optional_incoming_lane(session_id: &str) -> String {
