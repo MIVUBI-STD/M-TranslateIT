@@ -6,6 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const files = {
   meeting: resolve(root, "src-tauri/src/commands/meeting_session.rs"),
   meetingLifecycle: resolve(root, "src-tauri/src/commands/meeting_session/lifecycle.rs"),
+  runtimeCommands: resolve(root, "src-tauri/src/commands/runtime.rs"),
   outboundPipeline: resolve(root, "src-tauri/src/commands/meeting_session/outbound_pipeline.rs"),
   route: resolve(root, "src-tauri/src/commands/virtual_mic_route.rs"),
   meetingOutput: resolve(root, "src-tauri/src/engine/audio/meeting_output.rs"),
@@ -40,11 +41,19 @@ requireMarkers(source.meeting, "Meeting session output orchestration facade", [
   "mod outbound_pipeline;",
   "process_outbound_wav",
 ]);
+requireMarkers(source.runtimeCommands, "Fresh Meeting route preparation owner", [
+  "clear_prepared_virtual_mic_route_selection",
+  "prepare_current_virtual_mic_route_for_meeting",
+  "meeting_session::start_meeting_translation",
+]);
 requireMarkers(source.meetingLifecycle, "Meeting lifecycle output orchestration", [
   "bind_prepared_virtual_mic_route_to_generation",
   "prepare_meeting_output_device",
   "cancel_meeting_output_for_generation",
   "get_virtual_mic_route_selection",
+]);
+forbidMarkers(source.meetingLifecycle, "duplicate Meeting route preparation", [
+  "prepare_current_virtual_mic_route_for_meeting",
 ]);
 requireMarkers(source.outboundPipeline, "Meeting outbound delivery ownership", [
   "pub(super) fn process_outbound_wav(",
