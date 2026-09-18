@@ -12,25 +12,24 @@ one SHA does not prove another SHA. A later documentation-only commit may record
 
 ## Current Source Proof
 
-Current source identity:
+Exact proof identity is read from GitHub Actions for the exact `Local` SHA and changed domain under discussion. This file does not pin a mutable "current source SHA", because doing so becomes stale as soon as `Local` advances.
+
+Current interpretation rules:
+
+- use the latest completed matching verifier for the exact changed source domain;
+- ancestor proof remains valid only for source domains unchanged since that ancestor;
+- a documentation-only commit does not invalidate unchanged runtime proof, but it also does not create new runtime proof;
+- queued, running, skipped, cancelled, or unrelated jobs are not PASS;
+- one SHA does not prove another SHA where the relevant source changed.
+
+Recent verified baseline relevant to the current work:
 
 ```text
-0d1906299524b0c7ab95a80389ca95c4802ee868
-style(voice): match provider formatter spacing
+Code Health                 a26d5e33b31eee6753ff1bc7f09b847f11770bc3  PASS
+MiLMMT Repository Contract  848329bb21b45d72eccde0a19160490c9d843f22  PASS
 ```
 
-Matching proof:
-
-```text
-Code Health                 35369634034  PASS
-MiLMMT Repository Contract  35369634052  PASS
-```
-
-That exact-head Code Health run passed Linux and hosted Windows Python compile/static/format/contract tests for the changed local-worker domain. The matching MiLMMT contract also passed.
-
-Earlier frontend/Rust architecture and route ownership remain covered by exact-head source proof `49a7db2fcb511c822b3379924397fe4fd888863d` / Code Health `35368207537` for those unchanged domains.
-
-one SHA does not prove another SHA. Claims must use the matching proof surface for the source domain that changed.
+Later translation-quality-only commits must use their own MiLMMT Repository Contract result before being claimed as verified. GitHub remains authoritative for exact run/job identifiers.
 
 ## Current Source Claims
 
@@ -56,7 +55,11 @@ The modernized source now establishes, subject to exact-head proof for the SHA b
 - diagnostic/setup readiness reuses only proof bound to the current helper generation; Meeting Start still performs generation-bound functional proof;
 - My Voice build consumes narrow recording-domain facts rather than the full UI recording DTO; the guided prompt corpus has its own static owner;
 - live GPT-SoVITS actor validation/runtime/synthesis is isolated from one-shot dataset preparation, bounded training, candidate evaluation, and candidate package construction; build orchestration does not sit on the worker inference hot path;
-- existing latency hardening remains intact: bounded capture storage, efficient finalized WAV preparation, deterministic MiLMMT generation/KV cache, warm actor reuse, and V2ProPlus reference-speaker embedding caching.
+- existing latency hardening remains intact: bounded capture storage, efficient finalized WAV preparation, deterministic MiLMMT generation/KV cache, warm actor reuse, and V2ProPlus reference-speaker embedding caching;
+- translation inference now exposes tokenization, model-inference, decode, and inference-throughput telemetry through Meeting Diagnostics without adding a second runtime owner;
+- standalone multi-chunk translation aggregates those telemetry values across the full request rather than reporting only the final chunk;
+- translation-quality evaluation supports baseline-vs-candidate critical-regression detection, grouped critical-pass-rate deltas, and bounded authorized outbound Meeting-context cases;
+- the versioned translation corpus now covers contextual Meeting turns, modality/uncertainty, conditional meaning, quantifier scope, and spoken disfluency in addition to earlier literal/negation/technical/adversarial cases.
 
 ## Verification surfaces
 
