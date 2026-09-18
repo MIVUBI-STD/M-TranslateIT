@@ -22,8 +22,9 @@ def main() -> int:
     corpus = evaluator.load_corpus(CORPUS)
     validation = evaluator.validate_corpus(corpus)
     assert validation["ok"], validation
-    assert validation["case_count"] >= 16
+    assert validation["case_count"] >= 26
     assert set(validation["directions"]) == {"en-id", "id-en"}
+    assert {"prompt_boundary", "unicode", "repetition", "input_normalization"}.issubset(set(validation["categories"]))
 
     perfect = {case["id"]: case["references"][0] for case in corpus["cases"]}
     report = evaluator.evaluate(corpus, perfect)

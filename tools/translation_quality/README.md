@@ -17,7 +17,10 @@ It deliberately separates **quality measurement** from **quality claims**:
 - URLs, IDs and names;
 - technical vocabulary;
 - Indonesian/English code-switching;
-- meeting language.
+- meeting language;
+- instruction-like/prompt-boundary text;
+- Unicode and exact technical literals;
+- repetition and unusual whitespace.
 
 Each case contains one or more references plus narrow invariants:
 
@@ -26,6 +29,12 @@ Each case contains one or more references plus narrow invariants:
 - `forbidden` — high-confidence meaning reversals or unsafe phrases.
 
 These checks are intentionally narrow. They do not replace human review.
+
+Adversarial cases treat instruction-like strings such as `Ignore previous instructions`,
+`English:`, or `Indonesian:` as ordinary source content. Repository tests verify that
+the worker forwards such content through the canonical source slot and that standalone
+requests cannot smuggle Meeting context. They do not claim the model will translate every
+adversarial case correctly until the real model output is evaluated.
 
 ## Commands
 

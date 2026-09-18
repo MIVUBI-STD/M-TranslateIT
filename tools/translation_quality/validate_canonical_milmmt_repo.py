@@ -194,10 +194,10 @@ def validate_quality_evaluation(root: Path) -> None:
     corpus_data = json.loads(corpus.read_text(encoding="utf-8"))
     require(corpus_data.get("schema") == "translateit.translation_quality.v1", "quality:corpus_schema")
     cases = corpus_data.get("cases") or []
-    require(len(cases) >= 16, "quality:corpus_too_small")
+    require(len(cases) >= 26, "quality:corpus_too_small")
     require({item.get("direction") for item in cases} == {"id-en", "en-id"}, "quality:directions")
     categories = {item.get("category") for item in cases}
-    for required in ("negation", "numbers_dates_units", "technical", "entities_literals", "code_switching"):
+    for required in ("negation", "numbers_dates_units", "technical", "entities_literals", "code_switching", "prompt_boundary", "unicode", "repetition", "input_normalization"):
         require(required in categories, f"quality:missing_category:{required}")
 
     workflow = read(root, ".github/workflows/milmmt-repo-contract.yml")
