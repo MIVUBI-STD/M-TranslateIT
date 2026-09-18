@@ -27,10 +27,13 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Product pages | `EngineData/Frontend/RustApp/src/pages/` |
 | Product runtime orchestration/actions | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductFacade.ts` |
 | Product readiness / Meeting-state mapping | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductState.ts` |
+| Worker capability response parsing / diagnostic display mapping | `EngineData/Frontend/RustApp/src/app/bridge/workerCapabilities.ts` |
 | Product runtime DTOs | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductTypes.ts` |
 | Meeting performance Diagnostics | `EngineData/Frontend/RustApp/src/components/settings/MeetingPerformanceDiagnostics.svelte` + existing Meeting status DTOs |
 | Tauri command bridge calls/types | `EngineData/Frontend/RustApp/src/app/bridge/runtimeApi.ts`, `myVoiceApi.ts`, `myVoiceBuildApi.ts` |
 | Meeting frontend polling / committed-turn refresh | `EngineData/Frontend/RustApp/src/app/runtime/meetingPoll.ts` |
+| Native close dialog presentation | `EngineData/Frontend/RustApp/src/components/runtime/NativeCloseDialog.svelte` |
+| First-setup navigation presentation | `EngineData/Frontend/RustApp/src/components/setup/SetupNavigation.svelte` |
 | Native safe-close I/O / close decision policy | `EngineData/Frontend/RustApp/src/app/runtime/nativeCloseRuntime.ts` + `closePolicy.ts` |
 | Rust app bootstrap / command registration | `EngineData/Frontend/RustApp/src-tauri/src/app_bootstrap.rs`, `commands/registry.rs` |
 | Meeting public command/status facade | `EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session.rs` |
@@ -59,6 +62,7 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | My Voice build/inference | `voice_lab_build.py`, `voice_lab_gpt_sovits.py`, Rust `commands/voice_lab*.rs` |
 | My Voice dataset/storage/package validation/promotion | Rust `commands/voice_lab/storage.rs` |
 | My Voice guided recording/review transaction | Rust `commands/voice_lab_recording.rs` |
+| My Voice held-out evaluation contract | Rust `commands/voice_lab_build/evaluation.rs` |
 | Built-in Meeting voice selection/reference assets | Rust `commands/voice_lab_build.rs`, `RuntimeAssets/Voice/BuiltInVoices/`, frontend My Voice bridge/page |
 
 ## Windows audio
@@ -67,7 +71,8 @@ This file maps semantic responsibility to the current owner. It does not carry m
 |---|---|
 | Physical capture / finalized utterance / VAD | Rust `engine/audio/` |
 | Optional Meeting Sound capture | `engine/audio/meeting_sound_capture.rs` |
-| Meeting output delivery | `engine/audio/meeting_output.rs` + `meeting_output_runtime.rs` |
+| Meeting output delivery / CPAL stream lifecycle | `engine/audio/meeting_output.rs` + `meeting_output_runtime.rs` |
+| Meeting output WAV decode / resample / delivery deadline math | `engine/audio/meeting_output_runtime/audio_format.rs` |
 | Virtual route detection/setup behavior | `commands/virtual_mic_route.rs` + audio runtime owners |
 | Provider package delivery | release/package owner, not audio runtime |
 
