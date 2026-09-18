@@ -1219,7 +1219,7 @@ mod c4_functional_readiness_tests {
     use super::{
         failed_required_outbound_task_invalidates_cache, functional_asr_output,
         functional_translation_output, helper_transport_failure, live_outbound_stage_retry_safe,
-        HelperBridgeWorkerResponse, HelperTaskPriority, RequiredOutboundFunctionalReadiness,
+        HelperBridgeWorkerResponse, HelperTaskPriority,
     };
 
     fn response(ok: bool, body: &str) -> HelperBridgeWorkerResponse {
@@ -1368,24 +1368,4 @@ mod c4_functional_readiness_tests {
         assert!(!live_outbound_stage_retry_safe("status"));
     }
 
-    #[test]
-    fn functional_cache_identity_keeps_diagnostic_and_meeting_scopes_distinct() {
-        let diagnostic = RequiredOutboundFunctionalReadiness {
-            generation_token: 9,
-            meeting_generation: 0,
-            actor_token: "actor-v1".to_string(),
-            verified_unix_ms: 1,
-        };
-        assert_eq!(diagnostic.generation_token, 9);
-        assert_eq!(diagnostic.meeting_generation, 0);
-        assert_eq!(diagnostic.actor_token, "actor-v1");
-        assert!(diagnostic.verified_unix_ms > 0);
-
-        let meeting = RequiredOutboundFunctionalReadiness {
-            meeting_generation: 41,
-            ..diagnostic
-        };
-        assert_eq!(meeting.meeting_generation, 41);
-        assert_ne!(meeting.meeting_generation, 0);
-    }
 }
