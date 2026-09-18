@@ -359,11 +359,18 @@ pub fn retry_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult 
         return result(false, "line_mismatch", "The pending review take belongs to another guided line.");
     }
     let path = draft.path.clone();
+    if path.exists() {
+        if let Err(error) = fs::remove_file(&path) {
+            drop(guard);
+            return result(
+                false,
+                "discard_failed",
+                format!("VoiceLab could not remove the review take safely: {error}"),
+            );
+        }
+    }
     *guard = None;
     drop(guard);
-    if path.exists() {
-        let _ = fs::remove_file(path);
-    }
     result(true, "ready", "The review take was discarded. The previous accepted take, if any, was kept.")
 }
 
@@ -393,7 +400,28 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
         }
     }
     let previous = target.with_extension("wav.previous");
-    if previous.exists() { let _ = fs::remove_file(&previous); }
+    if previous.exists() && !target.exists() {
+        if let Err(error) = fs::rename(&previous, &target) {
+            drop(guard);
+            return result(
+                false,
+                "save_failed",
+                format!(
+                    "VoiceLab found an interrupted previous-take backup but could not restore it safely: {error}"
+                ),
+            );
+        }
+    }
+    if previous.exists() && target.exists() {
+        if let Err(error) = fs::remove_file(&previous) {
+            drop(guard);
+            return result(
+                false,
+                "save_failed",
+                format!("VoiceLab could not clear the stale previous-take backup safely: {error}"),
+            );
+        }
+    }
     if target.exists() {
         if let Err(error) = fs::rename(&target, &previous) {
             drop(guard);
@@ -401,7 +429,18 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
         }
     }
     if let Err(error) = fs::rename(&draft.path, &target) {
-        if previous.exists() && !target.exists() { let _ = fs::rename(&previous, &target); }
+        if previous.exists() && !target.exists() {
+            if let Err(rollback_error) = fs::rename(&previous, &target) {
+                drop(guard);
+                return result(
+                    false,
+                    "save_failed",
+                    format!(
+                        "VoiceLab could not accept this take: {error}; previous accepted take rollback also failed: {rollback_error}"
+                    ),
+                );
+            }
+        }
         drop(guard);
         return result(false, "save_failed", format!("VoiceLab could not accept this take: {error}"));
     }
