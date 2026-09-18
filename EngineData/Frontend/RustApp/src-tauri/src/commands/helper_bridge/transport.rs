@@ -17,7 +17,7 @@ use super::{
 };
 use super::super::helper_bridge_runtime::{
     acquire_helper_task_permit, apply_worker_response, clear_active_request,
-    read_worker_response_direct_with_deadline, runtime, status_from_runtime, stop_child, unix_ms,
+    read_worker_response_direct_with_deadline, runtime, runtime_claim, stop_child, unix_ms,
     worker_response_deadline_for_priority, write_worker_request_with_deadline,
     HelperBridgeActionResult, HelperBridgeRuntime, HelperTaskPriority,
 };
@@ -50,7 +50,7 @@ fn response_with_runtime(
         scheduler_priority: priority.label().to_string(),
         message,
         generation_token: runtime.generation_token,
-        runtime_claim: status_from_runtime(runtime).runtime_claim,
+        runtime_claim: runtime_claim(runtime),
         worker_response_json: worker_response.to_string(),
     }
 }

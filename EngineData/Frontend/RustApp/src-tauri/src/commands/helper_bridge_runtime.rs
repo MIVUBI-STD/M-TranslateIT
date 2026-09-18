@@ -142,7 +142,7 @@ pub fn unix_ms() -> u128 {
         .unwrap_or(0)
 }
 
-fn runtime_claim(runtime: &HelperBridgeRuntime) -> String {
+pub fn runtime_claim(runtime: &HelperBridgeRuntime) -> String {
     if runtime.child.is_some() && runtime.state == "ready" {
         "helper_process_ready_ping_verified".to_string()
     } else {
