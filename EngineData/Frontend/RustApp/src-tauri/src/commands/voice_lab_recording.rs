@@ -244,6 +244,16 @@ fn result(ok: bool, state: &str, message: impl Into<String>) -> GuidedRecordingA
     }
 }
 
+pub(crate) fn voice_lab_recording_blocks_app_exit() -> bool {
+    if active_guided_take_line_id().is_some() {
+        return true;
+    }
+    draft_store()
+        .lock()
+        .map(|guard| guard.is_some())
+        .unwrap_or(true)
+}
+
 #[tauri::command]
 pub fn get_voice_lab_guided_recording_state() -> GuidedRecordingState {
     current_state()

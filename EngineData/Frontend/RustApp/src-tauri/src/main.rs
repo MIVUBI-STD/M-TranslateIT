@@ -15,9 +15,7 @@ fn main() {
 
     app.run(|app_handle, event| {
         if let tauri::RunEvent::ExitRequested { api, .. } = event {
-            let voice_state = commands::voice_lab_recording::get_voice_lab_guided_recording_state();
-            if voice_state.recording_line_id.is_some()
-                || voice_state.pending_review.is_some()
+            if commands::voice_lab_recording::voice_lab_recording_blocks_app_exit()
                 || commands::voice_lab::current_voice_lab_build_snapshot().active
             {
                 api.prevent_exit();
