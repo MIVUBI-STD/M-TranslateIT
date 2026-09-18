@@ -289,9 +289,19 @@ def compare_reports(
         "group_mean_deltas": group_mean_deltas,
         "group_critical_pass_rate_deltas": group_critical_pass_rate_deltas,
         "case_score_deltas": score_deltas,
+        "promotion_provenance_complete": (
+            bool(baseline["source_identity"])
+            and bool(candidate["source_identity"])
+            and baseline["provenance_matches_corpus"]
+            and candidate["provenance_matches_corpus"]
+        ),
         "promotion_safe_on_declared_critical_invariants": (
             baseline["complete_result_set"]
             and candidate["complete_result_set"]
+            and bool(baseline["source_identity"])
+            and bool(candidate["source_identity"])
+            and baseline["provenance_matches_corpus"]
+            and candidate["provenance_matches_corpus"]
             and not critical_regressions
         ),
         "note": (
