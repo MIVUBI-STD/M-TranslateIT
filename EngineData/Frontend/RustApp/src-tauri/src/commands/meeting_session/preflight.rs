@@ -13,6 +13,7 @@ use super::{
     APPLICATION_MEETING_OWNER_ID,
 };
 
+#[cfg(test)]
 fn helper_start_recoverable(state: &str, last_error: Option<&str>) -> bool {
     state == "stopped"
         && last_error == Some("helper_bridge:meeting_session_hard_cancelled")

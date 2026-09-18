@@ -11,9 +11,9 @@ use crate::engine::runtime_state::runtime_generation_is_authoritative;
 #[path = "meeting_output_runtime/audio_format.rs"]
 mod audio_format;
 
-use audio_format::{
-    decode_wav_bytes, decode_wav_file, delivery_deadline_ms, prepare_output_samples,
-};
+use audio_format::{decode_wav_file, delivery_deadline_ms, prepare_output_samples};
+#[cfg(test)]
+use audio_format::decode_wav_bytes;
 
 const MAX_MEETING_OUTPUT_WAV_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_OUTPUT_CHANNELS: u16 = 8;
