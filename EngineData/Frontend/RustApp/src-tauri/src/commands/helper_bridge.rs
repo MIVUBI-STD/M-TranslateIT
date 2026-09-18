@@ -110,6 +110,10 @@ pub(crate) fn invalidate_required_outbound_readiness_for_voice_change() {
     invalidate_required_outbound_ai_readiness();
 }
 
+pub(crate) fn invalidate_required_outbound_readiness_for_power_transition() {
+    invalidate_required_outbound_ai_readiness();
+}
+
 
 
 pub fn verify_required_outbound_ai_runtime() -> Result<(), &'static str> {

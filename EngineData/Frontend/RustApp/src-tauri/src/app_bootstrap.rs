@@ -91,6 +91,11 @@ mod windows_power_lifecycle {
             // audio-resource release; this lifecycle hook must not duplicate cleanup.
             let _ = crate::commands::meeting_session::stop_meeting_translation();
         }
+
+        // A suspend/resume boundary invalidates diagnostic/setup functional proof even
+        // when the helper process itself survives. The next readiness check must prove
+        // the required outbound path again instead of reusing pre-suspend evidence.
+        crate::commands::helper_bridge::invalidate_required_outbound_readiness_for_power_transition();
     }
 
     fn power_event_requires_cleanup(wparam: Wparam) -> bool {
