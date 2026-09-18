@@ -63,6 +63,18 @@ pub fn verify_required_outbound_ai_readiness() -> HelperBridgeActionResult {
         };
     }
 
+    if helper.functional_outbound_ready {
+        return HelperBridgeActionResult {
+            ok: true,
+            state: "ready".to_string(),
+            message: "The current helper generation already has verified outbound readiness."
+                .to_string(),
+            generation_token: helper.generation_token,
+            runtime_claim:
+                "functional_outbound_readiness_reused_current_helper_generation".to_string(),
+        };
+    }
+
     if let Err(stage) = helper_bridge::verify_required_outbound_ai_runtime() {
         let current = helper_bridge::get_helper_bridge_status();
         return HelperBridgeActionResult {
