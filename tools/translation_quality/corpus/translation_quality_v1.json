@@ -809,14 +809,14 @@
       "id": "id-en-quantifier-001",
       "direction": "id-en",
       "category": "quantifier_scope",
-      "source": "Hampir semua file sudah selesai, tapi dua masih perlu direvisi.",
+      "source": "Sebagian besar file sudah selesai, tapi dua masih perlu direvisi.",
       "references": [
-        "Almost all files are finished, but two still need to be revised."
+        "Most files are finished, but two still need to be revised."
       ],
       "preserve": [],
       "required_any": [
         [
-          "almost all"
+          "most"
         ],
         [
           "two"
@@ -827,7 +827,8 @@
         ]
       ],
       "forbidden": [
-        "all files are finished"
+        "all files are finished",
+        "every file is finished"
       ]
     },
     {
