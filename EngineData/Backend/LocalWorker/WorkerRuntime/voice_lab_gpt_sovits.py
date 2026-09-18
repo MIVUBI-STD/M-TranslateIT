@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import gc
 import hashlib
 import json
+import os
 import wave
 from contextlib import contextmanager
 from pathlib import Path

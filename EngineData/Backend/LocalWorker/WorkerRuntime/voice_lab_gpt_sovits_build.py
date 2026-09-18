@@ -8,6 +8,7 @@ and candidate package construction for the Rust-owned one-shot build child.
 from __future__ import annotations
 
 import gc
+import hashlib
 import json
 import math
 import os
@@ -40,6 +41,7 @@ from voice_lab_gpt_sovits import (
     wav_duration_ms,
     write_wav,
 )
+
 
 def source_assets(source_root: Path) -> dict[str, Path]:
     assets = inference_source_assets(source_root)
