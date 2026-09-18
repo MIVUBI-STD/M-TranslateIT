@@ -77,7 +77,7 @@ Result format:
 }
 ```
 
-The report includes critical invariant pass rate, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
+The report includes overall and per-group critical-invariant pass rates, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. Baseline comparison also reports per-group critical-pass-rate deltas so an average score increase cannot hide a newly weaker risk category. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
 
 ## Promotion rule
 

@@ -37,6 +37,8 @@ def main() -> int:
     assert report["complete_result_set"] is True
     assert report["critical_failures"] == 0
     assert report["critical_pass_rate"] == 1.0
+    assert report["group_critical_pass_rates"]["id-en"] == 1.0
+    assert report["group_critical_pass_rates"]["contextual_meeting"] == 1.0
 
     bad = dict(perfect)
     bad["id-en-negation-001"] = "I will attend the meeting tomorrow."
@@ -51,11 +53,13 @@ def main() -> int:
     assert comparison["complete_result_sets"] is True
     assert comparison["critical_regressions"] == ["id-en-negation-001"]
     assert comparison["critical_recoveries"] == []
+    assert comparison["group_critical_pass_rate_deltas"]["negation"] < 0
     assert comparison["promotion_safe_on_declared_critical_invariants"] is False
 
     recovered = evaluator.compare_reports(corpus, candidate, perfect)
     assert recovered["critical_regressions"] == []
     assert recovered["critical_recoveries"] == ["id-en-negation-001"]
+    assert recovered["group_critical_pass_rate_deltas"]["negation"] > 0
     assert recovered["promotion_safe_on_declared_critical_invariants"] is True
 
     requests = evaluator.emit_requests(corpus)

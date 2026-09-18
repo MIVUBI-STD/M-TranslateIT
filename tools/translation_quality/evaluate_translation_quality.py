@@ -132,6 +132,7 @@ def evaluate(corpus: dict, results: dict[str, str]) -> dict:
     unknown = sorted(results.keys() - expected)
     rows = []
     grouped: dict[str, list[float]] = defaultdict(list)
+    grouped_critical: dict[str, list[bool]] = defaultdict(list)
     critical_failures = 0
     for case in corpus["cases"]:
         translated = results.get(case["id"], "")
@@ -141,6 +142,8 @@ def evaluate(corpus: dict, results: dict[str, str]) -> dict:
             critical_failures += 1
         grouped[case["direction"]].append(score)
         grouped[case["category"]].append(score)
+        grouped_critical[case["direction"]].append(inv["critical_pass"])
+        grouped_critical[case["category"]].append(inv["critical_pass"])
         rows.append({"case_id": case["id"], "direction": case["direction"], "category": case["category"], "char_ngram_f1": round(score, 4), **inv})
     return {
         "schema": "translateit.translation_quality.report.v1",
@@ -150,7 +153,14 @@ def evaluate(corpus: dict, results: dict[str, str]) -> dict:
         "critical_failures": critical_failures,
         "critical_pass_rate": round((len(rows) - critical_failures) / len(rows), 4) if rows else 0.0,
         "mean_char_ngram_f1": round(sum(row["char_ngram_f1"] for row in rows) / len(rows), 4) if rows else 0.0,
-        "group_means": {key: round(sum(values) / len(values), 4) for key, values in sorted(grouped.items())},
+        "group_means": {
+            key: round(sum(values) / len(values), 4)
+            for key, values in sorted(grouped.items())
+        },
+        "group_critical_pass_rates": {
+            key: round(sum(values) / len(values), 4)
+            for key, values in sorted(grouped_critical.items())
+        },
         "cases": rows,
         "note": "Character n-gram F1 and declared invariants are regression signals, not standalone proof of translation quality.",
     }
@@ -185,6 +195,18 @@ def compare_reports(corpus: dict, baseline_results: dict[str, str], candidate_re
         )
         for key in group_keys
     }
+    critical_group_keys = sorted(
+        set(baseline["group_critical_pass_rates"])
+        | set(candidate["group_critical_pass_rates"])
+    )
+    group_critical_pass_rate_deltas = {
+        key: round(
+            candidate["group_critical_pass_rates"].get(key, 0.0)
+            - baseline["group_critical_pass_rates"].get(key, 0.0),
+            4,
+        )
+        for key in critical_group_keys
+    }
     return {
         "schema": "translateit.translation_quality.comparison.v1",
         "complete_result_sets": (
@@ -199,6 +221,7 @@ def compare_reports(corpus: dict, baseline_results: dict[str, str], candidate_re
             4,
         ),
         "group_mean_deltas": group_mean_deltas,
+        "group_critical_pass_rate_deltas": group_critical_pass_rate_deltas,
         "case_score_deltas": score_deltas,
         "promotion_safe_on_declared_critical_invariants": (
             baseline["complete_result_set"]
