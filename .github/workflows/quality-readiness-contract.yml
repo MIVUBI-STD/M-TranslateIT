@@ -1,0 +1,64 @@
+name: Quality Readiness Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Local
+    paths:
+      - "tools/quality_readiness/**"
+      - "tools/translation_quality/**"
+      - "tools/asr_quality/**"
+      - "tools/tts_quality/**"
+      - ".github/workflows/quality-readiness-contract.yml"
+  pull_request:
+    branches:
+      - Local
+    paths:
+      - "tools/quality_readiness/**"
+      - "tools/translation_quality/**"
+      - "tools/asr_quality/**"
+      - "tools/tts_quality/**"
+      - ".github/workflows/quality-readiness-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+      - name: Self-test aggregate quality readiness
+        run: python tools/quality_readiness/self_test.py
+      - name: Verify domain comparison contracts remain available
+        shell: python
+        run: |
+          from pathlib import Path
+
+          required = {
+              "tools/translation_quality/evaluate_translation_quality.py": (
+                  "translateit.translation_quality.comparison.v1",
+                  "promotion_safe_on_declared_critical_invariants",
+              ),
+              "tools/asr_quality/evaluate_asr_quality.py": (
+                  "translateit.asr_quality.comparison.v1",
+                  "promotion_safe_on_declared_critical_invariants",
+              ),
+              "tools/tts_quality/evaluate_tts_quality.py": (
+                  "translateit.tts_quality.comparison.v1",
+                  "promotion_safe_on_declared_critical_invariants",
+              ),
+          }
+          missing = []
+          for path, markers in required.items():
+              source = Path(path).read_text(encoding="utf-8")
+              missing.extend(f"{path}:{marker}" for marker in markers if marker not in source)
+          if missing:
+              raise SystemExit(f"quality readiness domain contract missing: {missing}")
