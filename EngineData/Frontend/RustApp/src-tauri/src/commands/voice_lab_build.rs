@@ -18,8 +18,8 @@ use super::voice_lab::{
     finish_voice_lab_build, mark_voice_lab_build_evaluating, mark_voice_lab_build_training,
     prepare_guided_dataset, promote_voice_actor_candidate, request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedEvaluationLineContract,
-    GuidedTakeContract, VoiceLabStoragePaths, VOICE_ACTOR_VOICE_ACTOR_ENGINE,
-    VOICE_ACTOR_VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_VOICE_LAB_SCHEMA_VERSION,
+    GuidedTakeContract, VoiceLabStoragePaths, VOICE_ACTOR_ENGINE,
+    VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::get_voice_lab_guided_recording_state;
 
@@ -248,7 +248,7 @@ fn child_status(paths: &VoiceLabStoragePaths) -> Option<BuildChildStatusFile> {
     let value = serde_json::from_slice::<BuildChildStatusFile>(&bytes).ok()?;
     (value.schema_version == VOICE_LAB_SCHEMA_VERSION
         && value.engine == VOICE_ACTOR_ENGINE
-        && value.engine_revision == VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION)
+        && value.engine_revision == VOICE_ACTOR_ENGINE_REVISION)
         .then_some(value)
 }
 
@@ -261,7 +261,7 @@ fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifes
     let manifest = serde_json::from_slice::<EvaluationManifest>(&bytes).ok()?;
     if manifest.schema_version != VOICE_LAB_SCHEMA_VERSION
         || manifest.engine != VOICE_ACTOR_ENGINE
-        || manifest.engine_revision != VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION
+        || manifest.engine_revision != VOICE_ACTOR_ENGINE_REVISION
         || manifest.samples.len() != HELD_OUT_LINES.len()
     {
         return None;
@@ -406,7 +406,7 @@ fn preflight_assets() -> Result<(PathBuf, PathBuf), String> {
     }
     let marker = source.join("TRANSLATEIT_GPTSOVITS_REVISION.txt");
     let revision = fs::read_to_string(marker).unwrap_or_default();
-    if revision.trim() != VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION {
+    if revision.trim() != VOICE_ACTOR_ENGINE_REVISION {
         return Err("VoiceLab model assets do not match this TranslateIT build.".to_string());
     }
     Ok((script, source))
@@ -661,7 +661,7 @@ pub fn select_builtin_voice(
         );
     }
 
-    match install_builtin_voice(&project_paths, &voice_id, &target, VOICE_ACTOR_VOICE_ACTOR_ENGINE_REVISION) {
+    match install_builtin_voice(&project_paths, &voice_id, &target, VOICE_ACTOR_ENGINE_REVISION) {
         Ok(()) => {
             invalidate_required_outbound_readiness_for_voice_change();
             let label = voice_id.trim_end_matches("Voice").to_lowercase();
