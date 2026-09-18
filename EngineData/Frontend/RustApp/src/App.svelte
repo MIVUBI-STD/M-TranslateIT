@@ -61,6 +61,7 @@
   let meetingPollInFlight = false;
   let closeCheckInFlight = false;
   let lastTranscriptStatusKey = "";
+  let runtimeStateRevision = 0;
 
   const snapshot = $derived.by<ProductRuntimeSnapshot | null>(() => {
     if (!runtimeLoaded) return null;
@@ -118,9 +119,11 @@
   }
 
   async function refreshSnapshot(preferredNotice?: string, knownSettings?: RuntimeSettings): Promise<void> {
+    const requestRevision = ++runtimeStateRevision;
     try {
       const previousSessionId = snapshot?.meeting.sessionId ?? null;
       const next = await runtimeProductFacade.loadProductRuntimeSnapshot(knownSettings);
+      if (requestRevision !== runtimeStateRevision) return;
       runtimeSettings = cloneSettings(next.settings);
       setupSettings = cloneSettings(next.settings);
       helperStatus = next.helper;
@@ -147,11 +150,14 @@
       }
       setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
     } catch {
-      setNotice("TranslateIT couldn't refresh its status. Try again or open Diagnostics.");
+      if (requestRevision === runtimeStateRevision) {
+        setNotice("TranslateIT couldn't refresh its status. Try again or open Diagnostics.");
+      }
     }
   }
 
   async function applySettings(next: RuntimeSettings): Promise<void> {
+    runtimeStateRevision += 1;
     const nextSettings = cloneSettings(next);
     runtimeSettings = nextSettings;
     setupSettings = nextSettings;
@@ -189,9 +195,11 @@
     }
 
     meetingActionBusy = true;
+    runtimeStateRevision += 1;
     setNotice(action === "start" ? "Starting translation..." : "Stopping translation...");
     try {
       const result = await runtimeProductFacade.runProductMeetingAction(action);
+      runtimeStateRevision += 1;
       const resultNotice = result.ok
         ? action === "start" ? "Translation is live." : "Translation stopped."
         : action === "start"
@@ -203,6 +211,7 @@
         lastTranscriptStatusKey = "";
       }
     } catch {
+      runtimeStateRevision += 1;
       setNotice("The Meeting action couldn't be completed. Try again or check Diagnostics.");
       await refreshSnapshot();
     } finally {
@@ -277,9 +286,10 @@
     if (!snapshot?.meeting.hasSession && !closeAfterExistingStop) return;
 
     meetingPollInFlight = true;
+    const pollRevision = runtimeStateRevision;
     try {
       const result = await readMeetingPoll(meetingTurns, lastTranscriptStatusKey);
-      if (!result) return;
+      if (!result || pollRevision !== runtimeStateRevision) return;
       applyMeetingStatus(result.status);
       meetingTurns = result.turns;
       lastTranscriptStatusKey = result.transcriptStatusKey;
