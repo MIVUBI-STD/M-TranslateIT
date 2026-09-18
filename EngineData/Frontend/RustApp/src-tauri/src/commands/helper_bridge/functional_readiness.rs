@@ -67,7 +67,7 @@ pub(super) fn remember_required_outbound_functional_readiness(
     }
 }
 
-pub(super) fn required_outbound_voice_actor_token(meeting_generation: u64) -> Option<String> {
+pub fn required_outbound_voice_actor_token(meeting_generation: u64) -> Option<String> {
     if meeting_generation == 0 || !runtime_generation_is_authoritative(meeting_generation) {
         return None;
     }
