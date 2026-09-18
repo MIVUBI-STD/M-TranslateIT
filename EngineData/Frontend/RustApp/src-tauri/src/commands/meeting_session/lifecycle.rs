@@ -4,6 +4,7 @@ use crate::engine::audio::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, clear_finalized_meeting_sequence,
     reset_finalized_meeting_sequence,
 };
+use crate::engine::audio::live_segment_writer::cleanup_finalized_meeting_session_wavs;
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
 use crate::engine::audio::meeting_output::{
     cancel_meeting_output_for_generation, clear_prepared_meeting_output_device,
@@ -35,6 +36,7 @@ use super::consumer_runtime::{
 };
 use super::incoming_activation::schedule_optional_incoming_lane;
 use super::incoming_deferred::clear_deferred_incoming_queue;
+use super::outbound_pipeline::cleanup_meeting_tts_for_session;
 use super::preflight::{blocked_result, build_preflight, status_from_report};
 use super::session_state::{
     clear_all_start_preflight, clear_incoming_status, clear_outbound_status,
@@ -484,6 +486,10 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     let suppression_cleanup_ok = clear_self_output_suppression_for_session(&session_id);
     clear_finalized_meeting_sequence();
     let transcript_cleanup_ok = clear_committed_turns_for_session(&session_id);
+    let finalized_audio_cleanup = cleanup_finalized_meeting_session_wavs(&session_id);
+    let tts_cache_cleanup = cleanup_meeting_tts_for_session(&session_id, generation);
+    let transient_audio_cleanup_ok =
+        finalized_audio_cleanup.is_ok() && tts_cache_cleanup.is_ok();
     clear_outbound_status();
 
     let cleanup_complete = meeting_cleanup_complete(
@@ -494,6 +500,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         incoming_cleanup.ok,
         suppression_cleanup_ok,
         transcript_cleanup_ok,
+        transient_audio_cleanup_ok,
     );
 
     if !cleanup_complete {
@@ -519,6 +526,9 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         if !transcript_cleanup_ok {
             failed.push("committed transcript state");
         }
+        if !transient_audio_cleanup_ok {
+            failed.push("transient Meeting audio cache");
+        }
         let failed_summary = failed.join(", ");
         mark_incoming_cleanup_incomplete_status(
             &session_id,
@@ -536,7 +546,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
             ok: false,
             state: "cleanup_incomplete".to_string(),
             message: format!(
-                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: {} Transcript: {}",
+                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: {} Transcript: {} Finalized audio: {} TTS cache: {}",
                 capture_stop.message,
                 incoming_capture_stop.message,
                 helper_cancel.message,
@@ -544,6 +554,14 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
                 incoming_cleanup.message,
                 if suppression_cleanup_ok { "clean" } else { "unverified" },
                 if transcript_cleanup_ok { "clean" } else { "unverified" },
+                finalized_audio_cleanup
+                    .as_ref()
+                    .map(|count| format!("clean ({count} removed)"))
+                    .unwrap_or_else(|error| error.clone()),
+                tts_cache_cleanup
+                    .as_ref()
+                    .map(|count| format!("clean ({count} removed)"))
+                    .unwrap_or_else(|error| error.clone()),
             ),
             status: status_from_report(retained, build_preflight()),
         };
@@ -570,12 +588,20 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         ok: true,
         state: "stopped".to_string(),
         message: format!(
-            "Translation stopped. Authority was revoked before both audio lanes/helper/consumers and transient transcript/session state were cleaned. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: clean Transcript: clean",
+            "Translation stopped. Authority was revoked before both audio lanes/helper/consumers and transient transcript/session state were cleaned. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: clean Transcript: clean Finalized audio: {} TTS cache: {}",
             capture_stop.message,
             incoming_capture_stop.message,
             helper_cancel.message,
             outbound_cleanup.message,
             incoming_cleanup.message,
+            finalized_audio_cleanup
+                .as_ref()
+                .map(|count| format!("clean ({count} removed)"))
+                .unwrap_or_else(|error| error.clone()),
+            tts_cache_cleanup
+                .as_ref()
+                .map(|count| format!("clean ({count} removed)"))
+                .unwrap_or_else(|error| error.clone()),
         ),
         status: status_from_report(cleared, build_preflight()),
     }
@@ -589,6 +615,7 @@ pub(super) fn meeting_cleanup_complete(
     incoming_consumer_ok: bool,
     suppression_cleanup_ok: bool,
     transcript_cleanup_ok: bool,
+    transient_audio_cleanup_ok: bool,
 ) -> bool {
     microphone_capture_ok
         && meeting_sound_capture_ok
@@ -597,4 +624,5 @@ pub(super) fn meeting_cleanup_complete(
         && incoming_consumer_ok
         && suppression_cleanup_ok
         && transcript_cleanup_ok
+        && transient_audio_cleanup_ok
 }

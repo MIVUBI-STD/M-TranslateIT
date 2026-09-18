@@ -327,14 +327,15 @@ mod cleanup_truth_tests {
 
     #[test]
     fn cleanup_truth_requires_every_owned_resource_to_release() {
-        assert!(meeting_cleanup_complete(true, true, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(false, true, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, false, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, false, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, false, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, false, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, true, false, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, false));
+        assert!(meeting_cleanup_complete(true, true, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(false, true, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, false, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, false, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, false, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, false, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, false, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, false, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, true, false));
     }
 }
 

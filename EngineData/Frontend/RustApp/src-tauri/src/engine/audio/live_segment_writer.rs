@@ -154,6 +154,47 @@ pub fn remove_finalized_meeting_utterance_wav(audio_path: &str) {
     let _ = fs::remove_file(path);
 }
 
+pub fn cleanup_finalized_meeting_session_wavs(session_id: &str) -> Result<usize, String> {
+    let project_paths = ProjectPaths::discover();
+    let audio_dir = PathBuf::from(project_paths.user_cache_dir).join("audio_segments");
+    cleanup_finalized_meeting_session_wavs_in_dir(&audio_dir, session_id)
+}
+
+fn cleanup_finalized_meeting_session_wavs_in_dir(
+    audio_dir: &PathBuf,
+    session_id: &str,
+) -> Result<usize, String> {
+    let session_component = safe_file_component(session_id);
+    if session_component.is_empty() {
+        return Err("finalized_utterance_cleanup:invalid_session_id".to_string());
+    }
+    let prefix = format!("final_{session_component}_");
+    let entries = match fs::read_dir(audio_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(0),
+        Err(_) => return Err("finalized_utterance_cleanup:read_dir_failed".to_string()),
+    };
+
+    let mut removed = 0usize;
+    for entry in entries {
+        let entry = entry.map_err(|_| "finalized_utterance_cleanup:read_entry_failed".to_string())?;
+        let file_type = entry
+            .file_type()
+            .map_err(|_| "finalized_utterance_cleanup:file_type_failed".to_string())?;
+        if !file_type.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !name.starts_with(&prefix) || !(name.ends_with(".wav") || name.ends_with(".wav.tmp")) {
+            continue;
+        }
+        fs::remove_file(entry.path())
+            .map_err(|_| "finalized_utterance_cleanup:remove_failed".to_string())?;
+        removed = removed.saturating_add(1);
+    }
+    Ok(removed)
+}
+
 fn finalized_audio_filename(audio_path: &str) -> Option<String> {
     let normalized = audio_path.trim().replace('\\', "/");
     let filename = normalized.strip_prefix(FINALIZED_SEGMENT_ROOT_LABEL)?;
@@ -330,6 +371,30 @@ mod tests {
         assert_eq!(u32::from_le_bytes(bytes[40..44].try_into().unwrap()), 4);
         assert_eq!(bytes.len(), 48);
         assert_eq!(&bytes[44..48], &[0x00, 0x20, 0x00, 0xE0]);
+
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[test]
+    fn session_cleanup_removes_only_matching_transient_audio() {
+        let root = unique_test_root("session-wav-cleanup");
+        fs::create_dir_all(&root).expect("create test root");
+        fs::write(root.join("final_session-a_s1_you_g1_u1.wav"), b"a").expect("write matching wav");
+        fs::write(root.join("final_session-a_s2_incoming_u2.wav.tmp"), b"b")
+            .expect("write matching temp");
+        fs::write(root.join("final_session-b_s1_you_g1_u1.wav"), b"c")
+            .expect("write foreign wav");
+        fs::create_dir_all(root.join("final_session-a_directory.wav"))
+            .expect("create matching-looking directory");
+
+        let removed = cleanup_finalized_meeting_session_wavs_in_dir(&root, "session-a")
+            .expect("cleanup matching session");
+
+        assert_eq!(removed, 2);
+        assert!(!root.join("final_session-a_s1_you_g1_u1.wav").exists());
+        assert!(!root.join("final_session-a_s2_incoming_u2.wav.tmp").exists());
+        assert!(root.join("final_session-b_s1_you_g1_u1.wav").exists());
+        assert!(root.join("final_session-a_directory.wav").is_dir());
 
         fs::remove_dir_all(root).expect("remove test root");
     }

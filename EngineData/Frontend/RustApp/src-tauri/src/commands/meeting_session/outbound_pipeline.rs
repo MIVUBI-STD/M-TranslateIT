@@ -1,9 +1,12 @@
 use serde_json::json;
 use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::engine::audio::meeting_output::deliver_meeting_output_wav;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
+use crate::engine::paths::ProjectPaths;
 
 use super::committed_turns::{
     commit_meeting_turn, recent_outbound_context_pairs, update_committed_turn_delivery_state,
@@ -41,6 +44,54 @@ fn remove_temporary_tts_paths(requested_path: &str, reported_path: &str) {
     if requested_path.trim() != reported_path.trim() {
         remove_temporary_tts(requested_path);
     }
+}
+
+pub(super) fn cleanup_meeting_tts_for_session(
+    session_id: &str,
+    generation: u64,
+) -> Result<usize, String> {
+    let project_paths = ProjectPaths::discover();
+    let tts_dir = PathBuf::from(project_paths.user_cache_dir).join("meeting_tts");
+    cleanup_meeting_tts_for_session_in_dir(&tts_dir, session_id, generation)
+}
+
+fn cleanup_meeting_tts_for_session_in_dir(
+    tts_dir: &Path,
+    session_id: &str,
+    generation: u64,
+) -> Result<usize, String> {
+    if session_id.trim().is_empty()
+        || session_id.contains('/')
+        || session_id.contains('\\')
+        || !session_id
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+    {
+        return Err("meeting_tts_cleanup:invalid_session_id".to_string());
+    }
+    let prefix = format!("{session_id}_g{generation}_s");
+    let entries = match fs::read_dir(tts_dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(0),
+        Err(_) => return Err("meeting_tts_cleanup:read_dir_failed".to_string()),
+    };
+    let mut removed = 0usize;
+    for entry in entries {
+        let entry = entry.map_err(|_| "meeting_tts_cleanup:read_entry_failed".to_string())?;
+        let file_type = entry
+            .file_type()
+            .map_err(|_| "meeting_tts_cleanup:file_type_failed".to_string())?;
+        if !file_type.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !name.starts_with(&prefix) || !name.ends_with(".wav") {
+            continue;
+        }
+        fs::remove_file(entry.path()).map_err(|_| "meeting_tts_cleanup:remove_failed".to_string())?;
+        removed = removed.saturating_add(1);
+    }
+    Ok(removed)
 }
 
 fn stale_outbound_result(
@@ -447,7 +498,9 @@ pub(super) fn process_outbound_wav(
 
 #[cfg(test)]
 mod tests {
-    use super::{remove_temporary_tts_paths, tts_output_path};
+    use super::{
+        cleanup_meeting_tts_for_session_in_dir, remove_temporary_tts_paths, tts_output_path,
+    };
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -465,6 +518,27 @@ mod tests {
             tts_output_path("session-a", 7, 11),
             "UserData/CacheData/meeting_tts/session-a_g7_s11.wav"
         );
+    }
+
+    #[test]
+    fn session_tts_cleanup_removes_only_matching_generation_files() {
+        let root = temp_wav("session-cleanup-root").with_extension("");
+        fs::create_dir_all(&root).expect("create tts cleanup root");
+        fs::write(root.join("meeting_100_7_g9_s1.wav"), b"a").expect("write matching tts");
+        fs::write(root.join("meeting_100_7_g9_s2.wav"), b"b").expect("write matching tts");
+        fs::write(root.join("meeting_100_7_g8_s1.wav"), b"c").expect("write old generation");
+        fs::write(root.join("other_g9_s1.wav"), b"d").expect("write foreign session");
+
+        let removed = cleanup_meeting_tts_for_session_in_dir(&root, "meeting_100_7", 9)
+            .expect("cleanup session tts");
+
+        assert_eq!(removed, 2);
+        assert!(!root.join("meeting_100_7_g9_s1.wav").exists());
+        assert!(!root.join("meeting_100_7_g9_s2.wav").exists());
+        assert!(root.join("meeting_100_7_g8_s1.wav").exists());
+        assert!(root.join("other_g9_s1.wav").exists());
+
+        fs::remove_dir_all(root).expect("remove tts cleanup root");
     }
 
     #[test]
