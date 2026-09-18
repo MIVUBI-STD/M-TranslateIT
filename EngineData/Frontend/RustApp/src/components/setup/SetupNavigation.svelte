@@ -54,8 +54,8 @@
         Continue <ChevronRight size={16} />
       </button>
     {:else if step === 3}
-      <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void onRepair()}>
-        Repair Setup
+      <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void onRefresh()}>
+        Refresh Route
       </button>
       <button type="button" class="ti-button" disabled={busy || !meetingRouteReady} onclick={() => void onAdvance(4)}>
         Continue <ChevronRight size={16} />
