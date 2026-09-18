@@ -1,0 +1,347 @@
+{
+  "schema": "translateit.asr_quality.v1",
+  "language": "id",
+  "purpose": "Versioned Indonesian meeting-speech regression specification. Audio must be captured or curated separately; repository validation does not claim ASR quality.",
+  "cases": [
+    {
+      "id": "asr-clean-001",
+      "category": "meeting_core",
+      "recording_profile": "clean_normal",
+      "reference": "Tolong mulai presentasinya sekarang.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tolong"
+        ],
+        [
+          "presentasinya"
+        ],
+        [
+          "sekarang"
+        ]
+      ]
+    },
+    {
+      "id": "asr-negation-001",
+      "category": "negation",
+      "recording_profile": "clean_normal",
+      "reference": "Saya tidak setuju dengan perubahan itu.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tidak"
+        ],
+        [
+          "setuju"
+        ],
+        [
+          "perubahan"
+        ]
+      ]
+    },
+    {
+      "id": "asr-correction-001",
+      "category": "meaning_control",
+      "recording_profile": "clean_normal",
+      "reference": "Maksud saya lima belas, bukan lima puluh.",
+      "preserve": [],
+      "required_any": [
+        [
+          "lima belas"
+        ],
+        [
+          "bukan"
+        ],
+        [
+          "lima puluh"
+        ]
+      ]
+    },
+    {
+      "id": "asr-number-001",
+      "category": "numbers_dates_units",
+      "recording_profile": "clean_normal",
+      "reference": "Anggarannya dua juta tujuh ratus lima puluh ribu rupiah.",
+      "preserve": [],
+      "required_any": [
+        [
+          "dua juta"
+        ],
+        [
+          "tujuh ratus"
+        ],
+        [
+          "lima puluh ribu"
+        ],
+        [
+          "rupiah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-date-001",
+      "category": "numbers_dates_units",
+      "recording_profile": "clean_normal",
+      "reference": "Meeting berikutnya tanggal dua puluh satu September dua ribu dua puluh enam.",
+      "preserve": [
+        "September"
+      ],
+      "required_any": [
+        [
+          "dua puluh satu"
+        ],
+        [
+          "dua ribu dua puluh enam"
+        ]
+      ]
+    },
+    {
+      "id": "asr-time-001",
+      "category": "numbers_dates_units",
+      "recording_profile": "clean_normal",
+      "reference": "Server dimatikan pukul sembilan belas tiga puluh WIB.",
+      "preserve": [
+        "WIB"
+      ],
+      "required_any": [
+        [
+          "sembilan belas"
+        ],
+        [
+          "tiga puluh"
+        ]
+      ]
+    },
+    {
+      "id": "asr-version-001",
+      "category": "technical",
+      "recording_profile": "clean_normal",
+      "reference": "Build ini masih menggunakan Minecraft Bedrock versi satu titik dua satu titik empat.",
+      "preserve": [
+        "Minecraft Bedrock"
+      ],
+      "required_any": [
+        [
+          "build"
+        ],
+        [
+          "versi"
+        ],
+        [
+          "satu titik dua satu titik empat"
+        ]
+      ]
+    },
+    {
+      "id": "asr-api-001",
+      "category": "technical",
+      "recording_profile": "clean_normal",
+      "reference": "Jangan ubah API endpoint atau JSON schema yang sekarang.",
+      "preserve": [
+        "API",
+        "JSON"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "endpoint"
+        ],
+        [
+          "schema"
+        ]
+      ]
+    },
+    {
+      "id": "asr-code-switch-001",
+      "category": "code_switching",
+      "recording_profile": "clean_normal",
+      "reference": "Tolong cek final build tapi jangan merge dulu.",
+      "preserve": [
+        "build",
+        "merge"
+      ],
+      "required_any": [
+        [
+          "tolong"
+        ],
+        [
+          "jangan"
+        ]
+      ]
+    },
+    {
+      "id": "asr-code-switch-002",
+      "category": "code_switching",
+      "recording_profile": "fast_speech",
+      "reference": "Branch local sudah ready tapi hotfix belum saya push.",
+      "preserve": [
+        "branch",
+        "local",
+        "hotfix",
+        "push"
+      ],
+      "required_any": [
+        [
+          "sudah"
+        ],
+        [
+          "belum"
+        ]
+      ]
+    },
+    {
+      "id": "asr-name-001",
+      "category": "entities_literals",
+      "recording_profile": "clean_normal",
+      "reference": "Younes akan review Clockwork besok pagi.",
+      "preserve": [
+        "Younes",
+        "Clockwork"
+      ],
+      "required_any": [
+        [
+          "review"
+        ],
+        [
+          "besok pagi"
+        ]
+      ]
+    },
+    {
+      "id": "asr-id-001",
+      "category": "entities_literals",
+      "recording_profile": "clean_normal",
+      "reference": "Tiket MIV dua nol empat masih terbuka.",
+      "preserve": [
+        "MIV"
+      ],
+      "required_any": [
+        [
+          "dua nol empat"
+        ],
+        [
+          "terbuka"
+        ]
+      ]
+    },
+    {
+      "id": "asr-soft-001",
+      "category": "meeting_core",
+      "recording_profile": "soft_speech",
+      "reference": "Bisa dengar suara saya dengan jelas?",
+      "preserve": [],
+      "required_any": [
+        [
+          "dengar"
+        ],
+        [
+          "suara"
+        ],
+        [
+          "jelas"
+        ]
+      ]
+    },
+    {
+      "id": "asr-fast-001",
+      "category": "meeting_core",
+      "recording_profile": "fast_speech",
+      "reference": "Kalau semua sudah siap kita lanjut ke bagian berikutnya.",
+      "preserve": [],
+      "required_any": [
+        [
+          "semua"
+        ],
+        [
+          "siap"
+        ],
+        [
+          "lanjut"
+        ],
+        [
+          "berikutnya"
+        ]
+      ]
+    },
+    {
+      "id": "asr-pause-001",
+      "category": "speech_boundary",
+      "recording_profile": "natural_pause",
+      "reference": "Saya sudah cek hasilnya, dan sejauh ini tidak ada masalah.",
+      "preserve": [],
+      "required_any": [
+        [
+          "sudah cek"
+        ],
+        [
+          "tidak ada masalah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-noise-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "moderate_room_noise",
+      "reference": "Tolong kirim file revisinya setelah meeting selesai.",
+      "preserve": [],
+      "required_any": [
+        [
+          "kirim"
+        ],
+        [
+          "revisinya"
+        ],
+        [
+          "meeting"
+        ],
+        [
+          "selesai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-echo-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "room_echo",
+      "reference": "Apakah audio terjemahannya masuk ke aplikasi meeting?",
+      "preserve": [],
+      "required_any": [
+        [
+          "audio"
+        ],
+        [
+          "terjemahannya"
+        ],
+        [
+          "aplikasi"
+        ],
+        [
+          "meeting"
+        ]
+      ]
+    },
+    {
+      "id": "asr-filler-001",
+      "category": "disfluency",
+      "recording_profile": "clean_normal",
+      "reference": "Jadi, eh, kita tetap pakai versi yang sekarang dulu.",
+      "preserve": [],
+      "required_any": [
+        [
+          "kita"
+        ],
+        [
+          "tetap"
+        ],
+        [
+          "versi"
+        ],
+        [
+          "sekarang"
+        ]
+      ]
+    }
+  ]
+}

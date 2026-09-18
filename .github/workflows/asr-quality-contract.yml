@@ -1,0 +1,58 @@
+name: ASR Quality Contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Local
+    paths:
+      - "tools/asr_quality/**"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/model_manifest.json"
+      - ".github/workflows/asr-quality-contract.yml"
+  pull_request:
+    branches:
+      - Local
+    paths:
+      - "tools/asr_quality/**"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py"
+      - "EngineData/Backend/LocalWorker/WorkerRuntime/model_manifest.json"
+      - ".github/workflows/asr-quality-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+      - name: Validate ASR quality corpus
+        run: >-
+          python tools/asr_quality/evaluate_asr_quality.py
+          validate-corpus
+          --corpus tools/asr_quality/corpus/asr_quality_v1.json
+      - name: Self-test ASR quality evaluator
+        run: python tools/asr_quality/self_test.py
+      - name: Verify canonical ASR runtime contract
+        shell: python
+        run: |
+          from pathlib import Path
+
+          source = Path("EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py").read_text(encoding="utf-8")
+          required = (
+              'faster-whisper-large-v3-turbo',
+              'faster-whisper-medium',
+              'condition_on_previous_text=False',
+              'without_timestamps=True',
+              'word_timestamps=False',
+          )
+          missing = [item for item in required if item not in source]
+          if missing:
+              raise SystemExit(f"canonical ASR runtime contract missing: {missing}")
