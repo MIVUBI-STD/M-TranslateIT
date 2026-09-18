@@ -15,7 +15,9 @@ fn main() {
 
     app.run(|app_handle, event| {
         if let tauri::RunEvent::ExitRequested { api, .. } = event {
-            if engine::audio::guided_take::active_guided_take_line_id().is_some()
+            let voice_state = commands::voice_lab_recording::get_voice_lab_guided_recording_state();
+            if voice_state.recording_line_id.is_some()
+                || voice_state.pending_review.is_some()
                 || commands::voice_lab::current_voice_lab_build_snapshot().active
             {
                 api.prevent_exit();
@@ -40,23 +42,40 @@ fn main() {
                 return;
             }
 
-            let application_meeting_active = runtime
+            let active_owner = runtime
                 .snapshot
                 .as_ref()
-                .map(|snapshot| snapshot.owner_id == APPLICATION_MEETING_OWNER_ID)
-                .unwrap_or(false);
+                .map(|snapshot| snapshot.owner_id.as_str());
 
-            if !application_meeting_active {
-                return;
+            if let Some(owner) = active_owner {
+                if owner != APPLICATION_MEETING_OWNER_ID {
+                    api.prevent_exit();
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                    return;
+                }
+
+                let result = commands::meeting_session::stop_meeting_translation();
+                let meeting_still_owned = result.status.has_session
+                    && result.status.owner_id.as_deref() == Some(APPLICATION_MEETING_OWNER_ID);
+
+                if meeting_still_owned {
+                    api.prevent_exit();
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                    return;
+                }
             }
 
-            let result = commands::meeting_session::stop_meeting_translation();
-            let meeting_still_owned = result.status.has_session
-                && result.status.owner_id.as_deref() == Some(APPLICATION_MEETING_OWNER_ID);
-
-            if meeting_still_owned {
+            if !commands::helper_bridge::shutdown_helper_bridge_for_app_exit() {
+                api.prevent_exit();
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    api.prevent_exit();
                     let _ = window.unminimize();
                     let _ = window.show();
                     let _ = window.set_focus();

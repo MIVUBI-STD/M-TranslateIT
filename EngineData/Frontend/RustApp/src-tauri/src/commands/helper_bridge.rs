@@ -388,6 +388,31 @@ pub fn start_helper_bridge() -> HelperBridgeActionResult {
     start_helper_bridge_internal(true)
 }
 
+pub(crate) fn shutdown_helper_bridge_for_app_exit() -> bool {
+    clear_any_meeting_outbound_pipeline();
+    invalidate_required_outbound_ai_readiness();
+
+    let Ok(mut runtime) = runtime().lock() else {
+        return false;
+    };
+
+    runtime.generation_token = runtime.generation_token.saturating_add(1);
+    stop_child(&mut runtime);
+    runtime.state = "stopped".to_string();
+    runtime.message = "Helper worker stopped for application exit.".to_string();
+    runtime.cuda_ready = false;
+    runtime.provider_ready = false;
+    runtime.degraded_mode = false;
+    runtime.active_task = None;
+    runtime.active_request_id = None;
+    runtime.active_meeting_generation = None;
+    runtime.active_meeting_session_id = None;
+    runtime.active_meeting_lane = None;
+    runtime.last_error = None;
+    runtime.updated_unix_ms = unix_ms();
+    true
+}
+
 pub fn cancel_helper_bridge_meeting_session(session_id: &str) -> HelperBridgeActionResult {
     clear_any_meeting_outbound_pipeline();
     let session_id = session_id.trim();
