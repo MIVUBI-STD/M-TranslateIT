@@ -104,13 +104,18 @@ pub(super) fn functional_translation_output(response: &HelperBridgeWorkerRespons
     worker_text(&value, "translated_text")
 }
 
-pub(super) fn functional_voice_actor_output_path(response: &HelperBridgeWorkerResponse) -> Option<String> {
+pub(super) fn functional_voice_actor_output_path(
+    response: &HelperBridgeWorkerResponse,
+    expected_actor_token: &str,
+) -> Option<String> {
     let value = worker_response_value(response);
     let output_path = worker_text(&value, "output_path")?;
+    let actor_token_matches = !expected_actor_token.is_empty()
+        && worker_text(&value, "actor_token").as_deref() == Some(expected_actor_token);
     let file_ready = fs::metadata(&output_path)
         .map(|metadata| metadata.is_file() && metadata.len() > 44)
         .unwrap_or(false);
-    if response.ok && file_ready {
+    if response.ok && actor_token_matches && file_ready {
         Some(output_path)
     } else {
         let _ = fs::remove_file(&output_path);
@@ -191,6 +196,38 @@ mod tests {
         assert_ne!(meeting.meeting_generation, 0);
     }
 
+
+    #[test]
+    fn functional_voice_output_requires_matching_actor_token() {
+        let path = std::env::temp_dir().join("translateit-functional-voice-token-test.wav");
+        fs::write(&path, b"RIFF0123456789012345678901234567890123456789012345")
+            .expect("write functional voice fixture");
+        let response = HelperBridgeWorkerResponse {
+            ok: true,
+            state: "ready".to_string(),
+            task: "voice_actor_synthesize".to_string(),
+            request_id: "test".to_string(),
+            scheduler_priority: "meeting_outbound".to_string(),
+            message: "ok".to_string(),
+            generation_token: 1,
+            runtime_claim: "test".to_string(),
+            worker_response_json: json!({
+                "ok": true,
+                "output_path": path.to_string_lossy(),
+                "actor_token": "actor-v1",
+            })
+            .to_string(),
+        };
+
+        assert_eq!(
+            functional_voice_actor_output_path(&response, "actor-v1").as_deref(),
+            Some(path.to_string_lossy().as_ref())
+        );
+        assert!(path.exists());
+
+        assert!(functional_voice_actor_output_path(&response, "actor-v2").is_none());
+        assert!(!path.exists());
+    }
 
     #[test]
     fn voice_change_invalidation_clears_functional_readiness() {

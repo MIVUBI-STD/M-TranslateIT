@@ -107,7 +107,9 @@ pub(super) fn run_required_outbound_ai_probe(
             "meeting_generation": meeting_generation,
         }),
     );
-    let Some(functional_voice_path) = functional_voice_actor_output_path(&voice) else {
+    let Some(functional_voice_path) =
+        functional_voice_actor_output_path(&voice, &actor_token)
+    else {
         remove_probe_output_paths(output_path, None);
         invalidate_required_outbound_ai_readiness();
         return Err("My Voice");
@@ -134,20 +136,11 @@ pub(super) fn run_required_outbound_ai_probe(
         return Err("speech recognition");
     }
 
-    let status = send_worker_task(
-        "status",
-        json!({
-            "meeting_start_prepare": meeting_start_prepare,
-            "meeting_generation": meeting_generation,
-        }),
-    );
-    if !status.ok
-        || worker_text(&worker_response_value(&status), "voice_actor_token").as_deref()
-            != Some(actor_token.as_str())
-    {
-        invalidate_required_outbound_ai_readiness();
-        return Err("My Voice");
-    }
+    // Synthesis already proves the exact actor token remained authoritative and the
+    // ASR round-trip above proves the generated WAV is consumable. Avoid a second
+    // full worker status scan here; it repeats dependency/model/actor inspection on
+    // every functional probe without adding stronger evidence than these executed
+    // stages. The host bridge generation and Meeting authority are still checked.
     let current = get_helper_bridge_status();
     if current.state != "ready"
         || !current.provider_ready
