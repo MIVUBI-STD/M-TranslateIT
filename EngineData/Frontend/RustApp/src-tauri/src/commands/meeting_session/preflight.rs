@@ -13,6 +13,11 @@ use super::{
     APPLICATION_MEETING_OWNER_ID,
 };
 
+fn helper_start_recoverable(state: &str, last_error: Option<&str>) -> bool {
+    state == "stopped"
+        && last_error == Some("helper_bridge:meeting_session_hard_cancelled")
+}
+
 pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let input = get_input_status();
     let helper = get_helper_bridge_status();
@@ -22,6 +27,10 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let helper_ready = helper.state == "ready";
     let provider_ready = helper.provider_ready;
     let functional_outbound_ready = helper.functional_outbound_ready;
+    let helper_recoverable = helper_start_recoverable(
+        &helper.state,
+        helper.last_error.as_deref(),
+    );
     let functional_outbound_verified_unix_ms = helper.functional_outbound_verified_unix_ms;
     // `models_ready` remains the inexpensive required outbound capability view. C4
     // keeps functional truth separate so routine status stays cheap and Start can run
@@ -133,5 +142,29 @@ pub(super) fn blocked_result(state: &str, message: String) -> MeetingSessionActi
         state: state.to_string(),
         message,
         status: current_status(),
+    }
+}
+
+
+#[cfg(test)]
+mod recovery_eligibility_tests {
+    use super::helper_start_recoverable;
+
+    #[test]
+    fn only_intentional_meeting_hard_cancel_is_start_recoverable() {
+        assert!(helper_start_recoverable(
+            "stopped",
+            Some("helper_bridge:meeting_session_hard_cancelled"),
+        ));
+        assert!(!helper_start_recoverable(
+            "stopped",
+            Some("helper_bridge:worker_exited"),
+        ));
+        assert!(!helper_start_recoverable(
+            "stopped",
+            Some("helper_bridge:translate_read_failed:deadline"),
+        ));
+        assert!(!helper_start_recoverable("error", None));
+        assert!(!helper_start_recoverable("ready", None));
     }
 }
