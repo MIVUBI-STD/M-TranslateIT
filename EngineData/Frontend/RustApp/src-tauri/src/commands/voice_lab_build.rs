@@ -158,6 +158,30 @@ fn log_path(paths: &VoiceLabStoragePaths) -> PathBuf {
     paths.cache_root.join("Build").join("voice_lab_build.log")
 }
 
+fn remove_file_if_present(path: &Path, label: &str) -> Result<(), String> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("voice_lab:{label}_cleanup_failed:{error}")),
+    }
+}
+
+fn remove_dir_if_present(path: &Path, label: &str) -> Result<(), String> {
+    match fs::remove_dir_all(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("voice_lab:{label}_cleanup_failed:{error}")),
+    }
+}
+
+fn clear_previous_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    remove_file_if_present(&status_path(paths), "status")?;
+    remove_dir_if_present(&evaluation_dir(paths), "evaluation")?;
+    remove_dir_if_present(&work_dir(paths), "work")?;
+    remove_dir_if_present(&paths.candidate_actor_dir, "candidate_actor")?;
+    Ok(())
+}
+
 fn source_root() -> PathBuf {
     PathBuf::from(ProjectPaths::discover().voice_runtime_dir)
         .join("GPTSoVITS")
@@ -507,10 +531,14 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
         let _ = fail_voice_lab_build(generation);
         return result(false, "build_storage_failed", format!("VoiceLab could not prepare build storage: {error}"));
     }
-    let _ = fs::remove_file(status_path(&paths));
-    let _ = fs::remove_dir_all(evaluation_dir(&paths));
-    let _ = fs::remove_dir_all(work_dir(&paths));
-    let _ = fs::remove_dir_all(&paths.candidate_actor_dir);
+    if let Err(error) = clear_previous_build_workspace(&paths) {
+        let _ = fail_voice_lab_build(generation);
+        return result(
+            false,
+            "build_storage_failed",
+            format!("VoiceLab could not clear the previous build workspace safely: {error}"),
+        );
+    }
 
     let log = match File::create(log_path(&paths)) {
         Ok(file) => file,
