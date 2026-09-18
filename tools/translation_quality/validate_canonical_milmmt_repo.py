@@ -183,6 +183,29 @@ def validate_release(root: Path) -> None:
     require("--upgrade-package" not in lock_workflow, "workflow:lock_mutation")
 
 
+def validate_quality_evaluation(root: Path) -> None:
+    quality_root = root / "tools" / "translation_quality"
+    evaluator = quality_root / "evaluate_translation_quality.py"
+    corpus = quality_root / "corpus" / "translation_quality_v1.json"
+    self_test = quality_root / "self_test.py"
+    quality_readme = quality_root / "README.md"
+    for path in (evaluator, corpus, self_test, quality_readme):
+        require(path.is_file(), f"quality:missing:{path.relative_to(root)}")
+    corpus_data = json.loads(corpus.read_text(encoding="utf-8"))
+    require(corpus_data.get("schema") == "translateit.translation_quality.v1", "quality:corpus_schema")
+    cases = corpus_data.get("cases") or []
+    require(len(cases) >= 16, "quality:corpus_too_small")
+    require({item.get("direction") for item in cases} == {"id-en", "en-id"}, "quality:directions")
+    categories = {item.get("category") for item in cases}
+    for required in ("negation", "numbers_dates_units", "technical", "entities_literals", "code_switching"):
+        require(required in categories, f"quality:missing_category:{required}")
+
+    workflow = read(root, ".github/workflows/milmmt-repo-contract.yml")
+    require('"tools/translation_quality/**"' in workflow, "quality:workflow_path_scope")
+    require("Validate translation quality corpus" in workflow, "quality:workflow_corpus_gate")
+    require("Self-test translation quality evaluator" in workflow, "quality:workflow_self_test")
+
+
 def validate_tests_and_runtime_docs(root: Path) -> None:
     tests = "\n".join(
         read(root, f"EngineData/Backend/LocalWorker/WorkerRuntime/tests/{name}")
@@ -200,6 +223,7 @@ def main() -> int:
     validate_worker(root)
     validate_dependencies(root)
     validate_release(root)
+    validate_quality_evaluation(root)
     validate_tests_and_runtime_docs(root)
     print(
         json.dumps(

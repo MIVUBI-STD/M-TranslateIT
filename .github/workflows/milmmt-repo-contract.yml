@@ -8,7 +8,7 @@ on:
     paths:
       - "EngineData/Backend/LocalWorker/WorkerRuntime/**"
       - "EngineData/Backend/RuntimeAssets/Translation/**"
-      - "tools/translation_quality/validate_canonical_milmmt_repo.py"
+      - "tools/translation_quality/**"
       - "docs/foundation/**"
       - ".github/workflows/milmmt-repo-contract.yml"
   pull_request:
@@ -17,7 +17,7 @@ on:
     paths:
       - "EngineData/Backend/LocalWorker/WorkerRuntime/**"
       - "EngineData/Backend/RuntimeAssets/Translation/**"
-      - "tools/translation_quality/validate_canonical_milmmt_repo.py"
+      - "tools/translation_quality/**"
       - "docs/foundation/**"
       - ".github/workflows/milmmt-repo-contract.yml"
 
@@ -36,6 +36,13 @@ jobs:
         with:
           python-version: "3.12.10"
       - run: python tools/translation_quality/validate_canonical_milmmt_repo.py
+      - name: Validate translation quality corpus
+        run: >-
+          python tools/translation_quality/evaluate_translation_quality.py
+          validate-corpus
+          --corpus tools/translation_quality/corpus/translation_quality_v1.json
+      - name: Self-test translation quality evaluator
+        run: python tools/translation_quality/self_test.py
       - name: Compile canonical Python owners
         run: >-
           python -m py_compile

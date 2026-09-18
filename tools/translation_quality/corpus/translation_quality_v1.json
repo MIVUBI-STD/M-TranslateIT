@@ -1,0 +1,363 @@
+{
+  "schema": "translateit.translation_quality.v1",
+  "language_pair": "id-en",
+  "purpose": "Versioned regression corpus for semantic fidelity, literals, negation, code-switching, and meeting language. It is not proof of model quality until evaluated against real model output.",
+  "cases": [
+    {
+      "id": "id-en-negation-001",
+      "direction": "id-en",
+      "category": "negation",
+      "source": "Saya tidak jadi ikut meeting besok.",
+      "references": [
+        "I'm not going to attend the meeting tomorrow.",
+        "I won't be attending the meeting tomorrow."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not going to attend",
+          "won't be attending",
+          "will not attend"
+        ]
+      ],
+      "forbidden": [
+        "will attend the meeting tomorrow"
+      ]
+    },
+    {
+      "id": "id-en-correction-001",
+      "direction": "id-en",
+      "category": "meaning_control",
+      "source": "Maksud saya hari Kamis, bukan hari Selasa.",
+      "references": [
+        "I mean Thursday, not Tuesday."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "thursday"
+        ],
+        [
+          "not"
+        ],
+        [
+          "tuesday"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-number-001",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Anggarannya Rp2.750.000, bukan Rp2.570.000.",
+      "references": [
+        "The budget is Rp2.750.000, not Rp2.570.000."
+      ],
+      "preserve": [
+        "2.750.000",
+        "2.570.000"
+      ],
+      "required_any": [
+        [
+          "not"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-date-001",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Server akan dimatikan pada 21 September 2026 pukul 19.30 WIB.",
+      "references": [
+        "The server will be taken offline on 21 September 2026 at 19:30 WIB."
+      ],
+      "preserve": [
+        "21",
+        "2026",
+        "WIB"
+      ],
+      "required_any": [
+        [
+          "server"
+        ],
+        [
+          "offline",
+          "shut down"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-technical-001",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Jangan ubah endpoint API atau schema JSON yang sekarang.",
+      "references": [
+        "Do not change the current API endpoint or JSON schema."
+      ],
+      "preserve": [
+        "API",
+        "JSON"
+      ],
+      "required_any": [
+        [
+          "do not change",
+          "don't change"
+        ],
+        [
+          "endpoint"
+        ],
+        [
+          "schema"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-version-001",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Build ini masih pakai Minecraft Bedrock versi 1.21.4.",
+      "references": [
+        "This build still uses Minecraft Bedrock version 1.21.4."
+      ],
+      "preserve": [
+        "Minecraft Bedrock",
+        "1.21.4"
+      ],
+      "required_any": [
+        [
+          "still uses",
+          "is still using"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-url-001",
+      "direction": "id-en",
+      "category": "entities_literals",
+      "source": "Buka https://atb.mivubi.com lalu masuk ke server atb.mivubi.com:19132.",
+      "references": [
+        "Open https://atb.mivubi.com, then join the server at atb.mivubi.com:19132."
+      ],
+      "preserve": [
+        "https://atb.mivubi.com",
+        "atb.mivubi.com:19132"
+      ],
+      "required_any": [
+        [
+          "open"
+        ],
+        [
+          "server"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-code-switch-001",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Tolong cek final build-nya, tapi jangan merge dulu.",
+      "references": [
+        "Please check the final build, but do not merge it yet."
+      ],
+      "preserve": [
+        "build",
+        "merge"
+      ],
+      "required_any": [
+        [
+          "please check"
+        ],
+        [
+          "do not merge",
+          "don't merge"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-negation-001",
+      "direction": "en-id",
+      "category": "negation",
+      "source": "I did not approve the payment.",
+      "references": [
+        "Saya tidak menyetujui pembayaran itu."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "tidak"
+        ],
+        [
+          "menyetujui",
+          "setuju"
+        ]
+      ],
+      "forbidden": [
+        "saya menyetujui pembayaran"
+      ]
+    },
+    {
+      "id": "en-id-correction-001",
+      "direction": "en-id",
+      "category": "meaning_control",
+      "source": "I said fifteen, not fifty.",
+      "references": [
+        "Saya bilang lima belas, bukan lima puluh."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "lima belas"
+        ],
+        [
+          "bukan"
+        ],
+        [
+          "lima puluh"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-number-001",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "The upload limit is 250 MB per file.",
+      "references": [
+        "Batas unggahnya adalah 250 MB per file."
+      ],
+      "preserve": [
+        "250",
+        "MB"
+      ],
+      "required_any": [
+        [
+          "batas"
+        ],
+        [
+          "per file"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-date-001",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "The call starts at 08:45 on October 3, 2026.",
+      "references": [
+        "Panggilan dimulai pukul 08:45 pada 3 Oktober 2026."
+      ],
+      "preserve": [
+        "08",
+        "45",
+        "3",
+        "2026"
+      ],
+      "required_any": [
+        [
+          "oktober"
+        ],
+        [
+          "dimulai"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-technical-001",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "Do not regenerate the lockfile or change the API contract.",
+      "references": [
+        "Jangan regenerasi lockfile atau mengubah kontrak API."
+      ],
+      "preserve": [
+        "lockfile",
+        "API"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "kontrak"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-entity-001",
+      "direction": "en-id",
+      "category": "entities_literals",
+      "source": "Send the report to team@example.com and keep ticket MIV-204 open.",
+      "references": [
+        "Kirim laporan ke team@example.com dan biarkan tiket MIV-204 tetap terbuka."
+      ],
+      "preserve": [
+        "team@example.com",
+        "MIV-204"
+      ],
+      "required_any": [
+        [
+          "kirim"
+        ],
+        [
+          "tetap terbuka",
+          "biarkan"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-code-switch-001",
+      "direction": "en-id",
+      "category": "code_switching",
+      "source": "Please check the branch before you push the hotfix.",
+      "references": [
+        "Tolong cek branch sebelum melakukan push hotfix."
+      ],
+      "preserve": [
+        "branch",
+        "hotfix"
+      ],
+      "required_any": [
+        [
+          "tolong"
+        ],
+        [
+          "sebelum"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-meeting-001",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "Can everyone hear the translated audio?",
+      "references": [
+        "Apakah semua orang bisa mendengar audio terjemahannya?"
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mendengar"
+        ],
+        [
+          "audio"
+        ],
+        [
+          "terjemah"
+        ]
+      ],
+      "forbidden": []
+    }
+  ]
+}
