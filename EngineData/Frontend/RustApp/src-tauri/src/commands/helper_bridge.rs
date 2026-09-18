@@ -155,6 +155,8 @@ pub fn get_helper_bridge_status() -> HelperBridgeStatus {
                 runtime.message = "Helper worker process exited.".to_string();
                 runtime.cuda_ready = false;
                 runtime.provider_ready = false;
+                runtime.degraded_mode = false;
+                runtime.last_error = Some("helper_bridge:worker_exited".to_string());
                 runtime.active_task = None;
                 runtime.active_request_id = None;
                 runtime.active_meeting_generation = None;
