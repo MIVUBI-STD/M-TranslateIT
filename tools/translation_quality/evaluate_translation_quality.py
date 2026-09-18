@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -40,6 +41,16 @@ def char_ngram_f1(candidate: str, reference: str, max_n: int = 6) -> float:
         recall = overlap / sum(ref.values())
         scores.append(0.0 if precision + recall == 0 else 2 * precision * recall / (precision + recall))
     return sum(scores) / len(scores) if scores else 0.0
+
+
+def corpus_fingerprint(corpus: dict) -> str:
+    canonical = json.dumps(
+        corpus,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def load_corpus(path: Path) -> dict:
@@ -111,7 +122,7 @@ def validate_corpus(corpus: dict) -> dict:
     return {"ok": not failures, "case_count": len(corpus["cases"]), "directions": directions, "categories": categories, "failures": failures}
 
 
-def load_results(path: Path) -> dict[str, str]:
+def load_result_bundle(path: Path) -> dict:
     raw = json.loads(path.read_text(encoding="utf-8"))
     rows = raw.get("results") if isinstance(raw, dict) else raw
     if not isinstance(rows, list):
@@ -123,10 +134,32 @@ def load_results(path: Path) -> dict[str, str]:
         if not case_id or case_id in output:
             raise ValueError(f"invalid or duplicate result case_id: {case_id!r}")
         output[case_id] = translated
-    return output
+    return {
+        "results": output,
+        "corpus_fingerprint": (
+            str(raw.get("corpus_fingerprint", "")).strip()
+            if isinstance(raw, dict)
+            else ""
+        ),
+        "source_identity": (
+            str(raw.get("source_identity", "")).strip()
+            if isinstance(raw, dict)
+            else ""
+        ),
+    }
 
 
-def evaluate(corpus: dict, results: dict[str, str]) -> dict:
+def load_results(path: Path) -> dict[str, str]:
+    return load_result_bundle(path)["results"]
+
+
+def evaluate(
+    corpus: dict,
+    results: dict[str, str],
+    *,
+    result_corpus_fingerprint: str = "",
+    source_identity: str = "",
+) -> dict:
     expected = {case["id"] for case in corpus["cases"]}
     missing = sorted(expected - results.keys())
     unknown = sorted(results.keys() - expected)
@@ -145,9 +178,18 @@ def evaluate(corpus: dict, results: dict[str, str]) -> dict:
         grouped_critical[case["direction"]].append(inv["critical_pass"])
         grouped_critical[case["category"]].append(inv["critical_pass"])
         rows.append({"case_id": case["id"], "direction": case["direction"], "category": case["category"], "char_ngram_f1": round(score, 4), **inv})
+    expected_fingerprint = corpus_fingerprint(corpus)
+    provenance_matches = (
+        not result_corpus_fingerprint
+        or result_corpus_fingerprint == expected_fingerprint
+    )
     return {
         "schema": "translateit.translation_quality.report.v1",
-        "complete_result_set": not missing and not unknown,
+        "corpus_fingerprint": expected_fingerprint,
+        "result_corpus_fingerprint": result_corpus_fingerprint or None,
+        "source_identity": source_identity or None,
+        "provenance_matches_corpus": provenance_matches,
+        "complete_result_set": not missing and not unknown and provenance_matches,
         "missing_case_ids": missing,
         "unknown_case_ids": unknown,
         "critical_failures": critical_failures,
@@ -166,9 +208,28 @@ def evaluate(corpus: dict, results: dict[str, str]) -> dict:
     }
 
 
-def compare_reports(corpus: dict, baseline_results: dict[str, str], candidate_results: dict[str, str]) -> dict:
-    baseline = evaluate(corpus, baseline_results)
-    candidate = evaluate(corpus, candidate_results)
+def compare_reports(
+    corpus: dict,
+    baseline_results: dict[str, str],
+    candidate_results: dict[str, str],
+    *,
+    baseline_corpus_fingerprint: str = "",
+    candidate_corpus_fingerprint: str = "",
+    baseline_source_identity: str = "",
+    candidate_source_identity: str = "",
+) -> dict:
+    baseline = evaluate(
+        corpus,
+        baseline_results,
+        result_corpus_fingerprint=baseline_corpus_fingerprint,
+        source_identity=baseline_source_identity,
+    )
+    candidate = evaluate(
+        corpus,
+        candidate_results,
+        result_corpus_fingerprint=candidate_corpus_fingerprint,
+        source_identity=candidate_source_identity,
+    )
     baseline_cases = {row["case_id"]: row for row in baseline["cases"]}
     candidate_cases = {row["case_id"]: row for row in candidate["cases"]}
 
@@ -212,6 +273,11 @@ def compare_reports(corpus: dict, baseline_results: dict[str, str], candidate_re
         "complete_result_sets": (
             baseline["complete_result_set"] and candidate["complete_result_set"]
         ),
+        "corpus_fingerprint": corpus_fingerprint(corpus),
+        "baseline_source_identity": baseline["source_identity"],
+        "candidate_source_identity": candidate["source_identity"],
+        "baseline_provenance_matches_corpus": baseline["provenance_matches_corpus"],
+        "candidate_provenance_matches_corpus": candidate["provenance_matches_corpus"],
         "baseline_critical_failures": baseline["critical_failures"],
         "candidate_critical_failures": candidate["critical_failures"],
         "critical_regressions": critical_regressions,
@@ -258,7 +324,11 @@ def emit_requests(corpus: dict) -> dict:
                 }
             )
         requests.append({"case_id": case["id"], "request": request})
-    return {"schema": "translateit.translation_quality.requests.v1", "requests": requests}
+    return {
+        "schema": "translateit.translation_quality.requests.v1",
+        "corpus_fingerprint": corpus_fingerprint(corpus),
+        "requests": requests,
+    }
 
 
 def main() -> int:
@@ -283,17 +353,29 @@ def main() -> int:
     if args.command == "compare":
         if args.baseline is None or args.candidate is None:
             parser.error("--baseline and --candidate are required for compare")
+        baseline = load_result_bundle(args.baseline)
+        candidate = load_result_bundle(args.candidate)
         report = compare_reports(
             corpus,
-            load_results(args.baseline),
-            load_results(args.candidate),
+            baseline["results"],
+            candidate["results"],
+            baseline_corpus_fingerprint=baseline["corpus_fingerprint"],
+            candidate_corpus_fingerprint=candidate["corpus_fingerprint"],
+            baseline_source_identity=baseline["source_identity"],
+            candidate_source_identity=candidate["source_identity"],
         )
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0 if report["promotion_safe_on_declared_critical_invariants"] else 1
 
     if args.results is None:
         parser.error("--results is required for evaluate")
-    report = evaluate(corpus, load_results(args.results))
+    result_bundle = load_result_bundle(args.results)
+    report = evaluate(
+        corpus,
+        result_bundle["results"],
+        result_corpus_fingerprint=result_bundle["corpus_fingerprint"],
+        source_identity=result_bundle["source_identity"],
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["complete_result_set"] and report["critical_failures"] == 0 else 1
 

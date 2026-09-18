@@ -36,13 +36,27 @@ def main() -> int:
         "spoken_disfluency",
     }.issubset(set(validation["categories"]))
 
+    fingerprint = evaluator.corpus_fingerprint(corpus)
+    assert len(fingerprint) == 64
+
     perfect = {case["id"]: case["references"][0] for case in corpus["cases"]}
     report = evaluator.evaluate(corpus, perfect)
     assert report["complete_result_set"] is True
     assert report["critical_failures"] == 0
     assert report["critical_pass_rate"] == 1.0
+    assert report["corpus_fingerprint"] == fingerprint
+    assert report["provenance_matches_corpus"] is True
     assert report["group_critical_pass_rates"]["id-en"] == 1.0
     assert report["group_critical_pass_rates"]["contextual_meeting"] == 1.0
+
+    mismatched = evaluator.evaluate(
+        corpus,
+        perfect,
+        result_corpus_fingerprint="0" * 64,
+        source_identity="candidate-sha",
+    )
+    assert mismatched["provenance_matches_corpus"] is False
+    assert mismatched["complete_result_set"] is False
 
     bad = dict(perfect)
     bad["id-en-negation-001"] = "I will attend the meeting tomorrow."
@@ -67,6 +81,7 @@ def main() -> int:
     assert recovered["promotion_safe_on_declared_critical_invariants"] is True
 
     requests = evaluator.emit_requests(corpus)
+    assert requests["corpus_fingerprint"] == fingerprint
     assert len(requests["requests"]) == validation["case_count"]
     contextual = [
         item

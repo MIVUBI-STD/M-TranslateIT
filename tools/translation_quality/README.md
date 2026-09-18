@@ -73,11 +73,15 @@ Result format:
 
 ```json
 {
+  "corpus_fingerprint": "<sha256 emitted with the request set>",
+  "source_identity": "<exact runtime/source/model build identity>",
   "results": [
     {"case_id": "id-en-negation-001", "translated_text": "..."}
   ]
 }
 ```
+
+The fingerprint binds captured output to the exact corpus content. A missing fingerprint remains backward-compatible, but a supplied mismatched fingerprint makes the result set incomplete and therefore ineligible for promotion comparison.
 
 The report includes overall and per-group critical-invariant pass rates, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. Baseline comparison also reports per-group critical-pass-rate deltas so an average score increase cannot hide a newly weaker risk category. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
 
