@@ -12,12 +12,7 @@ use crate::engine::logging::{write_jsonl_event, RuntimeLogEvent};
 
 mod scheduler;
 
-pub use scheduler::{
-    acquire_helper_task_permit, HelperTaskPermit, HelperTaskPriority,
-    HELPER_SCHEDULER_DIAGNOSTIC_WAIT_MS, HELPER_SCHEDULER_MEETING_INCOMING_WAIT_MS,
-    HELPER_SCHEDULER_MEETING_OUTBOUND_WAIT_MS, HELPER_SCHEDULER_TEXT_WAIT_MS,
-    HELPER_SCHEDULER_TOTAL_ADMISSION_CAP,
-};
+pub(crate) use scheduler::{acquire_helper_task_permit, HelperTaskPriority};
 
 pub const WORKER_CONTROL_RESPONSE_DEADLINE_MS: u128 = 5_000;
 pub const WORKER_STATUS_RESPONSE_DEADLINE_MS: u128 = 30_000;
