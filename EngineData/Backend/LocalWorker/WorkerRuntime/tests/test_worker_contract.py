@@ -74,9 +74,10 @@ def test_voice_provider_keeps_heavy_upstream_stage_off_worker_import_path() -> N
     provider_path = WORKER_PATH.parent / "voice_lab_gpt_sovits.py"
     source = provider_path.read_text(encoding="utf-8")
 
-    assert "from voice_lab_upstream_stage import install_headless_my_utils\n" not in source.split(
-        "def create_tts_runtime", 1
-    )[0]
+    assert (
+        "from voice_lab_upstream_stage import install_headless_my_utils\n"
+        not in source.split("def create_tts_runtime", 1)[0]
+    )
     create_runtime = source.split("def create_tts_runtime", 1)[1]
     assert "from voice_lab_upstream_stage import install_headless_my_utils" in create_runtime
 
