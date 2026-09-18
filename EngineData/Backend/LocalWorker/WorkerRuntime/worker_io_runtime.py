@@ -323,6 +323,7 @@ def handle_voice_actor_synthesize(payload: dict[str, Any]) -> dict[str, Any]:
             "blocker": "",
         }
     except Exception as exc:
+        clear_voice_actor_runtime()
         if output_path is not None:
             try:
                 output_path.unlink(missing_ok=True)

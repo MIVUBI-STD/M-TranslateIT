@@ -221,6 +221,51 @@ def test_voice_actor_failure_removes_stale_output_and_never_falls_back(
     assert not output.exists()
 
 
+def test_hard_voice_actor_synthesis_failure_clears_cached_runtime(
+    tmp_path: Path, monkeypatch
+) -> None:
+    worker = load_worker_module()
+    cache = tmp_path / "CacheData"
+    cache.mkdir()
+    monkeypatch.setattr(worker.io_runtime.common, "CACHE_ROOT", cache)
+    monkeypatch.setattr(worker.io_runtime.common, "ALLOWED_OUTPUT_ROOTS", [cache])
+
+    fingerprint = (("actor.json", 11, 12),)
+    runtime = {
+        "device": "cpu",
+        "reference_cached": True,
+        "fingerprint": fingerprint,
+    }
+    monkeypatch.setattr(worker.io_runtime, "VOICE_ACTOR_RUNTIME", runtime)
+    monkeypatch.setattr(worker.io_runtime, "VOICE_ACTOR_RUNTIME_FINGERPRINT", fingerprint)
+
+    def fail_synthesis(_runtime, _text, output_path):
+        output_path.write_bytes(b"partial")
+        raise RuntimeError("inference failed")
+
+    monkeypatch.setattr(
+        worker.io_runtime.voice_actor_provider,
+        "synthesize_voice_actor",
+        fail_synthesis,
+    )
+
+    output = cache / "failed.wav"
+    expected = worker.io_runtime.voice_actor_package_token({"fingerprint": fingerprint})
+    result = worker.handle_voice_actor_synthesize(
+        {
+            "text": "Hard failure should invalidate the actor runtime.",
+            "output_path": str(output),
+            "expected_actor_token": expected,
+        }
+    )
+
+    assert result["ok"] is False
+    assert result["blocker"] == "voice_actor:runtime_failed:RuntimeError"
+    assert worker.io_runtime.VOICE_ACTOR_RUNTIME is None
+    assert worker.io_runtime.VOICE_ACTOR_RUNTIME_FINGERPRINT is None
+    assert not output.exists()
+
+
 def test_static_worker_readiness_requires_approved_actor_and_inference_assets(monkeypatch) -> None:
     worker = load_worker_module()
     monkeypatch.setattr(
