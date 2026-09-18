@@ -139,6 +139,62 @@ def evaluate(corpus: dict, results: dict[str, str]) -> dict:
     }
 
 
+def compare_reports(corpus: dict, baseline_results: dict[str, str], candidate_results: dict[str, str]) -> dict:
+    baseline = evaluate(corpus, baseline_results)
+    candidate = evaluate(corpus, candidate_results)
+    baseline_cases = {row["case_id"]: row for row in baseline["cases"]}
+    candidate_cases = {row["case_id"]: row for row in candidate["cases"]}
+
+    critical_regressions = []
+    critical_recoveries = []
+    score_deltas = {}
+    for case_id in sorted(baseline_cases):
+        base_row = baseline_cases[case_id]
+        cand_row = candidate_cases[case_id]
+        if base_row["critical_pass"] and not cand_row["critical_pass"]:
+            critical_regressions.append(case_id)
+        elif not base_row["critical_pass"] and cand_row["critical_pass"]:
+            critical_recoveries.append(case_id)
+        score_deltas[case_id] = round(
+            cand_row["char_ngram_f1"] - base_row["char_ngram_f1"],
+            4,
+        )
+
+    group_keys = sorted(set(baseline["group_means"]) | set(candidate["group_means"]))
+    group_mean_deltas = {
+        key: round(
+            candidate["group_means"].get(key, 0.0) - baseline["group_means"].get(key, 0.0),
+            4,
+        )
+        for key in group_keys
+    }
+    return {
+        "schema": "translateit.translation_quality.comparison.v1",
+        "complete_result_sets": (
+            baseline["complete_result_set"] and candidate["complete_result_set"]
+        ),
+        "baseline_critical_failures": baseline["critical_failures"],
+        "candidate_critical_failures": candidate["critical_failures"],
+        "critical_regressions": critical_regressions,
+        "critical_recoveries": critical_recoveries,
+        "mean_char_ngram_f1_delta": round(
+            candidate["mean_char_ngram_f1"] - baseline["mean_char_ngram_f1"],
+            4,
+        ),
+        "group_mean_deltas": group_mean_deltas,
+        "case_score_deltas": score_deltas,
+        "promotion_safe_on_declared_critical_invariants": (
+            baseline["complete_result_set"]
+            and candidate["complete_result_set"]
+            and not critical_regressions
+        ),
+        "note": (
+            "Comparison detects newly introduced declared-invariant failures. "
+            "It does not prove semantic superiority or replace human review."
+        ),
+    }
+
+
 def emit_requests(corpus: dict) -> dict:
     requests = []
     for case in corpus["cases"]:
@@ -158,9 +214,14 @@ def emit_requests(corpus: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("validate-corpus", "emit-requests", "evaluate"))
+    parser.add_argument(
+        "command",
+        choices=("validate-corpus", "emit-requests", "evaluate", "compare"),
+    )
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--results", type=Path)
+    parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--candidate", type=Path)
     args = parser.parse_args()
     corpus = load_corpus(args.corpus)
     if args.command == "validate-corpus":
@@ -170,6 +231,17 @@ def main() -> int:
     if args.command == "emit-requests":
         print(json.dumps(emit_requests(corpus), ensure_ascii=False, indent=2))
         return 0
+    if args.command == "compare":
+        if args.baseline is None or args.candidate is None:
+            parser.error("--baseline and --candidate are required for compare")
+        report = compare_reports(
+            corpus,
+            load_results(args.baseline),
+            load_results(args.candidate),
+        )
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["promotion_safe_on_declared_critical_invariants"] else 1
+
     if args.results is None:
         parser.error("--results is required for evaluate")
     report = evaluate(corpus, load_results(args.results))

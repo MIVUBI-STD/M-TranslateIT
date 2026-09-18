@@ -56,6 +56,14 @@ Evaluate captured results:
 python tools/translation_quality/evaluate_translation_quality.py evaluate --corpus tools/translation_quality/corpus/translation_quality_v1.json --results <results.json>
 ```
 
+Compare a proposed runtime/prompt/model result set against the exact baseline:
+
+```powershell
+python tools/translation_quality/evaluate_translation_quality.py compare --corpus tools/translation_quality/corpus/translation_quality_v1.json --baseline <baseline.json> --candidate <candidate.json>
+```
+
+The comparison reports newly introduced critical-invariant regressions/recoveries plus per-case and grouped character n-gram deltas. Its promotion-safe flag only means the candidate introduced no new declared critical-invariant failures on a complete matched result set; it is not a claim of overall linguistic superiority.
+
 Result format:
 
 ```json
