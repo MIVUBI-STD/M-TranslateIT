@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-from voice_lab_upstream_stage import install_headless_my_utils
 
 ENGINE = "gpt-sovits-v2proplus"
 ENGINE_REVISION = "d523079fc05d9a8028d6085bffe4a2757c32abb6"
@@ -273,6 +272,11 @@ def create_tts_runtime(
         raise VoiceLabProviderError(f"cuda_probe_failed:{type(exc).__name__}") from exc
     device = "cuda:0" if cuda_available else "cpu"
     with source_working_directory(source_root):
+        # Keep the heavy headless GPT-SoVITS compatibility boundary off the normal
+        # worker import path. voice_lab_upstream_stage imports ffmpeg-python and
+        # NumPy; those are only required once a voice runtime is actually created.
+        from voice_lab_upstream_stage import install_headless_my_utils
+
         install_headless_my_utils(source_root)
         saved_environment = {key: os.environ.get(key) for key in ("NLTK_DATA", "version")}
         os.environ["NLTK_DATA"] = str(source_root / "nltk_data")
