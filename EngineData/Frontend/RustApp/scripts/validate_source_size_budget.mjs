@@ -16,7 +16,6 @@ const defaultBudgets = {
 // Remaining entries are explicit native-runtime decomposition debt. Frontend
 // coordinators must stay inside the normal budget rather than accumulating exemptions.
 const grandfatheredBudgets = new Map([
-  ["src-tauri/src/commands/helper_bridge.rs", 44_000],
   ["src-tauri/src/commands/meeting_session.rs", 52_000],
   ["src-tauri/src/commands/voice_lab.rs", 32_000],
   ["src-tauri/src/commands/voice_lab_build.rs", 34_000],
