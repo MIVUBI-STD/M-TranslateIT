@@ -13,9 +13,9 @@ const defaultBudgets = {
   ".ts": 20_000,
 };
 
-// Remaining entries are explicit native-runtime decomposition debt. Frontend
-// coordinators must stay inside the normal budget rather than accumulating exemptions.
-const grandfatheredBudgets = new Map([
+// Path-specific budgets are allowed only to tighten ownership below the default.
+// They are not exemptions and must never be used to permit oversized source files.
+const pathBudgets = new Map([
   ["src-tauri/src/commands/voice_lab_recording.rs", 24_000],
 ]);
 
@@ -35,7 +35,7 @@ for (const root of roots) {
   for (const path of await collectFiles(root)) {
     const repoPath = relative(appRoot, path).replaceAll("\\", "/");
     const extension = extname(path);
-    const budget = grandfatheredBudgets.get(repoPath) ?? defaultBudgets[extension];
+    const budget = pathBudgets.get(repoPath) ?? defaultBudgets[extension];
     const { size } = await stat(path);
     if (size > budget) violations.push({ repoPath, size, budget });
   }
