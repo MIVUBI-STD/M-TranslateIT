@@ -12,7 +12,7 @@ use crate::engine::audio::meeting_output::{
 use crate::engine::audio::meeting_sound_capture::stop_meeting_sound_capture_runtime;
 use crate::engine::runtime_state::{
     begin_application_meeting_session, clear_runtime_session_if_generation,
-    clear_runtime_session_state, commit_application_meeting_session_live,
+    commit_application_meeting_session_live,
     latest_runtime_session_state, mark_runtime_session_cleanup_incomplete,
     revoke_runtime_session_authority,
 };
@@ -192,7 +192,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             format!(
@@ -218,7 +218,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             format!(
@@ -234,7 +234,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             "Start Translation lost Starting authority while verifying the required local AI/My Voice path. No Meeting output was activated.".to_string(),
@@ -254,7 +254,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return MeetingSessionActionResult {
             ok: false,
             state: "rolled_back".to_string(),
@@ -282,7 +282,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             format!(
@@ -309,7 +309,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             format!(
@@ -341,7 +341,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             format!(
@@ -371,7 +371,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_committed_turns_for_session(&session_id);
         clear_start_preflight_for_generation(generation);
         clear_prepared_meeting_output_device();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(generation);
         return blocked_result(
             "rolled_back",
             format!(

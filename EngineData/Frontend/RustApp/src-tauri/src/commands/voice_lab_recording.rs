@@ -12,7 +12,7 @@ use crate::engine::audio::live_segment_writer::write_pcm16_wav;
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{
     begin_direct_live_capture_session, clear_runtime_session_if_generation,
-    clear_runtime_session_state, latest_runtime_session_state,
+    latest_runtime_session_state,
     mark_runtime_session_cleanup_incomplete, revoke_runtime_session_authority,
 };
 
@@ -281,7 +281,7 @@ pub fn start_voice_lab_guided_take(
     let capture = start_live_capture_runtime(session);
     if !capture.ok {
         cancel_guided_take();
-        let _ = clear_runtime_session_state();
+        let _ = clear_runtime_session_if_generation(snapshot.generation);
         return result(false, "capture_failed", capture.message);
     }
     result(true, "recording", "Recording started. Read the line naturally, then press Stop.")
