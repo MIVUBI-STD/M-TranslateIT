@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { ArrowLeft, Check, ChevronRight } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { myVoiceBuildApi } from "../app/bridge/myVoiceBuildApi";
   import { runtimeApi, type VirtualMicRouteContractStatus } from "../app/bridge/runtimeApi";
@@ -10,6 +9,7 @@
   import { setupCheckpoint, safeSetupResumeStep, type SetupStep } from "../app/runtime/setupFlow";
   import { cloneSettings, compact, deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
+  import SetupNavigation from "../components/setup/SetupNavigation.svelte";
   import StatusRow from "../components/ui/StatusRow.svelte";
 
   type SetupState = "new" | "deferred" | "completed";
@@ -383,32 +383,20 @@
         <p class="m-0 rounded-[var(--ti-radius-sm)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-4 py-3 text-sm leading-6 text-[var(--ti-text-muted)]" aria-live="polite">{message}</p>
       {/if}
 
-      <footer class="flex items-center justify-between gap-4 border-t border-[var(--ti-border)] pt-5">
-        <div>
-          {#if step > 1}
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={goBack}><ArrowLeft size={16} /> Back</button>
-          {/if}
-        </div>
-
-        <div class="ti-action-row justify-end">
-          <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void deferSetup()}>Set Up Later</button>
-
-          {#if step === 1}
-            <button type="button" class="ti-button" disabled={busy} onclick={() => void advance(2)}>Continue <ChevronRight size={16} /></button>
-          {:else if step === 2}
-            <button type="button" class="ti-button" disabled={busy || !snapshot?.readiness.microphoneReady} onclick={() => void advance(3)}>Continue <ChevronRight size={16} /></button>
-          {:else if step === 3}
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void repairSetup()}>Repair Setup</button>
-            <button type="button" class="ti-button" disabled={busy || !snapshot?.readiness.meetingRouteReady} onclick={() => void advance(4)}>Continue <ChevronRight size={16} /></button>
-          {:else}
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void refreshReadiness()}>Refresh Status</button>
-            {#if meetingVoiceReady && !snapshot?.readiness.meetingReady}
-              <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void repairSetup()}>Repair Setup</button>
-            {/if}
-            <button type="button" class="ti-button" disabled={busy || !meetingVoiceReady || !snapshot?.readiness.meetingReady} onclick={() => void completeSetup()}><Check size={16} /> Open Meeting</button>
-          {/if}
-        </div>
-      </footer>
+      <SetupNavigation
+        {step}
+        {busy}
+        microphoneReady={snapshot?.readiness.microphoneReady === true}
+        meetingRouteReady={snapshot?.readiness.meetingRouteReady === true}
+        {meetingVoiceReady}
+        meetingReady={snapshot?.readiness.meetingReady === true}
+        onBack={goBack}
+        onDefer={deferSetup}
+        onAdvance={advance}
+        onRepair={repairSetup}
+        onRefresh={refreshReadiness}
+        onComplete={completeSetup}
+      />
     </section>
   </section>
 </main>
