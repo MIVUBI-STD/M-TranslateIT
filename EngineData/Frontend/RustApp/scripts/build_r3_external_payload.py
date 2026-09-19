@@ -72,6 +72,15 @@ def tree_bytes(root: Path) -> int:
     return sum(path.stat().st_size for path in root.rglob("*") if path.is_file())
 
 
+def direct_child_bytes(root: Path, limit: int = 20) -> dict[str, int]:
+    rows: list[tuple[str, int]] = []
+    for path in root.iterdir():
+        size = tree_bytes(path) if path.is_dir() else path.stat().st_size
+        rows.append((path.name, size))
+    rows.sort(key=lambda item: (-item[1], item[0].lower()))
+    return dict(rows[:limit])
+
+
 def app_version(repo_root: Path) -> str:
     app_root = repo_root / "EngineData/Frontend/RustApp"
     package = json.loads((app_root / "package.json").read_text(encoding="utf-8"))
@@ -262,6 +271,7 @@ def write_evidence(
     digest: str,
     expanded_bytes: int,
     root_bytes: dict[str, int],
+    python_runtime_top_level_bytes: dict[str, int],
     entries: list[str],
     seven_zip: str,
     tar_program: str,
@@ -278,6 +288,7 @@ def write_evidence(
         if expanded_bytes
         else None,
         "payload_root_bytes": root_bytes,
+        "python_runtime_top_level_bytes": python_runtime_top_level_bytes,
         "archive_format": "7z",
         "compression": "LZMA2",
         "compression_level": 9,
@@ -321,6 +332,9 @@ def main() -> int:
     validate_no_filesystem_indirection(repo_root)
     write_payload_contract(repo_root, version)
     root_bytes = {root: tree_bytes(repo_root / root) for root in PAYLOAD_ROOTS}
+    python_runtime_top_level_bytes = direct_child_bytes(
+        repo_root / "EngineData/Backend/LocalWorker/PythonRuntime"
+    )
     expanded_bytes = sum(root_bytes.values())
     seven_zip = find_7zip()
     tar_program = find_tar()
@@ -342,6 +356,7 @@ def main() -> int:
         digest,
         expanded_bytes,
         root_bytes,
+        python_runtime_top_level_bytes,
         entries,
         seven_zip,
         tar_program,
@@ -353,6 +368,10 @@ def main() -> int:
     print(
         "[r3-payload] payload_root_bytes="
         + json.dumps(root_bytes, sort_keys=True, separators=(",", ":"))
+    )
+    print(
+        "[r3-payload] python_runtime_top_level_bytes="
+        + json.dumps(python_runtime_top_level_bytes, sort_keys=False, separators=(",", ":"))
     )
     print(
         f"[r3-payload] compression_ratio="
