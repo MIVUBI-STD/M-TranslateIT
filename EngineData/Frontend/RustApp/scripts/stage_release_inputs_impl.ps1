@@ -281,7 +281,7 @@ Get-ChildItem -LiteralPath $Assets -Directory -Recurse -Force -ErrorAction Silen
 
 Write-Host '[release-stage] Static VoiceLab source-asset preflight through private Python'
 $env:SOURCE_ROOT = $VoiceSource
-& $privatePython -s -c "from pathlib import Path; import os; import voice_lab_gpt_sovits as v; a=v.source_assets(Path(os.environ['SOURCE_ROOT'])); print('[release-stage][voice] source assets PASS', sorted(a.keys()))"
+& $privatePython -s -c "from pathlib import Path; import os; import voice_lab_gpt_sovits_build as v; a=v.source_assets(Path(os.environ['SOURCE_ROOT'])); print('[release-stage][voice] source assets PASS', sorted(a.keys()))"
 if ($LASTEXITCODE -ne 0) { throw 'VoiceLab staged source asset validation failed.' }
 
 Write-Host '[release-stage] Controlled input sizes'
