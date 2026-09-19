@@ -261,6 +261,7 @@ def write_evidence(
     version: str,
     digest: str,
     expanded_bytes: int,
+    root_bytes: dict[str, int],
     entries: list[str],
     seven_zip: str,
     tar_program: str,
@@ -273,6 +274,10 @@ def write_evidence(
         "payload_sha256": digest,
         "payload_bytes": payload.stat().st_size,
         "expanded_bytes": expanded_bytes,
+        "compression_ratio": round(payload.stat().st_size / expanded_bytes, 6)
+        if expanded_bytes
+        else None,
+        "payload_root_bytes": root_bytes,
         "archive_format": "7z",
         "compression": "LZMA2",
         "compression_level": 9,
@@ -315,7 +320,8 @@ def main() -> int:
     validate_staged_inputs(repo_root)
     validate_no_filesystem_indirection(repo_root)
     write_payload_contract(repo_root, version)
-    expanded_bytes = sum(tree_bytes(repo_root / root) for root in PAYLOAD_ROOTS)
+    root_bytes = {root: tree_bytes(repo_root / root) for root in PAYLOAD_ROOTS}
+    expanded_bytes = sum(root_bytes.values())
     seven_zip = find_7zip()
     tar_program = find_tar()
     payload = args.output.resolve()
@@ -330,12 +336,30 @@ def main() -> int:
         expanded_bytes,
     )
     write_evidence(
-        args.evidence.resolve(), payload, version, digest, expanded_bytes, entries, seven_zip, tar_program
+        args.evidence.resolve(),
+        payload,
+        version,
+        digest,
+        expanded_bytes,
+        root_bytes,
+        entries,
+        seven_zip,
+        tar_program,
     )
     print(f"[r3-payload] app_version={version}")
     print(f"[r3-payload] payload={payload}")
     print(f"[r3-payload] sha256={digest}")
     print(f"[r3-payload] expanded_bytes={expanded_bytes}")
+    print(
+        "[r3-payload] payload_root_bytes="
+        + json.dumps(root_bytes, sort_keys=True, separators=(",", ":"))
+    )
+    print(
+        f"[r3-payload] compression_ratio="
+        f"{(payload.stat().st_size / expanded_bytes):.6f}"
+        if expanded_bytes
+        else "[r3-payload] compression_ratio=unavailable"
+    )
     print(f"[r3-payload] entries={len(entries)}")
     return 0
 
