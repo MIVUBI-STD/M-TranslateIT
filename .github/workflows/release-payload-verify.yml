@@ -25,6 +25,7 @@ on:
       - "EngineData/Backend/RuntimeAssets/README.md"
       - "EngineData/Backend/LocalWorker/README.md"
       - "tools/translation_quality/validate_canonical_milmmt_repo.py"
+      - "tools/quality_readiness/**"
       - ".github/workflows/release-payload-verify.yml"
   pull_request:
     branches:
@@ -49,6 +50,7 @@ on:
       - "EngineData/Backend/RuntimeAssets/README.md"
       - "EngineData/Backend/LocalWorker/README.md"
       - "tools/translation_quality/validate_canonical_milmmt_repo.py"
+      - "tools/quality_readiness/**"
       - ".github/workflows/release-payload-verify.yml"
 
 concurrency:
@@ -106,6 +108,7 @@ jobs:
                   EngineData/Backend/RuntimeAssets/README.md|\
                   EngineData/Backend/LocalWorker/README.md|\
                   tools/translation_quality/validate_canonical_milmmt_repo.py|\
+                  tools/quality_readiness/*|\
                   .github/workflows/release-payload-verify.yml)
                     controlled=true
                     break
@@ -155,6 +158,8 @@ jobs:
           node scripts/validate_tauri_package_preflight.mjs
           node scripts/validate_release_package_contract.mjs
       - run: python tools/translation_quality/validate_canonical_milmmt_repo.py
+      - name: Verify Quality Readiness release gate contract
+        run: python tools/quality_readiness/release_gate_self_test.py
 
   controlled-payload:
     name: Controlled Windows payload proof

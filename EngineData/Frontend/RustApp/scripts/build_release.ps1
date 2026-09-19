@@ -1,3 +1,8 @@
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$QualityReadinessEvidence
+)
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
@@ -16,6 +21,7 @@ $SetupPath = Join-Path $ReleaseDir 'TranslateIT-Setup.exe'
 $PayloadEvidence = Join-Path $AppRoot 'src-tauri\target\translateit-r3-payload-build.json'
 $ReleaseEvidence = Join-Path $AppRoot 'src-tauri\target\translateit-r3-release-build.json'
 $NsisBundleDir = Join-Path $AppRoot 'src-tauri\target\release\bundle\nsis'
+$QualityReadinessValidator = Join-Path $RepoRoot 'tools\quality_readiness\validate_release_quality.py'
 
 function Require-File([string]$Path, [string]$Label) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "$Label is missing: $Path" }
@@ -43,6 +49,12 @@ function Resolve-SourceCommit {
 }
 
 $SourceCommit = Resolve-SourceCommit
+$QualityReadinessEvidence = (Resolve-Path -LiteralPath $QualityReadinessEvidence).Path
+Require-File $QualityReadinessEvidence 'Quality Readiness evidence'
+Require-File $QualityReadinessValidator 'Quality Readiness release validator'
+$QualityReadinessValidation = & $ReleasePython -s $QualityReadinessValidator --report $QualityReadinessEvidence --release-identity $SourceCommit
+if ($LASTEXITCODE -ne 0) { throw "Quality Readiness release gate failed: $($QualityReadinessValidation | Out-String)" }
+$QualityReadiness = $QualityReadinessValidation | ConvertFrom-Json
 
 Push-Location $AppRoot
 try {
@@ -129,6 +141,9 @@ try {
         installer_mode = 'perMachine'
         offline = $true
         target_pc_acceptance = 'deferred'
+        quality_readiness_schema = [string]$QualityReadiness.schema
+        quality_readiness_report_sha256 = [string]$QualityReadiness.report_sha256
+        quality_readiness_release_identity = [string]$QualityReadiness.release_identity
     }
     $releaseBuild | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ReleaseEvidence -Encoding utf8
 
@@ -136,6 +151,7 @@ try {
     Write-Host "[release]   $SetupPath"
     Write-Host "[release]   $PayloadPath"
     Write-Host "[release] Source commit: $SourceCommit"
+    Write-Host "[release] Quality readiness SHA-256: $($QualityReadiness.report_sha256)"
     Write-Host "[release] Build evidence: $ReleaseEvidence"
 }
 finally {

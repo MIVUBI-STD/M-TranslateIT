@@ -45,3 +45,13 @@ The aggregate result is ready only when all three domains:
 - pass their own fail-closed critical-regression gate.
 
 This is a release **evidence aggregation** gate, not a runtime pipeline and not native acceptance. TARGET_WINDOWS remains authoritative for physical microphone behavior, meeting routing/reception, practical latency, and audible listening quality.
+
+## Release promotion gate
+
+The Windows release build requires the aggregate readiness report explicitly:
+
+```powershell
+./EngineData/Frontend/RustApp/scripts/build_release.ps1 -QualityReadinessEvidence <quality-readiness-report.json>
+```
+
+The gate requires the report to target the exact committed release source identity, all three domains to be ready, no aggregate blockers, and valid domain report hashes. The report is not added to the Setup/Payload pair; only its SHA-256 and release identity are recorded in release build evidence.
