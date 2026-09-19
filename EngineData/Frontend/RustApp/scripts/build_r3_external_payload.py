@@ -272,6 +272,8 @@ def write_evidence(
     expanded_bytes: int,
     root_bytes: dict[str, int],
     python_runtime_top_level_bytes: dict[str, int],
+    torch_top_level_bytes: dict[str, int],
+    torch_lib_largest_files: dict[str, int],
     entries: list[str],
     seven_zip: str,
     tar_program: str,
@@ -289,6 +291,8 @@ def write_evidence(
         else None,
         "payload_root_bytes": root_bytes,
         "python_runtime_top_level_bytes": python_runtime_top_level_bytes,
+        "torch_top_level_bytes": torch_top_level_bytes,
+        "torch_lib_largest_files": torch_lib_largest_files,
         "archive_format": "7z",
         "compression": "LZMA2",
         "compression_level": 9,
@@ -332,8 +336,13 @@ def main() -> int:
     validate_no_filesystem_indirection(repo_root)
     write_payload_contract(repo_root, version)
     root_bytes = {root: tree_bytes(repo_root / root) for root in PAYLOAD_ROOTS}
-    python_runtime_top_level_bytes = direct_child_bytes(
-        repo_root / "EngineData/Backend/LocalWorker/PythonRuntime"
+    python_runtime_root = repo_root / "EngineData/Backend/LocalWorker/PythonRuntime"
+    python_runtime_top_level_bytes = direct_child_bytes(python_runtime_root)
+    torch_root = python_runtime_root / "torch"
+    torch_top_level_bytes = direct_child_bytes(torch_root) if torch_root.is_dir() else {}
+    torch_lib_root = torch_root / "lib"
+    torch_lib_largest_files = (
+        direct_child_bytes(torch_lib_root, limit=30) if torch_lib_root.is_dir() else {}
     )
     expanded_bytes = sum(root_bytes.values())
     seven_zip = find_7zip()
@@ -357,6 +366,8 @@ def main() -> int:
         expanded_bytes,
         root_bytes,
         python_runtime_top_level_bytes,
+        torch_top_level_bytes,
+        torch_lib_largest_files,
         entries,
         seven_zip,
         tar_program,
