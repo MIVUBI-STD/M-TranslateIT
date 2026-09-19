@@ -50,6 +50,7 @@ function Resolve-SourceCommit {
 
 $SourceCommit = Resolve-SourceCommit
 $QualityReadinessEvidence = (Resolve-Path -LiteralPath $QualityReadinessEvidence).Path
+Require-File $ReleasePython 'Staged private PythonRuntime'
 Require-File $QualityReadinessEvidence 'Quality Readiness evidence'
 Require-File $QualityReadinessValidator 'Quality Readiness release validator'
 $QualityReadinessValidation = & $ReleasePython -s $QualityReadinessValidator --report $QualityReadinessEvidence --release-identity $SourceCommit
@@ -63,7 +64,6 @@ try {
     npm run preflight:release-payload
     if ($LASTEXITCODE -ne 0) { throw 'TranslateIT release payload preflight failed.' }
 
-    Require-File $ReleasePython 'Staged private PythonRuntime'
     Require-File $Optimizer 'Release payload optimizer'
     Require-File $PayloadBuilder 'R3 external payload builder'
     Require-File $HookTemplate 'R3 NSIS hook template'
