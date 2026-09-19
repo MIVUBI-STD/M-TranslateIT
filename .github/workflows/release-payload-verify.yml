@@ -192,13 +192,16 @@ jobs:
         run: |
           node scripts/generate_third_party_notices.mjs --write
           npm run preflight:release-payload
+          if ($LASTEXITCODE -ne 0) { throw 'Initial release payload preflight failed.' }
           $backend = (Resolve-Path '../../Backend').Path
           $privatePython = Join-Path $backend 'LocalWorker/PythonRuntime/python.exe'
           & $privatePython scripts/optimize_release_payload.py --backend-root $backend
           if ($LASTEXITCODE -ne 0) { throw 'Release payload optimizer failed.' }
           node scripts/generate_third_party_notices.mjs --write
           npm run preflight:release-payload
+          if ($LASTEXITCODE -ne 0) { throw 'Optimized release payload preflight failed.' }
           npm run preflight:tauri-package
+          if ($LASTEXITCODE -ne 0) { throw 'Tauri package preflight failed.' }
       - name: Build bounded R3 payload evidence
         shell: pwsh
         run: |

@@ -220,6 +220,10 @@ foreach ($item in $nltkPackages) {
 
 Write-Host '[release-stage] Stage pinned FFmpeg n8.1 LGPL executable from BtbN'
 $ffmpegReleaseTag = 'autobuild-2026-09-07-15-39'
+$ffmpegReleaseId = '384189644'
+$ffmpegReleaseName = 'Auto-Build 2026-09-07 15:39'
+$ffmpegReleasePublishedAt = '2026-09-07T15:40:02Z'
+$ffmpegAssetId = '549007162'
 $ffmpegAssetName = 'ffmpeg-n8.1.2-51-g7ba069f4f1-win64-lgpl-8.1.zip'
 $ffmpegArchiveSha = '232464b6f9f1d55fa42c1b0e7ae1c9ca5a19272ba61229e8b32a93751055e135'
 $ffmpegDownloadUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$ffmpegReleaseTag/$ffmpegAssetName"
@@ -251,7 +255,12 @@ Copy-Item -LiteralPath $ffmpegLicense.FullName -Destination (Join-Path $VoiceSou
 @"
 source_kind=ffmpeg
 binary_builder=BtbN/FFmpeg-Builds
+builder_release_api=https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/$ffmpegReleaseTag
+builder_release_id=$ffmpegReleaseId
 builder_release_tag=$ffmpegReleaseTag
+builder_release_name=$ffmpegReleaseName
+builder_release_published_at=$ffmpegReleasePublishedAt
+asset_id=$ffmpegAssetId
 archive=$ffmpegAssetName
 archive_sha256=$ffmpegArchiveSha
 download_url=$ffmpegDownloadUrl

@@ -313,15 +313,20 @@ if (existsSync(ffmpegSourcePath)) {
   for (const [key, expected] of Object.entries({
     source_kind: "ffmpeg",
     binary_builder: "BtbN/FFmpeg-Builds",
-    builder_release_api: "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest",
-    archive: "ffmpeg-n8.1-latest-win64-lgpl-8.1.zip",
+    builder_release_api: "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/tags/autobuild-2026-09-07-15-39",
+    builder_release_id: "384189644",
+    builder_release_tag: "autobuild-2026-09-07-15-39",
+    builder_release_name: "Auto-Build 2026-09-07 15:39",
+    builder_release_published_at: "2026-09-07T15:40:02Z",
+    asset_id: "549007162",
+    archive: "ffmpeg-n8.1.2-51-g7ba069f4f1-win64-lgpl-8.1.zip",
     license_profile: "LGPL-3.0-or-later",
     build_profile: "win64-lgpl-static",
-    integrity_source: "github_release_asset_digest",
+    integrity_source: "pinned_release_asset_sha256",
   })) {
     if (source[key] !== expected) fail(`FFMPEG_SOURCE.txt provenance field mismatch: ${key}`);
   }
-  for (const key of ["builder_release_id", "builder_release_tag", "builder_release_name", "builder_release_published_at", "asset_id", "download_url", "ffmpeg_version_line"]) {
+  for (const key of ["download_url", "ffmpeg_version_line"]) {
     if (!String(source[key] ?? "").trim()) fail(`FFMPEG_SOURCE.txt provenance field is missing: ${key}`);
   }
   for (const key of ["archive_sha256", "ffmpeg_exe_sha256", "ffmpeg_license_sha256"]) {
