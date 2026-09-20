@@ -8,7 +8,7 @@ on:
       - ".github/workflows/resolve-updater-lock.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   resolve:
@@ -19,14 +19,18 @@ jobs:
         working-directory: EngineData/Frontend/RustApp/src-tauri
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - name: Resolve updater dependency into canonical lock
+      - name: Resolve pinned updater dependency into canonical lock
         run: cargo fetch
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: updater-cargo-lock
-          path: EngineData/Frontend/RustApp/src-tauri/Cargo.lock
-          if-no-files-found: error
-          retention-days: 1
-          # resolver rerun: pin updater 2.11.0
+      - name: Commit canonical Cargo lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- Cargo.lock; then
+            echo "Cargo.lock is already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "build(updater): sync Cargo lock"
+          git push origin HEAD:Local
