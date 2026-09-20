@@ -11,7 +11,7 @@ test("quick meeting listen direction persists through canonical settings", () =>
   assert.match(meeting, /meeting_listen_target_language/);
   assert.match(meeting, /saveSettings\(candidate\)/);
   assert.match(meeting, /Translate what you hear:/);
-  assert.match(meeting, />Swap</);
+  assert.match(meeting, /directionSaving \? "Saving\.\.\." : "Swap"/);
 });
 
 test("conversation rendering uses committed language metadata", () => {
