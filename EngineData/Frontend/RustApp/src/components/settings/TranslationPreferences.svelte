@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Plus, Trash2 } from "@lucide/svelte";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
-  import type { RuntimeSettings, TerminologyEntry } from "../../app/shared/types";
+  import type { RuntimeSettings, Preferred wordsEntry } from "../../app/shared/types";
 
   const MAX_TERMS = 24;
 
@@ -19,7 +19,7 @@
   let english = $state("");
   let saving = $state(false);
 
-  async function persist(next: TerminologyEntry[], message: string): Promise<void> {
+  async function persist(next: Preferred wordsEntry[], message: string): Promise<void> {
     if (saving) return;
     saving = true;
     const candidate: RuntimeSettings = {
@@ -30,14 +30,14 @@
     try {
       const result = await runtimeApi.saveSettings(candidate);
       if (!result.ok) {
-        onNotice(result.message || "Terminology couldn't be saved.");
+        onNotice(result.message || "Preferred words couldn't be saved.");
         return;
       }
       const saved = (await runtimeApi.loadSettings()) ?? candidate;
       await onSettingsChange(saved);
       onNotice(message);
     } catch {
-      onNotice("Terminology couldn't be saved. Try again.");
+      onNotice("Preferred words couldn't be saved. Try again.");
     } finally {
       saving = false;
     }
@@ -51,7 +51,7 @@
       return;
     }
     if (settings.terminology.length >= MAX_TERMS) {
-      onNotice(`Terminology is limited to ${MAX_TERMS} focused terms.`);
+      onNotice(`Preferred words is limited to ${MAX_TERMS} focused terms.`);
       return;
     }
     const conflicting = settings.terminology.find(
@@ -63,7 +63,7 @@
       onNotice("Each Indonesian and English term can have only one preferred mapping. Remove the existing term first.");
       return;
     }
-    await persist([...settings.terminology, { indonesian: id, english: en }], "Terminology saved.");
+    await persist([...settings.terminology, { indonesian: id, english: en }], "Preferred words saved.");
     indonesian = "";
     english = "";
   }
@@ -71,26 +71,26 @@
   async function removeTerm(index: number): Promise<void> {
     await persist(
       settings.terminology.filter((_, itemIndex) => itemIndex !== index),
-      "Terminology removed.",
+      "Preferred words removed.",
     );
   }
 </script>
 
 <article class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-    <h3 class="m-0 text-[15px] font-semibold">Terminology</h3>
+    <h3 class="m-0 text-[15px] font-semibold">Preferred words</h3>
     <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">
-      Keep names, product terms, and technical wording consistent in Text and Meeting translation.
+      Tell TranslateIT how specific names or terms should be translated.
     </p>
   </header>
 
   <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-3 p-5">
     <label class="grid gap-2">
-      <span class="ti-field-label">Indonesian term</span>
+      <span class="ti-field-label">Indonesian</span>
       <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. pemugaran" bind:value={indonesian} disabled={saving} />
     </label>
     <label class="grid gap-2">
-      <span class="ti-field-label">Preferred English</span>
+      <span class="ti-field-label">Use this English</span>
       <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. restoration" bind:value={english} disabled={saving} />
     </label>
     <button type="button" class="ti-button min-h-10" disabled={saving || !indonesian.trim() || !english.trim()} onclick={() => void addTerm()}>
@@ -101,7 +101,7 @@
   <div class="border-t border-[var(--ti-border)]">
     {#if settings.terminology.length === 0}
       <p class="m-0 px-5 py-5 text-[12.5px] text-[var(--ti-text-muted)]">
-        No custom terminology yet. Translation continues with the canonical model defaults.
+        No preferred words yet. You can add names, product terms, or other wording you want translated consistently.
       </p>
     {:else}
       <div class="divide-y divide-[var(--ti-border)]">
@@ -121,7 +121,7 @@
 
   <footer class="border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-3.5">
     <p class="m-0 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-      Only terms found in the current source text are sent to the local translator. Direction reverses automatically for English → Indonesian.
+      TranslateIT uses these preferences only when the matching word appears in the text.
     </p>
   </footer>
 </article>
