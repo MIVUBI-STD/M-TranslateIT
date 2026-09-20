@@ -60,7 +60,7 @@ Incoming failure must not block otherwise healthy outbound translation.
 - Two ready built-in English voices allow day-one Meeting use without My Voice training.
 - My Voice is an optional trained GPT-SoVITS V2ProPlus upgrade created from authorized user recordings.
 - No silent cloud fallback or parallel normal AI engine.
-- Personal/owned-machine distribution: signing and auto-update are not current blockers.
+- App updates use a signed one-shot startup check: no updater daemon, polling timer, tray service, or forced restart. Release signing and GitHub Release publication remain explicit release operations.
 
 ## Current architecture
 
