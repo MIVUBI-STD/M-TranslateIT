@@ -400,6 +400,27 @@ def word_error_rate(reference: str, hypothesis: str) -> float:
     return previous[-1] / len(expected)
 
 
+def synthesis_artifact_flags(audio: Any) -> list[str]:
+    import numpy as np
+
+    values = np.asarray(audio).reshape(-1)
+    if values.size == 0:
+        return ["unexpected_silence"]
+    if np.issubdtype(values.dtype, np.integer):
+        scale = float(max(abs(np.iinfo(values.dtype).min), np.iinfo(values.dtype).max))
+        normalized = values.astype(np.float32) / max(scale, 1.0)
+    else:
+        normalized = values.astype(np.float32)
+    finite = np.nan_to_num(normalized, nan=0.0, posinf=1.0, neginf=-1.0)
+    absolute = np.abs(finite)
+    flags: list[str] = []
+    if float(np.mean(absolute >= 0.98)) >= 0.05:
+        flags.append("clipping")
+    if float(np.mean(absolute <= (128.0 / 32_768.0))) >= 0.90:
+        flags.append("unexpected_silence")
+    return flags
+
+
 def evaluation_asr_model_path(asr_model_root: Path) -> Path:
     for dirname in ("faster-whisper-large-v3-turbo", "faster-whisper-medium"):
         candidate = asr_model_root / dirname
@@ -474,6 +495,7 @@ def evaluate_candidate(
                     f"evaluation_output_count:{candidate_id}:{line_id}:{len(outputs)}"
                 )
             sr, audio = outputs[0]
+            artifact_flags = synthesis_artifact_flags(audio)
             wav_path = candidate_dir / f"held_out_{line_id}.wav"
             write_wav(wav_path, int(sr), audio)
             score = float(
@@ -502,6 +524,7 @@ def evaluate_candidate(
                     "speaker_similarity": round(score, 6),
                     "intelligibility_text": intelligibility_text,
                     "intelligibility_wer": round(intelligibility_wer, 6),
+                    "artifact_flags": artifact_flags,
                     "sha256": sha256_file(wav_path),
                     "_wav_path": wav_path,
                 }
@@ -517,6 +540,7 @@ def evaluate_candidate(
         raise VoiceLabProviderError(f"held_out_evaluation_incomplete:{candidate_id}")
     similarities = [float(sample["speaker_similarity"]) for sample in samples]
     wers = [float(sample["intelligibility_wer"]) for sample in samples]
+    artifact_case_count = sum(bool(sample["artifact_flags"]) for sample in samples)
     return {
         "candidate_id": candidate_id,
         "candidate_order": int(candidate["candidate_order"]),
@@ -528,6 +552,7 @@ def evaluate_candidate(
         "minimum_speaker_similarity": round(min(similarities), 6),
         "mean_intelligibility_wer": round(sum(wers) / len(wers), 6),
         "maximum_intelligibility_wer": round(max(wers), 6),
+        "artifact_case_count": artifact_case_count,
         "samples": samples,
     }
 
@@ -541,6 +566,7 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
         minimum_similarity = candidate.get("minimum_speaker_similarity")
         mean_wer = candidate.get("mean_intelligibility_wer")
         maximum_wer = candidate.get("maximum_intelligibility_wer")
+        artifact_case_count = candidate.get("artifact_case_count")
         if not isinstance(samples, list) or not samples:
             raise VoiceLabProviderError("candidate_evidence_samples_missing")
         if not isinstance(mean_similarity, (int, float)) or not math.isfinite(
@@ -555,9 +581,12 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
             raise VoiceLabProviderError("candidate_evidence_mean_wer_invalid")
         if not isinstance(maximum_wer, (int, float)) or not math.isfinite(float(maximum_wer)):
             raise VoiceLabProviderError("candidate_evidence_maximum_wer_invalid")
+        if type(artifact_case_count) is not int or artifact_case_count < 0:
+            raise VoiceLabProviderError("candidate_evidence_artifact_count_invalid")
     return min(
         evidence,
         key=lambda candidate: (
+            int(candidate["artifact_case_count"]),
             float(candidate["mean_intelligibility_wer"]),
             float(candidate["maximum_intelligibility_wer"]),
             -float(candidate["mean_speaker_similarity"]),
@@ -576,6 +605,7 @@ def public_candidate_evidence(candidate: dict[str, Any]) -> dict[str, Any]:
         "minimum_speaker_similarity": float(candidate["minimum_speaker_similarity"]),
         "mean_intelligibility_wer": float(candidate["mean_intelligibility_wer"]),
         "maximum_intelligibility_wer": float(candidate["maximum_intelligibility_wer"]),
+        "artifact_case_count": int(candidate["artifact_case_count"]),
         "samples": [
             {
                 "line_id": int(sample["line_id"]),
@@ -583,6 +613,7 @@ def public_candidate_evidence(candidate: dict[str, Any]) -> dict[str, Any]:
                 "speaker_similarity": float(sample["speaker_similarity"]),
                 "intelligibility_text": str(sample["intelligibility_text"]),
                 "intelligibility_wer": float(sample["intelligibility_wer"]),
+                "artifact_flags": list(sample["artifact_flags"]),
                 "sha256": str(sample["sha256"]),
             }
             for sample in candidate["samples"]
@@ -616,6 +647,7 @@ def promote_selected_candidate(
                 "speaker_similarity": float(sample["speaker_similarity"]),
                 "intelligibility_text": str(sample["intelligibility_text"]),
                 "intelligibility_wer": float(sample["intelligibility_wer"]),
+                "artifact_flags": list(sample["artifact_flags"]),
             }
         )
     return selected_samples
@@ -677,7 +709,7 @@ def build_candidate(
         reference,
     )
 
-    selection_method = "held_out_mean_wer_then_max_wer_then_similarity_tiebreak"
+    selection_method = "held_out_artifacts_then_mean_wer_then_max_wer_then_similarity_tiebreak"
     evaluation_payload = {
         "schema_version": 1,
         "engine": ENGINE,
@@ -712,6 +744,7 @@ def build_candidate(
             "minimum_speaker_similarity": float(selected["minimum_speaker_similarity"]),
             "mean_intelligibility_wer": float(selected["mean_intelligibility_wer"]),
             "maximum_intelligibility_wer": float(selected["maximum_intelligibility_wer"]),
+            "artifact_case_count": int(selected["artifact_case_count"]),
         },
     }
     (candidate_dir / "actor.json").write_text(

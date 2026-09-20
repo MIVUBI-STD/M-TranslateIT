@@ -11,6 +11,7 @@ from voice_lab_gpt_sovits import GPT_EPOCHS, SOVITS_EPOCHS, VoiceLabProviderErro
 from voice_lab_gpt_sovits_build import (
     select_best_candidate,
     select_reference,
+    synthesis_artifact_flags,
     training_takes,
     word_error_rate,
 )
@@ -195,6 +196,7 @@ class VoiceLabBuildContractTests(unittest.TestCase):
                 "minimum_speaker_similarity": 0.98,
                 "mean_intelligibility_wer": 0.25,
                 "maximum_intelligibility_wer": 0.5,
+                "artifact_case_count": 0,
                 "samples": [{"line_id": 1001}],
             },
             {
@@ -204,6 +206,7 @@ class VoiceLabBuildContractTests(unittest.TestCase):
                 "minimum_speaker_similarity": 0.88,
                 "mean_intelligibility_wer": 0.0,
                 "maximum_intelligibility_wer": 0.0,
+                "artifact_case_count": 0,
                 "samples": [{"line_id": 1001}],
             },
         ]
@@ -218,6 +221,7 @@ class VoiceLabBuildContractTests(unittest.TestCase):
                 "minimum_speaker_similarity": 0.87,
                 "mean_intelligibility_wer": 0.0,
                 "maximum_intelligibility_wer": 0.0,
+                "artifact_case_count": 0,
                 "samples": [{"line_id": 1001}],
             },
             {
@@ -227,10 +231,45 @@ class VoiceLabBuildContractTests(unittest.TestCase):
                 "minimum_speaker_similarity": 0.91,
                 "mean_intelligibility_wer": 0.0,
                 "maximum_intelligibility_wer": 0.0,
+                "artifact_case_count": 0,
                 "samples": [{"line_id": 1001}],
             },
         ]
         self.assertEqual(select_best_candidate(candidates)["candidate_id"], "higher-similarity")
+
+
+    def test_candidate_selection_rejects_artifacted_candidate_before_score_tiebreaks(self) -> None:
+        candidates = [
+            {
+                "candidate_id": "artifacted",
+                "candidate_order": 0,
+                "mean_speaker_similarity": 0.99,
+                "minimum_speaker_similarity": 0.98,
+                "mean_intelligibility_wer": 0.0,
+                "maximum_intelligibility_wer": 0.0,
+                "artifact_case_count": 1,
+                "samples": [{"line_id": 1001}],
+            },
+            {
+                "candidate_id": "clean",
+                "candidate_order": 1,
+                "mean_speaker_similarity": 0.90,
+                "minimum_speaker_similarity": 0.88,
+                "mean_intelligibility_wer": 0.05,
+                "maximum_intelligibility_wer": 0.10,
+                "artifact_case_count": 0,
+                "samples": [{"line_id": 1001}],
+            },
+        ]
+        self.assertEqual(select_best_candidate(candidates)["candidate_id"], "clean")
+
+    def test_synthesis_artifact_flags_detect_only_gross_signal_failures(self) -> None:
+        clean = [0.1 if index % 2 == 0 else -0.1 for index in range(32_000)]
+        self.assertEqual(synthesis_artifact_flags(clean), [])
+        clipped = [1.0] * 2_000 + [0.1] * 30_000
+        self.assertEqual(synthesis_artifact_flags(clipped), ["clipping"])
+        silent = [0.0] * 30_000 + [0.1] * 2_000
+        self.assertEqual(synthesis_artifact_flags(silent), ["unexpected_silence"])
 
 
 if __name__ == "__main__":

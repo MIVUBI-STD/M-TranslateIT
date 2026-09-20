@@ -53,6 +53,7 @@ jobs:
               "speaker_similarity",
               "intelligibility_text",
               "intelligibility_wer",
+              "artifact_flags",
               "HELD_OUT_LINES",
               "VOICE_ACTOR_ENGINE_REVISION",
           )
@@ -61,7 +62,8 @@ jobs:
               "minimum_speaker_similarity",
               "mean_intelligibility_wer",
               "maximum_intelligibility_wer",
-              "held_out_mean_wer_then_max_wer_then_similarity_tiebreak",
+              "artifact_case_count",
+              "held_out_artifacts_then_mean_wer_then_max_wer_then_similarity_tiebreak",
           )
           missing = [
               item

@@ -672,8 +672,19 @@ pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuild
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
     }
-    let Some(evaluation) = evaluation_manifest(&storage()) else {
-        return result(false, "evaluation_required", "Listen to a completed VoiceLab evaluation before approving My Voice.");
+    let paths = storage();
+    let ready_for_review = child_status(&paths)
+        .map(|status| status.phase == "ready_for_review")
+        .unwrap_or(false);
+    if !ready_for_review {
+        return result(
+            false,
+            "evaluation_required",
+            "My Voice does not have a completed reviewable build yet.",
+        );
+    }
+    let Some(evaluation) = evaluation_manifest(&paths) else {
+        return result(false, "evaluation_required", "Listen to a completed My Voice evaluation before approving it.");
     };
     if !evaluation_review_complete(&evaluation, &reviewed_line_ids) {
         return result(

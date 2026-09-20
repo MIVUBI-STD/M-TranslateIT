@@ -28,6 +28,7 @@ pub struct VoiceLabEvaluationSample {
     pub speaker_similarity: f64,
     pub intelligibility_text: String,
     pub intelligibility_wer: f64,
+    pub artifact_flags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -84,6 +85,9 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
             || !sample.intelligibility_wer.is_finite()
             || sample.intelligibility_wer < 0.0
             || sample.intelligibility_text.trim().is_empty()
+            || sample.artifact_flags.iter().any(|flag| {
+                !matches!(flag.as_str(), "clipping" | "unexpected_silence")
+            })
             || sample.wav_file.trim().is_empty()
             || Path::new(&sample.wav_file).file_name().and_then(|name| name.to_str())
                 != Some(sample.wav_file.as_str())
@@ -117,4 +121,40 @@ pub(super) fn evaluation_review_complete(
         .collect::<BTreeSet<_>>();
     let reviewed = reviewed_line_ids.iter().copied().collect::<BTreeSet<_>>();
     reviewed.len() == reviewed_line_ids.len() && reviewed == expected
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn manifest() -> EvaluationManifest {
+        EvaluationManifest {
+            schema_version: VOICE_LAB_SCHEMA_VERSION,
+            engine: VOICE_ACTOR_ENGINE.to_string(),
+            engine_revision: VOICE_ACTOR_ENGINE_REVISION.to_string(),
+            samples: HELD_OUT_LINES
+                .iter()
+                .map(|(line_id, text)| VoiceLabEvaluationSample {
+                    line_id: *line_id,
+                    exact_text: (*text).to_string(),
+                    wav_file: format!("held_out_{line_id}.wav"),
+                    speaker_similarity: 0.9,
+                    intelligibility_text: (*text).to_string(),
+                    intelligibility_wer: 0.0,
+                    artifact_flags: Vec::new(),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn review_completion_requires_every_exact_held_out_line_once() {
+        let manifest = manifest();
+        let ids = HELD_OUT_LINES.iter().map(|(line_id, _)| *line_id).collect::<Vec<_>>();
+        assert!(evaluation_review_complete(&manifest, &ids));
+        assert!(!evaluation_review_complete(&manifest, &ids[..ids.len() - 1]));
+        let mut duplicate = ids.clone();
+        duplicate.push(ids[0]);
+        assert!(!evaluation_review_complete(&manifest, &duplicate));
+    }
 }

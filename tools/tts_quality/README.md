@@ -4,7 +4,7 @@ This directory owns source-level regression evaluation for TranslateIT's selecte
 
 It does **not** claim audible quality from CI. Real evidence requires generated WAVs from the exact selected voice/runtime and an independent intelligibility/artifact review process.
 
-Before expensive My Voice training, the build path rejects clearly unusable guided recordings: non-canonical WAV format, extreme silence/clipping, very low active signal, large DC offset, and extreme level mismatch across accepted takes. Candidate selection then combines held-out ASR intelligibility with speaker similarity, and user approval requires every held-out preview to be listened through. These remain conservative quality gates, not substitutes for native listening quality.
+Before expensive My Voice training, the build path rejects clearly unusable guided recordings: non-canonical WAV format, extreme silence/clipping, very low active signal, large DC offset, and extreme level mismatch across accepted takes. Candidate selection rejects gross synthesis artifacts first, then compares held-out ASR intelligibility and speaker similarity; user approval requires every held-out preview to be listened through and a completed reviewable build state. These remain conservative quality gates, not substitutes for native listening quality.
 
 ## What it measures
 
