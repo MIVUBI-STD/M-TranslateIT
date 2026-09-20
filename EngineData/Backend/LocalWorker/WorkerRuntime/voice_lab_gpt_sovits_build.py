@@ -83,13 +83,22 @@ def training_takes(dataset_dir: Path, manifest: dict[str, Any]) -> list[dict[str
     result: list[dict[str, Any]] = []
     ids: set[int] = set()
     texts: set[str] = set()
+    wav_files: set[str] = set()
     for item in manifest["takes"]:
         if not isinstance(item, dict):
             raise VoiceLabProviderError("invalid_training_take")
         line_id = int(item.get("line_id", 0))
         text = str(item.get("exact_text", "")).strip()
         wav_file = str(item.get("wav_file", "")).strip()
-        if line_id <= 0 or not text or not wav_file or Path(wav_file).name != wav_file:
+        if (
+            line_id <= 0
+            or not text
+            or not wav_file
+            or Path(wav_file).name != wav_file
+            or line_id in ids
+            or text in texts
+            or wav_file in wav_files
+        ):
             raise VoiceLabProviderError("invalid_training_take")
         wav_path = dataset_dir / wav_file
         result.append(
@@ -103,16 +112,26 @@ def training_takes(dataset_dir: Path, manifest: dict[str, Any]) -> list[dict[str
         )
         ids.add(line_id)
         texts.add(text)
+        wav_files.add(wav_file)
 
     seen: set[int] = set()
+    seen_texts: set[str] = set()
     for item in manifest["held_out_lines"]:
         if not isinstance(item, dict):
             raise VoiceLabProviderError("invalid_held_out_line")
         line_id = int(item.get("line_id", 0))
         text = str(item.get("exact_text", "")).strip()
-        if line_id <= 0 or not text or line_id in ids or text in texts or line_id in seen:
+        if (
+            line_id <= 0
+            or not text
+            or line_id in ids
+            or text in texts
+            or line_id in seen
+            or text in seen_texts
+        ):
             raise VoiceLabProviderError("invalid_held_out_line")
         seen.add(line_id)
+        seen_texts.add(text)
     return result
 
 
@@ -512,6 +531,10 @@ def evaluate_candidate(
                     f"evaluation_similarity_invalid:{candidate_id}:{line_id}"
                 )
             intelligibility_text = transcribe_evaluation_audio(asr_model, wav_path)
+            if not intelligibility_text:
+                raise VoiceLabProviderError(
+                    f"evaluation_intelligibility_empty:{candidate_id}:{line_id}"
+                )
             intelligibility_wer = word_error_rate(held_text, intelligibility_text)
             if not math.isfinite(intelligibility_wer):
                 raise VoiceLabProviderError(
@@ -583,7 +606,7 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
             raise VoiceLabProviderError("candidate_evidence_maximum_wer_invalid")
         if type(artifact_case_count) is not int or artifact_case_count < 0:
             raise VoiceLabProviderError("candidate_evidence_artifact_count_invalid")
-    return min(
+    selected = min(
         evidence,
         key=lambda candidate: (
             int(candidate["artifact_case_count"]),
@@ -594,6 +617,9 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
             int(candidate["candidate_order"]),
         ),
     )
+    if int(selected["artifact_case_count"]) > 0:
+        raise VoiceLabProviderError("candidate_artifact_free_checkpoint_missing")
+    return selected
 
 
 def public_candidate_evidence(candidate: dict[str, Any]) -> dict[str, Any]:

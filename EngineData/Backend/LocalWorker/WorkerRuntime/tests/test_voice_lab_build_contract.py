@@ -270,6 +270,85 @@ class VoiceLabBuildContractTests(unittest.TestCase):
         silent = [0.0] * 30_000 + [0.1] * 2_000
         self.assertEqual(synthesis_artifact_flags(silent), ["unexpected_silence"])
 
+    def test_training_takes_reject_duplicate_training_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            for name in ("take_0001.wav", "take_0002.wav"):
+                self.write_canonical_wav(root / name, 4_000)
+            duplicate_id = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "first", "wav_file": "take_0001.wav"},
+                    {"line_id": 1, "exact_text": "second", "wav_file": "take_0002.wav"},
+                ],
+                "held_out_lines": [{"line_id": 1001, "exact_text": "held out"}],
+            }
+            with self.assertRaisesRegex(VoiceLabProviderError, "invalid_training_take"):
+                training_takes(root, duplicate_id)
+
+            duplicate_text = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "same", "wav_file": "take_0001.wav"},
+                    {"line_id": 2, "exact_text": "same", "wav_file": "take_0002.wav"},
+                ],
+                "held_out_lines": [{"line_id": 1001, "exact_text": "held out"}],
+            }
+            with self.assertRaisesRegex(VoiceLabProviderError, "invalid_training_take"):
+                training_takes(root, duplicate_text)
+
+            duplicate_file = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "first", "wav_file": "take_0001.wav"},
+                    {"line_id": 2, "exact_text": "second", "wav_file": "take_0001.wav"},
+                ],
+                "held_out_lines": [{"line_id": 1001, "exact_text": "held out"}],
+            }
+            with self.assertRaisesRegex(VoiceLabProviderError, "invalid_training_take"):
+                training_takes(root, duplicate_file)
+
+    def test_training_takes_reject_duplicate_held_out_text(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            self.write_canonical_wav(root / "take_0001.wav", 4_000)
+            manifest = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "training", "wav_file": "take_0001.wav"}
+                ],
+                "held_out_lines": [
+                    {"line_id": 1001, "exact_text": "same held out"},
+                    {"line_id": 1002, "exact_text": "same held out"},
+                ],
+            }
+            with self.assertRaisesRegex(VoiceLabProviderError, "invalid_held_out_line"):
+                training_takes(root, manifest)
+
+    def test_candidate_selection_fails_if_every_checkpoint_has_gross_artifacts(self) -> None:
+        candidates = [
+            {
+                "candidate_id": "artifact-a",
+                "candidate_order": 0,
+                "mean_speaker_similarity": 0.95,
+                "minimum_speaker_similarity": 0.92,
+                "mean_intelligibility_wer": 0.0,
+                "maximum_intelligibility_wer": 0.0,
+                "artifact_case_count": 1,
+                "samples": [{"line_id": 1001}],
+            },
+            {
+                "candidate_id": "artifact-b",
+                "candidate_order": 1,
+                "mean_speaker_similarity": 0.96,
+                "minimum_speaker_similarity": 0.93,
+                "mean_intelligibility_wer": 0.0,
+                "maximum_intelligibility_wer": 0.0,
+                "artifact_case_count": 2,
+                "samples": [{"line_id": 1001}],
+            },
+        ]
+        with self.assertRaisesRegex(
+            VoiceLabProviderError, "candidate_artifact_free_checkpoint_missing"
+        ):
+            select_best_candidate(candidates)
+
 
 if __name__ == "__main__":
     unittest.main()

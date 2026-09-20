@@ -15,7 +15,7 @@ The evaluator combines four independent signals:
 - declared critical word/meaning preservation;
 - explicit artifact flags: clipping, dropout, repetition, truncation, unexpected silence, noise burst, or unstable pitch.
 
-A higher speaker-similarity score does not override an intelligibility or artifact regression.
+A higher speaker-similarity score does not override an intelligibility or artifact regression. If every bounded training checkpoint produces a gross clipping/silence artifact, the build fails closed instead of offering a "least bad" candidate.
 
 ## Corpus
 
