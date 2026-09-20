@@ -67,9 +67,7 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             near_target_samples = [0] * 3_200 + [
                 4_000 if index % 2 == 0 else -4_000 for index in range(156_800)
             ]
-            cleaner_samples = [
-                4_000 if index % 2 == 0 else -4_000 for index in range(134_400)
-            ]
+            cleaner_samples = [4_000 if index % 2 == 0 else -4_000 for index in range(134_400)]
             self.write_signal_wav(near_target, near_target_samples)
             self.write_signal_wav(cleaner, cleaner_samples)
             manifest = {
@@ -336,9 +334,7 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             root = Path(raw)
             self.write_canonical_wav(root / "take_0001.wav", 4_000)
             manifest = {
-                "takes": [
-                    {"line_id": 1, "exact_text": "training", "wav_file": "take_0001.wav"}
-                ],
+                "takes": [{"line_id": 1, "exact_text": "training", "wav_file": "take_0001.wav"}],
                 "held_out_lines": [
                     {"line_id": 1001, "exact_text": "same held out"},
                     {"line_id": 1002, "exact_text": "same held out"},
