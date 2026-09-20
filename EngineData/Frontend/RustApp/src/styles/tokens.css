@@ -2,19 +2,19 @@
   color-scheme: dark;
 
   /* Core surfaces */
-  --ti-bg: #0a0d12;
-  --ti-sidebar: #0c1016;
-  --ti-surface: #11161e;
-  --ti-surface-raised: #171e28;
-  --ti-surface-soft: #0e131a;
-  --ti-surface-hover: #1a222d;
-  --ti-border: #222b36;
-  --ti-border-strong: #354151;
+  --ti-bg: #101316;
+  --ti-sidebar: #0d1013;
+  --ti-surface: #171b1f;
+  --ti-surface-raised: #1d2227;
+  --ti-surface-soft: #14181c;
+  --ti-surface-hover: #23292f;
+  --ti-border: #2b3238;
+  --ti-border-strong: #3b444c;
 
   /* Typography */
   --ti-text: #f5f7fa;
-  --ti-text-muted: #a8b2bf;
-  --ti-text-soft: #788596;
+  --ti-text-muted: #a8b0b7;
+  --ti-text-soft: #747e87;
 
   /* Primary action */
   --ti-accent: #eef2f6;
@@ -42,9 +42,9 @@
   --ti-overlay: rgb(0 0 0 / 0.72);
 
   /* Desktop composition */
-  --ti-sidebar-width: 208px;
+  --ti-sidebar-width: 184px;
   --ti-content-width: 1120px;
   --ti-content-wide: 1200px;
   --ti-page-padding-x: clamp(24px, 3vw, 42px);
-  --ti-page-padding-y: 30px;
+  --ti-page-padding-y: 28px;
 }
