@@ -48,3 +48,19 @@ test("release build fails closed without updater signing material", () => {
   assert.match(release, /TAURI_SIGNING_PRIVATE_KEY_PATH/);
   assert.equal(releaseConfig.bundle?.createUpdaterArtifacts, true);
 });
+
+
+test("external runtime payload is preserved only when installed runtime is compatible", () => {
+  const hook = read("src-tauri/windows/r3_payload_hooks.template.nsh");
+  const helper = read("src-tauri/windows/r3_payload_installer.ps1");
+
+  assert.match(hook, /GetOptions.*"\/UPDATE"/);
+  assert.match(hook, /-Mode VerifyInstalled/);
+  assert.match(hook, /preserving the verified installed runtime payload/);
+  assert.match(helper, /ValidateSet\('Verify','Install','VerifyInstalled'\)/);
+  assert.match(helper, /function Verify-InstalledRuntime/);
+  assert.match(helper, /Assert-InstalledRuntimeManifest/);
+  assert.match(helper, /translation_revision/);
+  assert.match(helper, /asr_revision/);
+  assert.match(helper, /voice_revision/);
+});
