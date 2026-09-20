@@ -4516,8 +4516,8 @@
         ]
       ],
       "forbidden": [
-        "touch production",
-        "change production"
+        "change production now",
+        "modify production now"
       ],
       "risk_tags": [
         "code_switch",
@@ -4580,7 +4580,8 @@
         ]
       ],
       "forbidden": [
-        "approve the previous"
+        "approve both versions",
+        "approve the previous version instead"
       ],
       "risk_tags": [
         "negation",
@@ -4680,8 +4681,8 @@
         ]
       ],
       "forbidden": [
-        "all participants need admin access",
-        "no participants need admin access"
+        "every participant needs admin access",
+        "none of the participants need admin access"
       ],
       "risk_tags": [
         "quantifier",
@@ -4753,7 +4754,8 @@
         ]
       ],
       "forbidden": [
-        "keep retrying"
+        "continue retrying without telling me",
+        "keep retrying without telling me"
       ],
       "risk_tags": [
         "conditional",
