@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Plus, Trash2 } from "@lucide/svelte";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
-  import type { RuntimeSettings, Preferred wordsEntry } from "../../app/shared/types";
+  import type { RuntimeSettings, TerminologyEntry } from "../../app/shared/types";
 
   const MAX_TERMS = 24;
 
@@ -19,7 +19,7 @@
   let english = $state("");
   let saving = $state(false);
 
-  async function persist(next: Preferred wordsEntry[], message: string): Promise<void> {
+  async function persist(next: TerminologyEntry[], message: string): Promise<void> {
     if (saving) return;
     saving = true;
     const candidate: RuntimeSettings = {
