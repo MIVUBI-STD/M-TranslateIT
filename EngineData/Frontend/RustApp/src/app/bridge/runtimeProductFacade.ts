@@ -183,11 +183,11 @@ export async function probeProductAudioDevice(
     deviceId: normalizedDeviceId,
     deviceName: compact(
       status.resolved_device_name ?? normalizedDeviceId,
-      normalizedDeviceId ? "Selected Meeting sound" : "Windows Default",
+      normalizedDeviceId ? "Selected meeting sound" : "Windows Default",
     ),
     message: status.ok
       ? "Meeting sound is available."
-      : "This meeting sound device can't be used right now. Choose another device or Windows Default.",
+      : "That sound device can't be used right now. Choose another device or Windows Default.",
   };
 }
 
@@ -251,7 +251,7 @@ export async function runProductTranslation(source: string): Promise<ProductTran
       source: cleaned,
       translated: "",
       status: "frontend_bridge_error",
-      message: "Translation is unavailable right now. Try again or check Diagnostics.",
+      message: "Translation is unavailable right now. Try again in a moment.",
       blocker: errorMessage(error),
       needsReview: false,
       reviewHints: [],
@@ -307,15 +307,15 @@ export async function runProductSetupAction(action: ProductSetupAction): Promise
   if (action === "check-readiness") {
     const result = await runtimeApi.verifyRequiredOutboundAiReadiness().catch(() => null);
     return result?.ok
-      ? "The final local translation check passed."
-      : "The final local translation check still needs attention. Open Diagnostics if this continues.";
+      ? "TranslateIT is ready."
+      : "TranslateIT still needs attention. Try Check Again, then open Help if the problem continues.";
   }
 
   const result = await runtimeApi.verifyModels().catch(() => null);
   const blockers = Array.isArray(result?.blockers) ? result.blockers.join("; ") : "";
   return compact(
     result?.note ?? blockers,
-    result?.ok ? "Full product release asset inventory is complete." : "Release asset inventory inspection finished with blockers.",
+    result?.ok ? "All required AI files are available." : "Some required AI files still need attention.",
   );
 }
 
@@ -325,7 +325,7 @@ export async function runProductRecoveryAction(action: ProductRecoveryAction): P
   let helper = await runtimeApi.getHelperBridgeStatus().catch(() => null);
   if (helper && shouldExplicitlyRestartHelper(helper.state)) {
     const started = await runtimeApi.startHelperBridge().catch(() => null);
-    if (!started?.ok) return "Setup still needs attention. Open Diagnostics for technical details.";
+    if (!started?.ok) return "Setup still needs attention. Try again, then open Help if the problem continues.";
     helper = await runtimeApi.getHelperBridgeStatus().catch(() => null);
   }
   const readiness = helper?.state === "ready"
@@ -344,8 +344,8 @@ export async function runProductRecoveryAction(action: ProductRecoveryAction): P
     (worker.responseAvailable && !worker.translationIdEnReady),
   );
 
-  if (hasProblem) return "Setup still needs attention. Open Diagnostics for technical details.";
-  return "The local translation check passed. Check Meeting again; the Meeting microphone may still need attention.";
+  if (hasProblem) return "Setup still needs attention. Try Check Again, then open Help if needed.";
+  return "TranslateIT is ready. Check Meeting again; the TranslateIT microphone may still need attention.";
 }
 
 export const runtimeProductFacade = {
