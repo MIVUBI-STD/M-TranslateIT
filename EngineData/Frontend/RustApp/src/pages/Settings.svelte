@@ -57,7 +57,7 @@
   const micTestBlockedByMeeting = $derived(snapshot.meeting.applicationOwned);
   const meetingResourceLockMessage = "Stop Translation or Mic Test before changing meeting audio or running Repair Setup.";
   const meetingMicrophoneDevice = $derived(
-    String(routeStatus?.selected_input_device ?? "").trim() || "Meeting microphone not configured",
+    String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
   );
 
   const workerDiagnostics = $derived(parseWorkerCapabilities(snapshot.workerStatus));
@@ -168,7 +168,7 @@
     <header class="ti-page-header">
       <div>
         <h2 class="ti-page-title">Settings</h2>
-        <p class="ti-page-copy">Meeting audio, setup checks, and diagnostics.</p>
+        <p class="ti-page-copy">Microphone, translation preferences, and help.</p>
       </div>
 
       <nav class="flex gap-1 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-1" aria-label="Settings sections">
@@ -189,7 +189,7 @@
           class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "advanced" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
           aria-current={tab === "advanced" ? "page" : undefined}
           onclick={() => { tab = "advanced"; diagnosticsOpen = false; }}
-        >Advanced</button>
+        >Help</button>
       </nav>
     </header>
 
@@ -198,7 +198,7 @@
         <header class="flex items-start justify-between gap-5 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
           <div>
             <h3 class="m-0 text-[15px] font-semibold tracking-[-0.015em]">Meeting audio</h3>
-            <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Choose what you speak into and where you hear the meeting.</p>
+            <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Choose the microphone you speak into and the sound device TranslateIT listens to.</p>
           </div>
           {#if meetingResourcesLocked}
             <StatusBadge label="In Use" tone="neutral" />
@@ -223,7 +223,7 @@
           </label>
 
           <label class="grid min-w-0 gap-2">
-            <span class="ti-field-label">Meeting sound</span>
+            <span class="ti-field-label">Sound from your meeting</span>
             <select class="ti-field min-h-10 px-3" disabled={meetingResourcesLocked || devicesLoading || deviceSaving} value={currentDevice("meeting-sound")} onchange={(event) => void changeDevice("meeting-sound", selectValue(event))}>
               <option value="">Windows Default</option>
               {#each devices?.output_devices ?? [] as device (deviceId(device))}
@@ -233,18 +233,18 @@
                 <option value={currentDevice("meeting-sound")}>{currentDevice("meeting-sound")} · unavailable</option>
               {/if}
             </select>
-            <small class="text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Optional incoming English → Indonesian text listens here.</small>
+            <small class="text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Choose where you hear the call if you want TranslateIT to translate incoming speech.</small>
           </label>
         </div>
 
         <div class="flex items-start justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-4">
           <div class="min-w-0">
-            <span class="ti-field-label">Meeting microphone</span>
+            <span class="ti-field-label">TranslateIT microphone</span>
             <strong class="mt-1.5 block break-words text-[13px] font-semibold leading-5">{meetingMicrophoneDevice}</strong>
             <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
               {snapshot.readiness.meetingRouteReady
-                ? "Choose this exact microphone inside your meeting app."
-                : "Meeting microphone isn't ready yet. Run Repair Setup before starting Meeting translation."}
+                ? "Select this microphone in Zoom, Google Meet, Discord, or your calling app."
+                : "TranslateIT microphone isn't ready yet. Run Repair Setup before starting Meeting translation."}
             </p>
           </div>
           {#if !snapshot.readiness.meetingRouteReady}
@@ -259,7 +259,7 @@
           <p class="m-0 min-w-0 flex-1 text-[12px] leading-5 text-[var(--ti-text-muted)]" aria-live="polite">{meetingResourcesLocked ? meetingResourceLockMessage : deviceMessage}</p>
           <div class="ti-action-row shrink-0">
             <button type="button" class="ti-button ti-button-secondary" disabled={micTestBlockedByMeeting || micTestBusy || setupBusy || deviceSaving} onclick={() => void onMicTest()}>{micTestBusy ? "Working..." : snapshot.readiness.recording || micTestOwnsResources ? "Stop Mic Test" : "Mic Test"}</button>
-            <button type="button" class="ti-button ti-button-secondary" disabled={meetingResourcesLocked || setupBusy || deviceSaving} onclick={() => void runSetupRepair()}>{setupBusy ? "Repairing..." : "Repair Setup"}</button>
+            <button type="button" class="ti-button ti-button-secondary" disabled={meetingResourcesLocked || setupBusy || deviceSaving} onclick={() => void runSetupRepair()}>{setupBusy ? "Fixing..." : "Repair Setup"}</button>
           </div>
         </footer>
       </article>
@@ -268,22 +268,22 @@
     {:else if !diagnosticsOpen}
       <article class="ti-panel overflow-hidden">
         <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-          <h3 class="m-0 text-[15px] font-semibold">Setup health</h3>
-          <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Use Diagnostics only when you need technical detail.</p>
+          <h3 class="m-0 text-[15px] font-semibold">Is everything ready?</h3>
+          <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Most users can stop here. Open technical details only if something is not working.</p>
         </header>
 
         <div class="divide-y divide-[var(--ti-border)]">
           <StatusRow
             label="Text translation"
             value="Indonesian ↔ English"
-            detail="Standalone text translation."
+            detail="Written Indonesian ↔ English translation."
             status={snapshot.readiness.textReady ? "Ready" : snapshot.readiness.textStatus}
             tone={snapshot.readiness.textReady ? "good" : snapshot.readiness.level === "unavailable" ? "danger" : "warning"}
           />
           <StatusRow
             label="Meeting translation"
             value="Indonesian voice → English voice"
-            detail="Required microphone and meeting output."
+            detail="Checks the microphone, voice, and connection needed for calls."
             status={snapshot.readiness.meetingReady ? "Ready" : snapshot.readiness.meetingStatus}
             tone={snapshot.readiness.meetingReady ? "good" : snapshot.readiness.level === "unavailable" ? "danger" : "warning"}
           />
@@ -298,7 +298,7 @@
         <header class="ti-page-header">
           <div>
             <h3 class="m-0 text-xl font-semibold tracking-[-0.02em]">Diagnostics</h3>
-            <p class="mb-0 mt-1.5 text-[12.5px] text-[var(--ti-text-muted)]">Technical status for troubleshooting.</p>
+            <p class="mb-0 mt-1.5 text-[12.5px] text-[var(--ti-text-muted)]">Detailed technical information for troubleshooting.</p>
           </div>
           <button type="button" class="ti-button ti-button-secondary" onclick={() => { diagnosticsOpen = false; }}><ArrowLeft size={15} /> Back</button>
         </header>
@@ -313,15 +313,15 @@
           <p class="mb-0 mt-4 text-[12px] leading-5 text-[var(--ti-text-muted)]">{helperDiagnosticMessage}</p>
 
           <div class="ti-action-row mt-4">
-            <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading} onclick={() => void refreshDiagnostics()}><RefreshCw size={15} /> {diagnosticsLoading || setupBusy ? "Refreshing..." : "Refresh Status"}</button>
-            <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading} onclick={() => void onSetupAction("verify-models")}><Bug size={15} /> Verify Models</button>
+            <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading} onclick={() => void refreshDiagnostics()}><RefreshCw size={15} /> {diagnosticsLoading || setupBusy ? "Refreshing..." : "Check Again"}</button>
+            <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading} onclick={() => void onSetupAction("verify-models")}><Bug size={15} /> Check AI Files</button>
           </div>
         </article>
 
         <article class="ti-panel p-5">
           <div>
-            <span class="ti-field-label">Loaded local runtimes</span>
-            <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">AI execution truth</h4>
+            <span class="ti-field-label">Technical components</span>
+            <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">Local AI status</h4>
           </div>
           <div class="mt-4 grid grid-cols-[repeat(3,minmax(0,1fr))] gap-3">
             <div class="ti-state-card">
@@ -337,7 +337,7 @@
               <strong class="mt-2 block break-words text-[12px] leading-5">{workerDiagnostics.voiceDisplay}</strong>
             </div>
           </div>
-          <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Selected execution: {workerDiagnostics.executionDisplay}. Refresh after Meeting Start to see the loaded runtime state.</p>
+          <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Processing mode: {workerDiagnostics.executionDisplay}. This information is only needed for troubleshooting.</p>
         </article>
 
         <MeetingPerformanceDiagnostics status={snapshot.meetingSession} />
@@ -346,13 +346,13 @@
           <div class="flex items-end justify-between gap-5">
             <div>
               <span class="ti-field-label">Troubleshooting</span>
-              <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">Recent command errors</h4>
+              <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">Recent technical errors</h4>
             </div>
             <span class="ti-pill">{runtimeApi.getCommandErrors().length} recent</span>
           </div>
           <div class="mt-4 grid gap-2">
             {#if runtimeApi.getCommandErrors().length === 0}
-              <p class="m-0 text-[12px] text-[var(--ti-text-muted)]">No recent frontend/Tauri command failures.</p>
+              <p class="m-0 text-[12px] text-[var(--ti-text-muted)]">No recent technical errors.</p>
             {:else}
               {#each runtimeApi.getCommandErrors() as error (`${error.occurred_at}-${error.command}`)}
                 <div class="ti-subtle-card px-4 py-3">
