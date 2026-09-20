@@ -176,6 +176,7 @@ fn translate_with_persistent_helper(source: &str) -> TextTranslationResult {
         "source_language": settings.source_language,
         "target_language": settings.target_language,
         "request_kind": "standalone_text",
+        "terminology": &settings.terminology,
     });
     let response = send_helper_worker_task("translate", payload);
     let worker_response = serde_json::from_str::<Value>(&response.worker_response_json)

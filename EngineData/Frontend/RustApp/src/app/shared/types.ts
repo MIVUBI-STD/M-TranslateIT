@@ -15,12 +15,18 @@ export type RuntimeCommandError = {
   occurred_at: string;
 };
 
+export type TerminologyEntry = {
+  indonesian: string;
+  english: string;
+};
+
 export type RuntimeSettings = {
   schema_version: number;
   source_language: string;
   target_language: string;
   meeting_setup_state: "new" | "deferred" | "completed" | string;
   meeting_setup_checkpoint: number;
+  terminology: TerminologyEntry[];
   audio: {
     input_device_id: string | null;
     output_device_id: string | null;

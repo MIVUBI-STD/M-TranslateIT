@@ -38,10 +38,15 @@ def build_prompt(
     target_language: str,
     text: str,
     context_pairs: "list[tuple[str, str]]" = (),
+    terminology: "list[tuple[str, str]]" = (),
 ) -> str:
     source_name = language_name(source_language)
     target_name = language_name(target_language)
     lines = [f"Translate this from {source_name} to {target_name}:"]
+    if terminology:
+        lines.append("Preferred terminology (use when the matching source term appears):")
+        for term_source, term_target in terminology:
+            lines.append(f"- {term_source} => {term_target}")
     for pair_source, pair_target in context_pairs:
         lines.append(f"{source_name}: {pair_source}")
         lines.append(f"{target_name}: {pair_target}")
@@ -52,6 +57,8 @@ def build_prompt(
 
 MAX_CONTEXT_PAIRS = 3
 MAX_CONTEXT_PAIR_CHARS = 500
+MAX_TERMINOLOGY_ENTRIES = 16
+MAX_TERMINOLOGY_TERM_CHARS = 80
 
 
 def normalize_context_pairs(raw_pairs: object, host: dict) -> "list[tuple[str, str]]":
@@ -66,6 +73,47 @@ def normalize_context_pairs(raw_pairs: object, host: dict) -> "list[tuple[str, s
         if source and target:
             pairs.append((source, target))
     return pairs
+
+
+def normalize_terminology_entries(
+    raw_entries: object,
+    source_language: str,
+    target_language: str,
+    source_text: str,
+    host: dict,
+) -> "list[tuple[str, str]]":
+    if not isinstance(raw_entries, list) or source_language == target_language:
+        return []
+    source_folded = source_text.casefold()
+    entries: "list[tuple[str, str]]" = []
+    seen: set[tuple[str, str]] = set()
+    for raw_entry in raw_entries:
+        if not isinstance(raw_entry, dict):
+            continue
+        indonesian = host["compact_runtime_text"](
+            raw_entry.get("indonesian", ""), MAX_TERMINOLOGY_TERM_CHARS
+        )
+        english = host["compact_runtime_text"](
+            raw_entry.get("english", ""), MAX_TERMINOLOGY_TERM_CHARS
+        )
+        if not indonesian or not english:
+            continue
+        if source_language == "id" and target_language == "en":
+            term_source, term_target = indonesian, english
+        elif source_language == "en" and target_language == "id":
+            term_source, term_target = english, indonesian
+        else:
+            continue
+        if term_source.casefold() not in source_folded:
+            continue
+        key = (term_source.casefold(), term_target.casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        entries.append((term_source, term_target))
+        if len(entries) >= MAX_TERMINOLOGY_ENTRIES:
+            break
+    return entries
 
 
 def translation_model_for_direction(source_language: str, target_language: str):
@@ -292,7 +340,20 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
         tokenizer = runtime["tokenizer"]
         model = runtime["model"]
         context_pairs = normalize_context_pairs(payload.get("context_pairs"), host)
-        prompt = build_prompt(source_language, target_language, text, context_pairs)
+        terminology = normalize_terminology_entries(
+            payload.get("terminology"),
+            source_language,
+            target_language,
+            text,
+            host,
+        )
+        prompt = build_prompt(
+            source_language,
+            target_language,
+            text,
+            context_pairs,
+            terminology,
+        )
         tokenization_started = time.perf_counter()
         inputs = tokenizer(
             prompt,

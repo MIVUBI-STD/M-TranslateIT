@@ -124,6 +124,10 @@ Indonesian speech
 ### PR-043 — Technical terminology
 **SHOULD:** Preserve established technical terms when translating them reduces clarity.
 
+**MUST:** Support a small user-managed Indonesian ↔ English terminology list for names, product terms, and recurring technical wording. Only entries relevant to the current source text enter the model prompt, direction reverses automatically for EN→ID, and terminology remains bounded so it cannot displace the current utterance or required Meeting context.
+
+**MUST NOT:** Implement terminology as blind post-translation search/replace.
+
 ### PR-044 — No tone selector
 **NOT CURRENT CORE:** Auto/Formal/Casual user controls.
 

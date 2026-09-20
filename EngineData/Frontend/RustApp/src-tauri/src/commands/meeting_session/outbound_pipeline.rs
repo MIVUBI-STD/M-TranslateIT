@@ -7,6 +7,7 @@ use std::time::Instant;
 use crate::engine::audio::meeting_output::deliver_meeting_output_wav;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 use crate::engine::paths::ProjectPaths;
+use crate::engine::runtime_settings::load_settings;
 
 use super::committed_turns::{
     commit_meeting_turn, recent_outbound_context_pairs, update_committed_turn_delivery_state,
@@ -210,6 +211,7 @@ pub(super) fn process_outbound_wav(
     );
     let translation_started_at = Instant::now();
     let context_pairs = recent_outbound_context_pairs(session_id, 3);
+    let terminology = load_settings().terminology;
     let translation = send_helper_worker_task(
         "translate",
         json!({
@@ -218,6 +220,7 @@ pub(super) fn process_outbound_wav(
             "target_language": "en",
             "max_new_tokens": 96,
             "context_pairs": context_pairs,
+            "terminology": terminology,
             "meeting_session_id": session_id,
             "meeting_lane": "you",
             "meeting_generation": generation,

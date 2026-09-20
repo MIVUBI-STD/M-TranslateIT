@@ -13,10 +13,11 @@
   import { deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
   import MeetingPerformanceDiagnostics from "../components/settings/MeetingPerformanceDiagnostics.svelte";
+  import TranslationPreferences from "../components/settings/TranslationPreferences.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
   import StatusRow from "../components/ui/StatusRow.svelte";
 
-  type SettingsTab = "meeting" | "advanced";
+  type SettingsTab = "meeting" | "translation" | "advanced";
 
   let {
     snapshot,
@@ -179,6 +180,12 @@
         >Meeting</button>
         <button
           type="button"
+          class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "translation" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
+          aria-current={tab === "translation" ? "page" : undefined}
+          onclick={() => { tab = "translation"; diagnosticsOpen = false; }}
+        >Translation</button>
+        <button
+          type="button"
           class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "advanced" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
           aria-current={tab === "advanced" ? "page" : undefined}
           onclick={() => { tab = "advanced"; diagnosticsOpen = false; }}
@@ -256,6 +263,8 @@
           </div>
         </footer>
       </article>
+    {:else if tab === "translation"}
+      <TranslationPreferences {settings} {onSettingsChange} {onNotice} />
     {:else if !diagnosticsOpen}
       <article class="ti-panel overflow-hidden">
         <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">

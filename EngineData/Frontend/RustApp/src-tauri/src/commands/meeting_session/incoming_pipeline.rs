@@ -1,6 +1,7 @@
 use serde_json::json;
 
 use crate::engine::audio::live_segment_writer::remove_finalized_meeting_utterance_wav;
+use crate::engine::runtime_settings::load_settings;
 
 use super::committed_turns::commit_meeting_turn;
 use super::incoming_deferred::{
@@ -187,6 +188,7 @@ fn translate_and_commit_incoming_transcript(
         "",
         "Final English Meeting Sound transcript is being translated to Indonesian.",
     );
+    let terminology = load_settings().terminology;
     let translation = send_helper_worker_task(
         "translate",
         json!({
@@ -194,6 +196,7 @@ fn translate_and_commit_incoming_transcript(
             "source_language": "en",
             "target_language": "id",
             "max_new_tokens": 96,
+            "terminology": terminology,
             "meeting_session_id": session_id,
             "meeting_lane": "incoming",
             "meeting_sequence": event_sequence,

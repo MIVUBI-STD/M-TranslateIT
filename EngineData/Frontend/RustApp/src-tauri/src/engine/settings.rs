@@ -3,8 +3,10 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-const CURRENT_SCHEMA_VERSION: u32 = 6;
+const CURRENT_SCHEMA_VERSION: u32 = 7;
 const MAX_SETTING_TEXT_CHARS: usize = 160;
+const MAX_TERMINOLOGY_ENTRIES: usize = 24;
+const MAX_TERMINOLOGY_TERM_CHARS: usize = 80;
 
 fn default_source_language() -> String {
     "id".to_string()
@@ -38,6 +40,12 @@ impl Default for AudioSettings {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TerminologyEntry {
+    pub indonesian: String,
+    pub english: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RuntimeSettings {
@@ -46,6 +54,7 @@ pub struct RuntimeSettings {
     pub target_language: String,
     pub meeting_setup_state: String,
     pub meeting_setup_checkpoint: u8,
+    pub terminology: Vec<TerminologyEntry>,
     pub audio: AudioSettings,
 }
 
@@ -57,6 +66,7 @@ impl Default for RuntimeSettings {
             target_language: default_target_language(),
             meeting_setup_state: default_meeting_setup_state(),
             meeting_setup_checkpoint: default_meeting_setup_checkpoint(),
+            terminology: Vec::new(),
             audio: AudioSettings::default(),
         }
     }
@@ -102,6 +112,7 @@ impl RuntimeSettings {
         self.target_language = sanitize_language(&self.target_language, "en");
         self.meeting_setup_state = sanitize_meeting_setup_state(&self.meeting_setup_state);
         self.meeting_setup_checkpoint = self.meeting_setup_checkpoint.clamp(1, 5);
+        self.terminology = sanitize_terminology(self.terminology);
         self.audio.input_device_id =
             sanitize_optional_runtime_text(self.audio.input_device_id.take());
         self.audio.output_device_id =
@@ -200,6 +211,34 @@ fn sanitize_optional_runtime_text(value: Option<String>) -> Option<String> {
     }
 }
 
+fn clean_terminology_term(value: &str) -> String {
+    value
+        .trim()
+        .chars()
+        .filter(|character| !is_unsafe_setting_text_character(*character))
+        .take(MAX_TERMINOLOGY_TERM_CHARS)
+        .collect::<String>()
+}
+
+fn sanitize_terminology(entries: Vec<TerminologyEntry>) -> Vec<TerminologyEntry> {
+    let mut clean = Vec::new();
+    for entry in entries.into_iter().take(MAX_TERMINOLOGY_ENTRIES) {
+        let indonesian = clean_terminology_term(&entry.indonesian);
+        let english = clean_terminology_term(&entry.english);
+        if indonesian.is_empty() || english.is_empty() {
+            continue;
+        }
+        let duplicate = clean.iter().any(|existing: &TerminologyEntry| {
+            existing.indonesian.eq_ignore_ascii_case(&indonesian)
+                && existing.english.eq_ignore_ascii_case(&english)
+        });
+        if !duplicate {
+            clean.push(TerminologyEntry { indonesian, english });
+        }
+    }
+    clean
+}
+
 #[cfg(test)]
 mod tests {
     use super::{RuntimeSettings, CURRENT_SCHEMA_VERSION};
@@ -215,6 +254,7 @@ mod tests {
         assert_eq!(settings.target_language, "en");
         assert_eq!(settings.meeting_setup_state, "new");
         assert_eq!(settings.meeting_setup_checkpoint, 1);
+        assert!(settings.terminology.is_empty());
         assert!(settings.audio.input_device_id.is_none());
         assert!(settings.audio.output_device_id.is_none());
     }

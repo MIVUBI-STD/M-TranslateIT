@@ -165,3 +165,46 @@ def test_only_authoritative_outbound_id_en_can_use_context(monkeypatch) -> None:
     )
     assert wrong_direction["ok"] is True
     assert "must-not-enter-reverse" not in prompts[-1]
+
+
+def test_terminology_is_relevant_and_directional(monkeypatch) -> None:
+    worker = load_worker_module()
+    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
+    )
+    prompts = install_fake_translation_runtime(worker)
+
+    terms = [
+        {"indonesian": "pemugaran", "english": "restoration"},
+        {"indonesian": "nama produk", "english": "product name"},
+        {"indonesian": "tidak relevan", "english": "irrelevant"},
+    ]
+    result = worker.handle_translate(
+        {
+            "text": "Pemugaran nama produk dimulai besok.",
+            "source_language": "id",
+            "target_language": "en",
+            "terminology": terms,
+        }
+    )
+    assert result["ok"] is True
+    prompt = prompts[-1]
+    assert "- pemugaran => restoration" in prompt
+    assert "- nama produk => product name" in prompt
+    assert "tidak relevan" not in prompt
+
+    reverse = worker.handle_translate(
+        {
+            "text": "The restoration starts tomorrow.",
+            "source_language": "en",
+            "target_language": "id",
+            "terminology": terms,
+        }
+    )
+    assert reverse["ok"] is True
+    reverse_prompt = prompts[-1]
+    assert "- restoration => pemugaran" in reverse_prompt
+    assert "product name => nama produk" not in reverse_prompt
