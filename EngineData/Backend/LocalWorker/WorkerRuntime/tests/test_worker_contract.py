@@ -347,3 +347,85 @@ def test_normalize_context_pairs_caps_at_three_and_sanitizes() -> None:
     assert pairs[-1] == ("s4", "t4")
     assert normalize_context_pairs("not-a-list", host) == []
     assert normalize_context_pairs([[1, 2, 3], ["a", None]], host) == []
+
+
+def test_warm_translation_runtime_skips_redundant_model_asset_scan(monkeypatch) -> None:
+    worker = load_worker_module()
+    fake_torch = types.SimpleNamespace(inference_mode=_FakeInferenceMode)
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    _install_fake_generate_runtime(worker, [[5, 6, 7, 9, 2]])
+
+    def unexpected_asset_scan(_path):
+        raise AssertionError("warm translation runtime must not rescan model assets")
+
+    monkeypatch.setattr(worker, "translation_model_ready", unexpected_asset_scan)
+    result = worker.handle_translate(
+        {"text": "halo", "source_language": "id", "target_language": "en"}
+    )
+
+    assert result["ok"] is True
+    assert result["runtime_reused"] is True
+    assert result["model_asset_check_performed"] is False
+
+
+def test_translation_preload_does_not_run_full_worker_status(monkeypatch) -> None:
+    worker = load_worker_module()
+    fake_runtime = {
+        "device": "cpu",
+        "device_note": "cpu_runtime",
+        "precision": "fp32",
+        "translation_gpu_requested": True,
+        "translation_torch_cuda_available": False,
+        "translation_degraded": True,
+        "translation_fallback_reason": "torch_cuda_unavailable",
+    }
+    monkeypatch.setattr(worker.runtime, "import_ready", lambda name: name in {"torch", "transformers"})
+    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
+    monkeypatch.setattr(worker, "get_translation_runtime", lambda *_args: fake_runtime)
+
+    def unexpected_full_status(_payload=None):
+        raise AssertionError("translation preload must not run full worker readiness")
+
+    monkeypatch.setattr(worker, "build_status_payload", unexpected_full_status)
+    result = worker.handle_translation_preload(
+        {"source_language": "id", "target_language": "en"}
+    )
+
+    assert result["ok"] is True
+    assert result["translation_degraded"] is True
+    assert result["warnings"] == ["cuda_unavailable_cpu_fallback_active"]
+
+
+def test_gpu_capability_snapshot_is_reused_until_probe_implementation_changes(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+    common.clear_gpu_capability_snapshot()
+    calls = {"torch": 0, "ct2": 0}
+
+    def torch_probe():
+        calls["torch"] += 1
+        return {
+            "import_ready": True,
+            "cuda_probe_ok": True,
+            "cuda_available": True,
+            "blocker": "",
+        }
+
+    def ct2_probe():
+        calls["ct2"] += 1
+        return {
+            "import_ready": True,
+            "cuda_probe_ok": True,
+            "cuda_available": True,
+            "blocker": "",
+        }
+
+    monkeypatch.setattr(common, "torch_status", torch_probe)
+    monkeypatch.setattr(common, "ctranslate2_status", ct2_probe)
+
+    first = worker.probe_gpu_runtime({})
+    second = worker.probe_gpu_runtime({})
+
+    assert calls == {"torch": 1, "ct2": 1}
+    assert first == second
+    assert first["capability_probe_count"] >= 1
