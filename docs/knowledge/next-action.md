@@ -9,8 +9,8 @@
 - TTS/My Voice quality now carries 30 synthesis acceptance cases covering intelligibility, speaker similarity, artifacts, long form, acronyms, lists, numbers, entities, and repeated-synthesis targets.
 - Quality Readiness remains fail-closed over Translation + ASR + TTS evidence with candidate identity and report-hash binding.
 - Diagnostics already expose queue/drop and outbound stage timing needed for later native performance evidence.
-- Zero-waste source hardening now keeps the canonical MiLMMT runtime ahead of repeated model-asset filesystem scans, scopes translation preload to translation dependencies/model readiness instead of full-worker readiness, and caches the combined Torch/CTranslate2 capability snapshot for the worker lifetime while preserving an explicit invalidation hook.
-- Translation responses now expose runtime reuse, whether an asset check was performed, context-pair count, and terminology-entry count so future optimization can be evidence-driven rather than speculative.
+- Zero-waste hardening removes repeated MiLMMT asset scans on warm requests, scopes translation preload to translation-only readiness, and caches Torch/CTranslate2 capability state per worker.
+- Translation telemetry now exposes runtime reuse, asset-check activity, context pairs, and terminology entries.
 
 ## Active Boundary
 
@@ -26,12 +26,12 @@ When native testing becomes available:
 
 1. Run `docs/knowledge/operations/target-windows-performance.md` with outbound-only baseline first.
 2. Record speech boundary, finalization, queue, audio prepare, ASR, translation tokenize/inference/decode/throughput, TTS, delivery, total latency, overflow/drop, CPU/RAM/GPU/VRAM, and meeting-app reception.
-3. Confirm the zero-waste counters behave as intended during the same run: warm translation requests should report runtime reuse without repeated asset checks, and repeated worker status/preflight calls should not increase the capability-probe count unless the capability snapshot is explicitly invalidated.
+3. Confirm warm translations reuse runtime without repeated asset checks, and capability probe count stays stable until explicit invalidation.
 4. Route only the first measured bottleneck:
    - queue growth → bounded playback/AI decoupling;
    - native output jitter → persistent output stream;
    - warm Start proof cost → proof reuse/rebinding;
    - TTS dominance → quality-preserving fragments.
-5. Evaluate adaptive 0–3 turn Meeting context only from measured prompt-token/quality evidence. Do not remove context merely to reduce tokens.
+5. Evaluate adaptive 0–3 turn context only from measured token/quality evidence.
 
 Until then, preserve one canonical MiLMMT pipeline, model/voice quality, generation authority, bounded queues, at-most-once output, terminology determinism, and fail-closed readiness.
