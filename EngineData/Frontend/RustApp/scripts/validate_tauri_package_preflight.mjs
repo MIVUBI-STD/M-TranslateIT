@@ -87,6 +87,7 @@ if (!Array.isArray(tauriConfig.bundle?.targets) || !tauriConfig.bundle.targets.i
 const releaseNsis = releaseConfig.bundle?.windows?.nsis ?? {};
 if (releaseNsis.installMode !== "perMachine") fail("R3 release overlay must use perMachine install mode.");
 if (releaseNsis.installerHooks !== "./target/translateit-r3-payload-hooks.generated.nsh") fail("R3 release overlay must use generated installer hooks.");
+if (releaseConfig.bundle?.createUpdaterArtifacts !== true) fail("R3 release overlay must create signed Tauri updater artifacts.");
 
 const mainWindow = tauriConfig.app?.windows?.find((window) => window.label === "main");
 if (!mainWindow) fail("Tauri config must declare the main window.");
@@ -100,6 +101,7 @@ requireMarkers(cargoToml, "Cargo.toml", [
   'name = "translateit"',
   'edition = "2021"',
   'tauri = { version = "2"',
+  'tauri-plugin-updater = "2.11.0"',
   'tauri-build = { version = "2"',
 ]);
 
