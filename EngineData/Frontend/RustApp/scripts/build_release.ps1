@@ -23,6 +23,14 @@ $ReleaseEvidence = Join-Path $AppRoot 'src-tauri\target\translateit-r3-release-b
 $NsisBundleDir = Join-Path $AppRoot 'src-tauri\target\release\bundle\nsis'
 $QualityReadinessValidator = Join-Path $RepoRoot 'tools\quality_readiness\validate_release_quality.py'
 
+if ([string]::IsNullOrWhiteSpace($env:TRANSLATEIT_UPDATER_PUBLIC_KEY)) {
+    throw 'Release build requires TRANSLATEIT_UPDATER_PUBLIC_KEY so installed apps can verify signed updates.'
+}
+$SigningKeyConfigured = -not [string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY) -or -not [string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PATH)
+if (-not $SigningKeyConfigured) {
+    throw 'Release build requires TAURI_SIGNING_PRIVATE_KEY or TAURI_SIGNING_PRIVATE_KEY_PATH. The updater signature cannot be disabled.'
+}
+
 function Require-File([string]$Path, [string]$Label) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "$Label is missing: $Path" }
 }
@@ -141,6 +149,8 @@ try {
         installer_mode = 'perMachine'
         offline = $true
         target_pc_acceptance = 'deferred'
+        updater_artifacts = $true
+        updater_endpoint = 'https://github.com/MIVUBI-STD/M-TranslateIT/releases/latest/download/latest.json'
         quality_readiness_schema = [string]$QualityReadiness.schema
         quality_readiness_report_sha256 = [string]$QualityReadiness.report_sha256
         quality_readiness_release_identity = [string]$QualityReadiness.release_identity
