@@ -76,7 +76,7 @@ def source_term_occurs(source_text: str, term_source: str) -> bool:
     term_folded = term_source.casefold()
     if not term_folded:
         return False
-    pattern = rf"(?<!\\w){re.escape(term_folded)}(?!\\w)"
+    pattern = rf"(?<!\w){re.escape(term_folded)}(?!\w)"
     return re.search(pattern, source_folded) is not None
 
 
