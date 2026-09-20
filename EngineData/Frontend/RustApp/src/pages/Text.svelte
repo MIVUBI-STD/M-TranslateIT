@@ -53,7 +53,7 @@
       setResult(
         reviewHints.length > 0 ? "stale" : "success",
         reviewHints.length > 0 ? "Check details" : "Translated",
-        reviewHints.length > 0 ? "Translation is up to date. Review the highlighted details." : "Translation is up to date.",
+        reviewHints.length > 0 ? "Translation is ready. Review the noted details before using it." : "Translation is up to date.",
       );
       return;
     }
@@ -116,12 +116,12 @@
         );
         onNotice(result.message);
       } else {
-        setResult("stale", "Needs update", "This result belongs to the previous source text. Translate again to update it.");
+        setResult("stale", "Needs update", "The source text changed. Translate again to update the result.");
         onNotice("Translation finished for the previous text.");
       }
     } catch {
       if (targetRevision === requestTargetRevision) targetText = previousTarget;
-      const message = "Translation is unavailable right now. Try again or check Diagnostics.";
+      const message = "Translation is unavailable right now. Try again in a moment.";
       setResult("error", "Couldn't translate", message);
       onNotice(message);
     } finally {
@@ -142,7 +142,7 @@
         return;
       }
       if (targetRevision !== requestTargetRevision || sourceText.trim() !== source) {
-        onNotice("Another wording finished, but your newer edit was kept.");
+        onNotice("Try another wording finished, but your newer edit was kept.");
         return;
       }
       targetText = result.translated;
@@ -155,7 +155,7 @@
       );
       onNotice("Alternative wording ready.");
     } catch {
-      onNotice("Another wording is unavailable right now.");
+      onNotice("Try another wording is unavailable right now.");
     } finally {
       alternativeBusy = false;
     }
@@ -205,7 +205,7 @@
       }
       onNotice(`${languageName(saved.source_language)} → ${languageName(saved.target_language)}`);
     } catch {
-      onNotice("Couldn't change the language direction. Try again or check Diagnostics.");
+      onNotice("Couldn't change the language direction. Try again.");
     } finally {
       settingsSaving = false;
     }
@@ -294,7 +294,7 @@
         <div class="flex items-start gap-2.5">
           <ShieldAlert size={15} class="mt-0.5 shrink-0 text-[var(--ti-warning)]" />
           <div>
-            <strong class="text-[12px] font-semibold">Check important details</strong>
+            <strong class="text-[12px] font-semibold">Review important details</strong>
             <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-muted)]">{reviewHints.join(" ")}</p>
           </div>
         </div>
@@ -308,7 +308,7 @@
       </div>
       <div class="ti-action-row shrink-0">
         <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}>
-          <RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Another wording"}
+          <RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}
         </button>
         <button type="button" class="ti-button ti-button-secondary min-w-24" disabled={!targetText.trim()} onclick={() => void copyTranslation()}>
           {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
