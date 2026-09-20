@@ -94,7 +94,26 @@ if (!mainWindow) fail("Tauri config must declare the main window.");
 if (mainWindow && (mainWindow.width < 1280 || mainWindow.height < 760)) fail("Main window size is below the desktop UI contract.");
 if (defaultCapability.identifier !== "default") fail("Default capability identifier must be default.");
 if (!Array.isArray(defaultCapability.windows) || !defaultCapability.windows.includes("main")) fail("Default capability must apply to main.");
+const overlayWindow = tauriConfig.app?.windows?.find((window) => window.label === "translation-overlay");
+if (!overlayWindow) fail("Tauri config must declare the translation-overlay window.");
+if (overlayWindow) {
+  if (overlayWindow.alwaysOnTop !== true) fail("Translation overlay must remain always-on-top.");
+  if (overlayWindow.skipTaskbar !== true) fail("Translation overlay must stay out of the taskbar.");
+  if (overlayWindow.visible !== false) fail("Translation overlay must start hidden.");
+  if (overlayWindow.decorations !== false) fail("Translation overlay must remain frameless.");
+  if (overlayWindow.resizable !== false) fail("Translation overlay size must remain preference-controlled.");
+}
+if (!Array.isArray(defaultCapability.windows) || !defaultCapability.windows.includes("translation-overlay")) fail("Default capability must apply to translation-overlay.");
 if (!Array.isArray(defaultCapability.permissions) || !defaultCapability.permissions.includes("core:default")) fail("Default capability must include core:default.");
+for (const permission of [
+  "core:window:allow-destroy",
+  "core:window:allow-show",
+  "core:window:allow-hide",
+  "core:window:allow-set-size",
+  "core:window:allow-set-position",
+]) {
+  if (!defaultCapability.permissions.includes(permission)) fail(`Default capability missing overlay permission: ${permission}`);
+}
 
 const cargoToml = readText(cargoTomlPath);
 requireMarkers(cargoToml, "Cargo.toml", [

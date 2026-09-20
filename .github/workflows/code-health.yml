@@ -13,6 +13,9 @@ on:
       - "EngineData/Frontend/RustApp/tsconfig.json"
       - "EngineData/Frontend/RustApp/src-tauri/Cargo.toml"
       - "EngineData/Frontend/RustApp/src-tauri/Cargo.lock"
+      - "EngineData/Frontend/RustApp/src-tauri/capabilities/**"
+      - "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"
+      - "EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"
       - "EngineData/Backend/LocalWorker/WorkerRuntime/**/*.py"
       - "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
       - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
@@ -29,6 +32,9 @@ on:
       - "EngineData/Frontend/RustApp/tsconfig.json"
       - "EngineData/Frontend/RustApp/src-tauri/Cargo.toml"
       - "EngineData/Frontend/RustApp/src-tauri/Cargo.lock"
+      - "EngineData/Frontend/RustApp/src-tauri/capabilities/**"
+      - "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"
+      - "EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"
       - "EngineData/Backend/LocalWorker/WorkerRuntime/**/*.py"
       - "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
       - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
@@ -82,7 +88,7 @@ jobs:
                   python=true
                   rust=true
                   ;;
-                EngineData/Frontend/RustApp/src-tauri/src/*|EngineData/Frontend/RustApp/src-tauri/Cargo.toml|EngineData/Frontend/RustApp/src-tauri/Cargo.lock)
+                EngineData/Frontend/RustApp/src-tauri/src/*|EngineData/Frontend/RustApp/src-tauri/Cargo.toml|EngineData/Frontend/RustApp/src-tauri/Cargo.lock|EngineData/Frontend/RustApp/src-tauri/tauri.conf.json|EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json|EngineData/Frontend/RustApp/src-tauri/capabilities/*)
                   frontend=true
                   rust=true
                   ;;
@@ -129,6 +135,7 @@ jobs:
       - run: npm run validate:bridge-contract
       - run: npm run validate:reachability
       - run: npm run validate:virtual-route
+      - run: npm run preflight:tauri-package
       - name: Audit production npm dependencies
         run: npm audit --omit=dev --audit-level=high
 

@@ -298,6 +298,9 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         "npm run build:frontend",
         "npm run validate:bridge-contract",
         "npm run validate:reachability",
+        '"EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"',
+        '"EngineData/Frontend/RustApp/src-tauri/capabilities/**"',
+        "npm run preflight:tauri-package",
     ):
         if marker not in code_health:
             fail(errors, f"Code Health lost selective source-proof contract: {marker}")
