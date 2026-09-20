@@ -112,13 +112,13 @@
     {/if}
   </div>
 
-  <section class="overflow-hidden rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface)]" aria-label="Meeting transcript">
+  <section class="overflow-hidden rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface)]" aria-label="Translated conversation">
     <header class="flex items-center justify-between border-b border-[var(--ti-border)] px-5 py-4">
       <div>
         <strong class="block text-sm font-semibold">Conversation</strong>
         <span class="mt-1 block text-[11px] text-[var(--ti-text-soft)]">What you said and what others heard</span>
       </div>
-      <span class="text-xs text-[var(--ti-text-soft)]">{orderedTurns.length} turn{orderedTurns.length === 1 ? "" : "s"}</span>
+      <span class="text-xs text-[var(--ti-text-soft)]">{orderedTurns.length} phrase{orderedTurns.length === 1 ? "" : "s"}</span>
     </header>
 
     {#if !turns || !turns.ok || !turns.has_session || turns.session_id !== status.session_id}
@@ -126,7 +126,7 @@
     {:else}
       {#if turns.truncated || turns.dropped_turn_count > 0}
         <p class="m-0 border-b border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] px-5 py-3 text-xs leading-5 text-[var(--ti-warning)]">
-          {turns.dropped_turn_count} earlier turn{turns.dropped_turn_count === 1 ? " is" : "s are"} no longer shown here.
+          {turns.dropped_turn_count} earlier phrase{turns.dropped_turn_count === 1 ? " is" : "s are"} no longer shown here.
         </p>
       {/if}
 
@@ -142,11 +142,11 @@
                   <span class="text-xs text-[var(--ti-text-soft)]">{deliveryLabel(turn)}</span>
                 {/if}
               </header>
-              <div class="grid grid-cols-[26px_minmax(0,1fr)] gap-2">
+              <div class="grid grid-cols-[78px_minmax(0,1fr)] gap-2">
                 <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">Indonesian</span>
                 <p class="m-0 text-[15px] font-medium leading-6" lang="id">{turn.lane === "incoming" ? turn.translated_text : turn.source_text}</p>
               </div>
-              <div class="mt-2 grid grid-cols-[26px_minmax(0,1fr)] gap-2">
+              <div class="mt-2 grid grid-cols-[78px_minmax(0,1fr)] gap-2">
                 <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">English</span>
                 <p class="m-0 text-sm leading-6 text-[var(--ti-text-muted)]" lang="en">{turn.lane === "incoming" ? turn.source_text : turn.translated_text}</p>
               </div>
