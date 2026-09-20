@@ -176,9 +176,6 @@ def get_translation_runtime(source_language: str, target_language: str) -> dict[
     if selected is None:
         raise ValueError("translation:direction_not_supported")
     model_id, model_path = selected
-    if not host["translation_model_ready"](model_path):
-        raise RuntimeError(MISSING_BLOCKER)
-
     runtimes = host["TRANSLATION_RUNTIME"]
     if pair in runtimes:
         return runtimes[pair]
@@ -186,6 +183,8 @@ def get_translation_runtime(source_language: str, target_language: str) -> dict[
         runtime = {**next(iter(runtimes.values())), "direction_pair": pair}
         runtimes[pair] = runtime
         return runtime
+    if not host["translation_model_ready"](model_path):
+        raise RuntimeError(MISSING_BLOCKER)
 
     import torch
     import transformers
