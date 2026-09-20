@@ -1,4 +1,4 @@
-pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder.invoke_handler(tauri::generate_handler![
         crate::commands::app_update::check_app_update_once,
         crate::commands::app_update::install_app_update,
