@@ -146,13 +146,14 @@ try {
             }
         }
     }
-    $UpdaterManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $UpdaterManifestPath -Encoding utf8
+    $UpdaterManifestJson = ($UpdaterManifest | ConvertTo-Json -Depth 5) + [Environment]::NewLine
+    [IO.File]::WriteAllText($UpdaterManifestPath, $UpdaterManifestJson, (New-Object Text.UTF8Encoding($false)))
     Require-File $UpdaterManifestPath 'latest.json'
 
-    $ExpectedNames = @('TranslateIT-Payload.7z','TranslateIT-Setup.exe','TranslateIT-Setup.exe.sig','latest.json')
+    $ExpectedNames = @('TranslateIT-Payload.7z','TranslateIT-Setup.exe','TranslateIT-Setup.exe.sig','latest.json') | Sort-Object
     $ActualNames = @((Get-ChildItem -LiteralPath $ReleaseDir -File | Sort-Object Name | ForEach-Object Name))
     if (($ActualNames -join '|') -ne ($ExpectedNames -join '|')) {
-        throw "R3 release directory must contain exactly Setup + Payload. Found: $($ActualNames -join ', ')"
+        throw "R3 release directory must contain exactly the offline pair plus signed updater metadata. Found: $($ActualNames -join ', ')"
     }
 
     $payloadHash = Get-Sha256 $PayloadPath
