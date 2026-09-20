@@ -28,14 +28,18 @@ def test_asr_passes_bounded_hotwords_to_faster_whisper(tmp_path: Path, monkeypat
                 language="id", language_probability=1.0
             )
 
-    monkeypatch.setattr(worker.io_runtime.common, "resolve_worker_path", lambda *_args, **_kwargs: audio)
+    monkeypatch.setattr(
+        worker.io_runtime.common, "resolve_worker_path", lambda *_args, **_kwargs: audio
+    )
     monkeypatch.setattr(worker.io_runtime, "get_asr_runtime", lambda _payload=None: FakeModel())
 
-    result = worker.handle_transcribe({
-        "audio_path": str(audio),
-        "language": "id",
-        "hotwords": "  MIVUBI   mi vu bi   Vredeburg  ",
-    })
+    result = worker.handle_transcribe(
+        {
+            "audio_path": str(audio),
+            "language": "id",
+            "hotwords": "  MIVUBI   mi vu bi   Vredeburg  ",
+        }
+    )
 
     assert result["ok"] is True
     assert result["hotwords_applied"] is True
@@ -55,7 +59,9 @@ def test_asr_omits_empty_hotwords(tmp_path: Path, monkeypatch) -> None:
                 language="id", language_probability=1.0
             )
 
-    monkeypatch.setattr(worker.io_runtime.common, "resolve_worker_path", lambda *_args, **_kwargs: audio)
+    monkeypatch.setattr(
+        worker.io_runtime.common, "resolve_worker_path", lambda *_args, **_kwargs: audio
+    )
     monkeypatch.setattr(worker.io_runtime, "get_asr_runtime", lambda _payload=None: FakeModel())
 
     result = worker.handle_transcribe({"audio_path": str(audio), "hotwords": ""})
