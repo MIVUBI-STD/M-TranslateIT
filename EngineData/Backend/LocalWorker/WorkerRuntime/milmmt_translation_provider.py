@@ -169,7 +169,12 @@ def translation_input_token_limit(_tokenizer: Any, _model: Any) -> int:
     return STANDALONE_SOURCE_TOKEN_LIMIT
 
 
-def get_translation_runtime(source_language: str, target_language: str) -> dict[str, Any]:
+def get_translation_runtime(
+    source_language: str,
+    target_language: str,
+    *,
+    assets_verified: bool = False,
+) -> dict[str, Any]:
     host = _host()
     pair = host["direction_pair"](source_language, target_language)
     selected = translation_model_for_direction(source_language, target_language)
@@ -183,7 +188,7 @@ def get_translation_runtime(source_language: str, target_language: str) -> dict[
         runtime = {**next(iter(runtimes.values())), "direction_pair": pair}
         runtimes[pair] = runtime
         return runtime
-    if not host["translation_model_ready"](model_path):
+    if not assets_verified and not host["translation_model_ready"](model_path):
         raise RuntimeError(MISSING_BLOCKER)
 
     import torch
@@ -353,7 +358,11 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
     decode_ms: float | None = None
     inference_tokens_per_second: float | None = None
     try:
-        runtime = get_translation_runtime(source_language, target_language)
+        runtime = get_translation_runtime(
+            source_language,
+            target_language,
+            assets_verified=model_asset_check_performed,
+        )
         tokenizer = runtime["tokenizer"]
         model = runtime["model"]
         context_pairs = normalize_context_pairs(payload.get("context_pairs"), host)
@@ -535,7 +544,11 @@ def handle_translation_preload(payload: dict[str, Any]) -> dict[str, Any]:
             "elapsed_ms": host["now_ms"]() - started,
         }
     try:
-        runtime = get_translation_runtime(source_language, target_language)
+        runtime = get_translation_runtime(
+            source_language,
+            target_language,
+            assets_verified=True,
+        )
         return {
             "ok": True,
             "stage": "translation_preload",
