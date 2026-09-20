@@ -49,7 +49,7 @@
   );
   const meetingSound = $derived(String(snapshot.settings.audio.output_device_id ?? "").trim() || "Windows Default");
   const meetingMicrophoneDevice = $derived(
-    String(routeStatus?.selected_input_device ?? "").trim() || "Meeting microphone not configured",
+    String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
   );
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.hasSession && (meeting.live || meeting.busy)));
 
@@ -86,18 +86,18 @@
     resumeError
       ? resumeError
       : setupDeferred
-        ? "Meeting setup is paused. Resume setup to finish the required items."
+        ? "Setup is not finished yet. Continue setup before starting."
         : runtimeUnavailable
-          ? "TranslateIT can't reach the local translator right now. Retry the status check."
+          ? "TranslateIT isn't ready right now. Check again in a moment."
           : checking || meetingVoiceReady === null
-            ? "Checking your microphone, Meeting voice, and meeting output..."
+            ? "Checking your microphone, selected voice, and meeting connection..."
             : meetingVoiceReady === false
-              ? "Choose a built-in Meeting voice or create My Voice before starting."
+              ? "Choose the voice other people will hear before starting."
               : readiness.meetingReady
-                ? "Ready to translate. Start when your meeting is open."
+                ? "Ready. Open your meeting, then start translation."
                 : meeting.canStart
-                  ? "Start Translation will run a final local translation check before going live."
-                  : "Finish the setup items below before starting translation.",
+                  ? "Everything looks ready. Start Translation will do one final check."
+                  : "Finish the items below before starting.",
   );
 
   async function refreshRouteStatus(): Promise<void> {
@@ -149,7 +149,7 @@
       <p class="ti-page-copy">
         {activityVisible
           ? "Speak normally. Finished phrases are translated and spoken into your meeting."
-          : "Speak Indonesian. TranslateIT sends English voice to your meeting."}
+          : "Speak Indonesian. Other people in the call hear the English translation."}
       </p>
     </div>
     {#if meeting.busy || runtimeUnavailable || setupDeferred || !readiness.meetingReady}
@@ -176,7 +176,7 @@
             <ArrowRight size={15} />
           </div>
           <div class="min-w-0">
-            <span class="ti-field-label">Meeting hears</span>
+            <span class="ti-field-label">Others hear</span>
             <strong class="mt-1 block text-[15px] font-semibold">English voice</strong>
           </div>
         </div>
@@ -193,7 +193,7 @@
             <strong class="mt-1.5 block text-[13px] font-semibold">Selected</strong>
           </button>
           <div class="min-w-0 p-5">
-            <span class="ti-field-label">Meeting microphone</span>
+            <span class="ti-field-label">TranslateIT microphone</span>
             <strong class="mt-1.5 block truncate text-[13px] font-semibold" title={meetingMicrophoneDevice}>{meetingMicrophoneDevice}</strong>
           </div>
         </section>
@@ -238,13 +238,13 @@
         <section class="min-w-0 p-5">
           <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
             <Radio size={15} strokeWidth={1.8} />
-            <span class="ti-field-label">Meeting microphone</span>
+            <span class="ti-field-label">TranslateIT microphone</span>
           </div>
           <strong class="mt-2 block break-words text-[13px] font-semibold leading-5">{meetingMicrophoneDevice}</strong>
           <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">
             {readiness.meetingRouteReady
-              ? "Available on Windows. Make sure your meeting app is using this exact microphone."
-              : "Meeting microphone setup is required before you start."}
+              ? "Select this microphone in your meeting app."
+              : "TranslateIT microphone setup is required before you start."}
           </p>
           {#if !readiness.meetingRouteReady}
             <div class="mt-3">
@@ -264,7 +264,7 @@
         <div class="flex min-w-0 items-center gap-3">
           <Languages size={15} strokeWidth={1.8} class="shrink-0 text-[var(--ti-text-muted)]" />
           <div class="min-w-0">
-            <strong class="block text-[12.5px] font-semibold">Incoming: English → Indonesian text</strong>
+            <strong class="block text-[12.5px] font-semibold">Translate what you hear: English → Indonesian</strong>
             <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound}</p>
           </div>
         </div>
@@ -279,21 +279,21 @@
           <span>{readyMessage}</span>
         </div>
       {:else}
-        <div class="text-[12.5px] text-[var(--ti-text-muted)]">Meeting translation remains active until you stop it.</div>
+        <div class="text-[12.5px] text-[var(--ti-text-muted)]">Translation stays on until you choose Stop Translation.</div>
       {/if}
 
       <div class="ti-action-row ml-auto">
         {#if setupDeferred && !meeting.live && !meeting.busy}
-          <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening Setup..." : "Resume Setup"}</button>
+          <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening..." : "Resume Setup"}</button>
         {:else}
           {#if !meeting.live && !meeting.busy && !readiness.meetingReady}
             <button type="button" class="ti-button ti-button-secondary" onclick={() => void refreshMeetingSetup()}>{runtimeUnavailable ? "Retry Status" : "Refresh Status"}</button>
             {#if !runtimeUnavailable}
-              <button type="button" class="ti-button ti-button-secondary" onclick={onFixSetup}>Repair Setup</button>
+              <button type="button" class="ti-button ti-button-secondary" onclick={onFixSetup}>Fix Setup</button>
             {/if}
           {/if}
           {#if meetingVoiceReady === false && !meeting.live && !meeting.busy}
-            <button type="button" class="ti-button min-w-40" onclick={onOpenMyVoice}>Choose Meeting Voice</button>
+            <button type="button" class="ti-button min-w-40" onclick={onOpenMyVoice}>Choose Voice</button>
           {:else}
             <button type="button" class={`ti-button min-w-40 ${meeting.canStop ? "ti-button-danger" : ""}`} disabled={primaryDisabled || meetingVoiceReady === null} onclick={onMeetingAction}>{primaryLabel}</button>
           {/if}
