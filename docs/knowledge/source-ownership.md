@@ -33,6 +33,8 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Tauri command bridge calls/types | `EngineData/Frontend/RustApp/src/app/bridge/runtimeApi.ts`, `myVoiceApi.ts`, `myVoiceBuildApi.ts` |
 | Meeting frontend polling / committed-turn refresh | `EngineData/Frontend/RustApp/src/app/runtime/meetingPoll.ts` |
 | Native close dialog presentation | `EngineData/Frontend/RustApp/src/components/runtime/NativeCloseDialog.svelte` |
+| One-shot app update frontend lifecycle | `EngineData/Frontend/RustApp/src/app/update/appUpdateApi.ts` + `src/components/runtime/UpdateAction.svelte` |
+| Signed native update check/install policy | `EngineData/Frontend/RustApp/src-tauri/src/commands/app_update.rs` |
 | First-setup navigation presentation | `EngineData/Frontend/RustApp/src/components/setup/SetupNavigation.svelte` |
 | Setup checkpoint decode/encode + safe resume policy | `EngineData/Frontend/RustApp/src/app/runtime/setupFlow.ts` |
 | Native safe-close I/O / close decision policy | `EngineData/Frontend/RustApp/src/app/runtime/nativeCloseRuntime.ts` + `closePolicy.ts` |
@@ -94,6 +96,7 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Package/source contract validation | `validate_release_*.mjs`, `validate_tauri_package_preflight.mjs` |
 | Third-party notices | `generate_third_party_notices.mjs` + staged license material |
 | Installer payload behavior | `src-tauri/windows/` + Tauri release config |
+| Updater release signing / artifact contract | `scripts/build_release.ps1` + `src-tauri/tauri.release.conf.json` + `scripts/tests/updater_contract.test.ts` |
 
 ## Navigation questions
 
