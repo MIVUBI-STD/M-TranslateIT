@@ -139,27 +139,27 @@
       case "owner_conflict":
         return "Another TranslateIT action is using the microphone. Finish it, then try again.";
       case "runtime_unavailable":
-        return "My Voice can't check the microphone right now. Try again or check Diagnostics.";
+        return "My Voice can't check the microphone right now. Try again.";
       case "capture_unavailable":
       case "capture_failed":
         return "My Voice couldn't use the microphone. Check the microphone and try again.";
       case "stop_failed":
       case "cleanup_unverified":
-        return "My Voice couldn't finish stopping the microphone safely. Try again or check Diagnostics.";
+        return "My Voice couldn't stop the microphone cleanly. Try again.";
       case "take_unusable":
         return "This recording isn't usable yet. Record the line again.";
       case "draft_write_failed":
       case "draft_state_unavailable":
       case "save_failed":
-        return "My Voice couldn't save this recording. Check Diagnostics and try again.";
+        return "My Voice couldn't save this recording. Try again.";
       case "invalid_line":
       case "line_mismatch":
       case "no_review":
         return "This recording action is no longer current. Choose the line again and try again.";
       case "frontend_bridge_error":
-        return "My Voice is unavailable right now. Try again or check Diagnostics.";
+        return "My Voice is unavailable right now. Try again.";
       default:
-        return result.ok ? "My Voice action completed." : "My Voice couldn't complete this recording action. Check Diagnostics and try again.";
+        return result.ok ? "My Voice action completed." : "My Voice couldn't complete this action. Try again.";
     }
   }
 
@@ -287,19 +287,19 @@
 <section class="ti-page ti-page-wide">
   <header class="ti-page-header">
     <div>
-      <h2 class="ti-page-title">Meeting Voice</h2>
-      <p class="ti-page-copy">Choose a ready built-in English voice, or create My Voice as an optional personalized replacement.</p>
+      <h2 class="ti-page-title">Voice for meetings</h2>
+      <p class="ti-page-copy">Choose what other people hear when TranslateIT speaks the English translation.</p>
     </div>
   </header>
 
   <section class="ti-panel mb-6 p-5">
     <span class="ti-kicker">Ready now</span>
-    <strong class="mt-2 block text-base font-semibold">Built-in Meeting voices</strong>
-    <p class="mb-0 mt-1.5 max-w-[720px] text-sm leading-6 text-[var(--ti-text-muted)]">Built-in Male and Female work without training. You can create My Voice later without changing the rest of your Meeting setup.</p>
+    <strong class="mt-2 block text-base font-semibold">Choose a ready-made voice</strong>
+    <p class="mb-0 mt-1.5 max-w-[720px] text-sm leading-6 text-[var(--ti-text-muted)]">Pick one of these to start immediately. You can make a personalized voice later.</p>
     <div class="mt-4 grid grid-cols-2 gap-3">
       {#each [
-        { id: "MaleVoice" as BuiltinVoiceId, label: "Built-in Male", detail: "Neutral English meeting voice" },
-        { id: "FemaleVoice" as BuiltinVoiceId, label: "Built-in Female", detail: "Neutral English meeting voice" },
+        { id: "MaleVoice" as BuiltinVoiceId, label: "Built-in Male", detail: "Ready-made English voice" },
+        { id: "FemaleVoice" as BuiltinVoiceId, label: "Built-in Female", detail: "Ready-made English voice" },
       ] as voice (voice.id)}
         <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface)] p-4">
           <strong class="block text-sm font-semibold">{voice.label}</strong>
@@ -327,9 +327,9 @@
   </section>
 
   <div class="mb-5 border-t border-[var(--ti-border)] pt-5">
-    <span class="ti-kicker">Optional upgrade</span>
-    <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Create My Voice</h3>
-    <p class="mb-0 mt-1.5 text-sm leading-6 text-[var(--ti-text-muted)]">Record clear English lines when you want a personalized Meeting voice.</p>
+    <span class="ti-kicker">Optional</span>
+    <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Create a voice that sounds like you</h3>
+    <p class="mb-0 mt-1.5 text-sm leading-6 text-[var(--ti-text-muted)]">Record a few English lines so TranslateIT can create your personalized meeting voice.</p>
   </div>
 
   <div class="grid grid-cols-[minmax(0,1fr)_300px] gap-5">
@@ -337,8 +337,8 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <span class="ti-kicker">My Voice</span>
-          <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Record your voice</h3>
-          <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use the same microphone in a quiet room and read each line naturally. Skip a difficult line and come back to it later.</p>
+          <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Record the sample lines</h3>
+          <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read each line naturally. You can skip any line and return to it later.</p>
         </div>
       </div>
 
@@ -405,12 +405,12 @@
         <div class="mt-6 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-5 text-sm text-[var(--ti-text-muted)]">My Voice recording lines are unavailable right now.</div>
       {/if}
 
-      <p class="mb-0 mt-7 text-xs leading-5 text-[var(--ti-text-soft)]">Accepted recordings stay on this device and are used when you create My Voice.</p>
+      <p class="mb-0 mt-7 text-xs leading-5 text-[var(--ti-text-soft)]">Accepted recordings stay on this computer and are only used to create My Voice.</p>
     </article>
 
     <aside class="ti-panel overflow-hidden">
       <div class="border-b border-[var(--ti-border)] px-4 py-3.5">
-        <strong class="text-sm font-semibold">Recording lines</strong>
+        <strong class="text-sm font-semibold">Your sample lines</strong>
       </div>
       <div class="max-h-[590px] overflow-y-auto p-2">
         {#each recordingState.lines as line}
