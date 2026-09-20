@@ -165,8 +165,8 @@ requireMarkers(helper, "installer helper", [
 forbidMarkers(helper.toLowerCase(), "installer helper network/bootstrap", ["invoke-webrequest", "start-bitstransfer", "webclient", "http://", "https://", "pip install", "pnputil /delete-driver"]);
 
 requireMarkers(build, "release build", [
-  "build_r3_external_payload.py", "TranslateIT-Payload.7z", "TranslateIT-Setup.exe", "translateit-r3-payload-hooks.generated.nsh",
-  "npm run preflight:tauri-package", "--config src-tauri/tauri.release.conf.json", "R3 release directory must contain exactly Setup + Payload",
+  "build_r3_external_payload.py", "TranslateIT-Payload.7z", "TranslateIT-Setup.exe", "TranslateIT-Setup.exe.sig", "latest.json", "translateit-r3-payload-hooks.generated.nsh",
+  "npm run preflight:tauri-package", "--config src-tauri/tauri.release.conf.json", "signed updater metadata", "windows-x86_64", "releases/download/v$AppVersion/TranslateIT-Setup.exe", "UTF8Encoding($false)",
 ]);
 
 if (manifest.schema !== "translateit.local_model_inventory.v2" || manifest.inventory_scope !== "full_product_release_assets") fail("model_manifest.json release inventory contract drifted.");
