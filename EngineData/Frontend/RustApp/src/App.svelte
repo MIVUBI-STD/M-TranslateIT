@@ -154,7 +154,6 @@
         meetingStatus = null;
         meetingTurns = null;
         lastTranscriptStatusKey = "";
-      lastOverlayMeetingRevision = "";
         lastOverlayMeetingRevision = "";
         setNotice(preferredNotice ?? "Continue Meeting setup to use voice translation.");
         return;
@@ -166,7 +165,6 @@
       if (!next.meeting.hasSession || previousSessionId !== next.meeting.sessionId) {
         meetingTurns = null;
         lastTranscriptStatusKey = "";
-      lastOverlayMeetingRevision = "";
         lastOverlayMeetingRevision = "";
       }
       setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
@@ -230,7 +228,6 @@
       if (!result.status.has_session || action === "start") {
         meetingTurns = null;
         lastTranscriptStatusKey = "";
-      lastOverlayMeetingRevision = "";
         lastOverlayMeetingRevision = "";
       }
     } catch {
