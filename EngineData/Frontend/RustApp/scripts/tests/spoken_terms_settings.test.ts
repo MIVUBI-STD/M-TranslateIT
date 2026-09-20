@@ -5,7 +5,7 @@ import { cloneSettings, defaultSettings } from "../../src/app/shared/state.ts";
 
 test("runtime settings default spoken terms to an empty list", () => {
   const settings = defaultSettings();
-  assert.equal(settings.schema_version, 8);
+  assert.equal(settings.schema_version, 9);
   assert.deepEqual(settings.spoken_terms, []);
 });
 
