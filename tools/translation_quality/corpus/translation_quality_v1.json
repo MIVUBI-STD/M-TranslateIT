@@ -892,11 +892,14 @@
         "Ukuran filenya 2,4 GB, bukan 24 GB."
       ],
       "preserve": [
-        "2.4",
         "24",
         "GB"
       ],
       "required_any": [
+        [
+          "2,4",
+          "2.4"
+        ],
         [
           "bukan"
         ]
@@ -1344,7 +1347,8 @@
         ]
       ],
       "forbidden": [
-        "all files need"
+        "All files need to be uploaded again.",
+        "All files need re-uploading."
       ]
     },
     {
@@ -1468,7 +1472,8 @@
         ]
       ],
       "forbidden": [
-        "more accurate"
+        "The new version is more accurate.",
+        "The new version is faster and more accurate."
       ]
     },
     {
