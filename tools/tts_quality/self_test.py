@@ -34,10 +34,17 @@ def main() -> int:
     corpus = evaluator.load_corpus(CORPUS)
     validation = evaluator.validate_corpus(corpus)
     assert validation["ok"], validation
-    assert validation["case_count"] == 10
-    assert {"meeting_core", "technical", "long_form", "prosody_challenge"}.issubset(
-        set(validation["categories"])
-    )
+    assert validation["case_count"] == 30
+    assert {
+        "meeting_core",
+        "technical",
+        "long_form",
+        "prosody_challenge",
+        "questions",
+        "acronyms",
+        "lists",
+        "repetition_stability",
+    }.issubset(set(validation["categories"]))
 
     fingerprint = evaluator.corpus_fingerprint(corpus)
     perfect = evidence(corpus)

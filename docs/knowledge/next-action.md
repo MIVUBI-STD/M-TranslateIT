@@ -10,8 +10,8 @@
 - Earlier flow hardening remains active across setup, virtual-route ownership, Starting rollback, native exit, helper lifecycle, readiness invalidation, and recording/build handoff.
 - Diagnostics expose outbound stage timing, queue/drop counters, and translation tokenize/inference/decode/throughput breakdown needed for target performance evidence.
 - Translation quality tooling compares matched baseline/candidate evidence with provenance and a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates.
-- ASR quality tooling carries 28 linguistic/acoustic/device cases with WER/CER, critical regression and provenance gates.
-- TTS/My Voice quality tooling carries 10 held-out synthesis cases combining speaker similarity, intelligibility, artifact flags and provenance; audible acceptance remains native evidence.
+- ASR quality tooling carries 60 linguistic/accent/acoustic/device/meeting-compression cases with WER/CER, critical regression and provenance gates.
+- TTS/My Voice quality tooling carries 30 synthesis acceptance cases combining speaker similarity, intelligibility, artifact flags and provenance; audible acceptance remains native evidence.
 - Quality Readiness combines all three domain reports into one fail-closed release result with candidate-identity and SHA-256 binding.
 
 ## Active Boundary

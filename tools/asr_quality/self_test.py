@@ -22,12 +22,17 @@ def main() -> int:
     corpus = evaluator.load_corpus(CORPUS)
     validation = evaluator.validate_corpus(corpus)
     assert validation["ok"], validation
-    assert validation["case_count"] >= 28
+    assert validation["case_count"] >= 60
     assert "code_switching" in validation["categories"]
     assert "moderate_room_noise" in validation["recording_profiles"]
     assert "far_field_room" in validation["recording_profiles"]
     assert "bluetooth_headset" in validation["recording_profiles"]
     assert "mild_clipping" in validation["recording_profiles"]
+    assert "javanese_accent_target" in validation["recording_profiles"]
+    assert "sundanese_accent_target" in validation["recording_profiles"]
+    assert "zoom_compressed" in validation["recording_profiles"]
+    assert "teams_compressed" in validation["recording_profiles"]
+    assert "long_utterance" in validation["recording_profiles"]
 
     fingerprint = evaluator.corpus_fingerprint(corpus)
     assert len(fingerprint) == 64

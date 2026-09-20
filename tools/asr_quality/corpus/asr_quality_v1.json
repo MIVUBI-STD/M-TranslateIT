@@ -535,6 +535,611 @@
           "per file"
         ]
       ]
+    },
+    {
+      "id": "asr-javanese-accent-001",
+      "category": "accent_target",
+      "recording_profile": "javanese_accent_target",
+      "reference": "Tolong jangan ubah jadwalnya sebelum saya konfirmasi.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tolong"
+        ],
+        [
+          "jangan"
+        ],
+        [
+          "jadwal"
+        ],
+        [
+          "konfirmasi"
+        ]
+      ]
+    },
+    {
+      "id": "asr-javanese-accent-002",
+      "category": "accent_target",
+      "recording_profile": "javanese_accent_target",
+      "reference": "Kita lanjut setelah semua file selesai diunggah.",
+      "preserve": [],
+      "required_any": [
+        [
+          "lanjut"
+        ],
+        [
+          "setelah"
+        ],
+        [
+          "file"
+        ],
+        [
+          "diunggah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-sundanese-accent-001",
+      "category": "accent_target",
+      "recording_profile": "sundanese_accent_target",
+      "reference": "Meeting berikutnya mulai pukul delapan tiga puluh.",
+      "preserve": [],
+      "required_any": [
+        [
+          "meeting"
+        ],
+        [
+          "delapan"
+        ],
+        [
+          "tiga puluh"
+        ]
+      ]
+    },
+    {
+      "id": "asr-sundanese-accent-002",
+      "category": "accent_target",
+      "recording_profile": "sundanese_accent_target",
+      "reference": "Saya belum setuju dengan versi finalnya.",
+      "preserve": [],
+      "required_any": [
+        [
+          "belum"
+        ],
+        [
+          "setuju"
+        ],
+        [
+          "versi"
+        ],
+        [
+          "final"
+        ]
+      ]
+    },
+    {
+      "id": "asr-jakarta-casual-001",
+      "category": "colloquial",
+      "recording_profile": "jakarta_casual",
+      "reference": "Gue cek dulu ya, nanti gue kabarin hasilnya.",
+      "preserve": [],
+      "required_any": [
+        [
+          "cek"
+        ],
+        [
+          "nanti"
+        ],
+        [
+          "hasil"
+        ]
+      ]
+    },
+    {
+      "id": "asr-jakarta-casual-002",
+      "category": "colloquial",
+      "recording_profile": "jakarta_casual",
+      "reference": "Yang ini jangan di-push dulu, masih ada error.",
+      "preserve": [
+        "push",
+        "error"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "masih"
+        ]
+      ]
+    },
+    {
+      "id": "asr-formal-id-001",
+      "category": "meeting_core",
+      "recording_profile": "formal_presentation",
+      "reference": "Berdasarkan hasil evaluasi, usulan ini belum dapat disetujui.",
+      "preserve": [],
+      "required_any": [
+        [
+          "hasil"
+        ],
+        [
+          "evaluasi"
+        ],
+        [
+          "belum"
+        ],
+        [
+          "disetujui"
+        ]
+      ]
+    },
+    {
+      "id": "asr-formal-id-002",
+      "category": "meeting_core",
+      "recording_profile": "formal_presentation",
+      "reference": "Mohon konfirmasi kehadiran sebelum sesi dimulai.",
+      "preserve": [],
+      "required_any": [
+        [
+          "mohon"
+        ],
+        [
+          "konfirmasi"
+        ],
+        [
+          "sebelum"
+        ],
+        [
+          "dimulai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-zoom-compressed-001",
+      "category": "meeting_app_compression",
+      "recording_profile": "zoom_compressed",
+      "reference": "Tolong pastikan angka tujuh belas bukan tujuh puluh.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tujuh belas"
+        ],
+        [
+          "bukan"
+        ],
+        [
+          "tujuh puluh"
+        ]
+      ]
+    },
+    {
+      "id": "asr-zoom-compressed-002",
+      "category": "meeting_app_compression",
+      "recording_profile": "zoom_compressed",
+      "reference": "Jangan restart server sampai backup selesai.",
+      "preserve": [
+        "server",
+        "backup"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "sampai"
+        ],
+        [
+          "selesai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-teams-compressed-001",
+      "category": "meeting_app_compression",
+      "recording_profile": "teams_compressed",
+      "reference": "Branch develop belum boleh di-merge ke Local.",
+      "preserve": [
+        "branch",
+        "develop",
+        "merge",
+        "Local"
+      ],
+      "required_any": [
+        [
+          "belum"
+        ]
+      ]
+    },
+    {
+      "id": "asr-teams-compressed-002",
+      "category": "meeting_app_compression",
+      "recording_profile": "teams_compressed",
+      "reference": "Meeting dimulai tanggal tiga Oktober dua ribu dua puluh enam.",
+      "preserve": [
+        "Oktober"
+      ],
+      "required_any": [
+        [
+          "tiga"
+        ],
+        [
+          "dua ribu dua puluh enam"
+        ]
+      ]
+    },
+    {
+      "id": "asr-meet-compressed-001",
+      "category": "meeting_app_compression",
+      "recording_profile": "google_meet_compressed",
+      "reference": "Audio translation masuk, tapi volumenya terlalu kecil.",
+      "preserve": [
+        "translation"
+      ],
+      "required_any": [
+        [
+          "audio"
+        ],
+        [
+          "volume"
+        ],
+        [
+          "terlalu kecil"
+        ]
+      ]
+    },
+    {
+      "id": "asr-meet-compressed-002",
+      "category": "meeting_app_compression",
+      "recording_profile": "google_meet_compressed",
+      "reference": "Saya bilang tiga belas, bukan tiga puluh.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tiga belas"
+        ],
+        [
+          "bukan"
+        ],
+        [
+          "tiga puluh"
+        ]
+      ]
+    },
+    {
+      "id": "asr-usb-headset-001",
+      "category": "device_robustness",
+      "recording_profile": "usb_headset",
+      "reference": "Tolong cek apakah output meeting sudah benar.",
+      "preserve": [],
+      "required_any": [
+        [
+          "cek"
+        ],
+        [
+          "output"
+        ],
+        [
+          "meeting"
+        ],
+        [
+          "benar"
+        ]
+      ]
+    },
+    {
+      "id": "asr-webcam-mic-001",
+      "category": "device_robustness",
+      "recording_profile": "webcam_microphone",
+      "reference": "Saya akan share screen setelah ini.",
+      "preserve": [
+        "share screen"
+      ],
+      "required_any": [
+        [
+          "setelah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-speakerphone-001",
+      "category": "device_robustness",
+      "recording_profile": "speakerphone_room",
+      "reference": "Semua orang bisa dengar saya dengan jelas?",
+      "preserve": [],
+      "required_any": [
+        [
+          "semua"
+        ],
+        [
+          "dengar"
+        ],
+        [
+          "jelas"
+        ]
+      ]
+    },
+    {
+      "id": "asr-usb-mic-001",
+      "category": "device_robustness",
+      "recording_profile": "usb_condenser_mic",
+      "reference": "Jangan aktifkan release sebelum review selesai.",
+      "preserve": [
+        "release",
+        "review"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "sebelum"
+        ],
+        [
+          "selesai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-fast-code-switch-001",
+      "category": "code_switching",
+      "recording_profile": "fast_code_switch",
+      "reference": "Kalau hotfix sudah ready, langsung push ke branch Local.",
+      "preserve": [
+        "hotfix",
+        "ready",
+        "push",
+        "branch",
+        "Local"
+      ],
+      "required_any": [
+        [
+          "langsung"
+        ]
+      ]
+    },
+    {
+      "id": "asr-fast-code-switch-002",
+      "category": "code_switching",
+      "recording_profile": "fast_code_switch",
+      "reference": "Please jangan change API contract yang sekarang.",
+      "preserve": [
+        "API",
+        "contract"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ]
+      ]
+    },
+    {
+      "id": "asr-acronym-001",
+      "category": "technical",
+      "recording_profile": "clean_normal",
+      "reference": "GPU dan CPU usage harus dicatat terpisah.",
+      "preserve": [
+        "GPU",
+        "CPU"
+      ],
+      "required_any": [
+        [
+          "usage"
+        ],
+        [
+          "terpisah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-acronym-002",
+      "category": "technical",
+      "recording_profile": "clean_normal",
+      "reference": "ASR, TTS, dan API semuanya harus lolos validasi.",
+      "preserve": [
+        "ASR",
+        "TTS",
+        "API"
+      ],
+      "required_any": [
+        [
+          "validasi"
+        ]
+      ]
+    },
+    {
+      "id": "asr-long-001",
+      "category": "long_utterance",
+      "recording_profile": "long_utterance",
+      "reference": "Sebelum kita lanjut ke tahap berikutnya, saya ingin memastikan semua perubahan sudah tersimpan dan tidak ada file penting yang tertinggal.",
+      "preserve": [],
+      "required_any": [
+        [
+          "sebelum"
+        ],
+        [
+          "tahap berikutnya"
+        ],
+        [
+          "perubahan"
+        ],
+        [
+          "tersimpan"
+        ],
+        [
+          "file penting"
+        ]
+      ]
+    },
+    {
+      "id": "asr-long-002",
+      "category": "long_utterance",
+      "recording_profile": "long_utterance",
+      "reference": "Kalau hasil test malam ini stabil, kita bisa menyiapkan release besok pagi tanpa mengubah konfigurasi runtime yang sekarang.",
+      "preserve": [
+        "test",
+        "release",
+        "runtime"
+      ],
+      "required_any": [
+        [
+          "kalau"
+        ],
+        [
+          "stabil"
+        ],
+        [
+          "besok pagi"
+        ],
+        [
+          "tanpa mengubah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-list-001",
+      "category": "meaning_control",
+      "recording_profile": "list_enumeration",
+      "reference": "Ada tiga hal yang perlu dicek: microphone, route audio, dan translation model.",
+      "preserve": [
+        "microphone",
+        "route",
+        "translation model"
+      ],
+      "required_any": [
+        [
+          "tiga"
+        ],
+        [
+          "dicek"
+        ]
+      ]
+    },
+    {
+      "id": "asr-list-002",
+      "category": "meaning_control",
+      "recording_profile": "list_enumeration",
+      "reference": "Urutannya adalah backup, verify, lalu deploy.",
+      "preserve": [
+        "backup",
+        "verify",
+        "deploy"
+      ],
+      "required_any": [
+        [
+          "urutannya"
+        ],
+        [
+          "lalu"
+        ]
+      ]
+    },
+    {
+      "id": "asr-overlap-light-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "light_overlap_target",
+      "reference": "Tunggu sebentar, saya belum selesai bicara.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tunggu"
+        ],
+        [
+          "belum"
+        ],
+        [
+          "selesai"
+        ]
+      ]
+    },
+    {
+      "id": "asr-overlap-light-002",
+      "category": "acoustic_robustness",
+      "recording_profile": "light_overlap_target",
+      "reference": "Yang tadi jangan dihapus dulu.",
+      "preserve": [],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "dihapus"
+        ],
+        [
+          "dulu"
+        ]
+      ]
+    },
+    {
+      "id": "asr-network-artifact-001",
+      "category": "acoustic_robustness",
+      "recording_profile": "packetized_meeting_audio",
+      "reference": "Nomor tiketnya MIV tujuh tujuh satu.",
+      "preserve": [
+        "MIV"
+      ],
+      "required_any": [
+        [
+          "tujuh tujuh satu"
+        ]
+      ]
+    },
+    {
+      "id": "asr-network-artifact-002",
+      "category": "acoustic_robustness",
+      "recording_profile": "packetized_meeting_audio",
+      "reference": "Harga finalnya empat juta seratus dua puluh lima ribu rupiah.",
+      "preserve": [],
+      "required_any": [
+        [
+          "empat juta"
+        ],
+        [
+          "seratus dua puluh lima ribu"
+        ],
+        [
+          "rupiah"
+        ]
+      ]
+    },
+    {
+      "id": "asr-correction-fast-001",
+      "category": "meaning_control",
+      "recording_profile": "fast_speech",
+      "reference": "Bukan Senin, maksud saya Kamis pagi.",
+      "preserve": [],
+      "required_any": [
+        [
+          "bukan"
+        ],
+        [
+          "senin"
+        ],
+        [
+          "kamis"
+        ],
+        [
+          "pagi"
+        ]
+      ]
+    },
+    {
+      "id": "asr-negation-noise-002",
+      "category": "negation",
+      "recording_profile": "moderate_room_noise",
+      "reference": "Saya tidak pernah menyetujui perubahan itu.",
+      "preserve": [],
+      "required_any": [
+        [
+          "tidak pernah"
+        ],
+        [
+          "menyetujui"
+        ],
+        [
+          "perubahan"
+        ]
+      ]
     }
   ]
 }

@@ -80,3 +80,10 @@ Promotion comparison requires both result sets to identify their source and matc
 A valid ASR comparison records at minimum the exact `Local` SHA, model ID, device/compute type, beam size, VAD setting, microphone/source, and the exact fixture set. Compare candidates on the same fixtures.
 
 Do not change Whisper model, beam, VAD or segmentation based only on repository tests. Route the first reproducible quality or latency defect back to the owning runtime after real evidence exists.
+
+
+## Expanded native acceptance matrix
+
+The 60-case specification now includes target profiles for Javanese- and Sundanese-accented Indonesian, Jakarta casual speech, formal presentation speech, Zoom/Teams/Google Meet compression, USB/webcam/speakerphone devices, fast code-switching, long utterances, light overlap, packetized meeting audio, acronyms and list/order language.
+
+These are recording targets, not CI claims. A profile becomes evidence only after real audio is captured under the declared condition and evaluated with exact runtime provenance.

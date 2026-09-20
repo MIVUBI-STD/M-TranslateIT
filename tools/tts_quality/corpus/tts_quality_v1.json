@@ -181,6 +181,366 @@
           "ready"
         ]
       ]
+    },
+    {
+      "id": "tts-question-001",
+      "category": "questions",
+      "text": "Can everyone hear the translated voice clearly?",
+      "preserve": [],
+      "required_any": [
+        [
+          "everyone"
+        ],
+        [
+          "hear"
+        ],
+        [
+          "translated voice"
+        ],
+        [
+          "clearly"
+        ]
+      ]
+    },
+    {
+      "id": "tts-question-002",
+      "category": "questions",
+      "text": "Should we keep the current version or use the new one?",
+      "preserve": [],
+      "required_any": [
+        [
+          "current version"
+        ],
+        [
+          "new one"
+        ]
+      ]
+    },
+    {
+      "id": "tts-acronym-001",
+      "category": "acronyms",
+      "text": "The ASR and TTS pipelines are ready for review.",
+      "preserve": [
+        "ASR",
+        "TTS"
+      ],
+      "required_any": [
+        [
+          "pipelines"
+        ],
+        [
+          "review"
+        ]
+      ]
+    },
+    {
+      "id": "tts-acronym-002",
+      "category": "acronyms",
+      "text": "CPU, GPU, and API metrics must remain separate.",
+      "preserve": [
+        "CPU",
+        "GPU",
+        "API"
+      ],
+      "required_any": [
+        [
+          "metrics"
+        ],
+        [
+          "separate"
+        ]
+      ]
+    },
+    {
+      "id": "tts-version-002",
+      "category": "numbers_dates_units",
+      "text": "Please use version 1.21.4 on port 19132.",
+      "preserve": [
+        "1.21.4",
+        "19132"
+      ],
+      "required_any": [
+        [
+          "version"
+        ],
+        [
+          "port"
+        ]
+      ]
+    },
+    {
+      "id": "tts-currency-001",
+      "category": "numbers_dates_units",
+      "text": "The approved budget is two million seven hundred fifty thousand rupiah.",
+      "preserve": [],
+      "required_any": [
+        [
+          "two million"
+        ],
+        [
+          "seven hundred fifty thousand"
+        ],
+        [
+          "rupiah"
+        ]
+      ]
+    },
+    {
+      "id": "tts-time-002",
+      "category": "numbers_dates_units",
+      "text": "The meeting starts at eight forty-five and ends at ten fifteen.",
+      "preserve": [],
+      "required_any": [
+        [
+          "eight forty-five"
+        ],
+        [
+          "ten fifteen"
+        ]
+      ]
+    },
+    {
+      "id": "tts-percentage-001",
+      "category": "numbers_dates_units",
+      "text": "The conversion target is twelve point five percent.",
+      "preserve": [],
+      "required_any": [
+        [
+          "twelve point five"
+        ],
+        [
+          "percent"
+        ]
+      ]
+    },
+    {
+      "id": "tts-indonesian-name-001",
+      "category": "entities",
+      "text": "MIVUBI will present Tana Samawa and Around The Block.",
+      "preserve": [
+        "MIVUBI",
+        "Tana Samawa",
+        "Around The Block"
+      ],
+      "required_any": [
+        [
+          "present"
+        ]
+      ]
+    },
+    {
+      "id": "tts-place-name-001",
+      "category": "entities",
+      "text": "The exhibition includes references to Yogyakarta and Sumbawa.",
+      "preserve": [
+        "Yogyakarta",
+        "Sumbawa"
+      ],
+      "required_any": [
+        [
+          "exhibition"
+        ]
+      ]
+    },
+    {
+      "id": "tts-list-001",
+      "category": "lists",
+      "text": "Please check the microphone, meeting route, translation model, and selected voice.",
+      "preserve": [],
+      "required_any": [
+        [
+          "microphone"
+        ],
+        [
+          "meeting route"
+        ],
+        [
+          "translation model"
+        ],
+        [
+          "selected voice"
+        ]
+      ]
+    },
+    {
+      "id": "tts-list-002",
+      "category": "lists",
+      "text": "First save the file, then verify the checksum, and finally publish the release.",
+      "preserve": [],
+      "required_any": [
+        [
+          "first"
+        ],
+        [
+          "then"
+        ],
+        [
+          "finally"
+        ],
+        [
+          "checksum"
+        ],
+        [
+          "release"
+        ]
+      ]
+    },
+    {
+      "id": "tts-long-002",
+      "category": "long_form",
+      "text": "Before we continue, please confirm that the microphone is working, the translation model is ready, and the meeting application is using the correct output route.",
+      "preserve": [],
+      "required_any": [
+        [
+          "before we continue"
+        ],
+        [
+          "microphone"
+        ],
+        [
+          "translation model"
+        ],
+        [
+          "meeting application"
+        ],
+        [
+          "output route"
+        ]
+      ]
+    },
+    {
+      "id": "tts-long-003",
+      "category": "long_form",
+      "text": "If the next test remains stable, we can keep the current architecture and focus only on the measured latency bottleneck instead of adding another runtime layer.",
+      "preserve": [],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "current architecture"
+        ],
+        [
+          "latency bottleneck"
+        ],
+        [
+          "instead of"
+        ]
+      ]
+    },
+    {
+      "id": "tts-correction-002",
+      "category": "meaning_control",
+      "text": "Sorry, I meant Thursday morning, not Tuesday afternoon.",
+      "preserve": [],
+      "required_any": [
+        [
+          "thursday morning"
+        ],
+        [
+          "not tuesday afternoon"
+        ]
+      ]
+    },
+    {
+      "id": "tts-modality-001",
+      "category": "meaning_control",
+      "text": "This might be ready for the demo, but it is not confirmed for release.",
+      "preserve": [],
+      "required_any": [
+        [
+          "might"
+        ],
+        [
+          "demo"
+        ],
+        [
+          "not confirmed"
+        ],
+        [
+          "release"
+        ]
+      ]
+    },
+    {
+      "id": "tts-conditional-001",
+      "category": "meaning_control",
+      "text": "If the checksum changes, do not install the payload.",
+      "preserve": [],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "checksum"
+        ],
+        [
+          "do not install"
+        ],
+        [
+          "payload"
+        ]
+      ]
+    },
+    {
+      "id": "tts-repeat-stability-001",
+      "category": "repetition_stability",
+      "text": "Please keep this sentence clear and stable every time it is synthesized.",
+      "preserve": [],
+      "required_any": [
+        [
+          "clear"
+        ],
+        [
+          "stable"
+        ],
+        [
+          "every time"
+        ]
+      ]
+    },
+    {
+      "id": "tts-repeat-stability-002",
+      "category": "repetition_stability",
+      "text": "Do not repeat, skip, or truncate any word in this sentence.",
+      "preserve": [],
+      "required_any": [
+        [
+          "do not repeat"
+        ],
+        [
+          "skip"
+        ],
+        [
+          "truncate"
+        ],
+        [
+          "word"
+        ]
+      ]
+    },
+    {
+      "id": "tts-prosody-002",
+      "category": "prosody_challenge",
+      "text": "Are we ready? Not yet—please wait, check the result, and then continue.",
+      "preserve": [],
+      "required_any": [
+        [
+          "ready"
+        ],
+        [
+          "not yet"
+        ],
+        [
+          "wait"
+        ],
+        [
+          "check"
+        ],
+        [
+          "continue"
+        ]
+      ]
     }
   ]
 }

@@ -17,7 +17,7 @@ A higher speaker-similarity score does not override an intelligibility or artifa
 
 ## Corpus
 
-`corpus/tts_quality_v1.json` contains English Meeting synthesis cases covering meeting language, technical terms, names, numbers/dates, negation/corrections, longer speech and punctuation/prosody challenges.
+`corpus/tts_quality_v1.json` contains 30 English Meeting synthesis cases covering meeting language, technical terms, acronyms, names, numbers/dates, questions, lists, negation/corrections, longer speech, repeated-synthesis stability and punctuation/prosody challenges.
 
 ## Commands
 
@@ -64,3 +64,6 @@ Result bundles use:
 ```
 
 Promotion comparison is fail-closed when provenance is missing/mismatched or when a new critical/artifact regression appears. It is deliberately not a standalone verdict on naturalness or speaker fidelity; listening acceptance remains TARGET_WINDOWS evidence.
+
+
+Repeated-synthesis cases are specifications for future native evidence. They do not claim deterministic audible stability from CI; compare multiple generated samples only when actual WAV evidence is available.
