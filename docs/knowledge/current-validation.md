@@ -19,7 +19,7 @@ Interpretation: use the latest completed matching verifier for the changed domai
 Recent verified baseline relevant to the current work:
 
 ```text
-Code Health                 a26d5e33b31eee6753ff1bc7f09b847f11770bc3  PASS
+Code Health                 e18d12d8ce0895889c78823e8ff96f145a992e2c  PASS
 MiLMMT Repository Contract  848329bb21b45d72eccde0a19160490c9d843f22  PASS
 ```
 
@@ -39,7 +39,8 @@ Subject to matching proof for the changed domain, current source establishes:
 - ASR quality tooling with a 60-case linguistic/accent/acoustic/device/meeting-compression corpus, WER/CER, grouped critical rates, matched provenance, and baseline-vs-candidate regression comparison;
 - TTS/My Voice quality tooling with a 30-case synthesis acceptance corpus, pre-training capture gates, artifact-aware held-out ASR intelligibility + speaker-similarity candidate selection, completed-build/evaluation-to-candidate binding, enforced preview listening, post-approval temporary-build cleanup, matched provenance, and fail-closed regression comparison;
 - Quality Readiness aggregates Translation + ASR + TTS comparison evidence without recalculating domain metrics, verifies expected candidate identities and input-report SHA-256, and fails closed if any domain is incomplete or regressed;
-- My Voice live inference isolated from one-shot dataset/training/evaluation/package construction.
+- My Voice live inference isolated from one-shot dataset/training/evaluation/package construction;
+- one-shot signed app updater source contract: one startup check only, no updater polling scheduler/daemon, GitHub Release endpoint ownership, activity-safe install blockers, release updater-artifact generation, and fail-closed signing requirements.
 
 ## Verification surfaces
 
