@@ -21,7 +21,7 @@ Use a held-out bilingual set that is not used to tune the candidate. Include bot
 - contextual outbound Meeting turns;
 - terminology-controlled cases.
 
-The 170-case regression corpus may seed risk discovery, and the 40-case held-out benchmark protects release comparison, but the final human review set should still contain unseen wording. Do not tune prompts or model selection against the held-out benchmark.
+The 180-case regression corpus may seed risk discovery, and the 40-case held-out benchmark protects release comparison, but the final human review set should still contain unseen wording. Do not tune prompts or model selection against the held-out benchmark.
 
 ## Blind review
 

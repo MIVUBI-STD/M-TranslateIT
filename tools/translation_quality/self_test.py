@@ -117,7 +117,7 @@ def main() -> int:
 
     stats = evaluator.corpus_stats(corpus)
     assert stats["case_count"] == validation["case_count"]
-    assert stats["directions"]["id-en"] == 90
+    assert stats["directions"]["id-en"] == 100
     assert stats["directions"]["en-id"] == 80
     assert stats["contextual_case_count"] == 3
     assert stats["risk_tags"]["meaning"] >= 100

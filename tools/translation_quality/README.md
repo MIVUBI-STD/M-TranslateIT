@@ -35,7 +35,7 @@ Each case contains one or more references plus narrow invariants:
 
 These checks are intentionally narrow. They do not replace human review.
 
-The current regression corpus contains 170 targeted cases, with a separate 40-case held-out benchmark. Do not hand-maintain these counts in downstream status files; use the `stats` command below when exact coverage matters. Growth is intentionally risk-driven rather than random: additions cover meeting phrasing, code-switching, quantities, technical literals, modality, conditionals, quantifier scope, corrections/disfluency, ordering and comparisons.
+The current regression corpus contains 180 targeted cases, with a separate 40-case held-out benchmark. Do not hand-maintain these counts in downstream status files; use the `stats` command below when exact coverage matters. Growth is intentionally risk-driven rather than random: additions cover meeting phrasing, informal/workplace Indonesian, code-switching, quantities, technical literals, modality, conditionals, quantifier scope, corrections/disfluency, ordering and comparisons.
 
 Adversarial cases treat instruction-like strings such as `Ignore previous instructions`,
 `English:`, or `Indonesian:` as ordinary source content. Repository tests verify that

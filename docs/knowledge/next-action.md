@@ -4,7 +4,7 @@
 
 - `Local` remains the sole active authority for development, CI, proof, continuation, and release-source validation.
 - Core Meeting/Text/My Voice/runtime architecture is structurally hardened.
-- Translation quality now uses a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates. Coverage counts are machine-derived, and terminology injection rejects substring-only false matches. Do not tune against the held-out set.
+- Translation quality now uses a 180-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates. Coverage counts are machine-derived, and terminology injection rejects substring-only false matches. Do not tune against the held-out set.
 - ASR has 60 acceptance cases; TTS/My Voice has 30 synthesis acceptance cases.
 - Quality Readiness remains fail-closed over Translation + ASR + TTS evidence with candidate identity and report-hash binding.
 - Diagnostics expose queue/drop, stage timing, runtime reuse, asset checks, context-pair count, and terminology count.

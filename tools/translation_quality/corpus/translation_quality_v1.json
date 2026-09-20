@@ -4424,6 +4424,343 @@
         "disfluency",
         "meaning"
       ]
+    },
+    {
+      "id": "id-en-informal-workplace-001",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Nggak usah di-deploy dulu, build terakhir masih broken.",
+      "references": [
+        "Don't deploy it yet; the latest build is still broken."
+      ],
+      "preserve": [
+        "build"
+      ],
+      "required_any": [
+        [
+          "don't deploy",
+          "do not deploy"
+        ],
+        [
+          "yet"
+        ],
+        [
+          "still broken"
+        ]
+      ],
+      "forbidden": [
+        "deploy it now"
+      ],
+      "risk_tags": [
+        "code_switch",
+        "technical",
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-informal-workplace-002",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Aku belum follow up vendor-nya, jadi jangan bilang sudah beres.",
+      "references": [
+        "I haven't followed up with the vendor yet, so don't say it's already resolved."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "haven't followed up",
+          "have not followed up"
+        ],
+        [
+          "vendor"
+        ],
+        [
+          "don't say",
+          "do not say"
+        ],
+        [
+          "already resolved",
+          "already done"
+        ]
+      ],
+      "forbidden": [
+        "I have followed up with the vendor"
+      ],
+      "risk_tags": [
+        "meeting",
+        "negation",
+        "meaning",
+        "omission"
+      ]
+    },
+    {
+      "id": "id-en-informal-workplace-003",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Yang staging tadi di-hold dulu ya, production jangan disentuh.",
+      "references": [
+        "Hold the staging one for now; don't touch production."
+      ],
+      "preserve": [
+        "staging",
+        "production"
+      ],
+      "required_any": [
+        [
+          "hold"
+        ],
+        [
+          "don't touch",
+          "do not touch"
+        ]
+      ],
+      "forbidden": [
+        "touch production",
+        "change production"
+      ],
+      "risk_tags": [
+        "code_switch",
+        "technical",
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-informal-workplace-004",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Kok angka invoice-nya jadi 15 juta? Tadi 12,5 juta.",
+      "references": [
+        "Why did the invoice amount become 15 million? It was 12.5 million earlier."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "15 million",
+          "15,000,000"
+        ],
+        [
+          "12.5 million",
+          "12,500,000"
+        ],
+        [
+          "invoice"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-informal-workplace-005",
+      "direction": "id-en",
+      "category": "meaning_control",
+      "source": "Nih, versi yang ini aja yang di-approve. Yang sebelumnya jangan.",
+      "references": [
+        "Approve only this version. Don't approve the previous one."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "approve"
+        ],
+        [
+          "only this version",
+          "this version only"
+        ],
+        [
+          "don't approve",
+          "do not approve"
+        ],
+        [
+          "previous"
+        ]
+      ],
+      "forbidden": [
+        "approve the previous"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning",
+        "omission"
+      ]
+    },
+    {
+      "id": "id-en-informal-workplace-006",
+      "direction": "id-en",
+      "category": "spoken_disfluency",
+      "source": "Udah aku kirim draft-nya, tapi attachment final belum.",
+      "references": [
+        "I've sent the draft, but not the final attachment yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "sent the draft",
+          "sent the draft already"
+        ],
+        [
+          "final attachment"
+        ],
+        [
+          "not",
+          "haven't"
+        ],
+        [
+          "yet"
+        ]
+      ],
+      "forbidden": [
+        "sent the final attachment"
+      ],
+      "risk_tags": [
+        "disfluency",
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-informal-workplace-007",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Budget-nya belum masuk, jadi kita hold dulu pembeliannya.",
+      "references": [
+        "The budget hasn't come in yet, so let's put the purchase on hold for now."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "budget"
+        ],
+        [
+          "hasn't come in",
+          "has not come in",
+          "isn't available",
+          "is not available"
+        ],
+        [
+          "hold"
+        ],
+        [
+          "purchase"
+        ]
+      ],
+      "forbidden": [
+        "the budget is available"
+      ],
+      "risk_tags": [
+        "meeting",
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-informal-quantifier-001",
+      "direction": "id-en",
+      "category": "quantifier_scope",
+      "source": "Gak semua peserta perlu akses admin.",
+      "references": [
+        "Not all participants need admin access."
+      ],
+      "preserve": [
+        "admin"
+      ],
+      "required_any": [
+        [
+          "not all"
+        ],
+        [
+          "participants"
+        ],
+        [
+          "access"
+        ]
+      ],
+      "forbidden": [
+        "all participants need admin access",
+        "no participants need admin access"
+      ],
+      "risk_tags": [
+        "quantifier",
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-modality-workplace-001",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Dia bilang bisa selesai Jumat, bukan harus selesai Jumat.",
+      "references": [
+        "They said it could be finished by Friday, not that it had to be finished by Friday."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "could be finished",
+          "can be finished"
+        ],
+        [
+          "friday"
+        ],
+        [
+          "not"
+        ],
+        [
+          "had to",
+          "must"
+        ]
+      ],
+      "forbidden": [
+        "must be finished by Friday"
+      ],
+      "risk_tags": [
+        "modality",
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-conditional-workplace-001",
+      "direction": "id-en",
+      "category": "conditional_meaning",
+      "source": "Kalau API-nya error lagi, jangan retry terus; kabari aku dulu.",
+      "references": [
+        "If the API errors again, don't keep retrying; let me know first."
+      ],
+      "preserve": [
+        "API"
+      ],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "don't keep retrying",
+          "do not keep retrying",
+          "don't retry repeatedly",
+          "do not retry repeatedly"
+        ],
+        [
+          "let me know",
+          "tell me"
+        ],
+        [
+          "first"
+        ]
+      ],
+      "forbidden": [
+        "keep retrying"
+      ],
+      "risk_tags": [
+        "conditional",
+        "technical",
+        "negation",
+        "meaning"
+      ]
     }
   ]
 }
