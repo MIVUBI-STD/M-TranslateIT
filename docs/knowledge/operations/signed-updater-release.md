@@ -28,6 +28,31 @@ TAURI_SIGNING_PRIVATE_KEY_PATH
 
 The private key must remain outside repository history and release artifacts. The public key is compiled into the release build for update verification.
 
+## App-only update boundary
+
+The automatic updater is intentionally app-only for the current release shape.
+
+When Tauri launches the NSIS installer with `/UPDATE`, Setup verifies the already-installed external runtime and preserves it instead of requiring `TranslateIT-Payload.7z` beside the temporary updater installer.
+
+The app-only update is allowed only when the installed runtime still matches the current required:
+
+- payload schema;
+- Python/Torch/Transformers/Tokenizers identities;
+- ASR revision;
+- MiLMMT revision;
+- GPT-SoVITS revision;
+- required built-in voices;
+- VB-CABLE provider presence.
+
+If those requirements change, the automatic installer fails closed before replacing the app. That release requires the full colocated:
+
+```text
+TranslateIT-Setup.exe
+TranslateIT-Payload.7z
+```
+
+This prevents routine UI/Rust/worker fixes from redownloading multi-gigabyte model/runtime assets while still blocking an incompatible app/runtime combination.
+
 ## Publication surface
 
 The installed app checks:
