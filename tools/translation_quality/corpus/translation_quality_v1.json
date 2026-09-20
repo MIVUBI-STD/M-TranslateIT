@@ -1346,10 +1346,7 @@
           "re-uploaded"
         ]
       ],
-      "forbidden": [
-        "All files need to be uploaded again.",
-        "All files need re-uploading."
-      ]
+      "forbidden": []
     },
     {
       "id": "en-id-quantifier-002",

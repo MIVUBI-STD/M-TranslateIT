@@ -357,6 +357,7 @@ export const runtimeProductFacade = {
   mapProductReadiness,
   runProductMeetingAction,
   runProductTranslation,
+  runProductTranslationAlternative,
   runProductSetupAction,
   runProductRecoveryAction,
 };
