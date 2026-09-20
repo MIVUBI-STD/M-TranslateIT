@@ -147,7 +147,7 @@ forbidMarkers(builder.toLowerCase(), "payload builder network/bootstrap", ["urll
 
 requireMarkers(hook, "NSIS lifecycle hook", [
   "@@PAYLOAD_SCHEMA@@", "@@INSTALLED_RUNTIME_SCHEMA@@", "@@APP_VERSION@@", "@@PAYLOAD_SHA256@@", "@@PAYLOAD_EXPANDED_BYTES@@",
-  "NSIS_HOOK_PREINSTALL", "NSIS_HOOK_POSTINSTALL", "NSIS_HOOK_PREUNINSTALL", "-Mode Verify", "-Mode Install", "$0 == 3010", "SetRebootFlag true",
+  "NSIS_HOOK_PREINSTALL", "NSIS_HOOK_POSTINSTALL", "NSIS_HOOK_PREUNINSTALL", "-Mode Verify", "-Mode Install", "-Mode VerifyInstalled", "/UPDATE", "app-update mode", "$0 == 3010", "SetRebootFlag true",
   "RMDir /r \"$INSTDIR\\EngineData\\Backend\\LocalWorker\\PythonRuntime\"",
   "RMDir /r \"$INSTDIR\\EngineData\\Backend\\RuntimeAssets\\Voice\\BuiltInVoices\"",
   "TRANSLATEIT_INSTALLED_RUNTIME.json",
@@ -155,7 +155,7 @@ requireMarkers(hook, "NSIS lifecycle hook", [
 forbidMarkers(hook.toLowerCase(), "NSIS network/bootstrap", ["inetc::", "nsisdl::", "http://", "https://", "execshell"]);
 
 requireMarkers(helper, "installer helper", [
-  "[ValidateSet('Verify','Install')]", "Get-FileHash -Algorithm SHA256", "Read-PayloadContract", "Ensure-FreeSpace", ".translateit-r3-stage", ".translateit-r3-backup",
+  "[ValidateSet('Verify','Install','VerifyInstalled')]", "Verify-InstalledRuntime", "Assert-InstalledRuntimeManifest", "Get-FileHash -Algorithm SHA256", "Read-PayloadContract", "Ensure-FreeSpace", ".translateit-r3-stage", ".translateit-r3-backup",
   "Rollback-Payload", "Read-PythonMetadata", "pnputil.exe", "VBCABLE_Setup_x64.exe", "@('-i','-h')", "exit 3010",
   "ExpectedInstalledRuntimeSchema", "preserve_system_driver", "preserve_app_local_user_data",
   "BuiltInVoices\\MaleVoice\\reference.wav",
@@ -188,4 +188,4 @@ if (errors.length) {
   for (const error of errors) console.error(`[release-package] ${error}`);
   process.exit(1);
 }
-console.log("[release-package] R3 source contract PASS: pinned FFmpeg release asset identity, exact builder/installer payload-root closure, version/hash-bound external payload, no filesystem-indirection payload roots, transactional runtime replacement including built-in Meeting voice references, symmetric uninstall cleanup, explicit non-exec WorkerRuntime composition, Setup-owned VB-CABLE install/restart, user-data and system-driver preservation policy, and small Tauri resource closure are aligned.");
+console.log("[release-package] R3 source contract PASS: pinned FFmpeg release asset identity, exact builder/installer payload-root closure, version/hash-bound external payload, app-only /UPDATE preserves only a fully verified compatible installed runtime, no filesystem-indirection payload roots, transactional full runtime replacement including built-in Meeting voice references, symmetric uninstall cleanup, explicit non-exec WorkerRuntime composition, Setup-owned VB-CABLE install/restart, user-data and system-driver preservation policy, and small Tauri resource closure are aligned.");
