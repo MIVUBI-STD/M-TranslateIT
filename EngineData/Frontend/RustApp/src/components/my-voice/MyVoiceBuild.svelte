@@ -228,7 +228,7 @@
   });
 </script>
 
-<section class="ti-panel p-6">
+<section class="ti-panel p-6" aria-busy={build.active || busy}>
   <div class="flex items-start justify-between gap-5">
     <div>
       <span class="ti-kicker">My Voice</span>
@@ -246,13 +246,21 @@
       <span class="text-xs font-semibold text-[var(--ti-text-muted)]">{formatDuration(build.accepted_duration_ms)} / {formatDuration(build.minimum_duration_ms)}</span>
     </div>
     <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">{build.accepted_take_count} accepted recordings · clear and varied speech matters in addition to duration</p>
-    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]" aria-label="Accepted speech progress">
+    <div
+      class="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]"
+      role="progressbar"
+      aria-label="Accepted speech progress"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow={speechProgress}
+      aria-valuetext={`${formatDuration(build.accepted_duration_ms)} of ${formatDuration(build.minimum_duration_ms)} accepted speech`}
+    >
       <div class="h-full rounded-full bg-[var(--ti-accent)]" style={`width:${speechProgress}%`}></div>
     </div>
   </div>
 
   {#if build.active}
-    <div class="mt-5 border-l-2 border-[var(--ti-border-strong)] pl-4">
+    <div class="mt-5 border-l-2 border-[var(--ti-border-strong)] pl-4" role="status" aria-live="polite" aria-atomic="true">
       <strong class="text-sm font-semibold">{activeTitle()}</strong>
       <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{activeDetail()}</p>
     </div>

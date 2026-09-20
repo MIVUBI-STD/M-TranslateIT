@@ -62,7 +62,7 @@
   </nav>
 
   <div class="mt-auto border-t border-[var(--ti-border)] px-2 pt-3">
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2" role="status" aria-live="polite" aria-atomic="true">
       <span class={`size-1.5 rounded-full ${presenceDot()}`} aria-hidden="true"></span>
       <strong class="truncate text-[11px] font-semibold text-[var(--ti-text-muted)]">{presenceLabel()}</strong>
     </div>
