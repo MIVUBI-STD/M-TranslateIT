@@ -14,7 +14,7 @@
 
   body {
     margin: 0;
-    min-width: 1024px;
+    min-width: 760px;
     min-height: 100vh;
     overflow: hidden;
     background: var(--ti-bg);
@@ -61,6 +61,27 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--ti-border-strong) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: var(--ti-border-strong);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--ti-text-soft);
+    background-clip: padding-box;
   }
 }
 
@@ -256,16 +277,73 @@
     font-size: 0.72rem;
     font-weight: 600;
   }
+
+  .ti-nav-item {
+    position: relative;
+  }
+
+  .ti-nav-item.is-active::before {
+    content: "";
+    position: absolute;
+    left: -5px;
+    top: 11px;
+    bottom: 11px;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--ti-accent);
+  }
 }
 
 @media (max-width: 1360px) {
   :root {
-    --ti-sidebar-width: 196px;
+    --ti-sidebar-width: 176px;
     --ti-page-padding-x: 24px;
   }
 
   .ti-page {
     gap: 18px;
+  }
+}
+
+@media (max-width: 1120px) {
+  :root {
+    --ti-sidebar-width: 68px;
+    --ti-page-padding-x: 20px;
+  }
+
+  .ti-sidebar {
+    padding-inline: 10px;
+  }
+
+  .ti-sidebar-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .ti-sidebar-brand-copy,
+  .ti-nav-label,
+  .ti-presence-label {
+    display: none;
+  }
+
+  .ti-sidebar nav {
+    margin-top: 24px;
+  }
+
+  .ti-nav-item {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding-inline: 0;
+  }
+
+  .ti-sidebar-presence {
+    display: flex;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .ti-appbar {
+    padding-inline: 18px;
   }
 }
 
@@ -277,5 +355,31 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+
+@media (forced-colors: active) {
+  button,
+  input,
+  select,
+  textarea,
+  a,
+  [role="dialog"] {
+    border-color: ButtonText !important;
+    forced-color-adjust: auto;
+  }
+
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    opacity: 1;
+    color: GrayText !important;
   }
 }
