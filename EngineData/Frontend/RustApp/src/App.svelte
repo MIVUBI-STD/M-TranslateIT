@@ -300,11 +300,7 @@
       await destroyTranslateItWindows();
       closeDialogOpen = false;
     } catch {
-      showCloseDialog(
-        "Couldn't close TranslateIT",
-        "TranslateIT couldn't close its floating caption safely, so the app will stay open. Try again.",
-        "retry",
-      );
+      showCloseDialog("Couldn't close TranslateIT", "The floating caption couldn't close safely. TranslateIT will stay open.", "retry");
     }
   }
 
