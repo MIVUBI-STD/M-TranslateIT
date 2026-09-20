@@ -860,6 +860,662 @@
       "forbidden": [
         "send it now"
       ]
+    },
+    {
+      "id": "id-en-number-002",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Target konversinya 12,5%, bukan 15%.",
+      "references": [
+        "The conversion target is 12.5%, not 15%."
+      ],
+      "preserve": [
+        "12",
+        "15"
+      ],
+      "required_any": [
+        [
+          "conversion"
+        ],
+        [
+          "not"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-number-002",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "The file is 2.4 GB, not 24 GB.",
+      "references": [
+        "Ukuran filenya 2,4 GB, bukan 24 GB."
+      ],
+      "preserve": [
+        "2.4",
+        "24",
+        "GB"
+      ],
+      "required_any": [
+        [
+          "bukan"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-time-002",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Mulai pukul 08.45 dan selesai sekitar 10.15.",
+      "references": [
+        "It starts at 08:45 and finishes around 10:15."
+      ],
+      "preserve": [
+        "08",
+        "45",
+        "10",
+        "15"
+      ],
+      "required_any": [
+        [
+          "starts"
+        ],
+        [
+          "finishes",
+          "ends"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-range-001",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "Keep the temperature between 18°C and 22°C.",
+      "references": [
+        "Jaga suhu antara 18°C dan 22°C."
+      ],
+      "preserve": [
+        "18",
+        "22",
+        "°C"
+      ],
+      "required_any": [
+        [
+          "antara"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-entity-002",
+      "direction": "id-en",
+      "category": "entities_literals",
+      "source": "MIVUBI akan mempresentasikan Tana Samawa di sesi kedua.",
+      "references": [
+        "MIVUBI will present Tana Samawa in the second session."
+      ],
+      "preserve": [
+        "MIVUBI",
+        "Tana Samawa"
+      ],
+      "required_any": [
+        [
+          "present"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-entity-002",
+      "direction": "en-id",
+      "category": "entities_literals",
+      "source": "Open the Around The Block project in Blockbench.",
+      "references": [
+        "Buka proyek Around The Block di Blockbench."
+      ],
+      "preserve": [
+        "Around The Block",
+        "Blockbench"
+      ],
+      "required_any": [
+        [
+          "buka"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-idliteral-001",
+      "direction": "id-en",
+      "category": "entities_literals",
+      "source": "Gunakan ID build R3-2026-09-20 tanpa mengubahnya.",
+      "references": [
+        "Use build ID R3-2026-09-20 without changing it."
+      ],
+      "preserve": [
+        "R3-2026-09-20"
+      ],
+      "required_any": [
+        [
+          "without changing",
+          "do not change"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-technical-002",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Jangan reset cache kalau checksum masih valid.",
+      "references": [
+        "Do not reset the cache if the checksum is still valid."
+      ],
+      "preserve": [
+        "cache",
+        "checksum"
+      ],
+      "required_any": [
+        [
+          "do not reset",
+          "don't reset"
+        ],
+        [
+          "valid"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-technical-002",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "The fallback must stay disabled in production.",
+      "references": [
+        "Fallback harus tetap dinonaktifkan di production."
+      ],
+      "preserve": [
+        "fallback",
+        "production"
+      ],
+      "required_any": [
+        [
+          "harus"
+        ],
+        [
+          "dinonaktifkan",
+          "nonaktif"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-technical-003",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Branch Local adalah sumber aktif; jangan ambil konfigurasi dari main.",
+      "references": [
+        "The Local branch is the active source; do not take configuration from main."
+      ],
+      "preserve": [
+        "Local",
+        "main"
+      ],
+      "required_any": [
+        [
+          "active source"
+        ],
+        [
+          "do not",
+          "don't"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-meeting-002",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Bisa ulangi poin terakhir sedikit lebih pelan?",
+      "references": [
+        "Could you repeat the last point a little more slowly?"
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "repeat"
+        ],
+        [
+          "last point"
+        ],
+        [
+          "slowly",
+          "slower"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-meeting-002",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "Let's confirm the final scope before we move on.",
+      "references": [
+        "Mari kita konfirmasi scope final sebelum lanjut."
+      ],
+      "preserve": [
+        "scope"
+      ],
+      "required_any": [
+        [
+          "konfirmasi"
+        ],
+        [
+          "sebelum"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-meeting-003",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Saya setuju dengan arahnya, tetapi bagian pembayaran perlu dibahas lagi.",
+      "references": [
+        "I agree with the direction, but the payment section needs to be discussed again."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "agree"
+        ],
+        [
+          "payment"
+        ],
+        [
+          "again"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-meeting-003",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "We can approve the design today, but not the release.",
+      "references": [
+        "Kita bisa menyetujui desainnya hari ini, tetapi bukan rilisnya."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "desain"
+        ],
+        [
+          "bukan",
+          "tidak"
+        ],
+        [
+          "rilis"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-code-switch-002",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Flow-nya sudah oke, tapi error handling masih harus dirapikan.",
+      "references": [
+        "The flow is already fine, but the error handling still needs to be cleaned up."
+      ],
+      "preserve": [
+        "flow",
+        "error handling"
+      ],
+      "required_any": [
+        [
+          "still"
+        ],
+        [
+          "cleaned up",
+          "improved",
+          "refined"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-code-switch-002",
+      "direction": "en-id",
+      "category": "code_switching",
+      "source": "Please keep the current layout, tapi tombolnya terlalu besar.",
+      "references": [
+        "Tolong pertahankan layout saat ini, tapi tombolnya terlalu besar."
+      ],
+      "preserve": [
+        "layout"
+      ],
+      "required_any": [
+        [
+          "tombol"
+        ],
+        [
+          "terlalu besar"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-modality-002",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Sepertinya build ini bisa selesai hari ini, tapi belum pasti.",
+      "references": [
+        "It looks like this build could be finished today, but it is not certain yet."
+      ],
+      "preserve": [
+        "build"
+      ],
+      "required_any": [
+        [
+          "could",
+          "might",
+          "may"
+        ],
+        [
+          "not certain",
+          "not sure",
+          "uncertain"
+        ]
+      ],
+      "forbidden": [
+        "will definitely be finished"
+      ]
+    },
+    {
+      "id": "en-id-modality-002",
+      "direction": "en-id",
+      "category": "modality_uncertainty",
+      "source": "This may work, but we should verify it first.",
+      "references": [
+        "Ini mungkin berhasil, tetapi sebaiknya kita verifikasi dulu."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mungkin"
+        ],
+        [
+          "verifikasi",
+          "periksa"
+        ]
+      ],
+      "forbidden": [
+        "pasti berhasil"
+      ]
+    },
+    {
+      "id": "id-en-obligation-001",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "File ini harus dikirim hari ini; yang lain boleh besok.",
+      "references": [
+        "This file must be sent today; the others can be sent tomorrow."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "must"
+        ],
+        [
+          "today"
+        ],
+        [
+          "tomorrow"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-conditional-003",
+      "direction": "id-en",
+      "category": "conditional_meaning",
+      "source": "Kalau pembayaran belum masuk, jangan aktifkan booking-nya.",
+      "references": [
+        "If the payment has not been received, do not activate the booking."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "payment"
+        ],
+        [
+          "do not activate",
+          "don't activate"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-conditional-003",
+      "direction": "en-id",
+      "category": "conditional_meaning",
+      "source": "If the test fails again, keep the previous version.",
+      "references": [
+        "Jika tes gagal lagi, pertahankan versi sebelumnya."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "jika",
+          "kalau"
+        ],
+        [
+          "gagal"
+        ],
+        [
+          "versi sebelumnya"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-quantifier-002",
+      "direction": "id-en",
+      "category": "quantifier_scope",
+      "source": "Tidak semua file perlu diunggah ulang.",
+      "references": [
+        "Not all files need to be uploaded again."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not all"
+        ],
+        [
+          "uploaded again",
+          "re-uploaded"
+        ]
+      ],
+      "forbidden": [
+        "all files need"
+      ]
+    },
+    {
+      "id": "en-id-quantifier-002",
+      "direction": "en-id",
+      "category": "quantifier_scope",
+      "source": "Only two participants need access.",
+      "references": [
+        "Hanya dua peserta yang membutuhkan akses."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "hanya"
+        ],
+        [
+          "dua"
+        ],
+        [
+          "akses"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-disfluency-002",
+      "direction": "id-en",
+      "category": "spoken_disfluency",
+      "source": "Eh, maksud saya dua belas—bukan, tiga belas file.",
+      "references": [
+        "Uh, I mean twelve—no, thirteen files."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "thirteen"
+        ],
+        [
+          "file"
+        ]
+      ],
+      "forbidden": [
+        "twelve files"
+      ]
+    },
+    {
+      "id": "en-id-disfluency-002",
+      "direction": "en-id",
+      "category": "spoken_disfluency",
+      "source": "We need, um, the newer one—sorry, the newest one.",
+      "references": [
+        "Kita perlu, um, yang lebih baru—maaf, yang paling baru."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "paling baru",
+          "terbaru"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-sequence-001",
+      "direction": "id-en",
+      "category": "meaning_control",
+      "source": "Simpan dulu, lalu tutup aplikasinya setelah proses selesai.",
+      "references": [
+        "Save it first, then close the application after the process finishes."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "first"
+        ],
+        [
+          "then"
+        ],
+        [
+          "after"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "en-id-sequence-001",
+      "direction": "en-id",
+      "category": "meaning_control",
+      "source": "Do not publish it until the review is complete.",
+      "references": [
+        "Jangan publikasikan sebelum review selesai."
+      ],
+      "preserve": [
+        "review"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "selesai"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-comparison-001",
+      "direction": "id-en",
+      "category": "meaning_control",
+      "source": "Versi baru lebih cepat, tetapi tidak lebih akurat.",
+      "references": [
+        "The new version is faster, but not more accurate."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "faster"
+        ],
+        [
+          "not more accurate"
+        ]
+      ],
+      "forbidden": [
+        "more accurate"
+      ]
+    },
+    {
+      "id": "en-id-comparison-001",
+      "direction": "en-id",
+      "category": "meaning_control",
+      "source": "Option A is cheaper, while Option B is more reliable.",
+      "references": [
+        "Opsi A lebih murah, sedangkan Opsi B lebih andal."
+      ],
+      "preserve": [
+        "A",
+        "B"
+      ],
+      "required_any": [
+        [
+          "lebih murah"
+        ],
+        [
+          "lebih andal",
+          "lebih dapat diandalkan"
+        ]
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "id-en-politeness-001",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Mohon jangan ubah jadwal sebelum saya konfirmasi.",
+      "references": [
+        "Please do not change the schedule before I confirm."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "please"
+        ],
+        [
+          "do not change",
+          "don't change"
+        ],
+        [
+          "before"
+        ]
+      ],
+      "forbidden": []
     }
   ]
 }

@@ -35,7 +35,7 @@ Subject to matching proof for the changed domain, current source establishes:
 - generation-bound functional readiness, bounded outbound context, at-most-once output, and explicit incoming degradation;
 - latency hardening through bounded capture, finalized-WAV preparation, deterministic KV-cached MiLMMT generation, warm actor reuse, and reference-speaker embedding caching;
 - Meeting Diagnostics with queue/drop plus translation tokenize/inference/decode/throughput telemetry;
-- translation-quality tooling with baseline-vs-candidate critical regression detection, grouped critical-pass-rate deltas, authorized Meeting-context requests, and a 35-case semantic-risk corpus;
+- translation-quality tooling with baseline-vs-candidate critical regression detection, grouped critical-pass-rate deltas, authorized Meeting-context requests, and a 65-case semantic-risk corpus;
 - ASR quality tooling with a 28-case linguistic/acoustic/device corpus, WER/CER, grouped critical rates, matched provenance, and baseline-vs-candidate regression comparison;
 - TTS/My Voice quality tooling with a 10-case held-out synthesis corpus, speaker-similarity/intelligibility/artifact evidence, matched provenance, and fail-closed regression comparison;
 - Quality Readiness aggregates Translation + ASR + TTS comparison evidence without recalculating domain metrics, verifies expected candidate identities and input-report SHA-256, and fails closed if any domain is incomplete or regressed;

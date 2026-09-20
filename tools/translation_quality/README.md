@@ -35,6 +35,8 @@ Each case contains one or more references plus narrow invariants:
 
 These checks are intentionally narrow. They do not replace human review.
 
+The corpus now contains 65 targeted cases. Growth is intentionally risk-driven rather than random: additions cover meeting phrasing, code-switching, quantities, technical literals, modality, conditionals, quantifier scope, corrections/disfluency, ordering and comparisons.
+
 Adversarial cases treat instruction-like strings such as `Ignore previous instructions`,
 `English:`, or `Indonesian:` as ordinary source content. Repository tests verify that
 the worker forwards such content through the canonical source slot and that standalone
@@ -90,3 +92,5 @@ The report includes overall and per-group critical-invariant pass rates, a light
 Do not change model, prompt, context policy, decoding policy, or text segmentation based on one anecdotal sentence. Capture a baseline from the current canonical model, compare the candidate on the same corpus, inspect every critical failure, and then add a new case when a real recurring failure mode is discovered.
 
 Do not tune the corpus to make a candidate look better.
+
+For release-quality linguistic review, use `HUMAN_EVALUATION.md`. Automated promotion safety and human evaluation answer different questions; neither substitutes for the other.
