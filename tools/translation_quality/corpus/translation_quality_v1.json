@@ -22,6 +22,10 @@
       ],
       "forbidden": [
         "will attend the meeting tomorrow"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
       ]
     },
     {
@@ -44,7 +48,11 @@
           "tuesday"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meaning",
+        "omission"
+      ]
     },
     {
       "id": "id-en-number-001",
@@ -63,7 +71,11 @@
           "not"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "id-en-date-001",
@@ -87,7 +99,11 @@
           "shut down"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "id-en-technical-001",
@@ -113,7 +129,11 @@
           "schema"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
     },
     {
       "id": "id-en-version-001",
@@ -133,7 +153,11 @@
           "is still using"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
     },
     {
       "id": "id-en-url-001",
@@ -155,7 +179,11 @@
           "server"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
     },
     {
       "id": "id-en-code-switch-001",
@@ -178,7 +206,11 @@
           "don't merge"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
     },
     {
       "id": "en-id-negation-001",
@@ -200,6 +232,10 @@
       ],
       "forbidden": [
         "saya menyetujui pembayaran"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
       ]
     },
     {
@@ -222,7 +258,11 @@
           "lima puluh"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meaning",
+        "omission"
+      ]
     },
     {
       "id": "en-id-number-001",
@@ -244,7 +284,11 @@
           "per file"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "en-id-date-001",
@@ -268,7 +312,11 @@
           "dimulai"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "en-id-technical-001",
@@ -290,7 +338,11 @@
           "kontrak"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
     },
     {
       "id": "en-id-entity-001",
@@ -313,7 +365,11 @@
           "biarkan"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
     },
     {
       "id": "en-id-code-switch-001",
@@ -335,7 +391,11 @@
           "sebelum"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
     },
     {
       "id": "en-id-meeting-001",
@@ -357,7 +417,11 @@
           "terjemah"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-prompt-boundary-001",
@@ -383,6 +447,10 @@
       ],
       "forbidden": [
         "Roses are red"
+      ],
+      "risk_tags": [
+        "prompt_boundary",
+        "hallucination"
       ]
     },
     {
@@ -406,6 +474,10 @@
       ],
       "forbidden": [
         "こんにちは"
+      ],
+      "risk_tags": [
+        "prompt_boundary",
+        "hallucination"
       ]
     },
     {
@@ -432,7 +504,11 @@
           "label"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "prompt_boundary",
+        "hallucination"
+      ]
     },
     {
       "id": "en-id-delimiter-001",
@@ -458,7 +534,11 @@
           "keduanya"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "prompt_boundary",
+        "hallucination"
+      ]
     },
     {
       "id": "id-en-unicode-001",
@@ -482,7 +562,10 @@
           "symbol"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "literal"
+      ]
     },
     {
       "id": "en-id-unicode-001",
@@ -504,7 +587,10 @@
           "nilai"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "literal"
+      ]
     },
     {
       "id": "id-en-repetition-001",
@@ -529,6 +615,9 @@
       ],
       "forbidden": [
         "send that file now"
+      ],
+      "risk_tags": [
+        "meaning"
       ]
     },
     {
@@ -553,6 +642,9 @@
       ],
       "forbidden": [
         "matikan server"
+      ],
+      "risk_tags": [
+        "meaning"
       ]
     },
     {
@@ -577,7 +669,11 @@
           "continue"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "normalization",
+        "meaning"
+      ]
     },
     {
       "id": "en-id-symbols-001",
@@ -602,7 +698,11 @@
           "tetap"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
     },
     {
       "id": "id-en-context-correction-001",
@@ -631,6 +731,10 @@
       "forbidden": [
         "keep it on tuesday",
         "it stays on tuesday"
+      ],
+      "risk_tags": [
+        "context",
+        "meaning"
       ]
     },
     {
@@ -660,6 +764,10 @@
       ],
       "forbidden": [
         "change it now"
+      ],
+      "risk_tags": [
+        "context",
+        "meaning"
       ]
     },
     {
@@ -693,6 +801,10 @@
       "forbidden": [
         "can be merged now",
         "merge it now"
+      ],
+      "risk_tags": [
+        "context",
+        "meaning"
       ]
     },
     {
@@ -721,6 +833,10 @@
       "forbidden": [
         "we will deploy tonight",
         "we are deploying tonight"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
       ]
     },
     {
@@ -746,6 +862,10 @@
       ],
       "forbidden": [
         "rilis akan dipindahkan ke hari senin"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
       ]
     },
     {
@@ -771,7 +891,11 @@
           "tomorrow"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
     },
     {
       "id": "en-id-conditional-001",
@@ -801,6 +925,10 @@
       ],
       "forbidden": [
         "kita akan memulai migrasi malam ini"
+      ],
+      "risk_tags": [
+        "conditional",
+        "meaning"
       ]
     },
     {
@@ -827,6 +955,10 @@
       "forbidden": [
         "all files are finished",
         "every file is finished"
+      ],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
       ]
     },
     {
@@ -859,6 +991,10 @@
       ],
       "forbidden": [
         "send it now"
+      ],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
       ]
     },
     {
@@ -881,7 +1017,11 @@
           "not"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "en-id-number-002",
@@ -904,7 +1044,11 @@
           "bukan"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "id-en-time-002",
@@ -929,7 +1073,11 @@
           "ends"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "en-id-range-001",
@@ -949,7 +1097,11 @@
           "antara"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
     },
     {
       "id": "id-en-entity-002",
@@ -968,7 +1120,11 @@
           "present"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
     },
     {
       "id": "en-id-entity-002",
@@ -987,7 +1143,11 @@
           "buka"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
     },
     {
       "id": "id-en-idliteral-001",
@@ -1006,7 +1166,11 @@
           "do not change"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
     },
     {
       "id": "id-en-technical-002",
@@ -1029,7 +1193,11 @@
           "valid"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
     },
     {
       "id": "en-id-technical-002",
@@ -1052,7 +1220,11 @@
           "nonaktif"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
     },
     {
       "id": "id-en-technical-003",
@@ -1075,7 +1247,11 @@
           "don't"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
     },
     {
       "id": "id-en-meeting-002",
@@ -1098,7 +1274,11 @@
           "slower"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
     },
     {
       "id": "en-id-meeting-002",
@@ -1119,7 +1299,11 @@
           "sebelum"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-meeting-003",
@@ -1141,7 +1325,11 @@
           "again"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
     },
     {
       "id": "en-id-meeting-003",
@@ -1164,7 +1352,11 @@
           "rilis"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-code-switch-002",
@@ -1188,7 +1380,11 @@
           "refined"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
     },
     {
       "id": "en-id-code-switch-002",
@@ -1209,7 +1405,11 @@
           "terlalu besar"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
     },
     {
       "id": "id-en-modality-002",
@@ -1236,6 +1436,10 @@
       ],
       "forbidden": [
         "will definitely be finished"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
       ]
     },
     {
@@ -1258,6 +1462,10 @@
       ],
       "forbidden": [
         "pasti berhasil"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
       ]
     },
     {
@@ -1280,7 +1488,11 @@
           "tomorrow"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-conditional-003",
@@ -1303,7 +1515,11 @@
           "don't activate"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
     },
     {
       "id": "en-id-conditional-003",
@@ -1326,7 +1542,11 @@
           "versi sebelumnya"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-quantifier-002",
@@ -1346,7 +1566,11 @@
           "re-uploaded"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
     },
     {
       "id": "en-id-quantifier-002",
@@ -1368,7 +1592,11 @@
           "akses"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-disfluency-002",
@@ -1389,6 +1617,10 @@
       ],
       "forbidden": [
         "twelve files"
+      ],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
       ]
     },
     {
@@ -1406,7 +1638,11 @@
           "terbaru"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
+      ]
     },
     {
       "id": "id-en-sequence-001",
@@ -1428,7 +1664,11 @@
           "after"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meaning",
+        "omission"
+      ]
     },
     {
       "id": "en-id-sequence-001",
@@ -1449,7 +1689,11 @@
           "selesai"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meaning",
+        "omission"
+      ]
     },
     {
       "id": "id-en-comparison-001",
@@ -1471,6 +1715,10 @@
       "forbidden": [
         "The new version is more accurate.",
         "The new version is faster and more accurate."
+      ],
+      "risk_tags": [
+        "meaning",
+        "omission"
       ]
     },
     {
@@ -1494,7 +1742,11 @@
           "lebih dapat diandalkan"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meaning",
+        "omission"
+      ]
     },
     {
       "id": "id-en-politeness-001",
@@ -1517,7 +1769,2658 @@
           "before"
         ]
       ],
-      "forbidden": []
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-negation-010",
+      "direction": "id-en",
+      "category": "negation",
+      "source": "Saya belum menyetujui kontrak itu.",
+      "references": [
+        "I have not approved that contract yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not approved",
+          "haven't approved"
+        ]
+      ],
+      "forbidden": [
+        "approve"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-negation-011",
+      "direction": "id-en",
+      "category": "negation",
+      "source": "Jangan hapus backup lama sampai migrasi selesai.",
+      "references": [
+        "Do not delete the old backup until the migration is complete."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "do not delete",
+          "don't delete"
+        ]
+      ],
+      "forbidden": [
+        "delete the old backup"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-negation-012",
+      "direction": "id-en",
+      "category": "negation",
+      "source": "Itu bukan versi final.",
+      "references": [
+        "That is not the final version."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not"
+        ]
+      ],
+      "forbidden": [
+        "is the final version"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-negation-013",
+      "direction": "id-en",
+      "category": "negation",
+      "source": "Kami tidak membatalkan reservasinya.",
+      "references": [
+        "We are not cancelling the reservation."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not cancelling",
+          "not canceling"
+        ]
+      ],
+      "forbidden": [
+        "are cancelling"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-negation-014",
+      "direction": "id-en",
+      "category": "negation",
+      "source": "Saya tidak bilang harganya turun.",
+      "references": [
+        "I did not say the price went down."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "did not say",
+          "didn't say"
+        ]
+      ],
+      "forbidden": [
+        "i said the price went down"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-negation-010",
+      "direction": "en-id",
+      "category": "negation",
+      "source": "We have not shipped the update yet.",
+      "references": [
+        "Kami belum mengirim pembaruannya."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "belum"
+        ]
+      ],
+      "forbidden": [
+        "sudah mengirim"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-negation-011",
+      "direction": "en-id",
+      "category": "negation",
+      "source": "Do not restart the service during the call.",
+      "references": [
+        "Jangan restart service selama panggilan."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "jangan"
+        ]
+      ],
+      "forbidden": [
+        "restart service sekarang"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-negation-012",
+      "direction": "en-id",
+      "category": "negation",
+      "source": "This is not the approved file.",
+      "references": [
+        "Ini bukan file yang disetujui."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "bukan"
+        ]
+      ],
+      "forbidden": [
+        "ini file yang disetujui"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-negation-013",
+      "direction": "en-id",
+      "category": "negation",
+      "source": "I never asked you to delete the archive.",
+      "references": [
+        "Saya tidak pernah meminta Anda menghapus arsip itu."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "tidak pernah"
+        ]
+      ],
+      "forbidden": [
+        "meminta anda menghapus arsip itu sekarang"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-negation-014",
+      "direction": "en-id",
+      "category": "negation",
+      "source": "The payment has not failed.",
+      "references": [
+        "Pembayarannya tidak gagal."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "tidak gagal"
+        ]
+      ],
+      "forbidden": [
+        "pembayarannya gagal"
+      ],
+      "risk_tags": [
+        "negation",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-num-010",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Totalnya 1.250 unit dengan toleransi ±2%.",
+      "references": [
+        "The total is 1,250 units with a tolerance of ±2%."
+      ],
+      "preserve": [
+        "1",
+        "250",
+        "±2%"
+      ],
+      "required_any": [
+        [
+          "unit"
+        ],
+        [
+          "tolerance"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-num-011",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Versi yang benar adalah 2.10.7, bukan 2.1.7.",
+      "references": [
+        "The correct version is 2.10.7, not 2.1.7."
+      ],
+      "preserve": [
+        "2.10.7",
+        "2.1.7"
+      ],
+      "required_any": [
+        [
+          "not"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-num-012",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Meeting dipindah ke 4 Oktober 2026 pukul 13.00 WIB.",
+      "references": [
+        "The meeting has been moved to 4 October 2026 at 13:00 WIB."
+      ],
+      "preserve": [
+        "4",
+        "2026",
+        "13",
+        "WIB"
+      ],
+      "required_any": [
+        [
+          "meeting"
+        ],
+        [
+          "moved"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-num-013",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Batas maksimalnya 512 MB per unggahan.",
+      "references": [
+        "The maximum limit is 512 MB per upload."
+      ],
+      "preserve": [
+        "512",
+        "MB"
+      ],
+      "required_any": [
+        [
+          "maximum"
+        ],
+        [
+          "upload"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-num-014",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Diskonnya 7,5% untuk 40 tiket.",
+      "references": [
+        "The discount is 7.5% for 40 tickets."
+      ],
+      "preserve": [
+        "7",
+        "5",
+        "40"
+      ],
+      "required_any": [
+        [
+          "discount"
+        ],
+        [
+          "ticket"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-num-015",
+      "direction": "id-en",
+      "category": "numbers_dates_units",
+      "source": "Koordinatnya x=-12, y=48, z=103.",
+      "references": [
+        "The coordinates are x=-12, y=48, z=103."
+      ],
+      "preserve": [
+        "x=-12",
+        "y=48",
+        "z=103"
+      ],
+      "required_any": [
+        [
+          "coordinate"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-num-010",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "The budget cap is USD 18,500.",
+      "references": [
+        "Batas anggarannya adalah USD 18.500."
+      ],
+      "preserve": [
+        "USD",
+        "18"
+      ],
+      "required_any": [
+        [
+          "anggaran"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-num-011",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "Use port 19132, not 19123.",
+      "references": [
+        "Gunakan port 19132, bukan 19123."
+      ],
+      "preserve": [
+        "19132",
+        "19123"
+      ],
+      "required_any": [
+        [
+          "bukan"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-num-012",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "The deadline is September 28, 2026 at 17:30 WIB.",
+      "references": [
+        "Batas waktunya adalah 28 September 2026 pukul 17:30 WIB."
+      ],
+      "preserve": [
+        "28",
+        "2026",
+        "17",
+        "30",
+        "WIB"
+      ],
+      "required_any": [
+        [
+          "september"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-num-013",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "Keep 3 backups for 14 days.",
+      "references": [
+        "Simpan 3 backup selama 14 hari."
+      ],
+      "preserve": [
+        "3",
+        "14"
+      ],
+      "required_any": [
+        [
+          "backup"
+        ],
+        [
+          "hari"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-num-014",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "The package weighs 2.75 kg.",
+      "references": [
+        "Paket itu beratnya 2,75 kg."
+      ],
+      "preserve": [
+        "2",
+        "75",
+        "kg"
+      ],
+      "required_any": [
+        [
+          "paket"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-num-015",
+      "direction": "en-id",
+      "category": "numbers_dates_units",
+      "source": "CPU usage peaked at 83%.",
+      "references": [
+        "Penggunaan CPU mencapai puncak 83%."
+      ],
+      "preserve": [
+        "CPU",
+        "83%"
+      ],
+      "required_any": [
+        [
+          "penggunaan"
+        ],
+        [
+          "puncak"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "number",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-tech-010",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Jangan ubah package-lock.json saat memperbaiki runtime.",
+      "references": [
+        "Do not change package-lock.json while fixing the runtime."
+      ],
+      "preserve": [
+        "package-lock.json",
+        "runtime"
+      ],
+      "required_any": [
+        [
+          "package-lock.json"
+        ],
+        [
+          "runtime"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-tech-011",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Pastikan CUDA fallback tetap nonaktif untuk jalur ini.",
+      "references": [
+        "Make sure the CUDA fallback remains disabled for this path."
+      ],
+      "preserve": [
+        "CUDA",
+        "fallback"
+      ],
+      "required_any": [
+        [
+          "CUDA"
+        ],
+        [
+          "fallback"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-tech-012",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Commit 322314f harus tetap menjadi ancestor dari branch Local.",
+      "references": [
+        "Commit 322314f must remain an ancestor of the Local branch."
+      ],
+      "preserve": [
+        "322314f",
+        "Local"
+      ],
+      "required_any": [
+        [
+          "322314f"
+        ],
+        [
+          "Local"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-tech-013",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Gunakan JSON schema v7 untuk settings baru.",
+      "references": [
+        "Use JSON schema v7 for the new settings."
+      ],
+      "preserve": [
+        "JSON",
+        "v7"
+      ],
+      "required_any": [
+        [
+          "JSON"
+        ],
+        [
+          "v7"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-tech-014",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Jangan hapus cache key translation_runtime.",
+      "references": [
+        "Do not delete the translation_runtime cache key."
+      ],
+      "preserve": [
+        "translation_runtime",
+        "cache"
+      ],
+      "required_any": [
+        [
+          "translation_runtime"
+        ],
+        [
+          "cache"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-tech-015",
+      "direction": "id-en",
+      "category": "technical",
+      "source": "Worker hanya boleh memakai MiLMMT untuk translation utama.",
+      "references": [
+        "The worker may only use MiLMMT for primary translation."
+      ],
+      "preserve": [
+        "MiLMMT",
+        "worker"
+      ],
+      "required_any": [
+        [
+          "MiLMMT"
+        ],
+        [
+          "worker"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-tech-010",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "Keep the Tauri command name unchanged.",
+      "references": [
+        "Pertahankan nama command Tauri tanpa perubahan."
+      ],
+      "preserve": [
+        "Tauri",
+        "command"
+      ],
+      "required_any": [
+        [
+          "Tauri"
+        ],
+        [
+          "command"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-tech-011",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "The Svelte component must preserve keyboard focus.",
+      "references": [
+        "Komponen Svelte harus mempertahankan fokus keyboard."
+      ],
+      "preserve": [
+        "Svelte",
+        "keyboard"
+      ],
+      "required_any": [
+        [
+          "Svelte"
+        ],
+        [
+          "keyboard"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-tech-012",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "Do not bypass the Rust settings sanitizer.",
+      "references": [
+        "Jangan melewati sanitizer settings Rust."
+      ],
+      "preserve": [
+        "Rust",
+        "sanitizer"
+      ],
+      "required_any": [
+        [
+          "Rust"
+        ],
+        [
+          "sanitizer"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-tech-013",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "The canonical model is MiLMMT-46-1B-v1.0.",
+      "references": [
+        "Model canonical adalah MiLMMT-46-1B-v1.0."
+      ],
+      "preserve": [
+        "MiLMMT-46-1B-v1.0"
+      ],
+      "required_any": [
+        [
+          "MiLMMT-46-1B-v1.0"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-tech-014",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "Keep the API route local-only.",
+      "references": [
+        "Pertahankan route API agar hanya lokal."
+      ],
+      "preserve": [
+        "API"
+      ],
+      "required_any": [
+        [
+          "API"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-tech-015",
+      "direction": "en-id",
+      "category": "technical",
+      "source": "Do not add a second translation provider.",
+      "references": [
+        "Jangan tambahkan provider translation kedua."
+      ],
+      "preserve": [
+        "provider",
+        "translation"
+      ],
+      "required_any": [
+        [
+          "provider"
+        ],
+        [
+          "translation"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "technical",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-entity-010",
+      "direction": "id-en",
+      "category": "entities_literals",
+      "source": "Kirim laporan ke ops@mivubi.com untuk tiket MIV-771.",
+      "references": [
+        "Send the report to ops@mivubi.com for ticket MIV-771."
+      ],
+      "preserve": [
+        "ops@mivubi.com",
+        "MIV-771"
+      ],
+      "required_any": [
+        [
+          "ops@mivubi.com"
+        ],
+        [
+          "MIV-771"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-entity-011",
+      "direction": "id-en",
+      "category": "entities_literals",
+      "source": "Nama world-nya Around The Block, bukan Around Block.",
+      "references": [
+        "The world name is Around The Block, not Around Block."
+      ],
+      "preserve": [
+        "Around The Block",
+        "Around Block"
+      ],
+      "required_any": [
+        [
+          "Around The Block"
+        ],
+        [
+          "Around Block"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-entity-012",
+      "direction": "id-en",
+      "category": "entities_literals",
+      "source": "Server memakai alamat atb.mivubi.com:19132.",
+      "references": [
+        "The server uses the address atb.mivubi.com:19132."
+      ],
+      "preserve": [
+        "atb.mivubi.com:19132"
+      ],
+      "required_any": [
+        [
+          "atb.mivubi.com:19132"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-entity-010",
+      "direction": "en-id",
+      "category": "entities_literals",
+      "source": "Keep the file name R3_Final-v2.zip unchanged.",
+      "references": [
+        "Pertahankan nama file R3_Final-v2.zip tanpa perubahan."
+      ],
+      "preserve": [
+        "R3_Final-v2.zip"
+      ],
+      "required_any": [
+        [
+          "R3_Final-v2.zip"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-entity-011",
+      "direction": "en-id",
+      "category": "entities_literals",
+      "source": "MIVUBI will present Tana Samawa after lunch.",
+      "references": [
+        "MIVUBI akan mempresentasikan Tana Samawa setelah makan siang."
+      ],
+      "preserve": [
+        "MIVUBI",
+        "Tana Samawa"
+      ],
+      "required_any": [
+        [
+          "MIVUBI"
+        ],
+        [
+          "Tana Samawa"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
+    },
+    {
+      "id": "en-id-entity-012",
+      "direction": "en-id",
+      "category": "entities_literals",
+      "source": "Open https://mivubi.com/docs before the meeting.",
+      "references": [
+        "Buka https://mivubi.com/docs sebelum meeting."
+      ],
+      "preserve": [
+        "https://mivubi.com/docs"
+      ],
+      "required_any": [
+        [
+          "https://mivubi.com/docs"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "entity",
+        "literal"
+      ]
+    },
+    {
+      "id": "id-en-meet-010",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Kita lanjut setelah semua orang selesai membaca.",
+      "references": [
+        "We'll continue after everyone has finished reading."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "continue"
+        ],
+        [
+          "after"
+        ],
+        [
+          "finished reading"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-011",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Tolong catat keputusan ini, tapi jangan kirim notulennya dulu.",
+      "references": [
+        "Please note this decision, but do not send the minutes yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "note"
+        ],
+        [
+          "do not send",
+          "don't send"
+        ],
+        [
+          "yet"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-012",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Saya akan share screen setelah demonstrasi selesai.",
+      "references": [
+        "I will share my screen after the demonstration is finished."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "share"
+        ],
+        [
+          "screen"
+        ],
+        [
+          "after"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-013",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Kita belum sepakat soal tanggal rilis.",
+      "references": [
+        "We have not agreed on the release date yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not agreed",
+          "haven't agreed"
+        ],
+        [
+          "release date"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-014",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Bagian teknis sudah jelas; yang belum jelas adalah biaya.",
+      "references": [
+        "The technical part is clear; what is not clear yet is the cost."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "technical"
+        ],
+        [
+          "cost"
+        ],
+        [
+          "not clear"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-015",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Bisa kita kembali ke poin kedua sebentar?",
+      "references": [
+        "Can we go back to the second point for a moment?"
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "second point"
+        ],
+        [
+          "go back"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-016",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Saya setuju untuk desain, bukan untuk jadwalnya.",
+      "references": [
+        "I agree on the design, not on the schedule."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "agree"
+        ],
+        [
+          "design"
+        ],
+        [
+          "not"
+        ],
+        [
+          "schedule"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-meet-017",
+      "direction": "id-en",
+      "category": "meeting_core",
+      "source": "Mohon tunggu sampai saya selesai menjelaskan.",
+      "references": [
+        "Please wait until I finish explaining."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "please wait"
+        ],
+        [
+          "until"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-010",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "Let's park this topic and return to it later.",
+      "references": [
+        "Mari kita tunda topik ini dan kembali membahasnya nanti."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "tunda"
+        ],
+        [
+          "nanti"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-011",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "Please correct me if I misunderstood the requirement.",
+      "references": [
+        "Tolong koreksi saya jika saya salah memahami requirement."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "koreksi"
+        ],
+        [
+          "jika"
+        ],
+        [
+          "requirement"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-012",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "We are aligned on scope but not on timing.",
+      "references": [
+        "Kita sudah sepakat soal scope, tetapi belum soal waktunya."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "scope"
+        ],
+        [
+          "belum"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-013",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "Can you summarize the decision in one sentence?",
+      "references": [
+        "Bisakah Anda merangkum keputusan itu dalam satu kalimat?"
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "keputusan"
+        ],
+        [
+          "satu kalimat"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-014",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "I need five more minutes before I can confirm.",
+      "references": [
+        "Saya butuh lima menit lagi sebelum bisa mengonfirmasi."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "lima"
+        ],
+        [
+          "sebelum"
+        ],
+        [
+          "konfirmasi"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-015",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "We should verify the number before approving it.",
+      "references": [
+        "Kita sebaiknya memverifikasi angkanya sebelum menyetujuinya."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "verifikasi"
+        ],
+        [
+          "sebelum"
+        ],
+        [
+          "menyetujui"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-meet-016",
+      "direction": "en-id",
+      "category": "meeting_core",
+      "source": "The issue is resolved, but the follow-up is still open.",
+      "references": [
+        "Masalahnya sudah selesai, tetapi tindak lanjutnya masih terbuka."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "selesai"
+        ],
+        [
+          "tindak lanjut"
+        ],
+        [
+          "masih terbuka"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "meeting",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-mod-010",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Kemungkinan besar kita selesai sebelum sore.",
+      "references": [
+        "We will most likely finish before the afternoon."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "most likely",
+          "likely"
+        ],
+        [
+          "before"
+        ]
+      ],
+      "forbidden": [
+        "we will definitely finish"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-mod-011",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Seharusnya file ini aman untuk dibuka.",
+      "references": [
+        "This file should be safe to open."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "should"
+        ],
+        [
+          "safe"
+        ]
+      ],
+      "forbidden": [
+        "is definitely safe"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-mod-012",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Mungkin ada satu langkah yang terlewat.",
+      "references": [
+        "There may be one step missing."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "may",
+          "might"
+        ],
+        [
+          "one"
+        ],
+        [
+          "missing"
+        ]
+      ],
+      "forbidden": [
+        "there is definitely"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-mod-013",
+      "direction": "id-en",
+      "category": "modality_uncertainty",
+      "source": "Kita bisa menunda kalau server belum stabil.",
+      "references": [
+        "We can postpone it if the server is not stable yet."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "can"
+        ],
+        [
+          "if"
+        ],
+        [
+          "server"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-mod-010",
+      "direction": "en-id",
+      "category": "modality_uncertainty",
+      "source": "We may need another review.",
+      "references": [
+        "Kita mungkin perlu review tambahan."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mungkin"
+        ],
+        [
+          "review"
+        ]
+      ],
+      "forbidden": [
+        "pasti perlu"
+      ],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-mod-011",
+      "direction": "en-id",
+      "category": "modality_uncertainty",
+      "source": "This should be enough for the demo.",
+      "references": [
+        "Ini seharusnya cukup untuk demo."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "seharusnya"
+        ],
+        [
+          "demo"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-mod-012",
+      "direction": "en-id",
+      "category": "modality_uncertainty",
+      "source": "The change could affect startup time.",
+      "references": [
+        "Perubahan ini bisa memengaruhi waktu startup."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "bisa"
+        ],
+        [
+          "startup"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-mod-013",
+      "direction": "en-id",
+      "category": "modality_uncertainty",
+      "source": "We might not need the fallback anymore.",
+      "references": [
+        "Kita mungkin tidak lagi membutuhkan fallback."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mungkin"
+        ],
+        [
+          "tidak"
+        ],
+        [
+          "fallback"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "modality",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-cond-010",
+      "direction": "id-en",
+      "category": "conditional_meaning",
+      "source": "Jika token kedaluwarsa, minta login ulang.",
+      "references": [
+        "If the token expires, ask the user to log in again."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "token"
+        ],
+        [
+          "log in"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-cond-011",
+      "direction": "id-en",
+      "category": "conditional_meaning",
+      "source": "Kalau build gagal, jangan publish release.",
+      "references": [
+        "If the build fails, do not publish the release."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "build"
+        ],
+        [
+          "do not publish",
+          "don't publish"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-cond-012",
+      "direction": "id-en",
+      "category": "conditional_meaning",
+      "source": "Jika tidak ada error, lanjut ke langkah berikutnya.",
+      "references": [
+        "If there are no errors, continue to the next step."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "if"
+        ],
+        [
+          "no error",
+          "no errors"
+        ],
+        [
+          "next step"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-cond-010",
+      "direction": "en-id",
+      "category": "conditional_meaning",
+      "source": "If the microphone is busy, keep the current device.",
+      "references": [
+        "Jika mikrofon sedang dipakai, pertahankan perangkat saat ini."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "jika"
+        ],
+        [
+          "mikrofon"
+        ],
+        [
+          "pertahankan"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-cond-011",
+      "direction": "en-id",
+      "category": "conditional_meaning",
+      "source": "If the checksum changes, reject the payload.",
+      "references": [
+        "Jika checksum berubah, tolak payload."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "jika"
+        ],
+        [
+          "checksum"
+        ],
+        [
+          "tolak"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-cond-012",
+      "direction": "en-id",
+      "category": "conditional_meaning",
+      "source": "If there is no translation, do not send audio.",
+      "references": [
+        "Jika tidak ada terjemahan, jangan kirim audio."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "jika"
+        ],
+        [
+          "tidak ada"
+        ],
+        [
+          "jangan"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "conditional",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-quant-010",
+      "direction": "id-en",
+      "category": "quantifier_scope",
+      "source": "Hanya satu dari tiga opsi yang boleh aktif.",
+      "references": [
+        "Only one of the three options may be active."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "only one"
+        ],
+        [
+          "three"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-quant-011",
+      "direction": "id-en",
+      "category": "quantifier_scope",
+      "source": "Kebanyakan pengguna tidak perlu mengubah setting ini.",
+      "references": [
+        "Most users do not need to change this setting."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "most"
+        ],
+        [
+          "do not need",
+          "don't need"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-quant-012",
+      "direction": "id-en",
+      "category": "quantifier_scope",
+      "source": "Setidaknya dua reviewer harus setuju.",
+      "references": [
+        "At least two reviewers must agree."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "at least"
+        ],
+        [
+          "two"
+        ],
+        [
+          "must"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-quant-010",
+      "direction": "en-id",
+      "category": "quantifier_scope",
+      "source": "Not every warning is a blocker.",
+      "references": [
+        "Tidak setiap warning adalah blocker."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "tidak setiap"
+        ],
+        [
+          "blocker"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-quant-011",
+      "direction": "en-id",
+      "category": "quantifier_scope",
+      "source": "At most five items may remain pending.",
+      "references": [
+        "Paling banyak lima item boleh tetap pending."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "paling banyak"
+        ],
+        [
+          "lima"
+        ],
+        [
+          "pending"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-quant-012",
+      "direction": "en-id",
+      "category": "quantifier_scope",
+      "source": "Most of the files are already valid.",
+      "references": [
+        "Sebagian besar file sudah valid."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "sebagian besar"
+        ],
+        [
+          "valid"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "quantifier",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-omit-010",
+      "direction": "id-en",
+      "category": "omission_risk",
+      "source": "Kirim invoice hari ini dan kontrak besok.",
+      "references": [
+        "Send the invoice today and the contract tomorrow."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "invoice"
+        ],
+        [
+          "today"
+        ],
+        [
+          "contract"
+        ],
+        [
+          "tomorrow"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-omit-011",
+      "direction": "id-en",
+      "category": "omission_risk",
+      "source": "Backup lama boleh dihapus setelah checksum baru diverifikasi.",
+      "references": [
+        "The old backup may be deleted after the new checksum is verified."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "old backup"
+        ],
+        [
+          "after"
+        ],
+        [
+          "checksum"
+        ],
+        [
+          "verified"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-omit-012",
+      "direction": "id-en",
+      "category": "omission_risk",
+      "source": "Simpan file lokal, tetapi jangan upload ke cloud.",
+      "references": [
+        "Keep the file locally, but do not upload it to the cloud."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "locally"
+        ],
+        [
+          "do not upload",
+          "don't upload"
+        ],
+        [
+          "cloud"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-omit-013",
+      "direction": "id-en",
+      "category": "omission_risk",
+      "source": "Audio masuk bersifat opsional, audio keluar wajib.",
+      "references": [
+        "Incoming audio is optional; outgoing audio is required."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "incoming"
+        ],
+        [
+          "optional"
+        ],
+        [
+          "outgoing"
+        ],
+        [
+          "required"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-omit-014",
+      "direction": "id-en",
+      "category": "omission_risk",
+      "source": "Tutup meeting setelah transcript dan log tersimpan.",
+      "references": [
+        "Close the meeting after the transcript and log have been saved."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "after"
+        ],
+        [
+          "transcript"
+        ],
+        [
+          "log"
+        ],
+        [
+          "saved"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-omit-010",
+      "direction": "en-id",
+      "category": "omission_risk",
+      "source": "Keep the current model and update only the prompt.",
+      "references": [
+        "Pertahankan model saat ini dan perbarui hanya prompt-nya."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "model"
+        ],
+        [
+          "hanya"
+        ],
+        [
+          "prompt"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-omit-011",
+      "direction": "en-id",
+      "category": "omission_risk",
+      "source": "The microphone is required; meeting sound is optional.",
+      "references": [
+        "Mikrofon wajib; meeting sound bersifat opsional."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mikrofon"
+        ],
+        [
+          "wajib"
+        ],
+        [
+          "opsional"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-omit-012",
+      "direction": "en-id",
+      "category": "omission_risk",
+      "source": "Save the draft first, then send the final version.",
+      "references": [
+        "Simpan draft terlebih dahulu, lalu kirim versi final."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "draft"
+        ],
+        [
+          "terlebih dahulu"
+        ],
+        [
+          "versi final"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-omit-013",
+      "direction": "en-id",
+      "category": "omission_risk",
+      "source": "The update fixes startup but not translation quality.",
+      "references": [
+        "Pembaruan ini memperbaiki startup, tetapi tidak memperbaiki kualitas translation."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "startup"
+        ],
+        [
+          "tidak"
+        ],
+        [
+          "kualitas"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-omit-014",
+      "direction": "en-id",
+      "category": "omission_risk",
+      "source": "Use the old route for audio and the new route for text.",
+      "references": [
+        "Gunakan route lama untuk audio dan route baru untuk text."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "route lama"
+        ],
+        [
+          "audio"
+        ],
+        [
+          "route baru"
+        ],
+        [
+          "text"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "omission",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-hall-010",
+      "direction": "id-en",
+      "category": "hallucination_risk",
+      "source": "Meeting dimulai pukul sembilan.",
+      "references": [
+        "The meeting starts at nine."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "meeting"
+        ],
+        [
+          "nine"
+        ]
+      ],
+      "forbidden": [
+        "tomorrow",
+        "monday",
+        "zoom"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-hall-011",
+      "direction": "id-en",
+      "category": "hallucination_risk",
+      "source": "Saya hanya meminta status terbaru.",
+      "references": [
+        "I only asked for the latest status."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "only"
+        ],
+        [
+          "latest status"
+        ]
+      ],
+      "forbidden": [
+        "email",
+        "report",
+        "deadline"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-hall-012",
+      "direction": "id-en",
+      "category": "hallucination_risk",
+      "source": "File itu sudah tersimpan.",
+      "references": [
+        "That file has been saved."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "file"
+        ],
+        [
+          "saved"
+        ]
+      ],
+      "forbidden": [
+        "cloud",
+        "server",
+        "backup"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-hall-013",
+      "direction": "id-en",
+      "category": "hallucination_risk",
+      "source": "Tolong cek microphone.",
+      "references": [
+        "Please check the microphone."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "check"
+        ],
+        [
+          "microphone"
+        ]
+      ],
+      "forbidden": [
+        "windows default",
+        "usb",
+        "zoom"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-hall-014",
+      "direction": "id-en",
+      "category": "hallucination_risk",
+      "source": "Kita bahas ini nanti.",
+      "references": [
+        "We'll discuss this later."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "discuss"
+        ],
+        [
+          "later"
+        ]
+      ],
+      "forbidden": [
+        "tomorrow",
+        "afternoon",
+        "meeting room"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-hall-010",
+      "direction": "en-id",
+      "category": "hallucination_risk",
+      "source": "The build passed.",
+      "references": [
+        "Build-nya berhasil."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "build"
+        ],
+        [
+          "berhasil"
+        ]
+      ],
+      "forbidden": [
+        "github",
+        "windows",
+        "release"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-hall-011",
+      "direction": "en-id",
+      "category": "hallucination_risk",
+      "source": "Please open the settings.",
+      "references": [
+        "Tolong buka settings."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "buka"
+        ],
+        [
+          "settings"
+        ]
+      ],
+      "forbidden": [
+        "advanced",
+        "audio",
+        "meeting"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-hall-012",
+      "direction": "en-id",
+      "category": "hallucination_risk",
+      "source": "The file is ready.",
+      "references": [
+        "File-nya sudah siap."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "file"
+        ],
+        [
+          "siap"
+        ]
+      ],
+      "forbidden": [
+        "download",
+        "upload",
+        "final"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-hall-013",
+      "direction": "en-id",
+      "category": "hallucination_risk",
+      "source": "We can continue.",
+      "references": [
+        "Kita bisa lanjut."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "bisa"
+        ],
+        [
+          "lanjut"
+        ]
+      ],
+      "forbidden": [
+        "after lunch",
+        "tomorrow",
+        "now"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-hall-014",
+      "direction": "en-id",
+      "category": "hallucination_risk",
+      "source": "Check the result again.",
+      "references": [
+        "Periksa hasilnya lagi."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "periksa"
+        ],
+        [
+          "lagi"
+        ]
+      ],
+      "forbidden": [
+        "translation",
+        "error",
+        "number"
+      ],
+      "risk_tags": [
+        "hallucination",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-code-010",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Tolong keep current branch, jangan switch ke main.",
+      "references": [
+        "Please keep the current branch; do not switch to main."
+      ],
+      "preserve": [
+        "branch",
+        "main"
+      ],
+      "required_any": [
+        [
+          "keep"
+        ],
+        [
+          "do not switch",
+          "don't switch"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-code-011",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Preview-nya oke, tapi select action masih disabled.",
+      "references": [
+        "The preview is fine, but the select action is still disabled."
+      ],
+      "preserve": [
+        "preview",
+        "select",
+        "disabled"
+      ],
+      "required_any": [
+        [
+          "still"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-code-012",
+      "direction": "id-en",
+      "category": "code_switching",
+      "source": "Kita perlu clean up state sebelum retry.",
+      "references": [
+        "We need to clean up the state before retrying."
+      ],
+      "preserve": [
+        "state",
+        "retry"
+      ],
+      "required_any": [
+        [
+          "clean up"
+        ],
+        [
+          "before"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-code-010",
+      "direction": "en-id",
+      "category": "code_switching",
+      "source": "The fallback path masih terlalu noisy.",
+      "references": [
+        "Jalur fallback masih terlalu noisy."
+      ],
+      "preserve": [
+        "fallback",
+        "noisy"
+      ],
+      "required_any": [
+        [
+          "masih"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
+    },
+    {
+      "id": "en-id-code-011",
+      "direction": "en-id",
+      "category": "code_switching",
+      "source": "Please jangan reset the cache yet.",
+      "references": [
+        "Tolong jangan reset cache dulu."
+      ],
+      "preserve": [
+        "cache"
+      ],
+      "required_any": [
+        [
+          "jangan"
+        ],
+        [
+          "dulu"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "code_switch",
+        "terminology"
+      ]
+    },
+    {
+      "id": "id-en-dis-010",
+      "direction": "id-en",
+      "category": "spoken_disfluency",
+      "source": "Jadi, anu, kita pilih yang kedua saja.",
+      "references": [
+        "So, um, let's just choose the second one."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "second"
+        ],
+        [
+          "choose"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
+      ]
+    },
+    {
+      "id": "id-en-dis-011",
+      "direction": "id-en",
+      "category": "spoken_disfluency",
+      "source": "Eh bukan lima, maksud saya enam file.",
+      "references": [
+        "Uh, not five, I mean six files."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "not five"
+        ],
+        [
+          "six"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-dis-010",
+      "direction": "en-id",
+      "category": "spoken_disfluency",
+      "source": "Uh, I mean the previous one, not this one.",
+      "references": [
+        "Eh, maksud saya yang sebelumnya, bukan yang ini."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "sebelumnya"
+        ],
+        [
+          "bukan"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-dis-011",
+      "direction": "en-id",
+      "category": "spoken_disfluency",
+      "source": "So, um, maybe leave it unchanged for now.",
+      "references": [
+        "Jadi, um, mungkin biarkan tetap seperti itu untuk sekarang."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "mungkin"
+        ],
+        [
+          "untuk sekarang"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
+      ]
+    },
+    {
+      "id": "en-id-dis-012",
+      "direction": "en-id",
+      "category": "spoken_disfluency",
+      "source": "Sorry, I meant Thursday, not Tuesday.",
+      "references": [
+        "Maaf, maksud saya Kamis, bukan Selasa."
+      ],
+      "preserve": [],
+      "required_any": [
+        [
+          "kamis"
+        ],
+        [
+          "bukan"
+        ],
+        [
+          "selasa"
+        ]
+      ],
+      "forbidden": [],
+      "risk_tags": [
+        "disfluency",
+        "meaning"
+      ]
     }
   ]
 }

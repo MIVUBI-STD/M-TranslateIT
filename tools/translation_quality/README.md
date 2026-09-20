@@ -85,7 +85,7 @@ Result format:
 
 The fingerprint binds captured output to the exact corpus content. A missing fingerprint remains backward-compatible for standalone evaluation, but a supplied mismatched fingerprint makes the result set incomplete. Promotion comparison additionally requires non-empty `source_identity` for both baseline and candidate, so an otherwise clean comparison cannot authorize a change from unidentified runtime output.
 
-The report includes overall and per-group critical-invariant pass rates, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. Baseline comparison also reports per-group critical-pass-rate deltas so an average score increase cannot hide a newly weaker risk category. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
+The report includes overall and per-group critical-invariant pass rates, risk-tag critical-pass rates, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. Risk tags expose regressions across negation, numbers, entities, omission, hallucination, terminology, context and modality even when a category average looks healthy. Baseline comparison also reports per-group critical-pass-rate deltas so an average score increase cannot hide a newly weaker risk category. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
 
 ## Promotion rule
 

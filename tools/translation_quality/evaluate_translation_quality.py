@@ -76,6 +76,14 @@ def load_corpus(path: Path) -> dict:
         for field in ("preserve", "required_any", "forbidden"):
             if field not in case:
                 raise ValueError(f"{case_id}: missing {field}")
+        risk_tags = case.get("risk_tags", [])
+        if (
+            not isinstance(risk_tags, list)
+            or not risk_tags
+            or len(risk_tags) > 8
+            or not all(isinstance(tag, str) and tag.strip() for tag in risk_tags)
+        ):
+            raise ValueError(f"{case_id}: risk_tags must contain one to eight non-empty strings")
         context_pairs = case.get("context_pairs")
         if context_pairs is not None:
             if case["direction"] != "id-en":
@@ -119,7 +127,15 @@ def validate_corpus(corpus: dict) -> dict:
             failures.append({"case_id": case["id"], "reason": "no reference satisfies declared invariants"})
     directions = sorted({case["direction"] for case in corpus["cases"]})
     categories = sorted({case["category"] for case in corpus["cases"]})
-    return {"ok": not failures, "case_count": len(corpus["cases"]), "directions": directions, "categories": categories, "failures": failures}
+    risk_tags = sorted({tag for case in corpus["cases"] for tag in case.get("risk_tags", [])})
+    return {
+        "ok": not failures,
+        "case_count": len(corpus["cases"]),
+        "directions": directions,
+        "categories": categories,
+        "risk_tags": risk_tags,
+        "failures": failures,
+    }
 
 
 def load_result_bundle(path: Path) -> dict:
@@ -166,6 +182,7 @@ def evaluate(
     rows = []
     grouped: dict[str, list[float]] = defaultdict(list)
     grouped_critical: dict[str, list[bool]] = defaultdict(list)
+    risk_grouped_critical: dict[str, list[bool]] = defaultdict(list)
     critical_failures = 0
     for case in corpus["cases"]:
         translated = results.get(case["id"], "")
@@ -177,7 +194,16 @@ def evaluate(
         grouped[case["category"]].append(score)
         grouped_critical[case["direction"]].append(inv["critical_pass"])
         grouped_critical[case["category"]].append(inv["critical_pass"])
-        rows.append({"case_id": case["id"], "direction": case["direction"], "category": case["category"], "char_ngram_f1": round(score, 4), **inv})
+        for tag in case.get("risk_tags", []):
+            risk_grouped_critical[tag].append(inv["critical_pass"])
+        rows.append({
+            "case_id": case["id"],
+            "direction": case["direction"],
+            "category": case["category"],
+            "risk_tags": list(case.get("risk_tags", [])),
+            "char_ngram_f1": round(score, 4),
+            **inv,
+        })
     expected_fingerprint = corpus_fingerprint(corpus)
     provenance_matches = (
         not result_corpus_fingerprint
@@ -202,6 +228,10 @@ def evaluate(
         "group_critical_pass_rates": {
             key: round(sum(values) / len(values), 4)
             for key, values in sorted(grouped_critical.items())
+        },
+        "risk_tag_critical_pass_rates": {
+            key: round(sum(values) / len(values), 4)
+            for key, values in sorted(risk_grouped_critical.items())
         },
         "cases": rows,
         "note": "Character n-gram F1 and declared invariants are regression signals, not standalone proof of translation quality.",
@@ -268,6 +298,18 @@ def compare_reports(
         )
         for key in critical_group_keys
     }
+    risk_keys = sorted(
+        set(baseline["risk_tag_critical_pass_rates"])
+        | set(candidate["risk_tag_critical_pass_rates"])
+    )
+    risk_tag_critical_pass_rate_deltas = {
+        key: round(
+            candidate["risk_tag_critical_pass_rates"].get(key, 0.0)
+            - baseline["risk_tag_critical_pass_rates"].get(key, 0.0),
+            4,
+        )
+        for key in risk_keys
+    }
     return {
         "schema": "translateit.translation_quality.comparison.v1",
         "complete_result_sets": (
@@ -288,6 +330,7 @@ def compare_reports(
         ),
         "group_mean_deltas": group_mean_deltas,
         "group_critical_pass_rate_deltas": group_critical_pass_rate_deltas,
+        "risk_tag_critical_pass_rate_deltas": risk_tag_critical_pass_rate_deltas,
         "case_score_deltas": score_deltas,
         "promotion_provenance_complete": (
             bool(baseline["source_identity"])

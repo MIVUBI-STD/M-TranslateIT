@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 EVALUATOR = ROOT / "evaluate_translation_quality.py"
 CORPUS = ROOT / "corpus" / "translation_quality_v1.json"
+HELDOUT = ROOT / "heldout" / "translation_quality_heldout_v1.json"
 
 
 def load_evaluator():
@@ -22,8 +23,17 @@ def main() -> int:
     corpus = evaluator.load_corpus(CORPUS)
     validation = evaluator.validate_corpus(corpus)
     assert validation["ok"], validation
-    assert validation["case_count"] >= 35
+    assert validation["case_count"] >= 170
     assert set(validation["directions"]) == {"en-id", "id-en"}
+    assert {"meaning", "number", "negation", "omission", "hallucination", "entity", "terminology"}.issubset(
+        set(validation["risk_tags"])
+    )
+
+    heldout = evaluator.load_corpus(HELDOUT)
+    heldout_validation = evaluator.validate_corpus(heldout)
+    assert heldout_validation["ok"], heldout_validation
+    assert heldout_validation["case_count"] == 40
+    assert set(heldout_validation["directions"]) == {"en-id", "id-en"}
     assert {
         "prompt_boundary",
         "unicode",
@@ -48,6 +58,8 @@ def main() -> int:
     assert report["provenance_matches_corpus"] is True
     assert report["group_critical_pass_rates"]["id-en"] == 1.0
     assert report["group_critical_pass_rates"]["contextual_meeting"] == 1.0
+    assert report["risk_tag_critical_pass_rates"]["meaning"] == 1.0
+    assert report["risk_tag_critical_pass_rates"]["number"] == 1.0
 
     mismatched = evaluator.evaluate(
         corpus,
@@ -80,6 +92,7 @@ def main() -> int:
     assert comparison["critical_regressions"] == ["id-en-negation-001"]
     assert comparison["critical_recoveries"] == []
     assert comparison["group_critical_pass_rate_deltas"]["negation"] < 0
+    assert comparison["risk_tag_critical_pass_rate_deltas"]["negation"] < 0
     assert comparison["promotion_provenance_complete"] is True
     assert comparison["promotion_safe_on_declared_critical_invariants"] is False
 
@@ -120,7 +133,11 @@ def main() -> int:
     assert all(item["request"]["meeting_lane"] == "you" for item in contextual)
     assert all(item["request"]["meeting_generation"] == 1 for item in contextual)
     assert all(item["request"]["context_pairs"] for item in contextual)
-    print(json.dumps({"ok": True, "case_count": validation["case_count"]}, indent=2))
+    print(json.dumps({
+        "ok": True,
+        "regression_case_count": validation["case_count"],
+        "heldout_case_count": heldout_validation["case_count"],
+    }, indent=2))
     return 0
 
 

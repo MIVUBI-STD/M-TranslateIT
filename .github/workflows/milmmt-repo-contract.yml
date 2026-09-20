@@ -41,6 +41,11 @@ jobs:
           python tools/translation_quality/evaluate_translation_quality.py
           validate-corpus
           --corpus tools/translation_quality/corpus/translation_quality_v1.json
+      - name: Validate held-out translation benchmark
+        run: >-
+          python tools/translation_quality/evaluate_translation_quality.py
+          validate-corpus
+          --corpus tools/translation_quality/heldout/translation_quality_heldout_v1.json
       - name: Self-test translation quality evaluator
         run: python tools/translation_quality/self_test.py
       - name: Compile canonical Python owners
