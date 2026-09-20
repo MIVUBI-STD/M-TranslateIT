@@ -101,7 +101,7 @@ requireMarkers(cargoToml, "Cargo.toml", [
   'name = "translateit"',
   'edition = "2021"',
   'tauri = { version = "2"',
-  'tauri-plugin-updater = "2.11.0"',
+  'tauri-plugin-updater = "=2.11.0"',
   'tauri-build = { version = "2"',
 ]);
 
