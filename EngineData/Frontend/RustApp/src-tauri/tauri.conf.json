@@ -20,6 +20,24 @@
         "minHeight": 760,
         "resizable": true,
         "fullscreen": false
+      },
+      {
+        "label": "translation-overlay",
+        "title": "TranslateIT Translation",
+        "url": "index.html?view=translation-overlay",
+        "width": 620,
+        "height": 180,
+        "minWidth": 260,
+        "minHeight": 64,
+        "maxWidth": 720,
+        "maxHeight": 240,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "fullscreen": false
       }
     ],
     "security": {
@@ -28,7 +46,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "windows": {
       "nsis": {
         "displayLanguageSelector": false

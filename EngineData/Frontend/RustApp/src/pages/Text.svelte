@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ArrowLeftRight, Check, Copy, RefreshCw, ShieldAlert } from "@lucide/svelte";
+  import { ArrowLeftRight, Check, Copy, PictureInPicture2, RefreshCw, ShieldAlert } from "@lucide/svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
+  import { publishTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
@@ -161,6 +162,21 @@
     }
   }
 
+  async function showFloatingCaption(): Promise<void> {
+    const text = targetText.trim();
+    if (!text) {
+      onNotice("There is no translated text to show.");
+      return;
+    }
+    const shown = await publishTranslationOverlay({
+      text,
+      language: settings.target_language,
+      source: "text",
+      revision: `text:${targetRevision}:${Date.now()}`,
+    });
+    onNotice(shown ? "Floating caption updated." : "Floating caption is unavailable in browser preview.");
+  }
+
   async function copyTranslation(): Promise<void> {
     if (!targetText.trim()) {
       copyState = "error";
@@ -307,6 +323,9 @@
         <p class="mb-0 mt-1 text-[11px] text-[var(--ti-text-soft)]">Ctrl + Enter to translate</p>
       </div>
       <div class="ti-action-row shrink-0">
+        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim()} onclick={() => void showFloatingCaption()}>
+          <PictureInPicture2 size={15} /> Floating caption
+        </button>
         <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}>
           <RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}
         </button>

@@ -10,6 +10,8 @@
   } from "./app/bridge/runtimeProductFacade";
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { readMeetingPoll } from "./app/runtime/meetingPoll";
+  import { latestMeetingCaption } from "./app/runtime/translationOverlayPolicy";
+  import { publishTranslationOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
     destroyNativeWindow,
     installNativeCloseGuard,
@@ -62,6 +64,7 @@
   let meetingPollInFlight = false;
   let closeCheckInFlight = false;
   let lastTranscriptStatusKey = "";
+  let lastOverlayMeetingRevision = "";
   let runtimeStateRevision = 0;
 
   const snapshot = $derived.by<ProductRuntimeSnapshot | null>(() => {
@@ -151,6 +154,8 @@
         meetingStatus = null;
         meetingTurns = null;
         lastTranscriptStatusKey = "";
+      lastOverlayMeetingRevision = "";
+        lastOverlayMeetingRevision = "";
         setNotice(preferredNotice ?? "Continue Meeting setup to use voice translation.");
         return;
       }
@@ -161,6 +166,8 @@
       if (!next.meeting.hasSession || previousSessionId !== next.meeting.sessionId) {
         meetingTurns = null;
         lastTranscriptStatusKey = "";
+      lastOverlayMeetingRevision = "";
+        lastOverlayMeetingRevision = "";
       }
       setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
     } catch {
@@ -223,6 +230,8 @@
       if (!result.status.has_session || action === "start") {
         meetingTurns = null;
         lastTranscriptStatusKey = "";
+      lastOverlayMeetingRevision = "";
+        lastOverlayMeetingRevision = "";
       }
     } catch {
       runtimeStateRevision += 1;
@@ -307,6 +316,11 @@
       applyMeetingStatus(result.status);
       meetingTurns = result.turns;
       lastTranscriptStatusKey = result.transcriptStatusKey;
+      const overlayCaption = latestMeetingCaption(result.turns);
+      if (overlayCaption && overlayCaption.revision !== lastOverlayMeetingRevision) {
+        lastOverlayMeetingRevision = overlayCaption.revision;
+        void publishTranslationOverlay(overlayCaption);
+      }
       if (result.unavailable) {
         setNotice("Meeting translation is temporarily unavailable.");
       } else if (!result.status.has_session && closeAfterExistingStop) {

@@ -383,3 +383,15 @@
     color: GrayText !important;
   }
 }
+
+
+/* Frameless floating translation caption uses its own compact canvas. */
+html.ti-overlay-document,
+html.ti-overlay-document body,
+html.ti-overlay-document #app {
+  width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
