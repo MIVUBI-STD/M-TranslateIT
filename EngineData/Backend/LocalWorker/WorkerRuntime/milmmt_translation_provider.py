@@ -39,10 +39,19 @@ def build_prompt(
     text: str,
     context_pairs: "list[tuple[str, str]]" = (),
     terminology: "list[tuple[str, str]]" = (),
+    alternative_of: str = "",
 ) -> str:
     source_name = language_name(source_language)
     target_name = language_name(target_language)
-    lines = [f"Translate this from {source_name} to {target_name}:"]
+    if alternative_of:
+        lines = [
+            f"Translate this from {source_name} to {target_name}.",
+            "Produce one natural alternative wording that preserves exactly the same meaning and factual details.",
+            "Do not explain, add facts, omit details, or copy the existing translation verbatim.",
+            f"Existing translation: {alternative_of}",
+        ]
+    else:
+        lines = [f"Translate this from {source_name} to {target_name}:"]
     if terminology:
         lines.append("Preferred terminology (use when the matching source term appears):")
         for term_source, term_target in terminology:
@@ -347,12 +356,16 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             text,
             host,
         )
+        alternative_of = host["compact_runtime_text"](
+            payload.get("alternative_of", ""), host["MAX_TRANSLATION_TEXT_CHARS"]
+        )
         prompt = build_prompt(
             source_language,
             target_language,
             text,
             context_pairs,
             terminology,
+            alternative_of,
         )
         tokenization_started = time.perf_counter()
         inputs = tokenizer(

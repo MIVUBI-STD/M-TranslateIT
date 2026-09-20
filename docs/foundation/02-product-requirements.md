@@ -131,6 +131,12 @@ Indonesian speech
 ### PR-044 — No tone selector
 **NOT CURRENT CORE:** Auto/Formal/Casual user controls.
 
+### PR-044A — Alternative wording
+**SHOULD:** Text translation may offer one on-demand alternative wording using the same canonical translation model. Alternative generation must preserve meaning and facts, must not run on every translation by default, and must not introduce a second translation provider.
+
+### PR-044B — Review cues
+**MUST NOT:** Present heuristic review cues as model confidence. When source text contains high-risk surface features such as numbers, explicit correction/negation, or context-dependent references, Text may surface a bounded “check details” cue so the user knows what deserves manual verification.
+
 ### PR-045 — Context asymmetry
 **MUST:** Outbound Meeting translation may use only the current finalized Indonesian utterance plus up to the last three committed own-voice ID→EN pairs from the same live session.
 

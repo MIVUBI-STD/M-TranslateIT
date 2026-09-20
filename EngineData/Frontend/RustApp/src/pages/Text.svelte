@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeftRight, Check, Copy } from "@lucide/svelte";
+  import { ArrowLeftRight, Check, Copy, RefreshCw, ShieldAlert } from "@lucide/svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
   import { languageName } from "../app/shared/state";
@@ -31,6 +31,8 @@
   let resultMessage = $state("Enter text, then choose Translate.");
   let lastTranslatedSource = $state<string | null>(null);
   let copyState = $state<CopyState>("idle");
+  let reviewHints = $state<string[]>([]);
+  let alternativeBusy = $state(false);
   let targetRevision = 0;
 
   const sourceLanguageName = $derived(languageName(settings.source_language));
@@ -79,6 +81,7 @@
     const previousTarget = targetText;
     translating = true;
     copyState = "idle";
+    reviewHints = [];
     setResult("translating", "Translating", "Translating...");
     onNotice("Translating...");
 
@@ -99,10 +102,15 @@
       }
 
       targetText = result.translated;
+      reviewHints = result.reviewHints;
       lastTranslatedSource = requestSource;
       if (sourceText.trim() === requestSource) {
-        setResult("success", "Translated", "Translation ready.");
-        onNotice("Translation ready.");
+        setResult(
+          result.needsReview ? "stale" : "success",
+          result.needsReview ? "Check details" : "Translated",
+          result.message,
+        );
+        onNotice(result.message);
       } else {
         setResult("stale", "Needs update", "This result belongs to the previous source text. Translate again to update it.");
         onNotice("Translation finished for the previous text.");
@@ -114,6 +122,38 @@
       onNotice(message);
     } finally {
       translating = false;
+    }
+  }
+
+  async function requestAlternative(): Promise<void> {
+    const source = sourceText.trim();
+    const current = targetText.trim();
+    if (!source || !current || alternativeBusy || translating) return;
+    alternativeBusy = true;
+    const requestTargetRevision = targetRevision;
+    try {
+      const result = await runtimeProductFacade.runProductTranslationAlternative(source, current);
+      if (!result.ok) {
+        onNotice(result.message);
+        return;
+      }
+      if (targetRevision !== requestTargetRevision || sourceText.trim() !== source) {
+        onNotice("Another wording finished, but your newer edit was kept.");
+        return;
+      }
+      targetText = result.translated;
+      reviewHints = result.reviewHints;
+      targetRevision += 1;
+      setResult(
+        result.needsReview ? "stale" : "success",
+        result.needsReview ? "Check details" : "Alternative",
+        result.message,
+      );
+      onNotice("Alternative wording ready.");
+    } catch {
+      onNotice("Another wording is unavailable right now.");
+    } finally {
+      alternativeBusy = false;
     }
   }
 
@@ -244,12 +284,27 @@
       </label>
     </div>
 
+    {#if reviewHints.length > 0 && targetText.trim()}
+      <section class="border-t border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] px-5 py-3.5" aria-live="polite">
+        <div class="flex items-start gap-2.5">
+          <ShieldAlert size={15} class="mt-0.5 shrink-0 text-[var(--ti-warning)]" />
+          <div>
+            <strong class="text-[12px] font-semibold">Check important details</strong>
+            <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-muted)]">{reviewHints.join(" ")}</p>
+          </div>
+        </div>
+      </section>
+    {/if}
+
     <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
       <div class="min-w-0">
         <p class="m-0 text-[12.5px] text-[var(--ti-text-muted)]" aria-live="polite">{resultMessage}</p>
         <p class="mb-0 mt-1 text-[11px] text-[var(--ti-text-soft)]">Ctrl + Enter to translate</p>
       </div>
       <div class="ti-action-row shrink-0">
+        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}>
+          <RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Another wording"}
+        </button>
         <button type="button" class="ti-button ti-button-secondary min-w-24" disabled={!targetText.trim()} onclick={() => void copyTranslation()}>
           {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
           {copyState === "copied" ? "Copied" : "Copy"}

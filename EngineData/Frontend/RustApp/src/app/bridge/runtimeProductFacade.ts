@@ -57,6 +57,8 @@ export type ProductTranslationResult = {
   status: string;
   message: string;
   blocker: string;
+  needsReview: boolean;
+  reviewHints: string[];
 };
 
 export type ProductAudioDeviceKind = "microphone" | "meeting-sound";
@@ -227,6 +229,8 @@ export async function runProductTranslation(source: string): Promise<ProductTran
       status: "empty",
       message: "Type or paste something to translate.",
       blocker: "text_translation:empty_input",
+      needsReview: false,
+      reviewHints: [],
     };
   }
   try {
@@ -238,6 +242,8 @@ export async function runProductTranslation(source: string): Promise<ProductTran
       status: result.state,
       message: result.user_message,
       blocker: result.blocker,
+      needsReview: Boolean(result.needs_review),
+      reviewHints: Array.isArray(result.review_hints) ? result.review_hints : [],
     };
   } catch (error) {
     return {
@@ -247,6 +253,52 @@ export async function runProductTranslation(source: string): Promise<ProductTran
       status: "frontend_bridge_error",
       message: "Translation is unavailable right now. Try again or check Diagnostics.",
       blocker: errorMessage(error),
+      needsReview: false,
+      reviewHints: [],
+    };
+  }
+}
+
+export async function runProductTranslationAlternative(
+  source: string,
+  currentTranslation: string,
+): Promise<ProductTranslationResult> {
+  const cleaned = source.trim();
+  const current = currentTranslation.trim();
+  if (!cleaned || !current) {
+    return {
+      ok: false,
+      source: cleaned,
+      translated: "",
+      status: "alternative_unavailable",
+      message: "Translate the text first, then request another wording.",
+      blocker: "text_translation:alternative_requires_current_translation",
+      needsReview: false,
+      reviewHints: [],
+    };
+  }
+  try {
+    const result = await runtimeApi.translateTextAlternative(cleaned, current);
+    return {
+      ok: Boolean(result.ok),
+      source: cleaned,
+      translated: result.translated_text,
+      status: result.state,
+      message: result.user_message,
+      blocker: result.blocker,
+      needsReview: Boolean(result.needs_review),
+      reviewHints: Array.isArray(result.review_hints) ? result.review_hints : [],
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      source: cleaned,
+      translated: "",
+      status: "frontend_bridge_error",
+      message: "Another wording is unavailable right now.",
+      blocker: errorMessage(error),
+      needsReview: false,
+      reviewHints: [],
     };
   }
 }

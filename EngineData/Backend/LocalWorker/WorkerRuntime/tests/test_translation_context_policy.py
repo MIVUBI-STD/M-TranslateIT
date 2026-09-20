@@ -208,3 +208,28 @@ def test_terminology_is_relevant_and_directional(monkeypatch) -> None:
     reverse_prompt = prompts[-1]
     assert "- restoration => pemugaran" in reverse_prompt
     assert "product name => nama produk" not in reverse_prompt
+
+
+def test_alternative_prompt_preserves_source_and_existing_translation(monkeypatch) -> None:
+    worker = load_worker_module()
+    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
+    )
+    prompts = install_fake_translation_runtime(worker)
+
+    result = worker.handle_translate(
+        {
+            "text": "Saya belum sempat mengerjakannya.",
+            "source_language": "id",
+            "target_language": "en",
+            "alternative_of": "I haven't had a chance to work on it yet.",
+        }
+    )
+    assert result["ok"] is True
+    prompt = prompts[-1]
+    assert "Produce one natural alternative wording" in prompt
+    assert "I haven't had a chance to work on it yet." in prompt
+    assert "Indonesian: Saya belum sempat mengerjakannya." in prompt

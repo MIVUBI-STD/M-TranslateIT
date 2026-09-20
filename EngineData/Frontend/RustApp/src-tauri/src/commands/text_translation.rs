@@ -18,16 +18,24 @@ pub struct TextTranslationResult {
     pub translated_text: String,
     pub user_message: String,
     pub blocker: String,
+    pub needs_review: bool,
+    pub review_hints: Vec<String>,
 }
 
 impl TextTranslationResult {
-    fn success(translated_text: String) -> Self {
+    fn success(translated_text: String, review_hints: Vec<String>) -> Self {
         Self {
             ok: true,
             state: "translated".to_string(),
             translated_text,
-            user_message: "Translation ready.".to_string(),
+            user_message: if review_hints.is_empty() {
+                "Translation ready.".to_string()
+            } else {
+                "Translation ready. Review the highlighted details before using it.".to_string()
+            },
             blocker: String::new(),
+            needs_review: !review_hints.is_empty(),
+            review_hints,
         }
     }
 
@@ -38,6 +46,8 @@ impl TextTranslationResult {
             translated_text: String::new(),
             user_message: user_message.to_string(),
             blocker,
+            needs_review: false,
+            review_hints: Vec::new(),
         }
     }
 }
@@ -53,6 +63,30 @@ fn clean_source(value: &str) -> String {
                 && *character != '\u{007f}'
         })
         .collect::<String>()
+}
+
+fn source_review_hints(source: &str) -> Vec<String> {
+    let folded = format!(" {} ", source.to_lowercase());
+    let mut hints = Vec::new();
+    if source.chars().any(|character| character.is_ascii_digit()) {
+        hints.push("Check numbers, dates, units, prices, and versions.".to_string());
+    }
+    if [
+        " tidak ", " bukan ", " jangan ", " belum ", " maksud ", " not ", " don't ",
+        " do not ", " never ", " instead ", " correction ",
+    ]
+    .iter()
+    .any(|needle| folded.contains(needle))
+    {
+        hints.push("Check negation or correction wording.".to_string());
+    }
+    if [" itu ", " ini ", " yang tadi ", " tersebut ", " that ", " this ", " it ", " those ", " these "]
+        .iter()
+        .any(|needle| folded.contains(needle))
+    {
+        hints.push("Check references when the sentence depends on earlier context.".to_string());
+    }
+    hints
 }
 
 fn compact_worker_text(value: Option<&Value>) -> String {
@@ -195,7 +229,7 @@ fn translate_with_persistent_helper(source: &str) -> TextTranslationResult {
         .trim();
 
     if response.ok && worker_response_is_complete(&worker_response) && !translated.is_empty() {
-        return TextTranslationResult::success(translated.to_string());
+        return TextTranslationResult::success(translated.to_string(), source_review_hints(source));
     }
 
     TextTranslationResult::blocked(
@@ -293,4 +327,82 @@ mod tests {
             "Text translation is busy with higher-priority Meeting work right now. Try again after the current Meeting phrase finishes."
         );
     }
+}
+
+
+const MAX_ALTERNATIVE_SOURCE_CHARS: usize = 1_000;
+
+#[tauri::command]
+pub fn translate_text_alternative(source: String, current_translation: String) -> TextTranslationResult {
+    let started = trace_command_start(
+        "translate_text_alternative",
+        format!("source_chars={}", source.chars().count()),
+    );
+    let source = clean_source(&source);
+    let current_translation = clean_source(&current_translation);
+    let result = if source.is_empty() || current_translation.is_empty() {
+        TextTranslationResult::blocked(
+            "alternative_unavailable",
+            "Translate the text first, then request another wording.",
+            "text_translation:alternative_requires_current_translation".to_string(),
+        )
+    } else if source.chars().count() > MAX_ALTERNATIVE_SOURCE_CHARS {
+        TextTranslationResult::blocked(
+            "alternative_input_too_long",
+            "Another wording is available for shorter text only. Shorten the source or edit the current translation.",
+            "text_translation:alternative_source_too_long".to_string(),
+        )
+    } else if let Err(result) = ensure_persistent_helper_started() {
+        result
+    } else {
+        let settings = load_settings();
+        let payload = json!({
+            "text": source,
+            "source_language": settings.source_language,
+            "target_language": settings.target_language,
+            "request_kind": "standalone_alternative",
+            "alternative_of": current_translation,
+            "terminology": &settings.terminology,
+        });
+        let response = send_helper_worker_task("translate", payload);
+        let worker_response = serde_json::from_str::<Value>(&response.worker_response_json)
+            .unwrap_or_else(|_| json!({
+                "ok": false,
+                "stage": "translate",
+                "blocker": "helper_bridge:invalid_translation_response",
+                "note": response.message,
+            }));
+        let translated = worker_response
+            .get("translated_text")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim();
+        if response.ok
+            && worker_response.get("complete").and_then(Value::as_bool) == Some(true)
+            && worker_response.get("finished_with_eos").and_then(Value::as_bool) == Some(true)
+            && !translated.is_empty()
+            && translated != current_translation
+        {
+            TextTranslationResult::success(translated.to_string(), source_review_hints(&source))
+        } else if translated == current_translation {
+            TextTranslationResult::blocked(
+                "no_distinct_alternative",
+                "The local translator didn't find a meaning-preserving alternative. Keep or edit the current translation.",
+                "text_translation:no_distinct_alternative".to_string(),
+            )
+        } else {
+            TextTranslationResult::blocked(
+                "alternative_unavailable",
+                worker_failure_message(&worker_response),
+                worker_blocker(&worker_response),
+            )
+        }
+    };
+
+    if result.ok {
+        trace_command_end("translate_text_alternative", started, format!("state={}", result.state));
+    } else {
+        trace_command_error("translate_text_alternative", started, format!("state={}", result.state));
+    }
+    result
 }

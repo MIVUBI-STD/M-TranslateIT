@@ -57,6 +57,8 @@ export type TextTranslationCommandResult = {
   translated_text: string;
   user_message: string;
   blocker: string;
+  needs_review: boolean;
+  review_hints: string[];
 };
 
 export type MeetingSessionPreflightStatus = {
@@ -193,6 +195,8 @@ function textTranslationFallback(): TextTranslationCommandResult {
     translated_text: "",
     user_message: "Translation is unavailable right now. Try again or check Diagnostics.",
     blocker: "frontend_bridge_unavailable",
+    needs_review: false,
+    review_hints: [],
   };
 }
 
@@ -495,6 +499,14 @@ export const runtimeApi = {
     return invokeOr<TextTranslationCommandResult>(
       "translate_text",
       { source },
+      textTranslationFallback(),
+    );
+  },
+
+  async translateTextAlternative(source: string, currentTranslation: string): Promise<TextTranslationCommandResult> {
+    return invokeOr<TextTranslationCommandResult>(
+      "translate_text_alternative",
+      { source, currentTranslation },
       textTranslationFallback(),
     );
   },
