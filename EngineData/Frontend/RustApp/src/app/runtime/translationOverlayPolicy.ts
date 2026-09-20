@@ -20,7 +20,7 @@ export type TranslationOverlayPreferences = {
 export type PhysicalPoint = { x: number; y: number };
 export type PhysicalRect = { x: number; y: number; width: number; height: number };
 
-type MeetingTurnLike = { sequence: number; lane: string; translated_text: string; };
+type MeetingTurnLike = { sequence: number; lane: string; translated_text: string; created_unix_ms?: number; };
 type MeetingTurnsLike = { ok: boolean; has_session: boolean; session_id: string | null; turns: MeetingTurnLike[]; };
 
 export function normalizeOverlayText(value: string): string {
@@ -87,4 +87,29 @@ export function defaultBottomCenterPosition(windowWidth: number, windowHeight: n
     x: Math.round(workArea.x + (workArea.width - windowWidth) / 2),
     y: Math.round(workArea.y + workArea.height - windowHeight - bottomGap),
   }, windowWidth, windowHeight, workArea);
+}
+
+
+export type RecentCaptionEntry = {
+  sequence: number;
+  lane: string;
+  text: string;
+  language: string;
+  createdUnixMs: number;
+};
+
+export function recentMeetingCaptions(snapshot: MeetingTurnsLike | null, limit = 20): RecentCaptionEntry[] {
+  if (!snapshot?.ok || !snapshot.has_session || !snapshot.session_id) return [];
+  const boundedLimit = Math.max(1, Math.min(20, Math.trunc(limit) || 20));
+  return snapshot.turns
+    .filter((turn) => normalizeOverlayText(turn.translated_text).length > 0)
+    .sort((left, right) => left.sequence - right.sequence)
+    .slice(-boundedLimit)
+    .map((turn) => ({
+      sequence: turn.sequence,
+      lane: turn.lane,
+      text: normalizeOverlayText(turn.translated_text),
+      language: turn.lane === "incoming" ? "id" : "en",
+      createdUnixMs: "created_unix_ms" in turn && typeof turn.created_unix_ms === "number" ? turn.created_unix_ms : 0,
+    }));
 }
