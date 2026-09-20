@@ -381,7 +381,8 @@ def test_translation_preload_does_not_run_full_worker_status(monkeypatch) -> Non
     }
     monkeypatch.setattr(worker.runtime, "import_ready", lambda name: name in {"torch", "transformers"})
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
-    monkeypatch.setattr(worker, "get_translation_runtime", lambda *_args: fake_runtime)
+    worker.TRANSLATION_RUNTIME.clear()
+    worker.TRANSLATION_RUNTIME["id->en"] = fake_runtime
 
     def unexpected_full_status(_payload=None):
         raise AssertionError("translation preload must not run full worker readiness")
