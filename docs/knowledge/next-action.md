@@ -4,7 +4,7 @@
 
 - `Local` remains the sole active authority for development, CI, proof, continuation, and release-source validation.
 - Core architecture is structurally hardened across Meeting, helper bridge, Text, My Voice, setup, diagnostics, Windows audio, and local voice-runtime ownership.
-- Translation quality now uses a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates. Do not tune against the held-out set.
+- Translation quality now uses a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates. Coverage counts are machine-derived, and terminology injection rejects substring-only false matches. Do not tune against the held-out set.
 - ASR quality now carries 60 linguistic/accent/acoustic/device/meeting-compression acceptance cases.
 - TTS/My Voice quality now carries 30 synthesis acceptance cases covering intelligibility, speaker similarity, artifacts, long form, acronyms, lists, numbers, entities, and repeated-synthesis targets.
 - Quality Readiness remains fail-closed over Translation + ASR + TTS evidence with candidate identity and report-hash binding.
@@ -32,6 +32,7 @@ When native testing becomes available:
    - native output jitter → persistent output stream;
    - warm Start proof cost → proof reuse/rebinding;
    - TTS dominance → quality-preserving fragments.
-5. Evaluate adaptive 0–3 turn context only from measured token/quality evidence.
+5. Capture exact translation baseline/candidate outputs on regression + held-out sets; optionally add a version-pinned semantic MT metric as supporting evidence and perform bilingual blind review.
+6. Evaluate adaptive 0–3 turn context or any model/prompt change only from measured token/quality evidence.
 
 Until then, preserve one canonical MiLMMT pipeline, model/voice quality, generation authority, bounded queues, at-most-once output, terminology determinism, and fail-closed readiness.

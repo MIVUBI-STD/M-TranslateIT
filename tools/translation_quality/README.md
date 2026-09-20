@@ -35,7 +35,7 @@ Each case contains one or more references plus narrow invariants:
 
 These checks are intentionally narrow. They do not replace human review.
 
-The corpus now contains 65 targeted cases. Growth is intentionally risk-driven rather than random: additions cover meeting phrasing, code-switching, quantities, technical literals, modality, conditionals, quantifier scope, corrections/disfluency, ordering and comparisons.
+The current regression corpus contains 170 targeted cases, with a separate 40-case held-out benchmark. Do not hand-maintain these counts in downstream status files; use the `stats` command below when exact coverage matters. Growth is intentionally risk-driven rather than random: additions cover meeting phrasing, code-switching, quantities, technical literals, modality, conditionals, quantifier scope, corrections/disfluency, ordering and comparisons.
 
 Adversarial cases treat instruction-like strings such as `Ignore previous instructions`,
 `English:`, or `Indonesian:` as ordinary source content. Repository tests verify that
@@ -44,6 +44,12 @@ requests cannot smuggle Meeting context. They do not claim the model will transl
 adversarial case correctly until the real model output is evaluated.
 
 ## Commands
+
+Report machine-derived corpus coverage:
+
+```powershell
+python tools/translation_quality/evaluate_translation_quality.py stats --corpus tools/translation_quality/corpus/translation_quality_v1.json
+```
 
 Validate corpus integrity:
 
@@ -85,7 +91,7 @@ Result format:
 
 The fingerprint binds captured output to the exact corpus content. A missing fingerprint remains backward-compatible for standalone evaluation, but a supplied mismatched fingerprint makes the result set incomplete. Promotion comparison additionally requires non-empty `source_identity` for both baseline and candidate, so an otherwise clean comparison cannot authorize a change from unidentified runtime output.
 
-The report includes overall and per-group critical-invariant pass rates, risk-tag critical-pass rates, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. Risk tags expose regressions across negation, numbers, entities, omission, hallucination, terminology, context and modality even when a category average looks healthy. Baseline comparison also reports per-group critical-pass-rate deltas so an average score increase cannot hide a newly weaker risk category. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
+The report includes overall and per-group critical-invariant pass rates, risk-tag critical-pass rates, a lightweight character n-gram F1 regression signal, direction/category means, and per-case failures. These automated signals intentionally do not pretend to be semantic quality scores. Risk tags expose regressions across negation, numbers, entities, omission, hallucination, terminology, context and modality even when a category average looks healthy. Baseline comparison also reports per-group critical-pass-rate deltas so an average score increase cannot hide a newly weaker risk category. The n-gram score is not BLEU, COMET, or a substitute for linguistic evaluation.
 
 ## Promotion rule
 

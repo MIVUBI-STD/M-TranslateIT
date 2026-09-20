@@ -10,7 +10,8 @@ Use human evaluation when changing the translation model, prompt, context policy
 
 Use a held-out bilingual set that is not used to tune the candidate. Include both directions and representative samples from:
 
-- normal conversational Indonesian and English;
+- normal conversational Indonesian and English, including common informal Indonesian forms where they are representative of real use;
+- workplace Indonesian with natural code-switching such as follow-up, approval, deploy, staging, pending and hold language;
 - online-meeting requests, corrections and follow-ups;
 - numbers, dates, currencies and units;
 - named entities, product names and exact literals;
@@ -20,7 +21,7 @@ Use a held-out bilingual set that is not used to tune the candidate. Include bot
 - contextual outbound Meeting turns;
 - terminology-controlled cases.
 
-The 65-case automated corpus may seed risk discovery, but the final human set should contain unseen wording.
+The 170-case regression corpus may seed risk discovery, and the 40-case held-out benchmark protects release comparison, but the final human review set should still contain unseen wording. Do not tune prompts or model selection against the held-out benchmark.
 
 ## Blind review
 
@@ -37,7 +38,11 @@ Score each output from 1–5 on four dimensions:
 3. **Naturalness** — sounds natural and understandable in the target language without changing meaning.
 4. **Terminology consistency** — respects applicable preferred terminology without awkward blind replacement.
 
-A factual reversal, lost negation, changed number/date/unit, invented claim, or materially incomplete translation is a **critical error** regardless of average score.
+A factual reversal, lost negation, changed number/date/unit, invented claim, materially wrong antecedent/reference, or materially incomplete translation is a **critical error** regardless of average score.
+
+## Optional semantic metric evidence
+
+A reference-based semantic MT metric such as COMET/XCOMET may be recorded as additional candidate evidence when it is run against the exact held-out set and exact source identities. Record the metric name/version and model identity. Semantic metric output is supporting evidence only: it must not override a new declared invariant failure or a bilingual reviewer critical error, and repository CI must not claim model-quality improvement merely because the evaluator integration exists.
 
 ## Pairwise decision
 
@@ -74,3 +79,5 @@ Record:
 - adjudicated notes for material disagreements.
 
 Human review is evidence for linguistic quality only. It does not prove Windows audio routing, ASR quality, TTS quality, GPU performance, or end-to-end Meeting latency.
+
+For Meeting release decisions, also inspect speech-to-meaning failures end to end: a perfect translation of a materially wrong ASR transcript is still a product failure. Keep ASR WER/CER and translation metrics, but adjudicate any negation, number, named-entity, correction, or reference error that changes the final English meaning.

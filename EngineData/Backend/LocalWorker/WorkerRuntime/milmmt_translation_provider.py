@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -70,6 +71,15 @@ MAX_TERMINOLOGY_ENTRIES = 16
 MAX_TERMINOLOGY_TERM_CHARS = 80
 
 
+def source_term_occurs(source_text: str, term_source: str) -> bool:
+    source_folded = source_text.casefold()
+    term_folded = term_source.casefold()
+    if not term_folded:
+        return False
+    pattern = rf"(?<!\\w){re.escape(term_folded)}(?!\\w)"
+    return re.search(pattern, source_folded) is not None
+
+
 def normalize_context_pairs(raw_pairs: object, host: dict) -> "list[tuple[str, str]]":
     if not isinstance(raw_pairs, list):
         return []
@@ -93,7 +103,6 @@ def normalize_terminology_entries(
 ) -> "list[tuple[str, str]]":
     if not isinstance(raw_entries, list) or source_language == target_language:
         return []
-    source_folded = source_text.casefold()
     entries: "list[tuple[str, str]]" = []
     seen: set[tuple[str, str]] = set()
     for raw_entry in raw_entries:
@@ -113,7 +122,7 @@ def normalize_terminology_entries(
             term_source, term_target = english, indonesian
         else:
             continue
-        if term_source.casefold() not in source_folded:
+        if not source_term_occurs(source_text, term_source):
             continue
         source_key = term_source.casefold()
         target_key = term_target.casefold()

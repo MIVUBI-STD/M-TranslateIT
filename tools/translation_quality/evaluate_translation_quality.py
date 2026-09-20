@@ -138,6 +138,29 @@ def validate_corpus(corpus: dict) -> dict:
     }
 
 
+def corpus_stats(corpus: dict) -> dict:
+    directions: dict[str, int] = defaultdict(int)
+    categories: dict[str, int] = defaultdict(int)
+    risk_tags: dict[str, int] = defaultdict(int)
+    contextual_cases = 0
+    for case in corpus["cases"]:
+        directions[case["direction"]] += 1
+        categories[case["category"]] += 1
+        for tag in case.get("risk_tags", []):
+            risk_tags[tag] += 1
+        if case.get("context_pairs"):
+            contextual_cases += 1
+    return {
+        "schema": "translateit.translation_quality.stats.v1",
+        "corpus_fingerprint": corpus_fingerprint(corpus),
+        "case_count": len(corpus["cases"]),
+        "contextual_case_count": contextual_cases,
+        "directions": dict(sorted(directions.items())),
+        "categories": dict(sorted(categories.items())),
+        "risk_tags": dict(sorted(risk_tags.items())),
+    }
+
+
 def load_result_bundle(path: Path) -> dict:
     raw = json.loads(path.read_text(encoding="utf-8"))
     rows = raw.get("results") if isinstance(raw, dict) else raw
@@ -388,7 +411,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "command",
-        choices=("validate-corpus", "emit-requests", "evaluate", "compare"),
+        choices=("validate-corpus", "stats", "emit-requests", "evaluate", "compare"),
     )
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--results", type=Path)
@@ -400,6 +423,9 @@ def main() -> int:
         report = validate_corpus(corpus)
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0 if report["ok"] else 1
+    if args.command == "stats":
+        print(json.dumps(corpus_stats(corpus), ensure_ascii=False, indent=2))
+        return 0
     if args.command == "emit-requests":
         print(json.dumps(emit_requests(corpus), ensure_ascii=False, indent=2))
         return 0

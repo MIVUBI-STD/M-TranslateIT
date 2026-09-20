@@ -264,3 +264,31 @@ def test_terminology_rejects_conflicting_source_or_target_mappings(monkeypatch) 
     assert "PEMUGARAN => renovation" not in prompt
     assert "restorasi => restoration" not in prompt
     assert "- arsip => archive" in prompt
+
+def test_terminology_does_not_match_inside_larger_word(monkeypatch) -> None:
+    worker = load_worker_module()
+    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
+    )
+    prompts = install_fake_translation_runtime(worker)
+
+    result = worker.handle_translate(
+        {
+            "text": "Program API ini akan diperbarui besok.",
+            "source_language": "id",
+            "target_language": "en",
+            "terminology": [
+                {"indonesian": "ram", "english": "memory"},
+                {"indonesian": "API", "english": "API"},
+            ],
+        }
+    )
+
+    assert result["ok"] is True
+    prompt = prompts[-1]
+    assert "- ram => memory" not in prompt
+    assert "- API => API" in prompt
+

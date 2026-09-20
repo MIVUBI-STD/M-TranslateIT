@@ -115,6 +115,13 @@ def main() -> int:
     assert recovered["promotion_provenance_complete"] is True
     assert recovered["promotion_safe_on_declared_critical_invariants"] is True
 
+    stats = evaluator.corpus_stats(corpus)
+    assert stats["case_count"] == validation["case_count"]
+    assert stats["directions"]["id-en"] == 90
+    assert stats["directions"]["en-id"] == 80
+    assert stats["contextual_case_count"] == 3
+    assert stats["risk_tags"]["meaning"] >= 100
+
     requests = evaluator.emit_requests(corpus)
     assert requests["corpus_fingerprint"] == fingerprint
     assert len(requests["requests"]) == validation["case_count"]
