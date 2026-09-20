@@ -39,7 +39,7 @@ class VoiceLabBuildContractTests(unittest.TestCase):
         self.assertEqual(SOVITS_EPOCHS, 8)
         self.assertEqual(GPT_EPOCHS, 15)
 
-    def test_reference_selection_prefers_take_closest_to_five_seconds(self) -> None:
+    def test_reference_selection_uses_duration_as_tiebreaker_for_equal_signal_quality(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             durations = [(1, 3_200), (2, 5_050), (3, 7_400)]
@@ -58,6 +58,30 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             selected = select_reference(normalized)
             self.assertEqual(selected["line_id"], 2)
             self.assertEqual(selected["duration_ms"], 5_050)
+
+    def test_reference_selection_prefers_cleaner_eligible_take_before_duration(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            near_target = root / "take_0001.wav"
+            cleaner = root / "take_0002.wav"
+            near_target_samples = [0] * 3_200 + [
+                4_000 if index % 2 == 0 else -4_000 for index in range(156_800)
+            ]
+            cleaner_samples = [
+                4_000 if index % 2 == 0 else -4_000 for index in range(134_400)
+            ]
+            self.write_signal_wav(near_target, near_target_samples)
+            self.write_signal_wav(cleaner, cleaner_samples)
+            manifest = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "near target", "wav_file": near_target.name},
+                    {"line_id": 2, "exact_text": "cleaner", "wav_file": cleaner.name},
+                ],
+                "held_out_lines": [{"line_id": 1001, "exact_text": "held out sentence"}],
+            }
+            normalized = training_takes(root, manifest)
+            selected = select_reference(normalized)
+            self.assertEqual(selected["line_id"], 2)
 
     def test_held_out_text_cannot_overlap_training_text(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

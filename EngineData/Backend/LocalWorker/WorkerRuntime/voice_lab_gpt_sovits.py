@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import math
+import struct
 import wave
 from contextlib import contextmanager
 from pathlib import Path
@@ -90,7 +92,7 @@ def inference_source_assets(source_root: Path) -> dict[str, Path]:
     return assets
 
 
-def wav_duration_ms(path: Path) -> int:
+def wav_signal_metrics_pcm16(path: Path) -> dict[str, float]:
     try:
         with wave.open(str(path), "rb") as reader:
             if (
@@ -99,14 +101,34 @@ def wav_duration_ms(path: Path) -> int:
                 or reader.getframerate() != 32_000
             ):
                 raise VoiceLabProviderError(f"noncanonical_take:{path.name}")
-            frames = reader.getnframes()
+            frame_count = reader.getnframes()
+            payload = reader.readframes(frame_count)
     except VoiceLabProviderError:
         raise
     except Exception as exc:
         raise VoiceLabProviderError(f"invalid_take:{path.name}") from exc
-    if frames <= 0:
+    if frame_count <= 0 or len(payload) != frame_count * 2:
         raise VoiceLabProviderError(f"empty_take:{path.name}")
-    return frames * 1_000 // 32_000
+
+    samples = struct.unpack(f"<{frame_count}h", payload)
+    silent = sum(1 for sample in samples if abs(sample) <= 128)
+    clipped = sum(1 for sample in samples if abs(sample) >= 32_760)
+    active = [sample for sample in samples if abs(sample) > 128]
+    active_rms = (
+        math.sqrt(sum(sample * sample for sample in active) / len(active)) if active else 0.0
+    )
+    dc_offset = abs(sum(samples) / frame_count)
+    return {
+        "duration_ms": frame_count * 1_000 / 32_000,
+        "active_rms": active_rms,
+        "dc_offset": dc_offset,
+        "silence_fraction": silent / frame_count,
+        "clipping_fraction": clipped / frame_count,
+    }
+
+
+def wav_duration_ms(path: Path) -> int:
+    return int(wav_signal_metrics_pcm16(path)["duration_ms"])
 
 
 def require_regular_file(path: Path, label: str) -> tuple[int, int]:

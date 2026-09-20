@@ -39,6 +39,7 @@ from voice_lab_gpt_sovits import (
     require_dir,
     require_file,
     wav_duration_ms,
+    wav_signal_metrics_pcm16,
     write_wav,
 )
 
@@ -139,13 +140,23 @@ def select_reference(takes: list[dict[str, Any]]) -> dict[str, Any]:
     eligible = [x for x in takes if REFERENCE_MIN_MS <= int(x["duration_ms"]) <= REFERENCE_MAX_MS]
     if not eligible:
         raise VoiceLabProviderError("reference_take_3_to_10_seconds_required")
-    return min(
-        eligible,
-        key=lambda x: (
-            abs(int(x["duration_ms"]) - REFERENCE_TARGET_MS),
-            int(x["line_id"]),
-        ),
-    )
+
+    ranked: list[tuple[tuple[float, float, float, int, int], dict[str, Any]]] = []
+    for take in eligible:
+        metrics = wav_signal_metrics_pcm16(Path(take["wav_path"]))
+        ranked.append(
+            (
+                (
+                    float(metrics["clipping_fraction"]),
+                    float(metrics["silence_fraction"]),
+                    float(metrics["dc_offset"]),
+                    abs(int(take["duration_ms"]) - REFERENCE_TARGET_MS),
+                    int(take["line_id"]),
+                ),
+                take,
+            )
+        )
+    return min(ranked, key=lambda item: item[0])[1]
 
 
 def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) -> None:

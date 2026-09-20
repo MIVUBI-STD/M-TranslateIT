@@ -9,16 +9,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
-import struct
 import sys
 import tempfile
-import wave
 from pathlib import Path
 from typing import Any
 
-from voice_lab_gpt_sovits import ENGINE, ENGINE_REVISION, VoiceLabProviderError
+from voice_lab_gpt_sovits import (
+    ENGINE,
+    ENGINE_REVISION,
+    VoiceLabProviderError,
+    wav_signal_metrics_pcm16,
+)
 from voice_lab_gpt_sovits_build import build_candidate
 
 SCHEMA_VERSION = 1
@@ -93,49 +95,22 @@ def validate_manifest(dataset_dir: Path) -> dict[str, Any]:
 
 def validate_take_signal(path: Path) -> dict[str, float]:
     try:
-        with wave.open(str(path), "rb") as reader:
-            if (
-                reader.getnchannels() != 1
-                or reader.getsampwidth() != 2
-                or reader.getframerate() != 32_000
-            ):
-                raise BuildError(f"noncanonical_take:{path.name}")
-            frame_count = reader.getnframes()
-            payload = reader.readframes(frame_count)
-    except BuildError:
-        raise
-    except Exception as exc:
-        raise BuildError(f"invalid_take:{path.name}") from exc
+        metrics = wav_signal_metrics_pcm16(path)
+    except VoiceLabProviderError as exc:
+        raise BuildError(str(exc)) from exc
 
-    if frame_count <= 0 or len(payload) != frame_count * 2:
-        raise BuildError(f"empty_take:{path.name}")
-
-    samples = struct.unpack(f"<{frame_count}h", payload)
-    silent = sum(1 for sample in samples if abs(sample) <= SILENCE_ABS_PCM16)
-    clipped = sum(1 for sample in samples if abs(sample) >= CLIPPING_ABS_PCM16)
-    active = [sample for sample in samples if abs(sample) > SILENCE_ABS_PCM16]
-    active_rms = (
-        math.sqrt(sum(sample * sample for sample in active) / len(active)) if active else 0.0
-    )
-    dc_offset = abs(sum(samples) / frame_count)
-
-    # These are deliberately conservative structural gates. They reject only
-    # clearly weak/corrupted capture before expensive training; audible quality
-    # and naturalness remain native listening evidence.
-    if silent / frame_count >= MAX_SILENCE_FRACTION:
+    # Guided recording already rejects the same gross per-take failures at
+    # review time. Re-check frozen files here in case accepted recordings were
+    # later changed or corrupted before training.
+    if metrics["silence_fraction"] >= MAX_SILENCE_FRACTION:
         raise BuildError(f"take_excessive_silence:{path.name}")
-    if clipped / frame_count >= MAX_CLIPPING_FRACTION:
+    if metrics["clipping_fraction"] >= MAX_CLIPPING_FRACTION:
         raise BuildError(f"take_severe_clipping:{path.name}")
-    if active_rms < MIN_ACTIVE_RMS_PCM16:
+    if metrics["active_rms"] < MIN_ACTIVE_RMS_PCM16:
         raise BuildError(f"take_signal_too_low:{path.name}")
-    if dc_offset >= MAX_DC_OFFSET_ABS_PCM16:
+    if metrics["dc_offset"] >= MAX_DC_OFFSET_ABS_PCM16:
         raise BuildError(f"take_dc_offset_too_high:{path.name}")
-    return {
-        "active_rms": active_rms,
-        "dc_offset": dc_offset,
-        "silence_fraction": silent / frame_count,
-        "clipping_fraction": clipped / frame_count,
-    }
+    return metrics
 
 
 def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None:
