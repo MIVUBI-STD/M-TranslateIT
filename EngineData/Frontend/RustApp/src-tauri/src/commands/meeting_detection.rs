@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
+#[cfg(target_os = "windows")]
 use sysinfo::System;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -20,6 +21,7 @@ fn unix_ms() -> u128 {
         .unwrap_or(0)
 }
 
+#[cfg(any(target_os = "windows", test))]
 fn classify_window_title(title: &str) -> Option<&'static str> {
     let title = title.trim().to_ascii_lowercase();
     if title.contains("google meet") {
@@ -35,6 +37,7 @@ fn classify_window_title(title: &str) -> Option<&'static str> {
     }
 }
 
+#[cfg(any(target_os = "windows", test))]
 fn classify_process_name(name: &str) -> Option<&'static str> {
     let name = name.trim().to_ascii_lowercase();
     match name.as_str() {
@@ -86,10 +89,6 @@ fn visible_window_titles() -> Vec<String> {
     titles
 }
 
-#[cfg(not(target_os = "windows"))]
-fn visible_window_titles() -> Vec<String> {
-    Vec::new()
-}
 
 #[tauri::command]
 pub fn detect_meeting_app() -> MeetingAppDetection {

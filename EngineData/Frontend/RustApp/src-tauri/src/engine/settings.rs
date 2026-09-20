@@ -8,7 +8,6 @@ const MAX_SETTING_TEXT_CHARS: usize = 160;
 const MAX_TERMINOLOGY_ENTRIES: usize = 24;
 const MAX_TERMINOLOGY_TERM_CHARS: usize = 80;
 const MAX_SPOKEN_TERM_ENTRIES: usize = 24;
-const MAX_SPOKEN_TERM_CHARS: usize = 80;
 const MAX_SPOKEN_TERM_ALIASES: usize = 4;
 const MAX_ASR_HOTWORDS_CHARS: usize = 1024;
 
