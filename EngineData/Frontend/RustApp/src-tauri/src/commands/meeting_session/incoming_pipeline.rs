@@ -314,7 +314,7 @@ fn translate_and_commit_incoming_transcript(
             "meeting_incoming:commit_rejected"
         },
         if committed {
-            "Incoming Indonesian translation was committed in finalized speech/event order. Listening for current Meeting Sound."
+            "Incoming translation was committed in finalized speech/event order. Listening for current Meeting Sound."
         } else {
             "Incoming translation finished but could not be committed to the canonical Meeting conversation store."
         },
