@@ -55,22 +55,22 @@
       </button>
     {:else if step === 3}
       <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void onRefresh()}>
-        Refresh Route
+        Check Again
       </button>
       <button type="button" class="ti-button" disabled={busy || !meetingRouteReady} onclick={() => void onAdvance(4)}>
         Continue <ChevronRight size={16} />
       </button>
     {:else}
       <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void onRefresh()}>
-        Refresh Status
+        Check Again
       </button>
       {#if meetingVoiceReady && !meetingReady}
         <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void onRepair()}>
-          Repair Setup
+          Fix Setup
         </button>
       {/if}
       <button type="button" class="ti-button" disabled={busy || !meetingVoiceReady || !meetingReady} onclick={() => void onComplete()}>
-        <Check size={16} /> Open Meeting
+        <Check size={16} /> Finish Setup
       </button>
     {/if}
   </div>
