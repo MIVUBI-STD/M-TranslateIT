@@ -30,7 +30,7 @@
       <Dialog.Title class="text-xl font-semibold">{title}</Dialog.Title>
       <Dialog.Description class="mt-3 text-sm leading-6 text-[var(--ti-text-muted)]">{message}</Dialog.Description>
       <div class="mt-6 flex justify-end gap-3">
-        <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={onKeepOpen}>Keep Open</button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={onKeepOpen}>Go Back</button>
         {#if action}
           <button type="button" class={`ti-button ${action === "stop" ? "ti-button-danger" : ""}`} disabled={busy} onclick={() => void onPrimary()}>{primaryLabel}</button>
         {/if}
