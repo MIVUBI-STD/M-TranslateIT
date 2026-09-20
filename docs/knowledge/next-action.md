@@ -9,6 +9,7 @@
 - Quality Readiness remains fail-closed over Translation + ASR + TTS evidence with candidate identity and report-hash binding.
 - Diagnostics expose queue/drop, stage timing, runtime reuse, asset checks, context-pair count, and terminology count.
 - Zero-waste hardening avoids repeated warm MiLMMT asset scans and caches runtime capability state per worker.
+- App update source is now one-shot at startup, signed, activity-safe, and non-polling. Native updater end-to-end proof still requires a real signed GitHub Release and installed Windows acceptance.
 
 ## Active Boundary
 
