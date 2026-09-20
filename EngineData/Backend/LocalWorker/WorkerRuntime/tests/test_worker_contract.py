@@ -81,8 +81,29 @@ def test_voice_provider_keeps_heavy_upstream_stage_off_worker_import_path() -> N
     assert "from voice_lab_upstream_stage import install_headless_my_utils" in create_runtime
 
 
+def test_terminology_source_match_respects_word_boundaries() -> None:
+    assert (
+        milmmt_translation_provider.source_term_occurs(
+            "Program API ini akan diperbarui besok.", "ram"
+        )
+        is False
+    )
+    assert (
+        milmmt_translation_provider.source_term_occurs(
+            "Program API ini akan diperbarui besok.", "API"
+        )
+        is True
+    )
+    assert (
+        milmmt_translation_provider.source_term_occurs("Nama produk ini tetap sama.", "nama produk")
+        is True
+    )
+    assert milmmt_translation_provider.source_term_occurs("APIx", "API") is False
+
+
 def test_translate_routes_to_milmmt_without_legacy_mode_output(monkeypatch) -> None:
     worker = load_worker_module()
+    worker.TRANSLATION_RUNTIME.clear()
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: False)
     result = worker.handle_translate(
         {"text": "halo", "source_language": "id", "target_language": "en"}
@@ -96,6 +117,7 @@ def test_translate_routes_to_milmmt_without_legacy_mode_output(monkeypatch) -> N
 
 def test_reverse_direction_uses_same_canonical_milmmt_model(monkeypatch) -> None:
     worker = load_worker_module()
+    worker.TRANSLATION_RUNTIME.clear()
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: False)
     result = worker.handle_translate(
         {"text": "hello", "source_language": "en", "target_language": "id"}

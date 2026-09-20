@@ -5,8 +5,6 @@ import sys
 import types
 from pathlib import Path
 
-import milmmt_translation_provider
-
 WORKER_PATH = Path(__file__).resolve().parents[1] / "realtime_local_worker.py"
 
 
@@ -266,23 +264,3 @@ def test_terminology_rejects_conflicting_source_or_target_mappings(monkeypatch) 
     assert "PEMUGARAN => renovation" not in prompt
     assert "restorasi => restoration" not in prompt
     assert "- arsip => archive" in prompt
-
-
-def test_terminology_does_not_match_inside_larger_word() -> None:
-    assert (
-        milmmt_translation_provider.source_term_occurs(
-            "Program API ini akan diperbarui besok.", "ram"
-        )
-        is False
-    )
-    assert (
-        milmmt_translation_provider.source_term_occurs(
-            "Program API ini akan diperbarui besok.", "API"
-        )
-        is True
-    )
-    assert (
-        milmmt_translation_provider.source_term_occurs("Nama produk ini tetap sama.", "nama produk")
-        is True
-    )
-    assert milmmt_translation_provider.source_term_occurs("APIx", "API") is False
