@@ -1,5 +1,7 @@
 pub fn register<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     builder.invoke_handler(tauri::generate_handler![
+        crate::commands::app_update::check_app_update_once,
+        crate::commands::app_update::install_app_update,
         crate::commands::helper_bridge::get_helper_bridge_status,
         crate::commands::runtime::start_helper_bridge,
         crate::commands::runtime::verify_required_outbound_ai_readiness,
