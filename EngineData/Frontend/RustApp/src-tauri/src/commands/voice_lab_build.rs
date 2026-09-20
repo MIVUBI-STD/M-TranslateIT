@@ -18,7 +18,7 @@ use super::voice_lab::{
     finish_voice_lab_build, mark_voice_lab_build_evaluating, mark_voice_lab_build_training,
     prepare_guided_dataset, promote_voice_actor_candidate, request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedTakeContract,
-    VoiceLabStoragePaths, VOICE_ACTOR_ENGINE,
+    VoiceLabStoragePaths, MAX_REFERENCE_MS, MIN_REFERENCE_MS, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::{
@@ -227,9 +227,10 @@ fn a3_wav_duration_ms(path: &Path) -> Option<u64> {
     (data_size > 0).then_some(data_size.saturating_mul(1_000) / 64_000)
 }
 
-fn accepted_contract() -> (Vec<GuidedTakeContract>, u64) {
+fn accepted_contract() -> (Vec<GuidedTakeContract>, u64, bool) {
     let mut takes = Vec::new();
     let mut duration_ms = 0u64;
+    let mut reference_take_ready = false;
     for recording in accepted_guided_recordings() {
         let Some(duration) = a3_wav_duration_ms(&recording.path) else {
             continue;
@@ -243,13 +244,16 @@ fn accepted_contract() -> (Vec<GuidedTakeContract>, u64) {
             continue;
         };
         duration_ms = duration_ms.saturating_add(duration);
+        if (MIN_REFERENCE_MS..=MAX_REFERENCE_MS).contains(&duration) {
+            reference_take_ready = true;
+        }
         takes.push(GuidedTakeContract {
             line_id: recording.line_id,
             exact_text: recording.text.to_string(),
             wav_file,
         });
     }
-    (takes, duration_ms)
+    (takes, duration_ms, reference_take_ready)
 }
 
 fn missing_training_coverage_group(
@@ -318,7 +322,7 @@ fn current_status() -> VoiceLabBuildStatus {
     reconcile_phase(&paths);
     let snapshot = current_voice_lab_build_snapshot();
     let recording_active = voice_lab_recording_active();
-    let (takes, duration_ms) = accepted_contract();
+    let (takes, duration_ms, reference_take_ready) = accepted_contract();
     let missing_coverage = missing_training_coverage_group(&takes);
     let evaluation = reviewable_evaluation(&paths);
     let child = child_status(&paths);
@@ -353,6 +357,12 @@ fn current_status() -> VoiceLabBuildStatus {
         }
     } else if let Some(group) = missing_coverage {
         training_coverage_guidance(group, approved_ready)
+    } else if !reference_take_ready {
+        if approved_ready {
+            "My Voice is ready. To create it again, record at least one clear line that lasts between 3 and 10 seconds.".to_string()
+        } else {
+            "Record at least one clear line that lasts between 3 and 10 seconds before creating My Voice.".to_string()
+        }
     } else if approved_ready {
         "My Voice is approved and stored on this device. Your accepted recordings are also ready if you want to create it again."
             .to_string()
@@ -376,7 +386,8 @@ fn current_status() -> VoiceLabBuildStatus {
         can_build: !snapshot.active
             && !recording_active
             && duration_ms >= MIN_TRAINING_SPEECH_MS
-            && missing_coverage.is_none(),
+            && missing_coverage.is_none()
+            && reference_take_ready,
         evaluation_ready: evaluation.is_some(),
         evaluation_samples: evaluation.map(|value| value.samples).unwrap_or_default(),
         approved_voice_ready: approved_ready,
@@ -480,7 +491,7 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
 
     let project_paths = ProjectPaths::discover();
     let paths = VoiceLabStoragePaths::from_project_paths(&project_paths);
-    let (takes, _) = accepted_contract();
+    let (takes, _, _) = accepted_contract();
     let manifest = GuidedDatasetManifest {
         schema_version: VOICE_LAB_SCHEMA_VERSION,
         authorized_voice_confirmed: true,
@@ -787,6 +798,12 @@ mod p1_recording_coverage_tests {
 
         assert_eq!(missing.start_line_id, 25);
         assert_eq!(missing.end_line_id, 30);
+    }
+
+    #[test]
+    fn reference_take_contract_uses_same_three_to_ten_second_window_as_actor_runtime() {
+        assert_eq!(MIN_REFERENCE_MS, 3_000);
+        assert_eq!(MAX_REFERENCE_MS, 10_000);
     }
 
     #[test]

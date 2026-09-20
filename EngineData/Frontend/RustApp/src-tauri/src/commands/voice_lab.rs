@@ -26,8 +26,8 @@ const DATASET_MANIFEST_FILE: &str = "dataset.json";
 const CANONICAL_SAMPLE_RATE: u32 = 32_000;
 const CANONICAL_CHANNELS: u16 = 1;
 const CANONICAL_BITS_PER_SAMPLE: u16 = 16;
-const MIN_REFERENCE_MS: u64 = 3_000;
-const MAX_REFERENCE_MS: u64 = 10_000;
+pub(super) const MIN_REFERENCE_MS: u64 = 3_000;
+pub(super) const MAX_REFERENCE_MS: u64 = 10_000;
 const MAX_MANIFEST_BYTES: u64 = 64 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
