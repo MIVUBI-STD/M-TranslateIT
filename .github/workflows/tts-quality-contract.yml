@@ -54,6 +54,8 @@ jobs:
               "intelligibility_text",
               "intelligibility_wer",
               "artifact_flags",
+              "selected_candidate_id",
+              "candidate_selection_matches_actor_json",
               "HELD_OUT_LINES",
               "VOICE_ACTOR_ENGINE_REVISION",
           )

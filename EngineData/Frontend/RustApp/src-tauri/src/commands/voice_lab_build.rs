@@ -29,8 +29,8 @@ mod evaluation;
 
 pub use evaluation::VoiceLabEvaluationSample;
 use evaluation::{
-    evaluation_dir, evaluation_manifest, evaluation_review_complete, held_out_contract,
-    MAX_EVALUATION_WAV_BYTES,
+    candidate_selection_matches_actor_json, evaluation_dir, evaluation_manifest,
+    evaluation_review_complete, held_out_contract, EvaluationManifest, MAX_EVALUATION_WAV_BYTES,
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
@@ -164,6 +164,40 @@ fn clear_previous_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), St
     Ok(())
 }
 
+fn reviewable_evaluation(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifest> {
+    let evaluation = evaluation_manifest(paths)?;
+    let actor_bytes = fs::read(paths.candidate_actor_dir.join("actor.json")).ok()?;
+    let actor_json = serde_json::from_slice::<serde_json::Value>(&actor_bytes).ok()?;
+    candidate_selection_matches_actor_json(&evaluation, &actor_json).then_some(evaluation)
+}
+
+fn clear_build_terminal_message() {
+    if let Ok(mut process) = process_store().0.lock() {
+        process.terminal_message.clear();
+    }
+}
+
+fn cleanup_approved_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    let mut errors = Vec::new();
+    for result in [
+        remove_dir_if_present(&evaluation_dir(paths), "evaluation"),
+        remove_dir_if_present(&work_dir(paths), "work"),
+        remove_dir_if_present(&paths.candidate_actor_dir, "candidate_actor"),
+        remove_dir_if_present(&paths.build_dataset_dir, "build_dataset"),
+        remove_file_if_present(&status_path(paths), "status"),
+        remove_file_if_present(&log_path(paths), "build_log"),
+    ] {
+        if let Err(error) = result {
+            errors.push(error);
+        }
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join(";"))
+    }
+}
+
 fn source_root() -> PathBuf {
     PathBuf::from(ProjectPaths::discover().voice_runtime_dir)
         .join("GPTSoVITS")
@@ -286,7 +320,7 @@ fn current_status() -> VoiceLabBuildStatus {
     let recording_active = voice_lab_recording_active();
     let (takes, duration_ms) = accepted_contract();
     let missing_coverage = missing_training_coverage_group(&takes);
-    let evaluation = evaluation_manifest(&paths);
+    let evaluation = reviewable_evaluation(&paths);
     let child = child_status(&paths);
     let approved_ready = approved_voice_actor_ready(&paths);
     let terminal_message = process_store()
@@ -543,7 +577,7 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
             && child_status(&paths)
                 .map(|status| status.phase == "ready_for_review")
                 .unwrap_or(false)
-            && evaluation_manifest(&paths).is_some();
+            && reviewable_evaluation(&paths).is_some();
         let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
         if ready || cancelling {
             let _ = finish_voice_lab_build(generation);
@@ -683,8 +717,12 @@ pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuild
             "My Voice does not have a completed reviewable build yet.",
         );
     }
-    let Some(evaluation) = evaluation_manifest(&paths) else {
-        return result(false, "evaluation_required", "Listen to a completed My Voice evaluation before approving it.");
+    let Some(evaluation) = reviewable_evaluation(&paths) else {
+        return result(
+            false,
+            "evaluation_candidate_mismatch",
+            "My Voice review files no longer match the candidate that would be saved. Create My Voice again.",
+        );
     };
     if !evaluation_review_complete(&evaluation, &reviewed_line_ids) {
         return result(
@@ -698,8 +736,15 @@ pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuild
         Ok(()) => {
             invalidate_required_outbound_readiness_for_voice_change();
             let paths = VoiceLabStoragePaths::from_project_paths(&project_paths);
-            let _ = fs::remove_dir_all(evaluation_dir(&paths));
-            result(true, "approved", "My Voice was approved and saved on this device.")
+            clear_build_terminal_message();
+            match cleanup_approved_build_workspace(&paths) {
+                Ok(()) => result(true, "approved", "My Voice was approved and saved on this device."),
+                Err(_error) => result(
+                    true,
+                    "approved_cleanup_attention",
+                    "My Voice was saved, but some temporary build files could not be cleared yet.",
+                ),
+            }
         }
         Err(error) => result(false, "approval_failed", error),
     }
@@ -708,7 +753,7 @@ pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuild
 #[tauri::command]
 pub fn get_voice_lab_evaluation_audio(line_id: u32) -> Result<tauri::ipc::Response, String> {
     let paths = storage();
-    let manifest = evaluation_manifest(&paths)
+    let manifest = reviewable_evaluation(&paths)
         .ok_or_else(|| "voice_lab:evaluation_unavailable".to_string())?;
     let sample = manifest
         .samples

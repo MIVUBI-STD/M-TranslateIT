@@ -8,6 +8,8 @@ use super::super::voice_lab::{
 };
 
 pub(super) const MAX_EVALUATION_WAV_BYTES: u64 = 16 * 1024 * 1024;
+pub(super) const EVALUATION_SELECTION_METHOD: &str =
+    "held_out_artifacts_then_mean_wer_then_max_wer_then_similarity_tiebreak";
 
 const HELD_OUT_LINES: &[(u32, &str)] = &[
     (1001, "Please confirm the final schedule before we send the update to the client."),
@@ -36,6 +38,8 @@ pub(super) struct EvaluationManifest {
     schema_version: u32,
     engine: String,
     engine_revision: String,
+    pub(super) selection_method: String,
+    pub(super) selected_candidate_id: String,
     pub(super) samples: Vec<VoiceLabEvaluationSample>,
 }
 
@@ -63,6 +67,8 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
     if manifest.schema_version != VOICE_LAB_SCHEMA_VERSION
         || manifest.engine != VOICE_ACTOR_ENGINE
         || manifest.engine_revision != VOICE_ACTOR_ENGINE_REVISION
+        || manifest.selection_method != EVALUATION_SELECTION_METHOD
+        || manifest.selected_candidate_id.trim().is_empty()
         || manifest.samples.len() != HELD_OUT_LINES.len()
     {
         return None;
@@ -108,6 +114,26 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
 }
 
 
+pub(super) fn candidate_selection_matches_actor_json(
+    manifest: &EvaluationManifest,
+    actor_json: &serde_json::Value,
+) -> bool {
+    actor_json
+        .get("candidate_selection")
+        .and_then(|value| value.as_object())
+        .and_then(|selection| {
+            Some((
+                selection.get("method")?.as_str()?,
+                selection.get("candidate_id")?.as_str()?,
+            ))
+        })
+        .map(|(method, candidate_id)| {
+            method == manifest.selection_method && candidate_id == manifest.selected_candidate_id
+        })
+        .unwrap_or(false)
+}
+
+
 pub(super) fn evaluation_review_complete(
     manifest: &EvaluationManifest,
     reviewed_line_ids: &[u32],
@@ -132,6 +158,8 @@ mod tests {
             schema_version: VOICE_LAB_SCHEMA_VERSION,
             engine: VOICE_ACTOR_ENGINE.to_string(),
             engine_revision: VOICE_ACTOR_ENGINE_REVISION.to_string(),
+            selection_method: EVALUATION_SELECTION_METHOD.to_string(),
+            selected_candidate_id: "s8-g15".to_string(),
             samples: HELD_OUT_LINES
                 .iter()
                 .map(|(line_id, text)| VoiceLabEvaluationSample {
@@ -145,6 +173,25 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn candidate_selection_binding_rejects_mismatched_actor() {
+        let manifest = manifest();
+        let matching = serde_json::json!({
+            "candidate_selection": {
+                "method": EVALUATION_SELECTION_METHOD,
+                "candidate_id": "s8-g15"
+            }
+        });
+        assert!(candidate_selection_matches_actor_json(&manifest, &matching));
+        let stale = serde_json::json!({
+            "candidate_selection": {
+                "method": EVALUATION_SELECTION_METHOD,
+                "candidate_id": "s6-g10"
+            }
+        });
+        assert!(!candidate_selection_matches_actor_json(&manifest, &stale));
     }
 
     #[test]

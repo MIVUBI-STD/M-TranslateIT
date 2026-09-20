@@ -101,6 +101,12 @@
       case "evaluation_required":
       case "evaluation_listening_required":
         return "Listen to every voice preview before approving My Voice.";
+      case "evaluation_candidate_mismatch":
+        return "The review no longer matches the voice candidate. Create My Voice again.";
+      case "approved":
+        return "My Voice is ready and selected for meetings.";
+      case "approved_cleanup_attention":
+        return "My Voice is ready. Some temporary build files could not be cleared yet.";
       case "approval_failed":
         return "My Voice couldn't be approved. Try again.";
       case "dataset_prepare_failed":
