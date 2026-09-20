@@ -293,6 +293,8 @@ class VoiceLabBuildContractTests(unittest.TestCase):
         self.assertEqual(synthesis_artifact_flags(clipped), ["clipping"])
         silent = [0.0] * 30_000 + [0.1] * 2_000
         self.assertEqual(synthesis_artifact_flags(silent), ["unexpected_silence"])
+        dropout = [0.1] * 16_000 + [0.0] * 96_000 + [0.1] * 16_000
+        self.assertEqual(synthesis_artifact_flags(dropout, 32_000), ["dropout"])
 
     def test_training_takes_reject_duplicate_training_identity(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

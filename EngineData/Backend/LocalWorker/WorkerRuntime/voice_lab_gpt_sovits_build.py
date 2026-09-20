@@ -430,7 +430,7 @@ def word_error_rate(reference: str, hypothesis: str) -> float:
     return previous[-1] / len(expected)
 
 
-def synthesis_artifact_flags(audio: Any) -> list[str]:
+def synthesis_artifact_flags(audio: Any, sample_rate: int = 32_000) -> list[str]:
     import numpy as np
 
     values = np.asarray(audio).reshape(-1)
@@ -446,8 +446,21 @@ def synthesis_artifact_flags(audio: Any) -> list[str]:
     flags: list[str] = []
     if float(np.mean(absolute >= 0.98)) >= 0.05:
         flags.append("clipping")
-    if float(np.mean(absolute <= (128.0 / 32_768.0))) >= 0.90:
+    silence_mask = absolute <= (128.0 / 32_768.0)
+    silence_fraction = float(np.mean(silence_mask))
+    if silence_fraction >= 0.90:
         flags.append("unexpected_silence")
+    elif sample_rate > 0:
+        longest_silence = 0
+        current_silence = 0
+        for silent in silence_mask:
+            if bool(silent):
+                current_silence += 1
+                longest_silence = max(longest_silence, current_silence)
+            else:
+                current_silence = 0
+        if longest_silence >= sample_rate * 3:
+            flags.append("dropout")
     return flags
 
 
@@ -525,7 +538,7 @@ def evaluate_candidate(
                     f"evaluation_output_count:{candidate_id}:{line_id}:{len(outputs)}"
                 )
             sr, audio = outputs[0]
-            artifact_flags = synthesis_artifact_flags(audio)
+            artifact_flags = synthesis_artifact_flags(audio, int(sr))
             wav_path = candidate_dir / f"held_out_{line_id}.wav"
             write_wav(wav_path, int(sr), audio)
             score = float(
