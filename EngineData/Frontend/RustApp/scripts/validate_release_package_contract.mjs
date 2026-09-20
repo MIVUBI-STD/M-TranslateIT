@@ -118,9 +118,9 @@ if (nsis.installerHooks !== "./target/translateit-r3-payload-hooks.generated.nsh
 if (existsSync(join(tauriRoot, "target", "translateit-r3-payload-hooks.generated.nsh"))) fail("Generated R3 hook must stay out of source.");
 
 requireMarkers(stage, "release staging", [
-  "$ffmpegReleaseTag = 'autobuild-2026-09-07-15-39'",
-  "$ffmpegAssetName = 'ffmpeg-n8.1.2-51-g7ba069f4f1-win64-lgpl-8.1.zip'",
-  "$ffmpegArchiveSha = '232464b6f9f1d55fa42c1b0e7ae1c9ca5a19272ba61229e8b32a93751055e135'",
+  "$ffmpegReleaseTag = 'autobuild-2026-09-20-13-11'",
+  "$ffmpegAssetName = 'ffmpeg-n8.1.2-267-gb2f422d306-win64-lgpl-8.1.zip'",
+  "$ffmpegArchiveSha = 'e0e82ba6babc8abc4530e3d018ef563fd24c93be0db731d9bf771379d2b363ac'",
   "releases/download/$ffmpegReleaseTag/$ffmpegAssetName",
   "Assert-Hash $ffmpegArchive $ffmpegArchiveSha 'FFmpeg pinned archive'",
   "integrity_source=pinned_release_asset_sha256",
