@@ -7,8 +7,8 @@
   import {
     TRANSLATION_OVERLAY_EVENT,
     TRANSLATION_OVERLAY_PREFERENCES_EVENT,
-    bestWorkAreaForWindow,
     clampPositionToWorkArea,
+    intersectionArea,
     defaultBottomCenterPosition,
     overlayFontSize,
     overlayHeightForTextSize,
@@ -57,9 +57,15 @@
         height: currentHeight * monitor.scaleFactor,
       }));
       const selected = candidates
-        .map((entry) => ({ ...entry, match: bestWorkAreaForWindow(stored, entry.width, entry.height, [entry.workArea]) }))
-        .find((entry) => entry.match);
-      if (selected) {
+        .map((entry) => ({
+          ...entry,
+          visibleArea: intersectionArea(
+            { x: stored.x, y: stored.y, width: entry.width, height: entry.height },
+            entry.workArea,
+          ),
+        }))
+        .sort((left, right) => right.visibleArea - left.visibleArea)[0];
+      if (selected?.visibleArea > 0) {
         const next = clampPositionToWorkArea(stored, selected.width, selected.height, selected.workArea);
         await nativeWindow.setPosition(new PhysicalPosition(next.x, next.y));
         return;

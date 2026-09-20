@@ -62,7 +62,7 @@ export function overlayFontSize(size: OverlayTextSize): number {
   return 22;
 }
 
-function intersectionArea(a: PhysicalRect, b: PhysicalRect): number {
+export function intersectionArea(a: PhysicalRect, b: PhysicalRect): number {
   const width = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
   const height = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
   return width * height;
