@@ -1791,7 +1791,8 @@
         ]
       ],
       "forbidden": [
-        "approve"
+        "I approved that contract.",
+        "I have approved that contract."
       ],
       "risk_tags": [
         "negation",
@@ -1814,7 +1815,8 @@
         ]
       ],
       "forbidden": [
-        "delete the old backup"
+        "Delete the old backup now.",
+        "Delete the old backup before the migration is complete."
       ],
       "risk_tags": [
         "negation",
@@ -3066,7 +3068,8 @@
           "sebelum"
         ],
         [
-          "konfirmasi"
+          "konfirmasi",
+          "mengonfirmasi"
         ]
       ],
       "forbidden": [],
