@@ -142,6 +142,7 @@
       pendingCaption = next;
       return;
     }
+    if (next.source !== "meeting") captionsPaused = false;
     caption = next;
     pendingCaption = null;
     if (next.source === "meeting") {
