@@ -282,7 +282,7 @@
         ? (wasRecording ? "Mic Test stopped." : "Mic Test started.")
         : "Mic Test couldn't be completed. Try again.");
     } catch {
-      setNotice("Mic Test couldn't be completed. Try again or check Diagnostics.");
+      setNotice("Mic Test couldn't be completed. Check your microphone and try again.");
     } finally {
       micTestBusy = false;
     }
@@ -375,7 +375,7 @@
     } catch {
       showCloseDialog(
         "Couldn't close TranslateIT",
-        "The app will stay open. Try again or check Diagnostics.",
+        "The app will stay open. Try again in a moment.",
         "retry",
       );
     } finally {

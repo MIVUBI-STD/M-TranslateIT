@@ -8,7 +8,12 @@ from pathlib import Path
 
 from voice_lab_build import BuildError, validate_dataset_signal, validate_take_signal
 from voice_lab_gpt_sovits import GPT_EPOCHS, SOVITS_EPOCHS, VoiceLabProviderError
-from voice_lab_gpt_sovits_build import select_best_candidate, select_reference, training_takes, word_error_rate
+from voice_lab_gpt_sovits_build import (
+    select_best_candidate,
+    select_reference,
+    training_takes,
+    word_error_rate,
+)
 
 
 class VoiceLabBuildContractTests(unittest.TestCase):
