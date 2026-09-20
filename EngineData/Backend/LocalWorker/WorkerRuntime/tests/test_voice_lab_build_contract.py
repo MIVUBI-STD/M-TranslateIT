@@ -237,7 +237,6 @@ class VoiceLabBuildContractTests(unittest.TestCase):
         ]
         self.assertEqual(select_best_candidate(candidates)["candidate_id"], "higher-similarity")
 
-
     def test_candidate_selection_rejects_artifacted_candidate_before_score_tiebreaks(self) -> None:
         candidates = [
             {
