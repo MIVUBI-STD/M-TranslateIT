@@ -3,18 +3,16 @@
 ## Current Status
 
 - `Local` remains the sole active authority for development, CI, proof, continuation, and release-source validation.
-- Core architecture is structurally hardened across Meeting, helper bridge, Text, My Voice, setup, diagnostics, Windows audio, and local voice-runtime ownership.
+- Core Meeting/Text/My Voice/runtime architecture is structurally hardened.
 - Translation quality now uses a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates. Coverage counts are machine-derived, and terminology injection rejects substring-only false matches. Do not tune against the held-out set.
-- ASR quality now carries 60 linguistic/accent/acoustic/device/meeting-compression acceptance cases.
-- TTS/My Voice quality now carries 30 synthesis acceptance cases covering intelligibility, speaker similarity, artifacts, long form, acronyms, lists, numbers, entities, and repeated-synthesis targets.
+- ASR has 60 acceptance cases; TTS/My Voice has 30 synthesis acceptance cases.
 - Quality Readiness remains fail-closed over Translation + ASR + TTS evidence with candidate identity and report-hash binding.
-- Diagnostics already expose queue/drop and outbound stage timing needed for later native performance evidence.
-- Zero-waste hardening removes repeated MiLMMT asset scans on warm requests, scopes translation preload to translation-only readiness, and caches Torch/CTranslate2 capability state per worker.
-- Translation telemetry now exposes runtime reuse, asset-check activity, context pairs, and terminology entries.
+- Diagnostics expose queue/drop, stage timing, runtime reuse, asset checks, context-pair count, and terminology count.
+- Zero-waste hardening avoids repeated warm MiLMMT asset scans and caches runtime capability state per worker.
 
 ## Active Boundary
 
-REMOTE_GITHUB architecture work is complete for currently evidenced defects. Continue only source-side work that adds falsifiable quality coverage, reliability, accessibility, or release integrity.
+REMOTE_GITHUB work is complete for currently evidenced defects. Continue only source work with falsifiable quality, reliability, accessibility, or release value.
 
 Do not add speculative runtime abstractions, extra providers, languages, cloud fallback, document/image translation, or performance optimizations without measured evidence.
 
