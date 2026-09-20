@@ -265,6 +265,7 @@ def test_terminology_rejects_conflicting_source_or_target_mappings(monkeypatch) 
     assert "restorasi => restoration" not in prompt
     assert "- arsip => archive" in prompt
 
+
 def test_terminology_does_not_match_inside_larger_word(monkeypatch) -> None:
     worker = load_worker_module()
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
