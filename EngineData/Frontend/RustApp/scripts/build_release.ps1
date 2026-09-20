@@ -18,6 +18,8 @@ $GeneratedHook = Join-Path $AppRoot 'src-tauri\target\translateit-r3-payload-hoo
 $ReleaseDir = Join-Path $AppRoot 'src-tauri\target\translateit-release'
 $PayloadPath = Join-Path $ReleaseDir 'TranslateIT-Payload.7z'
 $SetupPath = Join-Path $ReleaseDir 'TranslateIT-Setup.exe'
+$SetupSignaturePath = Join-Path $ReleaseDir 'TranslateIT-Setup.exe.sig'
+$UpdaterManifestPath = Join-Path $ReleaseDir 'latest.json'
 $PayloadEvidence = Join-Path $AppRoot 'src-tauri\target\translateit-r3-payload-build.json'
 $ReleaseEvidence = Join-Path $AppRoot 'src-tauri\target\translateit-r3-release-build.json'
 $NsisBundleDir = Join-Path $AppRoot 'src-tauri\target\release\bundle\nsis'
@@ -89,7 +91,7 @@ try {
 
     Remove-Item -LiteralPath $ReleaseDir -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
-    Remove-Item -LiteralPath $GeneratedHook,$PayloadEvidence,$ReleaseEvidence -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $GeneratedHook,$PayloadEvidence,$ReleaseEvidence,$SetupSignaturePath,$UpdaterManifestPath -Force -ErrorAction SilentlyContinue
 
     & $ReleasePython -s $PayloadBuilder `
         --repo-root $RepoRoot `
@@ -123,14 +125,36 @@ try {
     }
     Copy-Item -LiteralPath $Candidates[0].FullName -Destination $SetupPath -Force
     Require-File $SetupPath 'TranslateIT-Setup.exe'
+    $GeneratedSetupSignature = "$($Candidates[0].FullName).sig"
+    Require-File $GeneratedSetupSignature 'Tauri signed NSIS updater signature'
+    Copy-Item -LiteralPath $GeneratedSetupSignature -Destination $SetupSignaturePath -Force
+    Require-File $SetupSignaturePath 'TranslateIT-Setup.exe.sig'
 
-    $ExpectedNames = @('TranslateIT-Payload.7z','TranslateIT-Setup.exe')
+    $payloadBuild = Get-Content -LiteralPath $PayloadEvidence -Raw | ConvertFrom-Json
+    $AppVersion = [string]$payloadBuild.app_version
+    $UpdaterSignature = (Get-Content -LiteralPath $SetupSignaturePath -Raw).Trim()
+    if ([string]::IsNullOrWhiteSpace($UpdaterSignature)) { throw 'Updater signature file is empty.' }
+    $UpdaterAssetUrl = "https://github.com/MIVUBI-STD/M-TranslateIT/releases/download/v$AppVersion/TranslateIT-Setup.exe"
+    $UpdaterManifest = [ordered]@{
+        version = $AppVersion
+        notes = "TranslateIT app update. The installed external AI/runtime payload is preserved only when it passes compatibility verification."
+        pub_date = [DateTime]::UtcNow.ToString('o')
+        platforms = [ordered]@{
+            'windows-x86_64' = [ordered]@{
+                signature = $UpdaterSignature
+                url = $UpdaterAssetUrl
+            }
+        }
+    }
+    $UpdaterManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $UpdaterManifestPath -Encoding utf8
+    Require-File $UpdaterManifestPath 'latest.json'
+
+    $ExpectedNames = @('TranslateIT-Payload.7z','TranslateIT-Setup.exe','TranslateIT-Setup.exe.sig','latest.json')
     $ActualNames = @((Get-ChildItem -LiteralPath $ReleaseDir -File | Sort-Object Name | ForEach-Object Name))
     if (($ActualNames -join '|') -ne ($ExpectedNames -join '|')) {
         throw "R3 release directory must contain exactly Setup + Payload. Found: $($ActualNames -join ', ')"
     }
 
-    $payloadBuild = Get-Content -LiteralPath $PayloadEvidence -Raw | ConvertFrom-Json
     $payloadHash = Get-Sha256 $PayloadPath
     if ($payloadHash -ne [string]$payloadBuild.payload_sha256) {
         throw 'Release payload SHA-256 changed after trusted hook generation.'
@@ -151,6 +175,12 @@ try {
         target_pc_acceptance = 'deferred'
         updater_artifacts = $true
         updater_endpoint = 'https://github.com/MIVUBI-STD/M-TranslateIT/releases/latest/download/latest.json'
+        updater_manifest_file = 'latest.json'
+        updater_setup_file = 'TranslateIT-Setup.exe'
+        updater_setup_signature_file = 'TranslateIT-Setup.exe.sig'
+        updater_setup_sha256 = Get-Sha256 $SetupPath
+        updater_signature_sha256 = Get-Sha256 $SetupSignaturePath
+        updater_policy = 'app_only_preserve_verified_external_runtime'
         quality_readiness_schema = [string]$QualityReadiness.schema
         quality_readiness_report_sha256 = [string]$QualityReadiness.report_sha256
         quality_readiness_release_identity = [string]$QualityReadiness.release_identity
@@ -160,6 +190,8 @@ try {
     Write-Host '[release] R3 offline release pair ready:'
     Write-Host "[release]   $SetupPath"
     Write-Host "[release]   $PayloadPath"
+    Write-Host "[release]   $SetupSignaturePath"
+    Write-Host "[release]   $UpdaterManifestPath"
     Write-Host "[release] Source commit: $SourceCommit"
     Write-Host "[release] Quality readiness SHA-256: $($QualityReadiness.report_sha256)"
     Write-Host "[release] Build evidence: $ReleaseEvidence"
