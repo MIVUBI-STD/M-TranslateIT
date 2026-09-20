@@ -379,7 +379,11 @@ def test_translation_preload_does_not_run_full_worker_status(monkeypatch) -> Non
         "translation_degraded": True,
         "translation_fallback_reason": "torch_cuda_unavailable",
     }
-    monkeypatch.setattr(worker.runtime, "import_ready", lambda name: name in {"torch", "transformers"})
+    monkeypatch.setattr(
+        worker.runtime,
+        "import_ready",
+        lambda name: name in {"torch", "transformers"},
+    )
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
     worker.TRANSLATION_RUNTIME.clear()
     worker.TRANSLATION_RUNTIME["id->en"] = fake_runtime
@@ -388,9 +392,7 @@ def test_translation_preload_does_not_run_full_worker_status(monkeypatch) -> Non
         raise AssertionError("translation preload must not run full worker readiness")
 
     monkeypatch.setattr(worker, "build_status_payload", unexpected_full_status)
-    result = worker.handle_translation_preload(
-        {"source_language": "id", "target_language": "en"}
-    )
+    result = worker.handle_translation_preload({"source_language": "id", "target_language": "en"})
 
     assert result["ok"] is True
     assert result["translation_degraded"] is True
