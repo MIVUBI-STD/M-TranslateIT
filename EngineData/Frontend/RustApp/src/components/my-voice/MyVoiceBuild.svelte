@@ -93,7 +93,7 @@
       case "evaluation_required":
         return "Review the voice previews before approving My Voice.";
       case "approval_failed":
-        return "My Voice couldn't be approved. Try again or check Diagnostics.";
+        return "My Voice couldn't be approved. Try again.";
       case "dataset_prepare_failed":
       case "assets_unavailable":
       case "python_unavailable":
@@ -101,11 +101,11 @@
       case "build_storage_failed":
       case "build_log_failed":
       case "build_spawn_failed":
-        return "My Voice couldn't be created. Check Diagnostics and try again.";
+        return "My Voice couldn't be created. Try again.";
       case "cancel_failed":
-        return "My Voice couldn't stop safely yet. Try again or check Diagnostics.";
+        return "My Voice couldn't stop yet. Try again in a moment.";
       default:
-        return result.ok ? "My Voice action completed." : "My Voice couldn't complete this action. Check Diagnostics and try again.";
+        return result.ok ? "My Voice action completed." : "My Voice couldn't complete this action. Try again.";
     }
   }
 
@@ -233,23 +233,23 @@
     <div>
       <span class="ti-kicker">My Voice</span>
       <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Create My Voice</h3>
-      <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use your accepted recordings to create an English meeting voice. You'll hear new preview sentences before you approve it.</p>
+      <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use your accepted recordings to create a personalized English voice. You can listen before choosing it.</p>
     </div>
     {#if build.approved_voice_ready}
-      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Meeting voice ready</span>
+      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />My Voice ready</span>
     {/if}
   </div>
 
   <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-4 py-3.5">
     <div class="flex items-center justify-between gap-4">
-      <strong class="text-sm font-semibold">Accepted speech</strong>
+      <strong class="text-sm font-semibold">Ready recordings</strong>
       <span class="text-xs font-semibold text-[var(--ti-text-muted)]">{formatDuration(build.accepted_duration_ms)} / {formatDuration(build.minimum_duration_ms)}</span>
     </div>
-    <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">{build.accepted_take_count} accepted recordings · clear and varied speech matters in addition to duration</p>
+    <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">{build.accepted_take_count} accepted recordings · clear, varied recordings help the result</p>
     <div
       class="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]"
       role="progressbar"
-      aria-label="Accepted speech progress"
+      aria-label="Ready recordings progress"
       aria-valuemin="0"
       aria-valuemax="100"
       aria-valuenow={speechProgress}
@@ -269,8 +269,8 @@
     </button>
   {:else if build.evaluation_ready}
     <div class="mt-5">
-      <strong class="text-sm font-semibold">Review My Voice</strong>
-      <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">Listen to these new sentences. Approve My Voice only if it sounds like you.</p>
+      <strong class="text-sm font-semibold">Listen before using My Voice</strong>
+      <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">Listen to these new sentences. Use My Voice only if it sounds like you.</p>
       <div class="mt-4 space-y-2">
         {#each build.evaluation_samples as sample}
           <div class="flex items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] px-4 py-3">
@@ -282,7 +282,7 @@
         {/each}
       </div>
       <button type="button" class="ti-button mt-5" disabled={busy} onclick={() => void approve()}>
-        <Check size={15} /><span>{busy ? "Saving..." : "Approve My Voice"}</span>
+        <Check size={15} /><span>{busy ? "Saving..." : "Use My Voice"}</span>
       </button>
     </div>
   {:else}
