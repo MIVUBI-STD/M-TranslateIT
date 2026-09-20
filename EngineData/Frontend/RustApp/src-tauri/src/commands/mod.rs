@@ -1,3 +1,4 @@
+pub mod app_update;
 pub mod audio;
 pub mod bridge_paths;
 pub mod builtin_voice;
