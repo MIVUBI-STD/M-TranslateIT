@@ -13,6 +13,7 @@ ASR_RUNTIME: Any | None = None
 ASR_RUNTIME_DEVICE = "not_loaded"
 ASR_RUNTIME_COMPUTE = "not_loaded"
 ASR_RUNTIME_MODEL_ID = "not_loaded"
+MAX_ASR_HOTWORDS_CHARS = 1024
 VOICE_ACTOR_RUNTIME: dict[str, Any] | None = None
 VOICE_ACTOR_RUNTIME_FINGERPRINT: Any | None = None
 
@@ -149,6 +150,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
         }
     try:
         model = get_asr_runtime(payload)
+        hotwords = common.compact_runtime_text(payload.get("hotwords", ""), MAX_ASR_HOTWORDS_CHARS)
         segments, info = model.transcribe(
             str(audio_path),
             language=common.normalize_language(payload.get("language", "id"), "id"),
@@ -159,6 +161,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
             vad_filter=bool(payload.get("vad_filter", True)),
             without_timestamps=True,
             word_timestamps=False,
+            hotwords=hotwords or None,
         )
         text = common.compact_runtime_text(
             " ".join(segment.text.strip() for segment in segments),
@@ -173,6 +176,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
             "device": ASR_RUNTIME_DEVICE,
             "compute_type": ASR_RUNTIME_COMPUTE,
             "model_id": ASR_RUNTIME_MODEL_ID,
+            "hotwords_applied": bool(hotwords),
             "elapsed_ms": common.now_ms() - started,
             "blocker": "" if text else "asr:empty_transcript",
         }

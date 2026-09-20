@@ -20,6 +20,11 @@ export type TerminologyEntry = {
   english: string;
 };
 
+export type SpokenTermEntry = {
+  term: string;
+  aliases: string[];
+};
+
 export type RuntimeSettings = {
   schema_version: number;
   source_language: string;
@@ -27,6 +32,7 @@ export type RuntimeSettings = {
   meeting_setup_state: "new" | "deferred" | "completed" | string;
   meeting_setup_checkpoint: number;
   terminology: TerminologyEntry[];
+  spoken_terms: SpokenTermEntry[];
   audio: {
     input_device_id: string | null;
     output_device_id: string | null;

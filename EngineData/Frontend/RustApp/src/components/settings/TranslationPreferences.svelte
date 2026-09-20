@@ -4,9 +4,11 @@
   import { notifyOverlayPreferencesChanged, showTranslationOverlay } from "../../app/runtime/translationOverlayRuntime";
   import { readOverlayDiagnostic, readOverlayPreferences, updateOverlayPreferences } from "../../app/runtime/translationOverlayState";
   import type { OverlayTextSize } from "../../app/runtime/translationOverlayPolicy";
-  import type { RuntimeSettings, TerminologyEntry } from "../../app/shared/types";
+  import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
 
   const MAX_TERMS = 24;
+  const MAX_SPOKEN_TERMS = 24;
+  const MAX_SPOKEN_ALIASES = 4;
 
   let {
     settings,
@@ -20,6 +22,8 @@
 
   let indonesian = $state("");
   let english = $state("");
+  let spokenTerm = $state("");
+  let spokenAliases = $state("");
   let saving = $state(false);
   let overlayPreferences = $state(readOverlayPreferences());
   let overlayDiagnostic = $state(readOverlayDiagnostic());
@@ -60,6 +64,69 @@
     } finally {
       saving = false;
     }
+  }
+
+  async function persistSpokenTerms(next: SpokenTermEntry[], message: string): Promise<void> {
+    if (saving) return;
+    saving = true;
+    const candidate: RuntimeSettings = {
+      ...settings,
+      spoken_terms: next,
+      audio: { ...settings.audio },
+    };
+    try {
+      const result = await runtimeApi.saveSettings(candidate);
+      if (!result.ok) {
+        onNotice(result.message || "Spoken terms couldn't be saved.");
+        return;
+      }
+      const saved = (await runtimeApi.loadSettings()) ?? candidate;
+      await onSettingsChange(saved);
+      onNotice(message);
+    } catch {
+      onNotice("Spoken terms couldn't be saved. Try again.");
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function addSpokenTerm(): Promise<void> {
+    const term = spokenTerm.trim();
+    const aliases = [...new Set(
+      spokenAliases
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, MAX_SPOKEN_ALIASES),
+    )].filter((value) => value.toLocaleLowerCase() !== term.toLocaleLowerCase());
+
+    if (!term) {
+      onNotice("Enter the word or name TranslateIT should listen for.");
+      return;
+    }
+    if (settings.spoken_terms.length >= MAX_SPOKEN_TERMS) {
+      onNotice(`You can save up to ${MAX_SPOKEN_TERMS} spoken terms.`);
+      return;
+    }
+    const duplicate = settings.spoken_terms.some((entry) =>
+      entry.term.toLocaleLowerCase() === term.toLocaleLowerCase()
+      || entry.aliases.some((alias) => alias.toLocaleLowerCase() === term.toLocaleLowerCase()),
+    );
+    if (duplicate) {
+      onNotice("That spoken term is already saved.");
+      return;
+    }
+
+    await persistSpokenTerms([...settings.spoken_terms, { term, aliases }], "Spoken term saved.");
+    spokenTerm = "";
+    spokenAliases = "";
+  }
+
+  async function removeSpokenTerm(index: number): Promise<void> {
+    await persistSpokenTerms(
+      settings.spoken_terms.filter((_, itemIndex) => itemIndex !== index),
+      "Spoken term removed.",
+    );
   }
 
   async function addTerm(): Promise<void> {
@@ -115,6 +182,57 @@
     <div><button type="button" class="ti-button ti-button-secondary" onclick={() => void showFloatingCaption()}><Eye size={15} /> Show floating caption</button></div>
     {#if overlayDiagnostic}<p class="m-0 text-[11.5px] leading-5 text-[var(--ti-warning)]">Floating caption last reported: {overlayDiagnostic.message}</p>{/if}
   </div>
+</article>
+
+<article class="ti-panel overflow-hidden">
+  <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
+    <h3 class="m-0 text-[15px] font-semibold">Spoken terms</h3>
+    <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">
+      Help Meeting transcription recognize names, brands, acronyms, and uncommon words before translation.
+    </p>
+  </header>
+
+  <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-3 p-5">
+    <label class="grid gap-2">
+      <span class="ti-field-label">Word or name</span>
+      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. MIVUBI" bind:value={spokenTerm} disabled={saving} />
+    </label>
+    <label class="grid gap-2">
+      <span class="ti-field-label">Optional aliases</span>
+      <input class="ti-field min-h-10 px-3" maxlength="220" placeholder="e.g. mi vu bi, mivubi" bind:value={spokenAliases} disabled={saving} />
+      <small class="text-[11px] text-[var(--ti-text-soft)]">Comma-separated, up to {MAX_SPOKEN_ALIASES} aliases.</small>
+    </label>
+    <button type="button" class="ti-button min-h-10" disabled={saving || !spokenTerm.trim()} onclick={() => void addSpokenTerm()}>
+      <Plus size={15} /> Add
+    </button>
+  </div>
+
+  <div class="border-t border-[var(--ti-border)]">
+    {#if settings.spoken_terms.length === 0}
+      <p class="m-0 px-5 py-5 text-[12.5px] text-[var(--ti-text-muted)]">
+        No spoken terms yet. Add names or specialist terms that speech recognition often misses.
+      </p>
+    {:else}
+      <div class="divide-y divide-[var(--ti-border)]">
+        {#each settings.spoken_terms as entry, index (entry.term)}
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-5 py-3.5">
+            <div class="min-w-0">
+              <strong class="block truncate text-[13px] font-semibold">{entry.term}</strong>
+              {#if entry.aliases.length > 0}
+                <span class="mt-1 block truncate text-[11.5px] text-[var(--ti-text-soft)]">Aliases: {entry.aliases.join(", ")}</span>
+              {/if}
+            </div>
+            <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5" aria-label={`Remove spoken term ${entry.term}`} disabled={saving} onclick={() => void removeSpokenTerm(index)}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        {/each}
+      </div>
+    {/if}
+  </div>
+  <footer class="border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-3.5">
+    <p class="m-0 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Spoken terms bias ASR recognition only; Preferred words below still control translation wording.</p>
+  </footer>
 </article>
 
 <article class="ti-panel overflow-hidden">

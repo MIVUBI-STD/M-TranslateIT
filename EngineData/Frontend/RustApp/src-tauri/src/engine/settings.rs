@@ -3,10 +3,14 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-const CURRENT_SCHEMA_VERSION: u32 = 7;
+const CURRENT_SCHEMA_VERSION: u32 = 8;
 const MAX_SETTING_TEXT_CHARS: usize = 160;
 const MAX_TERMINOLOGY_ENTRIES: usize = 24;
 const MAX_TERMINOLOGY_TERM_CHARS: usize = 80;
+const MAX_SPOKEN_TERM_ENTRIES: usize = 24;
+const MAX_SPOKEN_TERM_CHARS: usize = 80;
+const MAX_SPOKEN_TERM_ALIASES: usize = 4;
+const MAX_ASR_HOTWORDS_CHARS: usize = 1024;
 
 fn default_source_language() -> String {
     "id".to_string()
@@ -46,6 +50,12 @@ pub struct TerminologyEntry {
     pub english: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SpokenTermEntry {
+    pub term: String,
+    pub aliases: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RuntimeSettings {
@@ -55,6 +65,7 @@ pub struct RuntimeSettings {
     pub meeting_setup_state: String,
     pub meeting_setup_checkpoint: u8,
     pub terminology: Vec<TerminologyEntry>,
+    pub spoken_terms: Vec<SpokenTermEntry>,
     pub audio: AudioSettings,
 }
 
@@ -67,6 +78,7 @@ impl Default for RuntimeSettings {
             meeting_setup_state: default_meeting_setup_state(),
             meeting_setup_checkpoint: default_meeting_setup_checkpoint(),
             terminology: Vec::new(),
+            spoken_terms: Vec::new(),
             audio: AudioSettings::default(),
         }
     }
@@ -113,11 +125,28 @@ impl RuntimeSettings {
         self.meeting_setup_state = sanitize_meeting_setup_state(&self.meeting_setup_state);
         self.meeting_setup_checkpoint = self.meeting_setup_checkpoint.clamp(1, 5);
         self.terminology = sanitize_terminology(self.terminology);
+        self.spoken_terms = sanitize_spoken_terms(self.spoken_terms);
         self.audio.input_device_id =
             sanitize_optional_runtime_text(self.audio.input_device_id.take());
         self.audio.output_device_id =
             sanitize_optional_runtime_text(self.audio.output_device_id.take());
         self
+    }
+
+    pub fn asr_hotwords(&self) -> String {
+        let mut result = String::new();
+        for value in self.spoken_terms.iter().flat_map(|entry| {
+            std::iter::once(&entry.term).chain(entry.aliases.iter())
+        }) {
+            let separator = if result.is_empty() { "" } else { ", " };
+            let next_len = result.chars().count() + separator.chars().count() + value.chars().count();
+            if next_len > MAX_ASR_HOTWORDS_CHARS {
+                break;
+            }
+            result.push_str(separator);
+            result.push_str(value);
+        }
+        result
     }
 }
 
@@ -220,6 +249,32 @@ fn clean_terminology_term(value: &str) -> String {
         .collect::<String>()
 }
 
+fn sanitize_spoken_terms(entries: Vec<SpokenTermEntry>) -> Vec<SpokenTermEntry> {
+    let mut clean: Vec<SpokenTermEntry> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+
+    for entry in entries.into_iter().take(MAX_SPOKEN_TERM_ENTRIES) {
+        let term = clean_terminology_term(&entry.term);
+        if term.is_empty() || seen.iter().any(|value| value.eq_ignore_ascii_case(&term)) {
+            continue;
+        }
+        seen.push(term.clone());
+
+        let mut aliases = Vec::new();
+        for raw_alias in entry.aliases.into_iter().take(MAX_SPOKEN_TERM_ALIASES) {
+            let alias = clean_terminology_term(&raw_alias);
+            if alias.is_empty() || seen.iter().any(|value| value.eq_ignore_ascii_case(&alias)) {
+                continue;
+            }
+            seen.push(alias.clone());
+            aliases.push(alias);
+        }
+        clean.push(SpokenTermEntry { term, aliases });
+    }
+
+    clean
+}
+
 fn sanitize_terminology(entries: Vec<TerminologyEntry>) -> Vec<TerminologyEntry> {
     let mut clean = Vec::new();
     for entry in entries.into_iter().take(MAX_TERMINOLOGY_ENTRIES) {
@@ -255,6 +310,7 @@ mod tests {
         assert_eq!(settings.meeting_setup_state, "new");
         assert_eq!(settings.meeting_setup_checkpoint, 1);
         assert!(settings.terminology.is_empty());
+        assert!(settings.spoken_terms.is_empty());
         assert!(settings.audio.input_device_id.is_none());
         assert!(settings.audio.output_device_id.is_none());
     }
@@ -289,6 +345,35 @@ mod tests {
         assert_eq!(sanitized.terminology[0].english, "restoration");
         assert_eq!(sanitized.terminology[1].indonesian, "arsip");
         assert_eq!(sanitized.terminology[1].english, "archive");
+    }
+
+    #[test]
+    fn spoken_terms_are_sanitized_deduplicated_and_bounded_for_asr() {
+        use super::SpokenTermEntry;
+
+        let mut settings = RuntimeSettings::default();
+        settings.spoken_terms = vec![
+            SpokenTermEntry {
+                term: "MIVUBI".to_string(),
+                aliases: vec!["mi vu bi".to_string(), "MIVUBI".to_string()],
+            },
+            SpokenTermEntry {
+                term: "mivubi".to_string(),
+                aliases: vec!["duplicate".to_string()],
+            },
+            SpokenTermEntry {
+                term: "Vredeburg".to_string(),
+                aliases: vec!["vrede burg".to_string()],
+            },
+        ];
+
+        let sanitized = settings.sanitized();
+        assert_eq!(sanitized.spoken_terms.len(), 2);
+        assert_eq!(sanitized.spoken_terms[0].term, "MIVUBI");
+        assert_eq!(sanitized.spoken_terms[0].aliases, vec!["mi vu bi"]);
+        assert_eq!(sanitized.spoken_terms[1].term, "Vredeburg");
+        assert_eq!(sanitized.asr_hotwords(), "MIVUBI, mi vu bi, Vredeburg, vrede burg");
+        assert!(sanitized.asr_hotwords().chars().count() <= super::MAX_ASR_HOTWORDS_CHARS);
     }
 
     #[test]

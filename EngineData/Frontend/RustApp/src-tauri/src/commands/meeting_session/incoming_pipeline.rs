@@ -33,6 +33,8 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
     if !incoming_session_is_eligible(session_id) {
         return IncomingAudioProcessResult::Complete;
     }
+    let asr_hotwords = load_settings().asr_hotwords();
+
     update_incoming_status(
         session_id,
         "transcribing",
@@ -47,6 +49,7 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
             "language": "en",
             "beam_size": 1,
             "vad_filter": true,
+            "hotwords": asr_hotwords,
             "meeting_session_id": session_id,
             "meeting_lane": "incoming",
             "meeting_sequence": event_sequence,
