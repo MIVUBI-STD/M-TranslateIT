@@ -6,6 +6,7 @@ pub mod diagnostic_trace;
 pub mod helper_bridge;
 pub mod helper_bridge_runtime;
 pub mod meeting_session;
+pub mod meeting_detection;
 pub mod registry;
 pub mod runtime_inventory;
 pub mod mic_test;

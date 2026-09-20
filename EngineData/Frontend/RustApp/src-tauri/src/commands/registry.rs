@@ -7,6 +7,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::runtime::verify_required_outbound_ai_readiness,
         crate::commands::helper_bridge::helper_bridge_worker_status,
         crate::commands::meeting_session::get_meeting_session_status,
+        crate::commands::meeting_detection::detect_meeting_app,
         crate::commands::meeting_session::get_meeting_committed_turns,
         crate::commands::runtime::start_meeting_translation,
         crate::commands::meeting_session::stop_meeting_translation,

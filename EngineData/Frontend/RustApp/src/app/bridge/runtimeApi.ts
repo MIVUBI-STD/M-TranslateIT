@@ -61,6 +61,16 @@ export type TextTranslationCommandResult = {
   review_hints: string[];
 };
 
+export type MeetingAppDetection = {
+  supported: boolean;
+  detected: boolean;
+  provider: string | null;
+  confidence: "high" | "medium" | "none" | "unsupported" | string;
+  evidence: string;
+  note: string;
+  updated_unix_ms: number;
+};
+
 export type MeetingSessionPreflightStatus = {
   ready_for_start: boolean;
   start_eligible: boolean;
@@ -316,6 +326,18 @@ function virtualMicRouteFallback(): VirtualMicRouteContractStatus {
   };
 }
 
+function meetingAppDetectionFallback(): MeetingAppDetection {
+  return {
+    supported: false,
+    detected: false,
+    provider: null,
+    confidence: "unsupported",
+    evidence: "frontend_bridge_unavailable",
+    note: "Meeting app detection is unavailable right now.",
+    updated_unix_ms: Date.now(),
+  };
+}
+
 function meetingSessionActionFallback(message: string): MeetingSessionActionResult {
   return {
     ok: false,
@@ -355,6 +377,14 @@ async function loadRuntimeSettings(): Promise<RuntimeSettings | null> {
 export const runtimeApi = {
   getCommandErrors(): RuntimeCommandError[] {
     return getRuntimeCommandErrors().slice(0, MAX_COMMAND_ERRORS);
+  },
+
+  async detectMeetingApp(): Promise<MeetingAppDetection> {
+    return invokeOr<MeetingAppDetection>(
+      "detect_meeting_app",
+      undefined,
+      meetingAppDetectionFallback(),
+    );
   },
 
   async getMeetingSessionStatus(): Promise<MeetingSessionStatus> {

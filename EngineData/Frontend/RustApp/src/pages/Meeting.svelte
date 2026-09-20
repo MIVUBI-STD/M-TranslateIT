@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { ArrowRight, AudioLines, Languages, Mic, Radio } from "@lucide/svelte";
+  import { ArrowRight, AudioLines, Languages, Mic, Radio, Video } from "@lucide/svelte";
   import { onMount } from "svelte";
   import {
     runtimeApi,
     type MeetingCommittedTurnsSnapshot,
     type MeetingSessionStatus,
+    type MeetingAppDetection,
     type VirtualMicRouteContractStatus,
   } from "../app/bridge/runtimeApi";
   import type { ProductRuntimeSnapshot } from "../app/bridge/runtimeProductFacade";
@@ -35,6 +36,8 @@
   } = $props();
 
   let routeStatus = $state<VirtualMicRouteContractStatus | null>(null);
+  let meetingDetection = $state<MeetingAppDetection | null>(null);
+  let detectionInFlight = false;
   let resumeBusy = $state(false);
   let resumeError = $state("");
 
@@ -100,6 +103,18 @@
                   : "Finish the items below before starting.",
   );
 
+  async function refreshMeetingDetection(): Promise<void> {
+    if (detectionInFlight || meeting.hasSession) return;
+    detectionInFlight = true;
+    try {
+      meetingDetection = await runtimeApi.detectMeetingApp();
+    } catch {
+      meetingDetection = null;
+    } finally {
+      detectionInFlight = false;
+    }
+  }
+
   async function refreshRouteStatus(): Promise<void> {
     try {
       routeStatus = await runtimeApi.getVirtualMicRouteStatus();
@@ -139,6 +154,9 @@
 
   onMount(() => {
     void refreshRouteStatus();
+    void refreshMeetingDetection();
+    const detectionTimer = window.setInterval(() => void refreshMeetingDetection(), 5000);
+    return () => window.clearInterval(detectionTimer);
   });
 </script>
 
@@ -181,6 +199,23 @@
           </div>
         </div>
       </div>
+
+      {#if meetingDetection?.detected}
+        <section class="flex items-center justify-between gap-4 border-b border-[var(--ti-border)] bg-[var(--ti-surface)] px-5 py-3.5" aria-live="polite">
+          <div class="flex min-w-0 items-center gap-3">
+            <div class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] text-[var(--ti-text-muted)]" aria-hidden="true">
+              <Video size={15} strokeWidth={1.8} />
+            </div>
+            <div class="min-w-0">
+              <strong class="block truncate text-[12.5px] font-semibold">{meetingDetection.provider} detected</strong>
+              <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">
+                {meetingDetection.confidence === "high" ? "Meeting window detected. Translation will only start when you choose Start Translation." : "Meeting app is open. Translation will only start when you choose Start Translation."}
+              </p>
+            </div>
+          </div>
+          <StatusBadge label="Detected" tone="good" />
+        </section>
+      {/if}
 
       {#if readiness.meetingReady && meetingVoiceReady && !setupDeferred && !runtimeUnavailable}
         <section class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
