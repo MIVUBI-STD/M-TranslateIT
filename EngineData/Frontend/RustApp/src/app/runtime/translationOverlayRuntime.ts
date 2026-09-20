@@ -55,8 +55,8 @@ export async function publishTranslationOverlay(payload: TranslationOverlayPaylo
 export async function publishLatestMeetingOverlay(turns: MeetingCommittedTurnsSnapshot | null, previousRevision: string): Promise<string> {
   const caption = latestMeetingCaption(turns);
   if (!caption || caption.revision === previousRevision) return previousRevision;
-  await publishTranslationOverlay(caption);
-  return caption.revision;
+  const result = await publishTranslationOverlay(caption);
+  return result === "unavailable" ? previousRevision : caption.revision;
 }
 
 export async function notifyOverlayPreferencesChanged(preferences: TranslationOverlayPreferences): Promise<void> {
@@ -84,5 +84,5 @@ export async function hideTranslationOverlay(): Promise<void> {
 }
 
 export async function destroyTranslationOverlay(): Promise<void> {
-  try { await (await overlayWindow())?.destroy(); } catch { }
+  await (await overlayWindow())?.destroy();
 }

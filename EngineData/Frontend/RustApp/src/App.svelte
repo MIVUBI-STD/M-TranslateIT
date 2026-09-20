@@ -296,8 +296,16 @@
 
   async function closeNativeWindow(): Promise<void> {
     closeAfterExistingStop = false;
-    closeDialogOpen = false;
-    await destroyTranslateItWindows();
+    try {
+      await destroyTranslateItWindows();
+      closeDialogOpen = false;
+    } catch {
+      showCloseDialog(
+        "Couldn't close TranslateIT",
+        "TranslateIT couldn't close its floating caption safely, so the app will stay open. Try again.",
+        "retry",
+      );
+    }
   }
 
   async function pollMeeting(): Promise<void> {
