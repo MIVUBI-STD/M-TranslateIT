@@ -50,7 +50,11 @@
       return;
     }
     if (sourceText.trim() === lastTranslatedSource) {
-      setResult("success", "Translated", "Translation is up to date.");
+      setResult(
+        reviewHints.length > 0 ? "stale" : "success",
+        reviewHints.length > 0 ? "Check details" : "Translated",
+        reviewHints.length > 0 ? "Translation is up to date. Review the highlighted details." : "Translation is up to date.",
+      );
       return;
     }
     setResult("stale", "Needs update", "Source text changed. Translate again to refresh the result.");
@@ -74,7 +78,7 @@
       onNotice(message);
       return;
     }
-    if (translating) return;
+    if (translating || alternativeBusy) return;
 
     const requestSource = source;
     const requestTargetRevision = targetRevision;
@@ -175,7 +179,7 @@
   }
 
   async function swapLanguages(): Promise<void> {
-    if (settingsSaving || translating) return;
+    if (settingsSaving || translating || alternativeBusy) return;
     settingsSaving = true;
     const candidate: RuntimeSettings = {
       ...settings,
@@ -195,6 +199,7 @@
         targetText = "";
         targetRevision += 1;
         lastTranslatedSource = null;
+        reviewHints = [];
         copyState = "idle";
         setResult("idle", "Ready", "Previous translation moved to the source side.");
       }
@@ -242,7 +247,7 @@
         <strong class="text-[14px] font-semibold">{sourceLanguageName}</strong>
       </div>
 
-      <button type="button" class="ti-button ti-button-secondary min-h-9 px-3" aria-label="Swap source and target languages" disabled={settingsSaving || translating} onclick={() => void swapLanguages()}>
+      <button type="button" class="ti-button ti-button-secondary min-h-9 px-3" aria-label="Swap source and target languages" disabled={settingsSaving || translating || alternativeBusy} onclick={() => void swapLanguages()}>
         <ArrowLeftRight size={15} /><span>Swap</span>
       </button>
 
@@ -309,7 +314,7 @@
           {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
           {copyState === "copied" ? "Copied" : "Copy"}
         </button>
-        <button type="button" class="ti-button min-w-28" disabled={translating} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
+        <button type="button" class="ti-button min-w-28" disabled={translating || alternativeBusy} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
       </div>
     </footer>
   </article>

@@ -228,11 +228,11 @@ fn sanitize_terminology(entries: Vec<TerminologyEntry>) -> Vec<TerminologyEntry>
         if indonesian.is_empty() || english.is_empty() {
             continue;
         }
-        let duplicate = clean.iter().any(|existing: &TerminologyEntry| {
+        let conflicts = clean.iter().any(|existing: &TerminologyEntry| {
             existing.indonesian.eq_ignore_ascii_case(&indonesian)
-                && existing.english.eq_ignore_ascii_case(&english)
+                || existing.english.eq_ignore_ascii_case(&english)
         });
-        if !duplicate {
+        if !conflicts {
             clean.push(TerminologyEntry { indonesian, english });
         }
     }
@@ -257,6 +257,38 @@ mod tests {
         assert!(settings.terminology.is_empty());
         assert!(settings.audio.input_device_id.is_none());
         assert!(settings.audio.output_device_id.is_none());
+    }
+
+    #[test]
+    fn terminology_rejects_conflicting_directional_mappings() {
+        use super::TerminologyEntry;
+
+        let mut settings = RuntimeSettings::default();
+        settings.terminology = vec![
+            TerminologyEntry {
+                indonesian: "pemugaran".to_string(),
+                english: "restoration".to_string(),
+            },
+            TerminologyEntry {
+                indonesian: "PEMUGARAN".to_string(),
+                english: "renovation".to_string(),
+            },
+            TerminologyEntry {
+                indonesian: "restorasi".to_string(),
+                english: "RESTORATION".to_string(),
+            },
+            TerminologyEntry {
+                indonesian: "arsip".to_string(),
+                english: "archive".to_string(),
+            },
+        ];
+
+        let sanitized = settings.sanitized();
+        assert_eq!(sanitized.terminology.len(), 2);
+        assert_eq!(sanitized.terminology[0].indonesian, "pemugaran");
+        assert_eq!(sanitized.terminology[0].english, "restoration");
+        assert_eq!(sanitized.terminology[1].indonesian, "arsip");
+        assert_eq!(sanitized.terminology[1].english, "archive");
     }
 
     #[test]

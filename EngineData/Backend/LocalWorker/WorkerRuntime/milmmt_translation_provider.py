@@ -115,10 +115,14 @@ def normalize_terminology_entries(
             continue
         if term_source.casefold() not in source_folded:
             continue
-        key = (term_source.casefold(), term_target.casefold())
-        if key in seen:
+        source_key = term_source.casefold()
+        target_key = term_target.casefold()
+        if any(
+            source_key == existing_source or target_key == existing_target
+            for existing_source, existing_target in seen
+        ):
             continue
-        seen.add(key)
+        seen.add((source_key, target_key))
         entries.append((term_source, term_target))
         if len(entries) >= MAX_TERMINOLOGY_ENTRIES:
             break

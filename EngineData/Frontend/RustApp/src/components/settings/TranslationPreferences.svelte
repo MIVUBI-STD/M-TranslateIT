@@ -54,13 +54,13 @@
       onNotice(`Terminology is limited to ${MAX_TERMS} focused terms.`);
       return;
     }
-    const duplicate = settings.terminology.some(
+    const conflicting = settings.terminology.find(
       (entry) =>
         entry.indonesian.toLocaleLowerCase() === id.toLocaleLowerCase()
-        && entry.english.toLocaleLowerCase() === en.toLocaleLowerCase(),
+        || entry.english.toLocaleLowerCase() === en.toLocaleLowerCase(),
     );
-    if (duplicate) {
-      onNotice("That terminology pair is already saved.");
+    if (conflicting) {
+      onNotice("Each Indonesian and English term can have only one preferred mapping. Remove the existing term first.");
       return;
     }
     await persist([...settings.terminology, { indonesian: id, english: en }], "Terminology saved.");

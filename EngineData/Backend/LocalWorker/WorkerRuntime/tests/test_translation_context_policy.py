@@ -233,3 +233,34 @@ def test_alternative_prompt_preserves_source_and_existing_translation(monkeypatc
     assert "Produce one natural alternative wording" in prompt
     assert "I haven't had a chance to work on it yet." in prompt
     assert "Indonesian: Saya belum sempat mengerjakannya." in prompt
+
+
+def test_terminology_rejects_conflicting_source_or_target_mappings(monkeypatch) -> None:
+    worker = load_worker_module()
+    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
+    )
+    prompts = install_fake_translation_runtime(worker)
+
+    result = worker.handle_translate(
+        {
+            "text": "Pemugaran dan arsip dibahas hari ini.",
+            "source_language": "id",
+            "target_language": "en",
+            "terminology": [
+                {"indonesian": "pemugaran", "english": "restoration"},
+                {"indonesian": "PEMUGARAN", "english": "renovation"},
+                {"indonesian": "restorasi", "english": "restoration"},
+                {"indonesian": "arsip", "english": "archive"},
+            ],
+        }
+    )
+    assert result["ok"] is True
+    prompt = prompts[-1]
+    assert "- pemugaran => restoration" in prompt
+    assert "PEMUGARAN => renovation" not in prompt
+    assert "restorasi => restoration" not in prompt
+    assert "- arsip => archive" in prompt

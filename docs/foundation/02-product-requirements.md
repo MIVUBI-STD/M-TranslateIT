@@ -128,6 +128,8 @@ Indonesian speech
 
 **MUST NOT:** Implement terminology as blind post-translation search/replace.
 
+**MUST:** Keep terminology directionally unambiguous: one Indonesian term maps to one preferred English term, and one preferred English term maps back to one Indonesian term. Conflicting entries are rejected/sanitized rather than sent together to the model.
+
 ### PR-044 — No tone selector
 **NOT CURRENT CORE:** Auto/Formal/Casual user controls.
 
