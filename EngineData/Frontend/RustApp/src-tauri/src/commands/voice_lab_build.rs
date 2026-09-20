@@ -594,6 +594,23 @@ pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
 }
 
 #[tauri::command]
+pub fn get_builtin_voice_preview_audio(voice_id: String) -> Result<tauri::ipc::Response, String> {
+    if !is_supported_builtin_voice(&voice_id) {
+        return Err("builtin_voice:unknown_voice".to_string());
+    }
+    let project_paths = ProjectPaths::discover();
+    let path = std::path::PathBuf::from(project_paths.voice_runtime_dir)
+        .join("BuiltInVoices")
+        .join(&voice_id)
+        .join("reference.wav");
+    let bytes = fs::read(path).map_err(|_| "builtin_voice:preview_unavailable".to_string())?;
+    if bytes.len() < 44 || bytes.len() as u64 > MAX_EVALUATION_WAV_BYTES {
+        return Err("builtin_voice:preview_invalid".to_string());
+    }
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
 pub fn select_builtin_voice(
     voice_id: String,
     authorized_voice_confirmed: bool,

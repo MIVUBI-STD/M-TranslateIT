@@ -103,6 +103,10 @@ export const myVoiceBuildApi = {
       : unavailableAction("My Voice could not approve the new voice.");
   },
 
+  async getBuiltinPreviewAudio(voiceId: string): Promise<ArrayBuffer | null> {
+    return runCommand<ArrayBuffer>("get_builtin_voice_preview_audio", { voiceId });
+  },
+
   async selectBuiltin(voiceId: string, authorizedVoiceConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
     const action = await runCommand<MyVoiceBuildActionResult>("select_builtin_voice", {
       voiceId,

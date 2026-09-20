@@ -30,6 +30,7 @@
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
   let builtinPendingId = $state<BuiltinVoiceId | null>(null);
+  let builtinPreviewing = $state<BuiltinVoiceId | null>(null);
 
   const currentLine = $derived(recordingState.lines.find((line) => line.line_id === selectedLineId) ?? null);
   const isRecording = $derived(recordingState.recording_line_id !== null);
@@ -37,6 +38,38 @@
 
   function builtinLabel(voiceId: BuiltinVoiceId): string {
     return voiceId === "MaleVoice" ? "Built-in Male" : "Built-in Female";
+  }
+
+  async function previewBuiltin(voiceId: BuiltinVoiceId): Promise<void> {
+    if (busy || replaying || builtinPreviewing) return;
+    stopReplay();
+    builtinPreviewing = voiceId;
+    try {
+      const bytes = await myVoiceBuildApi.getBuiltinPreviewAudio(voiceId);
+      if (!bytes) {
+        onNotice("This built-in voice preview is unavailable.");
+        return;
+      }
+      const blob = new Blob([bytes], { type: "audio/wav" });
+      audioUrl = URL.createObjectURL(blob);
+      audio = new Audio(audioUrl);
+      replaying = true;
+      audio.onended = () => {
+        stopReplay();
+        builtinPreviewing = null;
+      };
+      audio.onerror = () => {
+        stopReplay();
+        builtinPreviewing = null;
+        onNotice("This built-in voice preview couldn't be played.");
+      };
+      await audio.play();
+      onNotice(`Previewing ${builtinLabel(voiceId)}.`);
+    } catch {
+      stopReplay();
+      builtinPreviewing = null;
+      onNotice("This built-in voice preview couldn't be played.");
+    }
   }
 
   async function selectBuiltin(voiceId: BuiltinVoiceId, confirmed = false): Promise<void> {
@@ -211,6 +244,7 @@
     audio?.pause();
     audio = null;
     replaying = false;
+    builtinPreviewing = null;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     audioUrl = null;
   }
@@ -262,9 +296,22 @@
     <span class="ti-kicker">Ready now</span>
     <strong class="mt-2 block text-base font-semibold">Built-in Meeting voices</strong>
     <p class="mb-0 mt-1.5 max-w-[720px] text-sm leading-6 text-[var(--ti-text-muted)]">Built-in Male and Female work without training. You can create My Voice later without changing the rest of your Meeting setup.</p>
-    <div class="mt-4 flex flex-wrap gap-3">
-      <button type="button" class="ti-button" disabled={busy} onclick={() => void selectBuiltin("MaleVoice")}>Built-in Male</button>
-      <button type="button" class="ti-button" disabled={busy} onclick={() => void selectBuiltin("FemaleVoice")}>Built-in Female</button>
+    <div class="mt-4 grid grid-cols-2 gap-3">
+      {#each [
+        { id: "MaleVoice" as BuiltinVoiceId, label: "Built-in Male", detail: "Neutral English meeting voice" },
+        { id: "FemaleVoice" as BuiltinVoiceId, label: "Built-in Female", detail: "Neutral English meeting voice" },
+      ] as voice (voice.id)}
+        <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface)] p-4">
+          <strong class="block text-sm font-semibold">{voice.label}</strong>
+          <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">{voice.detail}</p>
+          <div class="ti-action-row mt-4">
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || builtinPreviewing !== null} onclick={() => void previewBuiltin(voice.id)}>
+              <Play size={14} /> {builtinPreviewing === voice.id ? "Playing..." : "Preview"}
+            </button>
+            <button type="button" class="ti-button" disabled={busy || builtinPreviewing !== null} onclick={() => void selectBuiltin(voice.id)}>Select</button>
+          </div>
+        </div>
+      {/each}
     </div>
 
     {#if builtinPendingId}

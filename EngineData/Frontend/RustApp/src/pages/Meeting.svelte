@@ -182,6 +182,20 @@
         </div>
       </div>
 
+      {#if readiness.meetingReady && meetingVoiceReady && !setupDeferred && !runtimeUnavailable}
+        <section class="grid grid-cols-[1fr_auto] items-center gap-5 px-5 py-5">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <StatusBadge label="Ready" tone="good" />
+              <span class="text-[12px] text-[var(--ti-text-soft)]">Indonesian → English voice</span>
+            </div>
+            <p class="mb-0 mt-2 text-[13px] leading-5 text-[var(--ti-text-muted)]">
+              Speak into {microphone}. Your meeting should use {meetingMicrophoneDevice}.
+            </p>
+          </div>
+          <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={onOpenMyVoice}>Meeting Voice</button>
+        </section>
+      {:else}
       <div class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
         <section class="min-w-0 p-5">
           <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
@@ -242,6 +256,7 @@
           {/if}
         </section>
       </div>
+      {/if}
 
       <section class="flex items-start justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-4">
         <div class="min-w-0">

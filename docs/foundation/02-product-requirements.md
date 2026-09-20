@@ -189,6 +189,12 @@ Indonesian speech
 ### PR-063 — Meeting performance truth
 **MUST:** Report impractical CPU/GPU Meeting performance honestly rather than claiming equivalent realtime behavior.
 
+### PR-048 — Built-in voice preview
+**SHOULD:** Built-in Meeting voices expose a local preview before selection using their packaged approved reference audio. Preview must not require model inference, Meeting start, or voice replacement.
+
+### PR-049 — Meeting setup disclosure
+**SHOULD:** When Meeting is fully ready, the normal screen collapses detailed readiness cards into one concise ready summary. Detailed microphone/voice/route states remain visible when setup needs attention and in Settings/Diagnostics.
+
 ## 9. Windows audio
 
 ### PR-070 — Outbound content
