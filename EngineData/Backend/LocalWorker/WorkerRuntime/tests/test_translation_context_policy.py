@@ -269,13 +269,20 @@ def test_terminology_rejects_conflicting_source_or_target_mappings(monkeypatch) 
 
 
 def test_terminology_does_not_match_inside_larger_word() -> None:
-    assert milmmt_translation_provider.source_term_occurs(
-        "Program API ini akan diperbarui besok.", "ram"
-    ) is False
-    assert milmmt_translation_provider.source_term_occurs(
-        "Program API ini akan diperbarui besok.", "API"
-    ) is True
-    assert milmmt_translation_provider.source_term_occurs(
-        "Nama produk ini tetap sama.", "nama produk"
-    ) is True
+    assert (
+        milmmt_translation_provider.source_term_occurs(
+            "Program API ini akan diperbarui besok.", "ram"
+        )
+        is False
+    )
+    assert (
+        milmmt_translation_provider.source_term_occurs(
+            "Program API ini akan diperbarui besok.", "API"
+        )
+        is True
+    )
+    assert (
+        milmmt_translation_provider.source_term_occurs("Nama produk ini tetap sama.", "nama produk")
+        is True
+    )
     assert milmmt_translation_provider.source_term_occurs("APIx", "API") is False
