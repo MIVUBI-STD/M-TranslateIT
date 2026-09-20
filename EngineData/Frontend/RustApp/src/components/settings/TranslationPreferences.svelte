@@ -51,7 +51,7 @@
       return;
     }
     if (settings.terminology.length >= MAX_TERMS) {
-      onNotice(`Preferred words is limited to ${MAX_TERMS} focused terms.`);
+      onNotice(`You can save up to ${MAX_TERMS} preferred word pairs.`);
       return;
     }
     const conflicting = settings.terminology.find(
@@ -60,10 +60,10 @@
         || entry.english.toLocaleLowerCase() === en.toLocaleLowerCase(),
     );
     if (conflicting) {
-      onNotice("Each Indonesian and English term can have only one preferred mapping. Remove the existing term first.");
+      onNotice("That word is already saved. Remove the existing pair before adding a different translation.");
       return;
     }
-    await persist([...settings.terminology, { indonesian: id, english: en }], "Preferred words saved.");
+    await persist([...settings.terminology, { indonesian: id, english: en }], "Preferred word saved.");
     indonesian = "";
     english = "";
   }
@@ -71,7 +71,7 @@
   async function removeTerm(index: number): Promise<void> {
     await persist(
       settings.terminology.filter((_, itemIndex) => itemIndex !== index),
-      "Preferred words removed.",
+      "Preferred word removed.",
     );
   }
 </script>
