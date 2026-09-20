@@ -332,7 +332,10 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "elapsed_ms": host["now_ms"]() - started,
         }
     model_id, model_path = selected
-    if not host["translation_model_ready"](model_path):
+    runtimes = host["TRANSLATION_RUNTIME"]
+    runtime_warm = bool(runtimes)
+    model_asset_check_performed = not runtime_warm
+    if model_asset_check_performed and not host["translation_model_ready"](model_path):
         return {
             "ok": False,
             "stage": "translate",
@@ -342,6 +345,8 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "direction_pair": pair,
             "direction_supported": True,
             "blocker": MISSING_BLOCKER,
+            "runtime_reused": False,
+            "model_asset_check_performed": True,
             "elapsed_ms": host["now_ms"]() - started,
         }
     tokenization_ms: float | None = None
@@ -456,6 +461,10 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "translation_torch_cuda_available": runtime["translation_torch_cuda_available"],
             "translation_degraded": runtime["translation_degraded"],
             "translation_fallback_reason": runtime["translation_fallback_reason"],
+            "runtime_reused": runtime_warm,
+            "model_asset_check_performed": model_asset_check_performed,
+            "context_pairs_used": len(context_pairs),
+            "terminology_entries_used": len(terminology),
             "input_tokens": prompt_tokens,
             "prompt_tokens": prompt_tokens,
             "input_token_limit": INPUT_CONTEXT_LIMIT,
@@ -504,22 +513,28 @@ def handle_translation_preload(payload: dict[str, Any]) -> dict[str, Any]:
             "blocker": "translation:direction_not_supported",
         }
     model_id, model_path = selected
-    status = build_status_payload(payload)
+    transformers_ready = host["import_ready"]("transformers")
+    torch_ready = host["import_ready"]("torch")
     ready = host["translation_model_ready"](model_path)
-    if not status["transformers_import_ready"] or not status["torch_import_ready"] or not ready:
-        blockers = [value for value in status.get("blockers", []) if value != MISSING_BLOCKER]
-        if not ready:
-            blockers.append(MISSING_BLOCKER)
-        return host["failed_from_status"](
-            "translation_preload",
-            {**status, "blocker": ";".join(blockers), "blockers": blockers},
-            {
-                "model_id": model_id,
-                "model_revision": MODEL_REVISION,
-                "model_path": str(model_path),
-                "direction_pair": pair,
-            },
-        )
+    blockers: list[str] = []
+    if not transformers_ready:
+        blockers.append("dependency:transformers_missing")
+    if not torch_ready:
+        blockers.append("dependency:torch_missing")
+    if not ready:
+        blockers.append(MISSING_BLOCKER)
+    if blockers:
+        return {
+            "ok": False,
+            "stage": "translation_preload",
+            "model_id": model_id,
+            "model_revision": MODEL_REVISION,
+            "model_path": str(model_path),
+            "direction_pair": pair,
+            "blocker": ";".join(blockers),
+            "blockers": blockers,
+            "elapsed_ms": host["now_ms"]() - started,
+        }
     try:
         runtime = get_translation_runtime(source_language, target_language)
         return {
@@ -537,7 +552,11 @@ def handle_translation_preload(payload: dict[str, Any]) -> dict[str, Any]:
             "translation_degraded": runtime["translation_degraded"],
             "translation_fallback_reason": runtime["translation_fallback_reason"],
             "elapsed_ms": host["now_ms"]() - started,
-            "warnings": status.get("warnings", []),
+            "warnings": (
+                ["cuda_unavailable_cpu_fallback_active"]
+                if runtime["translation_degraded"]
+                else []
+            ),
             "note": "Canonical MiLMMT bidirectional model loaded.",
         }
     except Exception as exc:
