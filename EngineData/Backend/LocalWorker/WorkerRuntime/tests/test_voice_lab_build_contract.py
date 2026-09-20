@@ -178,8 +178,12 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             validate_dataset_signal(root, manifest)
 
     def test_word_error_rate_detects_omission_and_substitution(self) -> None:
-        self.assertEqual(word_error_rate("please confirm the schedule", "please confirm the schedule"), 0.0)
-        self.assertEqual(word_error_rate("please confirm the schedule", "please confirm schedule"), 0.25)
+        self.assertEqual(
+            word_error_rate("please confirm the schedule", "please confirm the schedule"), 0.0
+        )
+        self.assertEqual(
+            word_error_rate("please confirm the schedule", "please confirm schedule"), 0.25
+        )
         self.assertEqual(word_error_rate("fifteen not fifty", "fifty not fifteen"), 2 / 3)
 
     def test_candidate_selection_prioritizes_intelligibility_before_similarity(self) -> None:

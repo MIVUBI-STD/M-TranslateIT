@@ -229,7 +229,7 @@
         message = `${builtinLabel(voiceId)} is selected.`;
       }
     } catch {
-      message = "Couldn't change the Voice others hear. Try again or check Diagnostics.";
+      message = "Couldn't change the Voice others hear. Try again.";
     } finally {
       busy = false;
     }
@@ -328,7 +328,7 @@
         </div>
       {:else if step === 3}
         <div>
-          <span class="ti-kicker">Meeting microphone</span>
+          <span class="ti-kicker">Meeting app</span>
           <h1 class="ti-page-title">Connect TranslateIT to your meeting app</h1>
           <p class="ti-page-copy">In Zoom, Google Meet, Discord, or another calling app, choose the TranslateIT microphone shown below.</p>
         </div>
@@ -379,7 +379,7 @@
         <div class="ti-subtle-card divide-y divide-[var(--ti-border)] overflow-hidden">
           <StatusRow label="Microphone" value={currentMicrophone()} status={snapshot?.readiness.microphoneReady ? "Ready" : "Setup Needed"} tone={snapshot?.readiness.microphoneReady ? "good" : "warning"} />
           <StatusRow label="Voice others hear" value={meetingVoiceReady ? "Selected Voice others hear" : meetingVoiceReady === null ? "Checking Voice others hear" : "Choose a built-in voice or create My Voice"} status={meetingVoiceReady ? "Ready" : meetingVoiceReady === null ? "Checking" : "Setup Needed"} tone={meetingVoiceReady ? "good" : meetingVoiceReady === null ? "neutral" : "warning"} />
-          <StatusRow label="Meeting microphone" value={currentMeetingMicrophone()} detail="Remember to select this microphone inside your meeting app." status={snapshot?.readiness.meetingRouteReady ? "Available" : "Setup Needed"} tone={snapshot?.readiness.meetingRouteReady ? "good" : "warning"} />
+          <StatusRow label="TranslateIT microphone" value={currentMeetingMicrophone()} detail="Remember to select this microphone inside your meeting app." status={snapshot?.readiness.meetingRouteReady ? "Available" : "Setup Needed"} tone={snapshot?.readiness.meetingRouteReady ? "good" : "warning"} />
           <StatusRow label="Translate what you hear" value={`English → Indonesian text · ${currentMeetingSound()}`} detail="Optional. You can turn this on or change it later." status="Optional" tone="neutral" />
         </div>
 

@@ -9,6 +9,10 @@ pub const GUIDED_TAKE_SAMPLE_RATE_HZ: u32 = 32_000;
 pub const GUIDED_TAKE_CHANNELS: u16 = 1;
 const MAX_GUIDED_CAPTURE_MS: u64 = 60_000;
 const RESAMPLE_CHUNK_FRAMES: usize = 1024;
+const ACTIVE_SAMPLE_THRESHOLD: f32 = 128.0 / 32_768.0;
+const MIN_ACTIVE_RMS: f32 = 256.0 / 32_768.0;
+const MAX_DC_OFFSET: f32 = 2_048.0 / 32_768.0;
+const MAX_CLIPPING_RATIO: f32 = 0.05;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GuidedTakeReview {
@@ -157,14 +161,7 @@ pub fn take_guided_audio() -> Result<(CapturedGuidedTake, GuidedTakeReview), Str
         GUIDED_TAKE_SAMPLE_RATE_HZ,
     )?;
     let evidence = AudioEvidenceReport::from_samples(&samples_mono);
-    // A3 only blocks unmistakably empty/silent capture. More nuanced noise,
-    // clipping, and speaker-quality acceptance belongs to build/evaluation with
-    // real recorded evidence, not Mic Test heuristics reused as VoiceLab policy.
-    let quality_blocker = if evidence.reason == "rejected_silence" {
-        "voice_lab:take_signal_unusable:rejected_silence".to_string()
-    } else {
-        String::new()
-    };
+    let quality_blocker = guided_take_quality_blocker(&samples_mono, &evidence);
     let review = GuidedTakeReview {
         line_id: take.line_id,
         duration_ms: samples_mono.len() as u64 * 1_000 / u64::from(GUIDED_TAKE_SAMPLE_RATE_HZ),
@@ -178,6 +175,44 @@ pub fn take_guided_audio() -> Result<(CapturedGuidedTake, GuidedTakeReview), Str
         review,
     ))
 }
+
+fn guided_take_quality_blocker(samples: &[f32], evidence: &AudioEvidenceReport) -> String {
+    if evidence.reason == "rejected_silence" {
+        return "voice_lab:take_signal_unusable:rejected_silence".to_string();
+    }
+    if evidence.clipping_ratio >= MAX_CLIPPING_RATIO {
+        return "voice_lab:take_signal_unusable:severe_clipping".to_string();
+    }
+    if samples.is_empty() {
+        return "voice_lab:take_signal_unusable:rejected_silence".to_string();
+    }
+
+    let mut active_count = 0usize;
+    let mut active_sum_square = 0.0_f64;
+    let mut sum = 0.0_f64;
+    for sample in samples {
+        let value = f64::from(safe_sample(*sample));
+        sum += value;
+        if value.abs() > f64::from(ACTIVE_SAMPLE_THRESHOLD) {
+            active_count += 1;
+            active_sum_square += value * value;
+        }
+    }
+    let active_rms = if active_count == 0 {
+        0.0
+    } else {
+        (active_sum_square / active_count as f64).sqrt() as f32
+    };
+    if active_rms < MIN_ACTIVE_RMS {
+        return "voice_lab:take_signal_unusable:signal_too_low".to_string();
+    }
+    let dc_offset = (sum / samples.len() as f64).abs() as f32;
+    if dc_offset >= MAX_DC_OFFSET {
+        return "voice_lab:take_signal_unusable:dc_offset_too_high".to_string();
+    }
+    String::new()
+}
+
 
 fn resample_mono_fft(samples: &[f32], source_rate: u32, target_rate: u32) -> Result<Vec<f32>, String> {
     if samples.is_empty() || source_rate == 0 || target_rate == 0 {
@@ -274,6 +309,55 @@ mod tests {
         assert_eq!(captured.samples_mono.len(), 32_000);
         assert!(review.duration_ms >= 999 && review.duration_ms <= 1_001);
         assert!(review.quality_blocker.is_empty());
+    }
+
+    #[test]
+    fn clipped_take_is_reviewable_but_not_quality_acceptable() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(3).expect("arm guided take");
+        let mut samples = vec![0.20_f32; 32_000];
+        for sample in &mut samples[..2_000] {
+            *sample = 1.0;
+        }
+        append_guided_f32(&samples, 32_000, 1);
+        let (_, review) = take_guided_audio().expect("finalized clipped take");
+        assert_eq!(
+            review.quality_blocker,
+            "voice_lab:take_signal_unusable:severe_clipping"
+        );
+    }
+
+    #[test]
+    fn very_low_take_is_reviewable_but_not_quality_acceptable() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(4).expect("arm guided take");
+        let samples = (0..32_000)
+            .map(|index| if index % 2 == 0 { 0.0065 } else { -0.0065 })
+            .collect::<Vec<_>>();
+        append_guided_f32(&samples, 32_000, 1);
+        let (_, review) = take_guided_audio().expect("finalized low take");
+        assert_eq!(
+            review.quality_blocker,
+            "voice_lab:take_signal_unusable:signal_too_low"
+        );
+    }
+
+    #[test]
+    fn large_dc_offset_take_is_reviewable_but_not_quality_acceptable() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(5).expect("arm guided take");
+        let samples = (0..32_000)
+            .map(|index| if index % 2 == 0 { 0.20 } else { 0.08 })
+            .collect::<Vec<_>>();
+        append_guided_f32(&samples, 32_000, 1);
+        let (_, review) = take_guided_audio().expect("finalized dc-offset take");
+        assert_eq!(
+            review.quality_blocker,
+            "voice_lab:take_signal_unusable:dc_offset_too_high"
+        );
     }
 
     #[test]
