@@ -2,7 +2,7 @@
   import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { availableMonitors, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
-  import { ArrowLeft, History, Maximize2, Minus, X } from "@lucide/svelte";
+  import { ArrowLeft, History, Maximize2, Minus, Pause, Play, X } from "@lucide/svelte";
   import { onMount, tick } from "svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import {
@@ -38,6 +38,8 @@
   let historyLoading = $state(false);
   let historyEntries = $state<RecentCaptionEntry[]>([]);
   let historyMessage = $state("");
+  let captionsPaused = $state(false);
+  let pendingCaption = $state<TranslationOverlayPayload | null>(null);
 
   const collapsed = $derived(preferences.visibility === "collapsed");
   const currentWidth = $derived(collapsed ? COLLAPSED_WIDTH : NORMAL_WIDTH);
@@ -136,11 +138,28 @@
   }
 
   async function applyCaption(next: TranslationOverlayPayload): Promise<void> {
+    if (captionsPaused && next.source === "meeting") {
+      pendingCaption = next;
+      return;
+    }
     caption = next;
+    pendingCaption = null;
     if (next.source === "meeting") {
       await tick();
       if (captionBody) captionBody.scrollTop = 0;
     }
+  }
+
+  async function togglePause(): Promise<void> {
+    if (caption?.source !== "meeting") return;
+    if (captionsPaused) {
+      captionsPaused = false;
+      const latest = pendingCaption ?? readLatestOverlayCaption();
+      pendingCaption = null;
+      if (latest?.source === "meeting") await applyCaption(latest);
+      return;
+    }
+    captionsPaused = true;
   }
 
   onMount(() => {
@@ -173,7 +192,8 @@
         {#if historyOpen}
           <span>RECENT · {historyEntries.length}</span>
         {:else if caption?.source === "meeting"}
-          <span class="live-dot" aria-hidden="true"></span><span>LIVE · {languageLabel(caption.language)}</span>
+          <span class:paused-dot={captionsPaused} class="live-dot" aria-hidden="true"></span>
+          <span>{captionsPaused ? "PAUSED" : "LIVE"} · {languageLabel(caption.language)}</span>
         {:else}
           <span>{caption ? languageLabel(caption.language) : "TRANSLATION"}</span>
         {/if}
@@ -182,6 +202,15 @@
         {#if historyOpen}
           <button type="button" class="caption-control" aria-label="Back to live caption" title="Back to live" onclick={() => void closeRecentHistory()}><ArrowLeft size={15} /></button>
         {:else if caption?.source === "meeting" && !collapsed}
+          <button
+            type="button"
+            class="caption-control"
+            aria-label={captionsPaused ? "Resume floating captions" : "Pause floating captions"}
+            title={captionsPaused ? "Resume captions" : "Pause captions"}
+            onclick={() => void togglePause()}
+          >
+            {#if captionsPaused}<Play size={15} />{:else}<Pause size={15} />{/if}
+          </button>
           <button type="button" class="caption-control" aria-label="Show recent translations" title="Recent translations" disabled={historyLoading} onclick={() => void openRecentHistory()}><History size={15} /></button>
         {/if}
         <button type="button" class="caption-control" aria-label={collapsed ? "Expand floating caption" : "Collapse floating caption"} title={collapsed ? "Expand" : "Collapse"} onclick={() => void setVisibility(collapsed ? "expanded" : "collapsed")}>
@@ -226,6 +255,7 @@
   .caption-header:active { cursor: grabbing; }
   .caption-meta { display: flex; min-width: 0; align-items: center; gap: 8px; color: rgb(232 237 242 / 0.68); font-size: 10px; font-weight: 700; letter-spacing: 0.09em; }
   .live-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 999px; background: #63d59b; box-shadow: 0 0 0 3px rgb(99 213 155 / 0.12); }
+  .paused-dot { background: #f0b45a; box-shadow: 0 0 0 3px rgb(240 180 90 / 0.12); }
   .caption-controls { display: flex; align-items: center; gap: 2px; }
   .caption-control { display: grid; width: 30px; height: 28px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 8px; background: transparent; color: rgb(242 245 248 / 0.72); }
   .caption-control:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
@@ -245,7 +275,7 @@
   @media (forced-colors: active) {
     .caption-card { border-color: CanvasText; background: Canvas; box-shadow: none; color: CanvasText; forced-color-adjust: auto; }
     .caption-meta, .caption-control, .caption-body p, .caption-body .caption-placeholder, .history-entry p, .history-entry-meta, .history-empty { color: CanvasText; }
-    .live-dot { background: Highlight; box-shadow: none; }
+    .live-dot, .paused-dot { background: Highlight; box-shadow: none; }
     .caption-control:focus-visible { outline-color: Highlight; }
   }
   @media (prefers-reduced-motion: reduce) { .caption-control { transition: none; } }
