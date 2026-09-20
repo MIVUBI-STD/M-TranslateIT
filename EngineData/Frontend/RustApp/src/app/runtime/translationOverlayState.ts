@@ -4,7 +4,11 @@ import type {
   TranslationOverlayPayload,
   TranslationOverlayPreferences,
 } from "./translationOverlayPolicy";
-import { DEFAULT_OVERLAY_PREFERENCES } from "./translationOverlayPolicy";
+const DEFAULT_OVERLAY_PREFERENCES: TranslationOverlayPreferences = {
+  meetingEnabled: true,
+  visibility: "expanded",
+  textSize: "medium",
+};
 
 const LATEST_KEY = "translateit.translationOverlay.latest.v2";
 const PREFERENCES_KEY = "translateit.translationOverlay.preferences.v2";

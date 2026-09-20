@@ -23,12 +23,6 @@ export type PhysicalRect = { x: number; y: number; width: number; height: number
 type MeetingTurnLike = { sequence: number; lane: string; translated_text: string; };
 type MeetingTurnsLike = { ok: boolean; has_session: boolean; session_id: string | null; turns: MeetingTurnLike[]; };
 
-export const DEFAULT_OVERLAY_PREFERENCES: TranslationOverlayPreferences = {
-  meetingEnabled: true,
-  visibility: "expanded",
-  textSize: "medium",
-};
-
 export function normalizeOverlayText(value: string): string {
   return value.replace(/\r\n/g, "\n").trim();
 }
