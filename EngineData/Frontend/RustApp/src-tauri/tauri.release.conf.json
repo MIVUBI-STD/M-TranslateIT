@@ -20,6 +20,7 @@
         "installMode": "perMachine",
         "installerHooks": "./target/translateit-r3-payload-hooks.generated.nsh"
       }
-    }
+    },
+    "createUpdaterArtifacts": true
   }
 }
