@@ -29,3 +29,4 @@ jobs:
           path: EngineData/Frontend/RustApp/src-tauri/Cargo.lock
           if-no-files-found: error
           retention-days: 1
+          # resolver rerun: pin updater 2.11.0
