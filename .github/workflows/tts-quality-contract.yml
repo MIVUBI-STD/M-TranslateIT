@@ -51,13 +51,17 @@ jobs:
           build = Path("EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py").read_text(encoding="utf-8")
           required_rust = (
               "speaker_similarity",
+              "intelligibility_text",
+              "intelligibility_wer",
               "HELD_OUT_LINES",
               "VOICE_ACTOR_ENGINE_REVISION",
           )
           required_build = (
               "mean_speaker_similarity",
               "minimum_speaker_similarity",
-              "held_out_mean_speaker_similarity_then_minimum_tiebreak",
+              "mean_intelligibility_wer",
+              "maximum_intelligibility_wer",
+              "held_out_mean_wer_then_max_wer_then_similarity_tiebreak",
           )
           missing = [
               item
