@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet('Verify','Install')]
+    [ValidateSet('Verify','Install','VerifyInstalled')]
     [string]$Mode,
     [Parameter(Mandatory=$true)][string]$PayloadPath,
     [Parameter(Mandatory=$true)][string]$ExpectedSha256,
@@ -76,6 +76,26 @@ function Read-PythonMetadata([string]$Root){
     try{$meta=$raw|ConvertFrom-Json}catch{Fail 55 'Private Python dependency metadata invalid.'}
     if($meta.python-ne$PythonVersion-or$meta.torch-ne$TorchVersion-or$meta.transformers-ne$TransformersVersion-or$meta.tokenizers-ne$TokenizersVersion){Fail 56 'Installed Python dependency versions do not match the payload contract.'}
     return $meta
+}
+
+function Assert-InstalledRuntimeManifest([string]$Root){
+    $manifestPath=Join-Path $Root $InstalledManifest
+    NeedFile $manifestPath 57 'Installed runtime manifest'
+    try{$manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json}catch{Fail 57 'Installed runtime manifest invalid.'}
+    if([string]$manifest.schema-ne$ExpectedInstalledRuntimeSchema-or-not[bool]$manifest.installed_complete){Fail 57 'Installed runtime manifest is incomplete or incompatible.'}
+    if([string]$manifest.payload_schema-ne$ExpectedPayloadSchema){Fail 57 'Installed runtime payload schema is incompatible with this app update.'}
+    if([string]$manifest.python-ne$PythonVersion-or[string]$manifest.torch-ne$TorchVersion-or[string]$manifest.transformers-ne$TransformersVersion-or[string]$manifest.tokenizers-ne$TokenizersVersion){Fail 57 'Installed runtime dependency identity is incompatible with this app update.'}
+    if([string]$manifest.translation_revision-ne$MiLMMTRevision-or[string]$manifest.asr_revision-ne$AsrRevision-or[string]$manifest.voice_revision-ne$GptRevision){Fail 57 'Installed model/runtime revisions are incompatible with this app update.'}
+}
+
+function Verify-InstalledRuntime([string]$Root){
+    if([string]::IsNullOrWhiteSpace($Root)){Fail 58 'InstallRoot required for installed-runtime verification.'}
+    $full=[IO.Path]::GetFullPath($Root)
+    Assert-Runtime $full
+    [void](Read-PythonMetadata $full)
+    Assert-InstalledRuntimeManifest $full
+    if(-not(Test-VBCablePresent)){Fail 58 'Required VB-CABLE provider is not present.'}
+    exit 0
 }
 
 function Test-VBCablePresent {
@@ -192,6 +212,7 @@ function Install-Payload([string]$Tar){
 }
 
 try{
+    if($Mode-eq'VerifyInstalled'){Verify-InstalledRuntime $InstallRoot}
     $script:PayloadPath=[IO.Path]::GetFullPath($PayloadPath)
     NeedFile $script:PayloadPath 42 'External payload'
     $actualHash=(Get-FileHash -Algorithm SHA256 -LiteralPath $script:PayloadPath).Hash.ToLowerInvariant()
