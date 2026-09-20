@@ -102,12 +102,12 @@
   );
   const routeContext = $derived(
     route === "meeting"
-      ? "Voice translation"
+      ? "Translate your voice in calls"
       : route === "text"
         ? "Indonesian ↔ English"
         : route === "my-voice"
-          ? "Meeting voice"
-          : "Audio & setup",
+          ? "Voice others hear"
+          : "Microphone, translation & help",
   );
 
   const closePrimaryLabel = $derived(
@@ -164,7 +164,7 @@
       setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
     } catch {
       if (requestRevision === runtimeStateRevision) {
-        setNotice("TranslateIT couldn't refresh its status. Try again or open Diagnostics.");
+        setNotice("TranslateIT couldn't refresh its status. Try again.");
       }
     }
   }
@@ -216,8 +216,8 @@
       const resultNotice = result.ok
         ? action === "start" ? "Translation is live." : "Translation stopped."
         : action === "start"
-          ? "Translation couldn't start. Check Setup or Diagnostics and try again."
-          : "Translation couldn't stop safely. Try again or check Diagnostics.";
+          ? "Translation couldn't start. Check the setup items and try again."
+          : "Translation couldn't stop. Try again.";
       applyMeetingStatus(result.status, resultNotice);
       if (!result.status.has_session || action === "start") {
         meetingTurns = null;
@@ -225,7 +225,7 @@
       }
     } catch {
       runtimeStateRevision += 1;
-      setNotice("The Meeting action couldn't be completed. Try again or check Diagnostics.");
+      setNotice("That action couldn't be completed. Try again.");
       await refreshSnapshot();
     } finally {
       meetingActionBusy = false;
@@ -280,7 +280,7 @@
       const result = wasRecording ? await runtimeApi.stopCapture() : await runtimeApi.startCapture();
       await refreshSnapshot(result.ok
         ? (wasRecording ? "Mic Test stopped." : "Mic Test started.")
-        : "Mic Test couldn't be completed. Try again or check Diagnostics.");
+        : "Mic Test couldn't be completed. Try again.");
     } catch {
       setNotice("Mic Test couldn't be completed. Try again or check Diagnostics.");
     } finally {
