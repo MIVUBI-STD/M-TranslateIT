@@ -565,9 +565,7 @@ def handle_translation_preload(payload: dict[str, Any]) -> dict[str, Any]:
             "translation_fallback_reason": runtime["translation_fallback_reason"],
             "elapsed_ms": host["now_ms"]() - started,
             "warnings": (
-                ["cuda_unavailable_cpu_fallback_active"]
-                if runtime["translation_degraded"]
-                else []
+                ["cuda_unavailable_cpu_fallback_active"] if runtime["translation_degraded"] else []
             ),
             "note": "Canonical MiLMMT bidirectional model loaded.",
         }
