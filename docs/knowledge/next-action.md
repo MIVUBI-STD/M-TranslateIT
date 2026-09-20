@@ -3,35 +3,31 @@
 ## Current Status
 
 - `Local` remains the sole active authority for development, CI, proof, continuation, and release-source validation.
-- Development foundation, capability/proof taxonomy, toolchain authority, and one Windows developer entrypoint are active.
-- Structural remediation is complete across Meeting, helper bridge, My Voice, setup, native-close, diagnostics, Windows audio, and local voice-runtime ownership.
-- Exact proof identity is read from GitHub for the current `Local` SHA/domain; continuation no longer pins a mutable source SHA in this file.
-- My Voice live inference remains isolated from one-shot build/training/evaluation/package construction.
-- Earlier flow hardening remains active across setup, virtual-route ownership, Starting rollback, native exit, helper lifecycle, readiness invalidation, and recording/build handoff.
-- Diagnostics expose outbound stage timing, queue/drop counters, and translation tokenize/inference/decode/throughput breakdown needed for target performance evidence.
-- Translation quality tooling compares matched baseline/candidate evidence with provenance and a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates.
-- ASR quality tooling carries 60 linguistic/accent/acoustic/device/meeting-compression cases with WER/CER, critical regression and provenance gates.
-- TTS/My Voice quality tooling carries 30 synthesis acceptance cases combining speaker similarity, intelligibility, artifact flags and provenance; audible acceptance remains native evidence.
-- Quality Readiness combines all three domain reports into one fail-closed release result with candidate-identity and SHA-256 binding.
+- Core architecture is structurally hardened across Meeting, helper bridge, Text, My Voice, setup, diagnostics, Windows audio, and local voice-runtime ownership.
+- Translation quality now uses a 170-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates. Do not tune against the held-out set.
+- ASR quality now carries 60 linguistic/accent/acoustic/device/meeting-compression acceptance cases.
+- TTS/My Voice quality now carries 30 synthesis acceptance cases covering intelligibility, speaker similarity, artifacts, long form, acronyms, lists, numbers, entities, and repeated-synthesis targets.
+- Quality Readiness remains fail-closed over Translation + ASR + TTS evidence with candidate identity and report-hash binding.
+- Diagnostics already expose queue/drop and outbound stage timing needed for later native performance evidence.
 
 ## Active Boundary
 
-REMOTE_GITHUB runtime-architecture work is complete for the currently evidenced defects. Continue source-side evaluation/observability only when it adds concrete falsifiable coverage; do not add more runtime abstractions merely for file shape or speculative latency.
+REMOTE_GITHUB architecture work is complete for currently evidenced defects. Continue only source-side work that adds falsifiable quality coverage, reliability, accessibility, or release integrity.
 
-Physical mic/device behavior, real CUDA/resource pressure, meeting reception, Start → Live, audible voice quality, end-of-speech → playback, and playback/output/TTS promotion require **TARGET_WINDOWS / NATIVE_ACCEPTANCE** evidence.
+Do not add speculative runtime abstractions, extra providers, languages, cloud fallback, document/image translation, or performance optimizations without measured evidence.
+
+Physical microphone behavior, real CUDA/resource pressure, meeting-app reception, audible voice quality, practical latency, and long-session stability require **TARGET_WINDOWS / NATIVE_ACCEPTANCE** evidence.
 
 ## Next Step
 
-Remote translation-quality work now has separate regression and held-out evidence. Do not tune against the held-out benchmark.
-
-When local/native testing becomes available:
+When native testing becomes available:
 
 1. Run `docs/knowledge/operations/target-windows-performance.md` with outbound-only baseline first.
-2. Record speech-boundary, finalization, queue, audio-prepare, ASR, translation total, translation tokenize/inference/decode/throughput, TTS, delivery, total latency, overflow-drop, and eviction from Diagnostics.
-3. Route only the measured first bottleneck:
+2. Record speech boundary, finalization, queue, audio prepare, ASR, translation tokenize/inference/decode/throughput, TTS, delivery, total latency, overflow/drop, CPU/RAM/GPU/VRAM, and meeting-app reception.
+3. Route only the first measured bottleneck:
    - queue growth → bounded playback/AI decoupling;
    - native output jitter → persistent output stream;
-   - warm Start proof cost → strong proof reuse/rebinding;
+   - warm Start proof cost → proof reuse/rebinding;
    - TTS dominance → quality-preserving fragments.
 
-Until then, preserve model/voice quality, generation authority, at-most-once output, bounded queues, and fail-closed readiness.
+Until then, preserve one canonical MiLMMT pipeline, model/voice quality, generation authority, bounded queues, at-most-once output, terminology determinism, and fail-closed readiness.
