@@ -39,6 +39,10 @@ MAX_TRANSCRIPT_TEXT_CHARS = 4_000
 MAX_AUDIO_INPUT_BYTES = 25 * 1024 * 1024
 MAX_REASONABLE_MODEL_TOKEN_LIMIT = 1_000_000
 
+_GPU_CAPABILITY_SNAPSHOT: dict[str, Any] | None = None
+_GPU_CAPABILITY_PROBE_OWNER: tuple[object, object] | None = None
+_GPU_CAPABILITY_PROBE_COUNT = 0
+
 
 def now_ms() -> int:
     return int(time.time() * 1000)
@@ -152,10 +156,22 @@ def ctranslate2_status() -> dict[str, Any]:
     return {"import_ready": True, "cuda_probe_ok": True, "cuda_available": available, "blocker": ""}
 
 
+def clear_gpu_capability_snapshot() -> None:
+    global _GPU_CAPABILITY_SNAPSHOT, _GPU_CAPABILITY_PROBE_OWNER
+    _GPU_CAPABILITY_SNAPSHOT = None
+    _GPU_CAPABILITY_PROBE_OWNER = None
+
+
 def probe_gpu_runtime(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     del payload
+    global _GPU_CAPABILITY_SNAPSHOT, _GPU_CAPABILITY_PROBE_OWNER, _GPU_CAPABILITY_PROBE_COUNT
+    owner = (torch_status, ctranslate2_status)
+    if _GPU_CAPABILITY_SNAPSHOT is not None and _GPU_CAPABILITY_PROBE_OWNER == owner:
+        return dict(_GPU_CAPABILITY_SNAPSHOT)
+
     torch_probe = torch_status()
     ct2_probe = ctranslate2_status()
+    _GPU_CAPABILITY_PROBE_COUNT += 1
     torch_ready = bool(torch_probe["import_ready"])
     torch_probe_ok = bool(torch_probe["cuda_probe_ok"])
     torch_cuda = bool(torch_probe["cuda_available"])
@@ -176,7 +192,7 @@ def probe_gpu_runtime(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         "cuda" if torch_cuda else "cpu" if torch_ready and torch_probe_ok else "blocked"
     )
     blockers = [b for b in (torch_probe["blocker"], ct2_probe["blocker"]) if b]
-    return {
+    snapshot = {
         "torch_import_ready": torch_ready,
         "torch_cuda_probe_ok": torch_probe_ok,
         "torch_cuda_available": torch_cuda,
@@ -193,7 +209,11 @@ def probe_gpu_runtime(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         "selected_translation_device": selected_translation,
         "selected_compute_type": selected_compute,
         "fallback_reason": "cuda_unavailable" if cpu_fallback else "",
+        "capability_probe_count": _GPU_CAPABILITY_PROBE_COUNT,
     }
+    _GPU_CAPABILITY_SNAPSHOT = snapshot
+    _GPU_CAPABILITY_PROBE_OWNER = owner
+    return dict(snapshot)
 
 
 def normalize_language(value: Any, fallback: str) -> str:
