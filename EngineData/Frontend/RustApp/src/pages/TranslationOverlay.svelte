@@ -29,7 +29,7 @@
   const COLLAPSED_WIDTH = 260;
   let caption = $state<TranslationOverlayPayload | null>(null);
   let preferences = $state<TranslationOverlayPreferences>(readOverlayPreferences());
-  let captionBody: HTMLDivElement | null = null;
+  let captionBody = $state<HTMLDivElement | null>(null);
 
   const collapsed = $derived(preferences.visibility === "collapsed");
   const currentWidth = $derived(collapsed ? COLLAPSED_WIDTH : NORMAL_WIDTH);
@@ -65,7 +65,7 @@
           ),
         }))
         .sort((left, right) => right.visibleArea - left.visibleArea)[0];
-      if (selected?.visibleArea > 0) {
+      if (selected && selected.visibleArea > 0) {
         const next = clampPositionToWorkArea(stored, selected.width, selected.height, selected.workArea);
         await nativeWindow.setPosition(new PhysicalPosition(next.x, next.y));
         return;
