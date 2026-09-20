@@ -292,3 +292,4 @@ def test_terminology_does_not_match_inside_larger_word(monkeypatch) -> None:
     prompt = prompts[-1]
     assert "- ram => memory" not in prompt
     assert "- API => API" in prompt
+    worker.TRANSLATION_RUNTIME.clear()
