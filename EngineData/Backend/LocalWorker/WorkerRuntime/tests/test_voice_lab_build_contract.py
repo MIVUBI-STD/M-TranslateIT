@@ -6,7 +6,7 @@ import unittest
 import wave
 from pathlib import Path
 
-from voice_lab_build import BuildError, validate_take_signal
+from voice_lab_build import BuildError, validate_dataset_signal, validate_take_signal
 from voice_lab_gpt_sovits import GPT_EPOCHS, SOVITS_EPOCHS, VoiceLabProviderError
 from voice_lab_gpt_sovits_build import select_reference, training_takes
 
@@ -113,7 +113,64 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             path = Path(raw) / "take_0001.wav"
             samples = [3_000 if index % 2 == 0 else -3_000 for index in range(32_000)]
             self.write_signal_wav(path, samples)
-            validate_take_signal(path)
+            metrics = validate_take_signal(path)
+            self.assertGreater(metrics["active_rms"], 0.0)
+            self.assertEqual(metrics["dc_offset"], 0.0)
+
+    def test_build_gate_rejects_signal_that_is_too_low(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "take_0001.wav"
+            samples = [200 if index % 2 == 0 else -200 for index in range(32_000)]
+            self.write_signal_wav(path, samples)
+            with self.assertRaisesRegex(BuildError, "take_signal_too_low"):
+                validate_take_signal(path)
+
+    def test_build_gate_rejects_large_dc_offset(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "take_0001.wav"
+            samples = [4_000 if index % 2 == 0 else 1_000 for index in range(32_000)]
+            self.write_signal_wav(path, samples)
+            with self.assertRaisesRegex(BuildError, "take_dc_offset_too_high"):
+                validate_take_signal(path)
+
+    def test_dataset_gate_rejects_extreme_recording_level_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            loud = root / "take_0001.wav"
+            quiet = root / "take_0002.wav"
+            self.write_signal_wav(
+                loud, [12_000 if index % 2 == 0 else -12_000 for index in range(32_000)]
+            )
+            self.write_signal_wav(
+                quiet, [1_000 if index % 2 == 0 else -1_000 for index in range(32_000)]
+            )
+            manifest = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "one", "wav_file": loud.name},
+                    {"line_id": 2, "exact_text": "two", "wav_file": quiet.name},
+                ]
+            }
+            with self.assertRaisesRegex(BuildError, "dataset_recording_level_inconsistent"):
+                validate_dataset_signal(root, manifest)
+
+    def test_dataset_gate_accepts_reasonably_consistent_levels(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            first = root / "take_0001.wav"
+            second = root / "take_0002.wav"
+            self.write_signal_wav(
+                first, [3_000 if index % 2 == 0 else -3_000 for index in range(32_000)]
+            )
+            self.write_signal_wav(
+                second, [5_000 if index % 2 == 0 else -5_000 for index in range(32_000)]
+            )
+            manifest = {
+                "takes": [
+                    {"line_id": 1, "exact_text": "one", "wav_file": first.name},
+                    {"line_id": 2, "exact_text": "two", "wav_file": second.name},
+                ]
+            }
+            validate_dataset_signal(root, manifest)
 
 
 if __name__ == "__main__":

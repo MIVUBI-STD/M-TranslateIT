@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import struct
 import sys
@@ -25,6 +26,9 @@ SILENCE_ABS_PCM16 = 128
 MAX_SILENCE_FRACTION = 0.90
 CLIPPING_ABS_PCM16 = 32_760
 MAX_CLIPPING_FRACTION = 0.05
+MIN_ACTIVE_RMS_PCM16 = 256.0
+MAX_DC_OFFSET_ABS_PCM16 = 2_048.0
+MAX_DATASET_ACTIVE_RMS_SPREAD_DB = 18.0
 
 
 class BuildError(RuntimeError):
@@ -87,7 +91,7 @@ def validate_manifest(dataset_dir: Path) -> dict[str, Any]:
     return manifest
 
 
-def validate_take_signal(path: Path) -> None:
+def validate_take_signal(path: Path) -> dict[str, float]:
     try:
         with wave.open(str(path), "rb") as reader:
             if (
@@ -109,27 +113,51 @@ def validate_take_signal(path: Path) -> None:
     samples = struct.unpack(f"<{frame_count}h", payload)
     silent = sum(1 for sample in samples if abs(sample) <= SILENCE_ABS_PCM16)
     clipped = sum(1 for sample in samples if abs(sample) >= CLIPPING_ABS_PCM16)
+    active = [sample for sample in samples if abs(sample) > SILENCE_ABS_PCM16]
+    active_rms = (
+        math.sqrt(sum(sample * sample for sample in active) / len(active)) if active else 0.0
+    )
+    dc_offset = abs(sum(samples) / frame_count)
 
     # These are deliberately conservative structural gates. They reject only
-    # obviously unusable datasets before expensive training; target-user audio
-    # remains the authority for any future tuning of these bounds.
+    # clearly weak/corrupted capture before expensive training; audible quality
+    # and naturalness remain native listening evidence.
     if silent / frame_count >= MAX_SILENCE_FRACTION:
         raise BuildError(f"take_excessive_silence:{path.name}")
     if clipped / frame_count >= MAX_CLIPPING_FRACTION:
         raise BuildError(f"take_severe_clipping:{path.name}")
+    if active_rms < MIN_ACTIVE_RMS_PCM16:
+        raise BuildError(f"take_signal_too_low:{path.name}")
+    if dc_offset >= MAX_DC_OFFSET_ABS_PCM16:
+        raise BuildError(f"take_dc_offset_too_high:{path.name}")
+    return {
+        "active_rms": active_rms,
+        "dc_offset": dc_offset,
+        "silence_fraction": silent / frame_count,
+        "clipping_fraction": clipped / frame_count,
+    }
 
 
 def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None:
     takes = manifest.get("takes")
     if not isinstance(takes, list):
         raise BuildError("insufficient_training_takes")
+    metrics: list[dict[str, float]] = []
     for item in takes:
         if not isinstance(item, dict):
             raise BuildError("invalid_training_take")
         wav_file = str(item.get("wav_file", "")).strip()
         if not wav_file or Path(wav_file).name != wav_file:
             raise BuildError("invalid_training_take")
-        validate_take_signal(dataset_dir / wav_file)
+        metrics.append(validate_take_signal(dataset_dir / wav_file))
+
+    active_rms_values = [item["active_rms"] for item in metrics]
+    if len(active_rms_values) >= 2:
+        quietest = min(active_rms_values)
+        loudest = max(active_rms_values)
+        spread_db = 20.0 * math.log10(loudest / quietest)
+        if spread_db > MAX_DATASET_ACTIVE_RMS_SPREAD_DB:
+            raise BuildError("dataset_recording_level_inconsistent")
 
 
 def main() -> int:

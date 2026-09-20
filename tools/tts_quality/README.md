@@ -4,6 +4,8 @@ This directory owns source-level regression evaluation for TranslateIT's selecte
 
 It does **not** claim audible quality from CI. Real evidence requires generated WAVs from the exact selected voice/runtime and an independent intelligibility/artifact review process.
 
+Before expensive My Voice training, the build path also rejects clearly unusable guided recordings: non-canonical WAV format, extreme silence/clipping, very low active signal, large DC offset, and extreme level mismatch across accepted takes. These are conservative capture-integrity gates, not substitutes for listening quality.
+
 ## What it measures
 
 The evaluator combines four independent signals:
