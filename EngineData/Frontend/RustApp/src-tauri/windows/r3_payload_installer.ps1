@@ -2,8 +2,8 @@ param(
     [Parameter(Mandatory=$true)]
     [ValidateSet('Verify','Install','VerifyInstalled')]
     [string]$Mode,
-    [Parameter(Mandatory=$true)][string]$PayloadPath,
-    [Parameter(Mandatory=$true)][string]$ExpectedSha256,
+    [string]$PayloadPath,
+    [string]$ExpectedSha256,
     [Parameter(Mandatory=$true)][string]$ExpectedPayloadSchema,
     [Parameter(Mandatory=$true)][string]$ExpectedInstalledRuntimeSchema,
     [Parameter(Mandatory=$true)][string]$ExpectedAppVersion,
@@ -82,7 +82,7 @@ function Assert-InstalledRuntimeManifest([string]$Root){
     $manifestPath=Join-Path $Root $InstalledManifest
     NeedFile $manifestPath 57 'Installed runtime manifest'
     try{$manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json}catch{Fail 57 'Installed runtime manifest invalid.'}
-    if([string]$manifest.schema-ne$ExpectedInstalledRuntimeSchema-or-not[bool]$manifest.installed_complete){Fail 57 'Installed runtime manifest is incomplete or incompatible.'}
+    if([string]$manifest.schema-ne$ExpectedInstalledRuntimeSchema-or -not [bool]$manifest.installed_complete){Fail 57 'Installed runtime manifest is incomplete or incompatible.'}
     if([string]$manifest.payload_schema-ne$ExpectedPayloadSchema){Fail 57 'Installed runtime payload schema is incompatible with this app update.'}
     if([string]$manifest.python-ne$PythonVersion-or[string]$manifest.torch-ne$TorchVersion-or[string]$manifest.transformers-ne$TransformersVersion-or[string]$manifest.tokenizers-ne$TokenizersVersion){Fail 57 'Installed runtime dependency identity is incompatible with this app update.'}
     if([string]$manifest.translation_revision-ne$MiLMMTRevision-or[string]$manifest.asr_revision-ne$AsrRevision-or[string]$manifest.voice_revision-ne$GptRevision){Fail 57 'Installed model/runtime revisions are incompatible with this app update.'}
