@@ -36,10 +36,10 @@
   }
 </script>
 
-<aside class="flex min-h-screen w-[var(--ti-sidebar-width)] shrink-0 flex-col border-r border-[var(--ti-border)] bg-[var(--ti-sidebar)] px-3 py-4">
-  <header class="flex items-center gap-2.5 px-2 py-1">
-    <div class="grid size-9 place-items-center rounded-[var(--ti-radius-md)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] text-sm font-bold">T</div>
-    <div class="min-w-0">
+<aside class="ti-sidebar flex min-h-screen w-[var(--ti-sidebar-width)] shrink-0 flex-col border-r border-[var(--ti-border)] bg-[var(--ti-sidebar)] px-3 py-4">
+  <header class="ti-sidebar-brand flex items-center gap-2.5 px-2 py-1">
+    <div class="grid size-9 shrink-0 place-items-center rounded-[var(--ti-radius-md)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] text-sm font-bold">T</div>
+    <div class="ti-sidebar-brand-copy min-w-0">
       <h1 class="m-0 truncate text-[14px] font-bold tracking-[-0.02em]">TranslateIT</h1>
       <p class="mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Indonesian ↔ English</p>
     </div>
@@ -50,21 +50,21 @@
       {@const Icon = item.icon}
       <button
         type="button"
-        class={`group grid min-h-11 grid-cols-[20px_1fr] items-center gap-2.5 rounded-[var(--ti-radius-md)] border px-3 text-left transition-colors ${active === item.route ? "border-[var(--ti-border)] bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "border-transparent text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)] hover:text-[var(--ti-text)]"}`}
+        class={`ti-nav-item group grid min-h-11 grid-cols-[20px_1fr] items-center gap-2.5 rounded-[var(--ti-radius-md)] border px-3 text-left transition-colors ${active === item.route ? "is-active border-[var(--ti-border)] bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "border-transparent text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)] hover:text-[var(--ti-text)]"}`}
         aria-current={active === item.route ? "page" : undefined}
         title={item.description}
         onclick={() => onNavigate(item.route)}
       >
         <Icon size={17} strokeWidth={1.8} />
-        <strong class="truncate text-[13px] font-semibold">{item.label}</strong>
+        <strong class="ti-nav-label truncate text-[13px] font-semibold">{item.label}</strong>
       </button>
     {/each}
   </nav>
 
-  <div class="mt-auto border-t border-[var(--ti-border)] px-2 pt-3">
+  <div class="ti-sidebar-presence mt-auto border-t border-[var(--ti-border)] px-2 pt-3">
     <div class="flex items-center gap-2" role="status" aria-live="polite" aria-atomic="true">
       <span class={`size-1.5 rounded-full ${presenceDot()}`} aria-hidden="true"></span>
-      <strong class="truncate text-[11px] font-semibold text-[var(--ti-text-muted)]">{presenceLabel()}</strong>
+      <strong class="ti-presence-label truncate text-[11px] font-semibold text-[var(--ti-text-muted)]">{presenceLabel()}</strong>
     </div>
   </div>
 </aside>
