@@ -125,8 +125,7 @@ pub fn detect_meeting_app() -> MeetingAppDetection {
 
         let system = System::new_all();
         for process in system.processes().values() {
-            let name = process.name().to_string_lossy();
-            if let Some(provider) = classify_process_name(&name) {
+            if let Some(provider) = classify_process_name(process.name()) {
                 return MeetingAppDetection {
                     supported: true,
                     detected: true,
