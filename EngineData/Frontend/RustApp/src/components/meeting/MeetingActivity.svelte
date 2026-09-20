@@ -26,21 +26,21 @@
         return {
           label: "Translating",
           title: "Translating what you said",
-          detail: "TranslateIT is preparing the English voice for your meeting.",
+          detail: "Preparing the English translation for the call.",
           tone: "good",
         };
       case "delivering":
         return {
           label: "Speaking",
-          title: "Sending English to your meeting",
-          detail: "Your translation is being spoken through TranslateIT Meeting Microphone.",
+          title: "Speaking the English translation",
+          detail: "Other people in the call are hearing the English translation.",
           tone: "good",
         };
       case "attention_needed":
         return {
           label: "Needs attention",
-          title: "The last translation didn't finish",
-          detail: "You can keep the meeting open and check Diagnostics if this continues.",
+          title: "The last phrase could not be translated",
+          detail: "You can keep the meeting open. If this keeps happening, open Help in Settings.",
           tone: "warning",
         };
       case "listening":
@@ -54,7 +54,7 @@
         return {
           label: meeting.busy ? meeting.label : "Live",
           title: meeting.busy ? meeting.label : "Meeting translation is active",
-          detail: meeting.busy ? "TranslateIT is updating the Meeting session." : "Speak Indonesian normally. TranslateIT handles the translation in the background.",
+          detail: meeting.busy ? "TranslateIT is updating the call connection." : "Speak Indonesian normally. TranslateIT handles the rest.",
           tone: meeting.busy ? "neutral" : "good",
         };
     }
@@ -75,21 +75,21 @@
   function incomingCopy(): { label: string; badge: string; tone: "neutral" | "good" | "warning" } {
     const incoming = status.incoming;
     if (incoming.degraded) {
-      return { label: "Incoming translation is unavailable. Your Indonesian → English voice can continue.", badge: "Unavailable", tone: "warning" };
+      return { label: "Translation of what you hear is unavailable. Your voice translation can continue.", badge: "Unavailable", tone: "warning" };
     }
     if (incoming.suppressed || incoming.stage === "suppressed") {
-      return { label: "Incoming translation pauses briefly while TranslateIT speaks.", badge: "Paused", tone: "neutral" };
+      return { label: "Translation of what you hear pauses briefly while TranslateIT speaks.", badge: "Paused", tone: "neutral" };
     }
     if (incoming.capture_active) {
       return {
         label: incoming.stage === "transcribing" || incoming.stage === "translating"
-          ? "Translating meeting audio to Indonesian text."
-          : "Listening to meeting audio for English speech.",
+          ? "Translating what you hear into Indonesian text."
+          : "Listening for English speech in the call.",
         badge: incoming.stage === "transcribing" || incoming.stage === "translating" ? "Translating" : "Listening",
         tone: "good",
       };
     }
-    return { label: "Incoming English → Indonesian text is optional and currently off.", badge: "Optional", tone: "neutral" };
+    return { label: "Translation of what you hear is optional and currently off.", badge: "Optional", tone: "neutral" };
   }
 
   const incoming = $derived(incomingCopy());
@@ -115,14 +115,14 @@
   <section class="overflow-hidden rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface)]" aria-label="Meeting transcript">
     <header class="flex items-center justify-between border-b border-[var(--ti-border)] px-5 py-4">
       <div>
-        <strong class="block text-sm font-semibold">Transcript</strong>
-        <span class="mt-1 block text-[11px] text-[var(--ti-text-soft)]">What was said and translated</span>
+        <strong class="block text-sm font-semibold">Conversation</strong>
+        <span class="mt-1 block text-[11px] text-[var(--ti-text-soft)]">What you said and what others heard</span>
       </div>
       <span class="text-xs text-[var(--ti-text-soft)]">{orderedTurns.length} turn{orderedTurns.length === 1 ? "" : "s"}</span>
     </header>
 
     {#if !turns || !turns.ok || !turns.has_session || turns.session_id !== status.session_id}
-      <p class="m-0 px-5 py-5 text-sm leading-6 text-[var(--ti-text-muted)]">Transcript is temporarily unavailable. You can still stop translation normally.</p>
+      <p class="m-0 px-5 py-5 text-sm leading-6 text-[var(--ti-text-muted)]">Conversation is temporarily unavailable. You can still stop translation normally.</p>
     {:else}
       {#if turns.truncated || turns.dropped_turn_count > 0}
         <p class="m-0 border-b border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] px-5 py-3 text-xs leading-5 text-[var(--ti-warning)]">
@@ -131,7 +131,7 @@
       {/if}
 
       {#if orderedTurns.length === 0}
-        <p class="m-0 px-5 py-8 text-sm leading-6 text-[var(--ti-text-muted)]">Your translated conversation will appear here after the first finished phrase.</p>
+        <p class="m-0 px-5 py-8 text-sm leading-6 text-[var(--ti-text-muted)]">Your conversation will appear here after you finish the first phrase.</p>
       {:else}
         <div class="max-h-[430px] overflow-y-auto">
           {#each orderedTurns as turn (turn.sequence)}
@@ -143,11 +143,11 @@
                 {/if}
               </header>
               <div class="grid grid-cols-[26px_minmax(0,1fr)] gap-2">
-                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">ID</span>
+                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">Indonesian</span>
                 <p class="m-0 text-[15px] font-medium leading-6" lang="id">{turn.lane === "incoming" ? turn.translated_text : turn.source_text}</p>
               </div>
               <div class="mt-2 grid grid-cols-[26px_minmax(0,1fr)] gap-2">
-                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">EN</span>
+                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">English</span>
                 <p class="m-0 text-sm leading-6 text-[var(--ti-text-muted)]" lang="en">{turn.lane === "incoming" ? turn.source_text : turn.translated_text}</p>
               </div>
             </article>
