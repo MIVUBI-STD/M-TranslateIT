@@ -37,6 +37,13 @@
   let timer: ReturnType<typeof setTimeout> | null = null;
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
+  let reviewedLineIds = $state<number[]>([]);
+
+  const evaluationReviewComplete = $derived(
+    build.evaluation_ready &&
+      build.evaluation_samples.length > 0 &&
+      build.evaluation_samples.every((sample) => reviewedLineIds.includes(sample.line_id)),
+  );
 
   const speechProgress = $derived(
     build.minimum_duration_ms > 0
@@ -67,6 +74,7 @@
 
   function applyStatus(next: MyVoiceBuildStatus): void {
     build = next;
+    if (!next.evaluation_ready) reviewedLineIds = [];
     schedulePoll();
   }
 
@@ -91,7 +99,8 @@
       case "cancel_pending":
         return "My Voice is still stopping. Keep My Voice open and try again shortly.";
       case "evaluation_required":
-        return "Review the voice previews before approving My Voice.";
+      case "evaluation_listening_required":
+        return "Listen to every voice preview before approving My Voice.";
       case "approval_failed":
         return "My Voice couldn't be approved. Try again.";
       case "dataset_prepare_failed":
@@ -158,6 +167,7 @@
   async function startBuild(): Promise<void> {
     if (busy || !build.can_build || !authorized) return;
     stopAudio();
+    reviewedLineIds = [];
     busy = true;
     try {
       applyResult(await myVoiceBuildApi.start(authorized));
@@ -177,11 +187,11 @@
   }
 
   async function approve(): Promise<void> {
-    if (busy || build.active || !build.evaluation_ready) return;
+    if (busy || build.active || !build.evaluation_ready || !evaluationReviewComplete) return;
     stopAudio();
     busy = true;
     try {
-      const result = await myVoiceBuildApi.approve();
+      const result = await myVoiceBuildApi.approve(reviewedLineIds);
       applyResult(result);
       if (result.ok && result.state === "approved") {
         await onMeetingVoiceChanged(productMessage(result));
@@ -202,7 +212,10 @@
     audioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
     audio = new Audio(audioUrl);
     playingLineId = lineId;
-    audio.onended = stopAudio;
+    audio.onended = () => {
+      if (!reviewedLineIds.includes(lineId)) reviewedLineIds = [...reviewedLineIds, lineId];
+      stopAudio();
+    };
     audio.onerror = () => {
       stopAudio();
       onNotice("This My Voice preview couldn't be played.");
@@ -277,11 +290,15 @@
             <button type="button" class="ti-button ti-button-secondary shrink-0" disabled={playingLineId !== null} onclick={() => void playEvaluation(sample.line_id)}>
               <Play size={14} /><span>{playingLineId === sample.line_id ? "Playing..." : "Preview"}</span>
             </button>
-            <span class="text-sm leading-5 text-[var(--ti-text-muted)]">{sample.exact_text}</span>
+            <span class="min-w-0 flex-1 text-sm leading-5 text-[var(--ti-text-muted)]">{sample.exact_text}</span>
+            {#if reviewedLineIds.includes(sample.line_id)}
+              <span class="flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--ti-success)]"><Check size={13} />Listened</span>
+            {/if}
           </div>
         {/each}
       </div>
-      <button type="button" class="ti-button mt-5" disabled={busy} onclick={() => void approve()}>
+      <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]">{reviewedLineIds.length} of {build.evaluation_samples.length} previews listened</p>
+      <button type="button" class="ti-button mt-5" disabled={busy || !evaluationReviewComplete} onclick={() => void approve()}>
         <Check size={15} /><span>{busy ? "Saving..." : "Use My Voice"}</span>
       </button>
     </div>

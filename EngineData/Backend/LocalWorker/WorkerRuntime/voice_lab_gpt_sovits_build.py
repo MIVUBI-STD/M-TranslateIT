@@ -379,6 +379,57 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def normalized_words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)?", text.casefold())
+
+
+def word_error_rate(reference: str, hypothesis: str) -> float:
+    expected = normalized_words(reference)
+    actual = normalized_words(hypothesis)
+    if not expected:
+        return 0.0 if not actual else 1.0
+    previous = list(range(len(actual) + 1))
+    for row, expected_word in enumerate(expected, start=1):
+        current = [row]
+        for column, actual_word in enumerate(actual, start=1):
+            substitution = previous[column - 1] + (expected_word != actual_word)
+            insertion = current[column - 1] + 1
+            deletion = previous[column] + 1
+            current.append(min(substitution, insertion, deletion))
+        previous = current
+    return previous[-1] / len(expected)
+
+
+def evaluation_asr_model_path(asr_model_root: Path) -> Path:
+    for dirname in ("faster-whisper-large-v3-turbo", "faster-whisper-medium"):
+        candidate = asr_model_root / dirname
+        if (candidate / "model.bin").is_file() and (candidate / "config.json").is_file():
+            return candidate
+    raise VoiceLabProviderError("evaluation_asr_model_missing")
+
+
+def create_evaluation_asr_runtime(asr_model_root: Path) -> Any:
+    from faster_whisper import WhisperModel
+
+    model_path = evaluation_asr_model_path(asr_model_root)
+    return WhisperModel(str(model_path), device="cpu", compute_type="int8")
+
+
+def transcribe_evaluation_audio(asr_model: Any, wav_path: Path) -> str:
+    segments, _info = asr_model.transcribe(
+        str(wav_path),
+        language="en",
+        task="transcribe",
+        beam_size=3,
+        temperature=0.0,
+        condition_on_previous_text=False,
+        vad_filter=False,
+        without_timestamps=True,
+        word_timestamps=False,
+    )
+    return " ".join(str(segment.text).strip() for segment in segments).strip()
+
+
 def evaluate_candidate(
     source_root: Path,
     assets: dict[str, Path],
@@ -386,6 +437,7 @@ def evaluate_candidate(
     evaluation_root: Path,
     manifest: dict[str, Any],
     reference: dict[str, Any],
+    asr_model: Any,
 ) -> dict[str, Any]:
     import torch
     import torch.nn.functional as functional
@@ -437,11 +489,19 @@ def evaluate_candidate(
                 raise VoiceLabProviderError(
                     f"evaluation_similarity_invalid:{candidate_id}:{line_id}"
                 )
+            intelligibility_text = transcribe_evaluation_audio(asr_model, wav_path)
+            intelligibility_wer = word_error_rate(held_text, intelligibility_text)
+            if not math.isfinite(intelligibility_wer):
+                raise VoiceLabProviderError(
+                    f"evaluation_intelligibility_invalid:{candidate_id}:{line_id}"
+                )
             samples.append(
                 {
                     "line_id": line_id,
                     "exact_text": held_text,
                     "speaker_similarity": round(score, 6),
+                    "intelligibility_text": intelligibility_text,
+                    "intelligibility_wer": round(intelligibility_wer, 6),
                     "sha256": sha256_file(wav_path),
                     "_wav_path": wav_path,
                 }
@@ -456,6 +516,7 @@ def evaluate_candidate(
     if len(samples) != len(manifest["held_out_lines"]):
         raise VoiceLabProviderError(f"held_out_evaluation_incomplete:{candidate_id}")
     similarities = [float(sample["speaker_similarity"]) for sample in samples]
+    wers = [float(sample["intelligibility_wer"]) for sample in samples]
     return {
         "candidate_id": candidate_id,
         "candidate_order": int(candidate["candidate_order"]),
@@ -465,6 +526,8 @@ def evaluate_candidate(
         "gpt_path": Path(candidate["gpt_path"]),
         "mean_speaker_similarity": round(sum(similarities) / len(similarities), 6),
         "minimum_speaker_similarity": round(min(similarities), 6),
+        "mean_intelligibility_wer": round(sum(wers) / len(wers), 6),
+        "maximum_intelligibility_wer": round(max(wers), 6),
         "samples": samples,
     }
 
@@ -476,6 +539,8 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
         samples = candidate.get("samples")
         mean_similarity = candidate.get("mean_speaker_similarity")
         minimum_similarity = candidate.get("minimum_speaker_similarity")
+        mean_wer = candidate.get("mean_intelligibility_wer")
+        maximum_wer = candidate.get("maximum_intelligibility_wer")
         if not isinstance(samples, list) or not samples:
             raise VoiceLabProviderError("candidate_evidence_samples_missing")
         if not isinstance(mean_similarity, (int, float)) or not math.isfinite(
@@ -486,12 +551,18 @@ def select_best_candidate(evidence: list[dict[str, Any]]) -> dict[str, Any]:
             float(minimum_similarity)
         ):
             raise VoiceLabProviderError("candidate_evidence_minimum_invalid")
-    return max(
+        if not isinstance(mean_wer, (int, float)) or not math.isfinite(float(mean_wer)):
+            raise VoiceLabProviderError("candidate_evidence_mean_wer_invalid")
+        if not isinstance(maximum_wer, (int, float)) or not math.isfinite(float(maximum_wer)):
+            raise VoiceLabProviderError("candidate_evidence_maximum_wer_invalid")
+    return min(
         evidence,
         key=lambda candidate: (
-            float(candidate["mean_speaker_similarity"]),
-            float(candidate["minimum_speaker_similarity"]),
-            -int(candidate["candidate_order"]),
+            float(candidate["mean_intelligibility_wer"]),
+            float(candidate["maximum_intelligibility_wer"]),
+            -float(candidate["mean_speaker_similarity"]),
+            -float(candidate["minimum_speaker_similarity"]),
+            int(candidate["candidate_order"]),
         ),
     )
 
@@ -503,11 +574,15 @@ def public_candidate_evidence(candidate: dict[str, Any]) -> dict[str, Any]:
         "gpt_epoch": int(candidate["gpt_epoch"]),
         "mean_speaker_similarity": float(candidate["mean_speaker_similarity"]),
         "minimum_speaker_similarity": float(candidate["minimum_speaker_similarity"]),
+        "mean_intelligibility_wer": float(candidate["mean_intelligibility_wer"]),
+        "maximum_intelligibility_wer": float(candidate["maximum_intelligibility_wer"]),
         "samples": [
             {
                 "line_id": int(sample["line_id"]),
                 "exact_text": str(sample["exact_text"]),
                 "speaker_similarity": float(sample["speaker_similarity"]),
+                "intelligibility_text": str(sample["intelligibility_text"]),
+                "intelligibility_wer": float(sample["intelligibility_wer"]),
                 "sha256": str(sample["sha256"]),
             }
             for sample in candidate["samples"]
@@ -539,6 +614,8 @@ def promote_selected_candidate(
                 "exact_text": str(sample["exact_text"]),
                 "wav_file": wav_file,
                 "speaker_similarity": float(sample["speaker_similarity"]),
+                "intelligibility_text": str(sample["intelligibility_text"]),
+                "intelligibility_wer": float(sample["intelligibility_wer"]),
             }
         )
     return selected_samples
@@ -547,6 +624,7 @@ def promote_selected_candidate(
 def build_candidate(
     *,
     source_root: Path,
+    asr_model_root: Path,
     dataset_dir: Path,
     candidate_dir: Path,
     evaluation_dir: Path,
@@ -576,6 +654,7 @@ def build_candidate(
     )
     candidate_evaluation_root = work_dir / "candidate_evaluation"
     candidate_evaluation_root.mkdir(parents=True, exist_ok=True)
+    asr_model = create_evaluation_asr_runtime(asr_model_root)
     evidence = [
         evaluate_candidate(
             source_root,
@@ -584,9 +663,12 @@ def build_candidate(
             candidate_evaluation_root,
             manifest,
             reference,
+            asr_model,
         )
         for candidate in candidates
     ]
+    del asr_model
+    gc.collect()
     selected = select_best_candidate(evidence)
     selected_samples = promote_selected_candidate(
         selected,
@@ -595,7 +677,7 @@ def build_candidate(
         reference,
     )
 
-    selection_method = "held_out_mean_speaker_similarity_then_minimum_tiebreak"
+    selection_method = "held_out_mean_wer_then_max_wer_then_similarity_tiebreak"
     evaluation_payload = {
         "schema_version": 1,
         "engine": ENGINE,
@@ -628,6 +710,8 @@ def build_candidate(
             "gpt_epoch": int(selected["gpt_epoch"]),
             "mean_speaker_similarity": float(selected["mean_speaker_similarity"]),
             "minimum_speaker_similarity": float(selected["minimum_speaker_similarity"]),
+            "mean_intelligibility_wer": float(selected["mean_intelligibility_wer"]),
+            "maximum_intelligibility_wer": float(selected["maximum_intelligibility_wer"]),
         },
     }
     (candidate_dir / "actor.json").write_text(

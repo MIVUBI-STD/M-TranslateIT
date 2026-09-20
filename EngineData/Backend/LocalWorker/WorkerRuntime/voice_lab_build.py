@@ -163,6 +163,7 @@ def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True)
+    parser.add_argument("--asr-model-root", required=True)
     parser.add_argument("--dataset-dir", required=True)
     parser.add_argument("--candidate-dir", required=True)
     parser.add_argument("--evaluation-dir", required=True)
@@ -178,6 +179,7 @@ def main() -> int:
         write_status(status_path, "preparing", "Preparing VoiceLab training data.")
         build_candidate(
             source_root=Path(args.source_root).resolve(),
+            asr_model_root=Path(args.asr_model_root).resolve(),
             dataset_dir=dataset_dir,
             candidate_dir=Path(args.candidate_dir).resolve(),
             evaluation_dir=Path(args.evaluation_dir).resolve(),

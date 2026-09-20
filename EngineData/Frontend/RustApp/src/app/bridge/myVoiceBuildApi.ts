@@ -5,6 +5,8 @@ export type MyVoiceEvaluationSample = {
   exact_text: string;
   wav_file: string;
   speaker_similarity: number;
+  intelligibility_text: string;
+  intelligibility_wer: number;
 };
 
 export type MyVoiceCoverageGuidance = {
@@ -96,8 +98,10 @@ export const myVoiceBuildApi = {
       : unavailableAction("My Voice could not confirm that creation stopped.");
   },
 
-  async approve(): Promise<MyVoiceBuildActionResult> {
-    const action = await runCommand<MyVoiceBuildActionResult>("approve_voice_lab_candidate");
+  async approve(reviewedLineIds: number[]): Promise<MyVoiceBuildActionResult> {
+    const action = await runCommand<MyVoiceBuildActionResult>("approve_voice_lab_candidate", {
+      reviewedLineIds,
+    });
     return action
       ? normalizeAction(action)
       : unavailableAction("My Voice could not approve the new voice.");

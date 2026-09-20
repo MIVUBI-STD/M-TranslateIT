@@ -8,7 +8,7 @@ from pathlib import Path
 
 from voice_lab_build import BuildError, validate_dataset_signal, validate_take_signal
 from voice_lab_gpt_sovits import GPT_EPOCHS, SOVITS_EPOCHS, VoiceLabProviderError
-from voice_lab_gpt_sovits_build import select_reference, training_takes
+from voice_lab_gpt_sovits_build import select_best_candidate, select_reference, training_takes, word_error_rate
 
 
 class VoiceLabBuildContractTests(unittest.TestCase):
@@ -171,6 +171,57 @@ class VoiceLabBuildContractTests(unittest.TestCase):
                 ]
             }
             validate_dataset_signal(root, manifest)
+
+    def test_word_error_rate_detects_omission_and_substitution(self) -> None:
+        self.assertEqual(word_error_rate("please confirm the schedule", "please confirm the schedule"), 0.0)
+        self.assertEqual(word_error_rate("please confirm the schedule", "please confirm schedule"), 0.25)
+        self.assertEqual(word_error_rate("fifteen not fifty", "fifty not fifteen"), 2 / 3)
+
+    def test_candidate_selection_prioritizes_intelligibility_before_similarity(self) -> None:
+        candidates = [
+            {
+                "candidate_id": "similar-but-wrong",
+                "candidate_order": 0,
+                "mean_speaker_similarity": 0.99,
+                "minimum_speaker_similarity": 0.98,
+                "mean_intelligibility_wer": 0.25,
+                "maximum_intelligibility_wer": 0.5,
+                "samples": [{"line_id": 1001}],
+            },
+            {
+                "candidate_id": "clearer",
+                "candidate_order": 1,
+                "mean_speaker_similarity": 0.90,
+                "minimum_speaker_similarity": 0.88,
+                "mean_intelligibility_wer": 0.0,
+                "maximum_intelligibility_wer": 0.0,
+                "samples": [{"line_id": 1001}],
+            },
+        ]
+        self.assertEqual(select_best_candidate(candidates)["candidate_id"], "clearer")
+
+    def test_candidate_selection_uses_similarity_only_after_intelligibility_tie(self) -> None:
+        candidates = [
+            {
+                "candidate_id": "lower-similarity",
+                "candidate_order": 0,
+                "mean_speaker_similarity": 0.90,
+                "minimum_speaker_similarity": 0.87,
+                "mean_intelligibility_wer": 0.0,
+                "maximum_intelligibility_wer": 0.0,
+                "samples": [{"line_id": 1001}],
+            },
+            {
+                "candidate_id": "higher-similarity",
+                "candidate_order": 1,
+                "mean_speaker_similarity": 0.94,
+                "minimum_speaker_similarity": 0.91,
+                "mean_intelligibility_wer": 0.0,
+                "maximum_intelligibility_wer": 0.0,
+                "samples": [{"line_id": 1001}],
+            },
+        ]
+        self.assertEqual(select_best_candidate(candidates)["candidate_id"], "higher-similarity")
 
 
 if __name__ == "__main__":

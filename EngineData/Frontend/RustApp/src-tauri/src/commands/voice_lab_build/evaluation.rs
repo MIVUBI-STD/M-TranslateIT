@@ -13,6 +13,11 @@ const HELD_OUT_LINES: &[(u32, &str)] = &[
     (1001, "Please confirm the final schedule before we send the update to the client."),
     (1002, "The system should remain clear and natural during a longer technical discussion."),
     (1003, "I can review the latest results tomorrow morning and share my decision with the team."),
+    (1004, "Do not restart the service until the backup is complete and the result is verified."),
+    (1005, "Can everyone hear the translated voice clearly during this meeting?"),
+    (1006, "The maintenance window starts at seven thirty in the evening on September twenty first."),
+    (1007, "I said fifteen, not fifty, so please correct the invoice before approval."),
+    (1008, "Before we continue, summarize the current status, the remaining risk, and the next action."),
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +26,8 @@ pub struct VoiceLabEvaluationSample {
     pub exact_text: String,
     pub wav_file: String,
     pub speaker_similarity: f64,
+    pub intelligibility_text: String,
+    pub intelligibility_wer: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -74,6 +81,9 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
     }
     for sample in &manifest.samples {
         if !sample.speaker_similarity.is_finite()
+            || !sample.intelligibility_wer.is_finite()
+            || sample.intelligibility_wer < 0.0
+            || sample.intelligibility_text.trim().is_empty()
             || sample.wav_file.trim().is_empty()
             || Path::new(&sample.wav_file).file_name().and_then(|name| name.to_str())
                 != Some(sample.wav_file.as_str())
@@ -91,4 +101,20 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
         }
     }
     Some(manifest)
+}
+
+
+pub(super) fn evaluation_review_complete(
+    manifest: &EvaluationManifest,
+    reviewed_line_ids: &[u32],
+) -> bool {
+    use std::collections::BTreeSet;
+
+    let expected = manifest
+        .samples
+        .iter()
+        .map(|sample| sample.line_id)
+        .collect::<BTreeSet<_>>();
+    let reviewed = reviewed_line_ids.iter().copied().collect::<BTreeSet<_>>();
+    reviewed.len() == reviewed_line_ids.len() && reviewed == expected
 }

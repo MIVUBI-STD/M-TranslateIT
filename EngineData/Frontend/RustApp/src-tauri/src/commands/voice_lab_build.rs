@@ -29,7 +29,8 @@ mod evaluation;
 
 pub use evaluation::VoiceLabEvaluationSample;
 use evaluation::{
-    evaluation_dir, evaluation_manifest, held_out_contract, MAX_EVALUATION_WAV_BYTES,
+    evaluation_dir, evaluation_manifest, evaluation_review_complete, held_out_contract,
+    MAX_EVALUATION_WAV_BYTES,
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
@@ -357,7 +358,7 @@ fn result(ok: bool, state: &str, message: impl Into<String>) -> VoiceLabBuildAct
     }
 }
 
-fn preflight_assets() -> Result<(PathBuf, PathBuf), String> {
+fn preflight_assets() -> Result<(PathBuf, PathBuf, PathBuf), String> {
     let script = build_script();
     if !script.is_file() {
         return Err("VoiceLab build runtime is missing. Repair the TranslateIT installation.".to_string());
@@ -371,7 +372,13 @@ fn preflight_assets() -> Result<(PathBuf, PathBuf), String> {
     if revision.trim() != VOICE_ACTOR_ENGINE_REVISION {
         return Err("VoiceLab model assets do not match this TranslateIT build.".to_string());
     }
-    Ok((script, source))
+    let asr_model_root = PathBuf::from(ProjectPaths::discover().asr_model_dir);
+    let primary_asr = asr_model_root.join("faster-whisper-large-v3-turbo").join("model.bin");
+    let backup_asr = asr_model_root.join("faster-whisper-medium").join("model.bin");
+    if !primary_asr.is_file() && !backup_asr.is_file() {
+        return Err("My Voice evaluation ASR assets are not installed yet. Repair the TranslateIT installation.".to_string());
+    }
+    Ok((script, source, asr_model_root))
 }
 
 fn terminate_process_tree(pid: u32) -> bool {
@@ -420,7 +427,7 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
         return result(false, "more_recording_needed", current.message);
     }
 
-    let (script, source) = match preflight_assets() {
+    let (script, source, asr_model_root) = match preflight_assets() {
         Ok(value) => value,
         Err(message) => return result(false, "assets_unavailable", message),
     };
@@ -486,6 +493,8 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
         .arg(script)
         .arg("--source-root")
         .arg(source)
+        .arg("--asr-model-root")
+        .arg(asr_model_root)
         .arg("--dataset-dir")
         .arg(&paths.build_dataset_dir)
         .arg("--candidate-dir")
@@ -659,12 +668,19 @@ pub fn select_builtin_voice(
 }
 
 #[tauri::command]
-pub fn approve_voice_lab_candidate() -> VoiceLabBuildActionResult {
+pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuildActionResult {
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
     }
-    if evaluation_manifest(&storage()).is_none() {
+    let Some(evaluation) = evaluation_manifest(&storage()) else {
         return result(false, "evaluation_required", "Listen to a completed VoiceLab evaluation before approving My Voice.");
+    };
+    if !evaluation_review_complete(&evaluation, &reviewed_line_ids) {
+        return result(
+            false,
+            "evaluation_listening_required",
+            "Finish listening to every My Voice preview before approving it.",
+        );
     }
     let project_paths = ProjectPaths::discover();
     match promote_voice_actor_candidate(&project_paths) {
