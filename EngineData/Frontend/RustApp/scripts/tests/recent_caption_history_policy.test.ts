@@ -18,11 +18,11 @@ test("recent meeting captions are bounded, ordered, and translation-only", () =>
   }, 20);
 
   assert.equal(recent.length, 20);
-  assert.equal(recent[0]?.sequence, 6);
-  assert.equal(recent[19]?.sequence, 25);
-  assert.equal(recent[0]?.text, "translated 6");
-  assert.equal(recent[0]?.language, "id");
-  assert.equal(recent[19]?.language, "en");
+  assert.equal(recent[0]?.sequence, 25);
+  assert.equal(recent[19]?.sequence, 6);
+  assert.equal(recent[0]?.text, "translated 25");
+  assert.equal(recent[0]?.language, "en");
+  assert.equal(recent[19]?.language, "id");
 });
 
 test("recent meeting captions stay empty without an authoritative session", () => {
