@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { appUpdateApi, type AppUpdateCheck } from "./app/update/appUpdateApi";
   import { runtimeApi, type MeetingCommittedTurnsSnapshot, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
   import {
     mapProductMeetingState,
@@ -51,6 +52,8 @@
   let approvedVoiceReady = $state<boolean | null>(null);
   let meetingStatus = $state<MeetingSessionStatus | null>(null);
   let meetingTurns = $state<MeetingCommittedTurnsSnapshot | null>(null);
+  let appUpdate = $state<AppUpdateCheck | null>(null);
+  let appUpdateBusy = $state(false);
 
   let closeDialogOpen = $state(false);
   let closeDialogTitle = $state("Close TranslateIT?");
@@ -288,6 +291,44 @@
     }
   }
 
+  async function checkAppUpdateAtStartup(): Promise<void> {
+    try {
+      const result = await appUpdateApi.checkAtStartupOnce();
+      if (result?.available) {
+        appUpdate = result;
+        setNotice(`TranslateIT ${result.version ?? "update"} is available.`);
+      }
+    } catch {
+      // Updates are optional and must never block TranslateIT startup.
+    }
+  }
+
+  async function installAppUpdate(): Promise<void> {
+    if (appUpdateBusy) return;
+    if (snapshot?.meeting.hasSession) {
+      setNotice("Stop Translation or Mic Test before updating TranslateIT.");
+      return;
+    }
+    if (myVoiceRecording) {
+      setNotice("Stop the current My Voice recording before updating TranslateIT.");
+      return;
+    }
+
+    appUpdateBusy = true;
+    setNotice("Preparing TranslateIT update...");
+    try {
+      const result = await appUpdateApi.install();
+      if (!result) {
+        setNotice("The update couldn't be started. Try again later.");
+        return;
+      }
+      setNotice(result.message);
+      if (result.installed) appUpdate = null;
+    } finally {
+      appUpdateBusy = false;
+    }
+  }
+
   async function closeNativeWindow(): Promise<void> {
     closeAfterExistingStop = false;
     closeDialogOpen = false;
@@ -406,6 +447,7 @@
         setupSettings = cloneSettings(loadedSettings);
         setupRequired = setupSettings.meeting_setup_state === "new";
         if (!setupRequired) await refreshSnapshot(undefined, loadedSettings);
+        if (!disposed) void checkAppUpdateAtStartup();
       } finally {
         if (!disposed) booting = false;
       }
@@ -455,6 +497,16 @@
         </div>
 
         <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite" title={notice}>{notice}</p>
+
+        {#if appUpdate?.available}
+          <button
+            type="button"
+            class="ti-button ti-button-secondary min-h-8 shrink-0 px-3 text-[11.5px]"
+            disabled={appUpdateBusy || snapshot.meeting.hasSession || myVoiceRecording}
+            title={snapshot.meeting.hasSession ? "Stop Translation or Mic Test before updating." : appUpdate.notes ?? "A TranslateIT update is ready."}
+            onclick={() => void installAppUpdate()}
+          >{appUpdateBusy ? "Updating..." : `Update ${appUpdate.version ?? ""}`}</button>
+        {/if}
 
         {#if snapshot.meeting.applicationOwned && snapshot.meeting.hasSession}
           <button
