@@ -13,10 +13,10 @@
   } = $props();
 
   const items = [
-    { route: "meeting" as const, label: "Meeting", description: "Voice translation", icon: Mic },
-    { route: "text" as const, label: "Text", description: "Indonesian ↔ English", icon: Languages },
-    { route: "my-voice" as const, label: "My Voice", description: "Create your meeting voice", icon: AudioLines },
-    { route: "settings" as const, label: "Settings", description: "Audio & setup", icon: Settings },
+    { route: "meeting" as const, label: "Meeting", description: "Translate your voice in calls", icon: Mic },
+    { route: "text" as const, label: "Text", description: "Translate written text", icon: Languages },
+    { route: "my-voice" as const, label: "My Voice", description: "Choose or create the voice others hear", icon: AudioLines },
+    { route: "settings" as const, label: "Settings", description: "Microphone, translation, and help", icon: Settings },
   ];
 
   function presenceDot(): string {
