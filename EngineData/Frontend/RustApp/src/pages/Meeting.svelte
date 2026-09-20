@@ -145,7 +145,7 @@
 <section class="ti-page ti-page-wide">
   <header class="ti-page-header">
     <div>
-      <h2 class="ti-page-title">Meeting translation</h2>
+      <h2 class="ti-page-title">Meeting</h2>
       <p class="ti-page-copy">
         {activityVisible
           ? "Speak normally. Finished phrases are translated and spoken into your meeting."
@@ -183,17 +183,19 @@
       </div>
 
       {#if readiness.meetingReady && meetingVoiceReady && !setupDeferred && !runtimeUnavailable}
-        <section class="grid grid-cols-[1fr_auto] items-center gap-5 px-5 py-5">
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <StatusBadge label="Ready" tone="good" />
-              <span class="text-[12px] text-[var(--ti-text-soft)]">Indonesian → English voice</span>
-            </div>
-            <p class="mb-0 mt-2 text-[13px] leading-5 text-[var(--ti-text-muted)]">
-              Speak into {microphone}. Your meeting should use {meetingMicrophoneDevice}.
-            </p>
+        <section class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
+          <div class="min-w-0 p-5">
+            <span class="ti-field-label">Microphone</span>
+            <strong class="mt-1.5 block truncate text-[13px] font-semibold" title={microphone}>{microphone}</strong>
           </div>
-          <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={onOpenMyVoice}>Meeting Voice</button>
+          <button type="button" class="min-w-0 p-5 text-left transition-colors hover:bg-[var(--ti-surface-soft)]" onclick={onOpenMyVoice}>
+            <span class="ti-field-label">Meeting voice</span>
+            <strong class="mt-1.5 block text-[13px] font-semibold">Selected</strong>
+          </button>
+          <div class="min-w-0 p-5">
+            <span class="ti-field-label">Meeting microphone</span>
+            <strong class="mt-1.5 block truncate text-[13px] font-semibold" title={meetingMicrophoneDevice}>{meetingMicrophoneDevice}</strong>
+          </div>
         </section>
       {:else}
       <div class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
@@ -258,14 +260,13 @@
       </div>
       {/if}
 
-      <section class="flex items-start justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-4">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
-            <Languages size={15} strokeWidth={1.8} />
-            <span class="ti-field-label">Incoming translation</span>
+      <section class="flex items-center justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-3.5">
+        <div class="flex min-w-0 items-center gap-3">
+          <Languages size={15} strokeWidth={1.8} class="shrink-0 text-[var(--ti-text-muted)]" />
+          <div class="min-w-0">
+            <strong class="block text-[12.5px] font-semibold">Incoming: English → Indonesian text</strong>
+            <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound}</p>
           </div>
-          <strong class="mt-2 block text-[13px] font-semibold leading-5">English → Indonesian text</strong>
-          <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound} · change in Settings</p>
         </div>
         <StatusBadge label="Optional" tone="neutral" />
       </section>
