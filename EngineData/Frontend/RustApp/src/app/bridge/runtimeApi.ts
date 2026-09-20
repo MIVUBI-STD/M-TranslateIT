@@ -163,6 +163,8 @@ export type MeetingCommittedTurn = {
   generation: number | null;
   utterance_id: number;
   lane: "you" | "incoming" | string;
+  source_language: string;
+  target_language: string;
   source_text: string;
   translated_text: string;
   delivery_state: "preparing_voice" | "speaking" | "output_complete" | "output_failed" | "interrupted" | string | null;

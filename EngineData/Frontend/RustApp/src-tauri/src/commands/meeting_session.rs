@@ -136,6 +136,8 @@ pub struct MeetingCommittedTurn {
     pub generation: Option<u64>,
     pub utterance_id: u64,
     pub lane: String,
+    pub source_language: String,
+    pub target_language: String,
     pub source_text: String,
     pub translated_text: String,
     pub delivery_state: Option<String>,

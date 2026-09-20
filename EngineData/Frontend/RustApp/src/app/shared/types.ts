@@ -29,6 +29,8 @@ export type RuntimeSettings = {
   schema_version: number;
   source_language: string;
   target_language: string;
+  meeting_listen_source_language: string;
+  meeting_listen_target_language: string;
   meeting_setup_state: "new" | "deferred" | "completed" | string;
   meeting_setup_checkpoint: number;
   terminology: TerminologyEntry[];

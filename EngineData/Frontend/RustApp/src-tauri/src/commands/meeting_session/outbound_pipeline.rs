@@ -274,6 +274,8 @@ pub(super) fn process_outbound_wav(
         Some(generation),
         utterance_id,
         "you",
+        "id",
+        "en",
         &transcript,
         &translated_text,
         Some("preparing_voice"),

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MeetingCommittedTurn, MeetingCommittedTurnsSnapshot, MeetingSessionStatus } from "../../app/bridge/runtimeApi";
   import { mapProductMeetingState } from "../../app/bridge/runtimeProductFacade";
+  import { languageName } from "../../app/shared/state";
   import StatusBadge from "../ui/StatusBadge.svelte";
 
   let {
@@ -83,8 +84,8 @@
     if (incoming.capture_active) {
       return {
         label: incoming.stage === "transcribing" || incoming.stage === "translating"
-          ? "Translating what you hear into Indonesian text."
-          : "Listening for English speech in the call.",
+          ? "Translating what you hear."
+          : "Listening to speech in the call.",
         badge: incoming.stage === "transcribing" || incoming.stage === "translating" ? "Translating" : "Listening",
         tone: "good",
       };
@@ -143,12 +144,12 @@
                 {/if}
               </header>
               <div class="grid grid-cols-[78px_minmax(0,1fr)] gap-2">
-                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">Indonesian</span>
-                <p class="m-0 text-[15px] font-medium leading-6" lang="id">{turn.lane === "incoming" ? turn.translated_text : turn.source_text}</p>
+                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">{languageName(turn.source_language)}</span>
+                <p class="m-0 text-[15px] font-medium leading-6" lang={turn.source_language}>{turn.source_text}</p>
               </div>
               <div class="mt-2 grid grid-cols-[78px_minmax(0,1fr)] gap-2">
-                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">English</span>
-                <p class="m-0 text-sm leading-6 text-[var(--ti-text-muted)]" lang="en">{turn.lane === "incoming" ? turn.source_text : turn.translated_text}</p>
+                <span class="pt-1 text-[11px] font-semibold text-[var(--ti-text-soft)]">{languageName(turn.target_language)}</span>
+                <p class="m-0 text-sm leading-6 text-[var(--ti-text-muted)]" lang={turn.target_language}>{turn.translated_text}</p>
               </div>
             </article>
           {/each}

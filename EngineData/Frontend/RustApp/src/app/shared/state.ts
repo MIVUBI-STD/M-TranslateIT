@@ -5,9 +5,11 @@ const UNSAFE_DISPLAY_CHARS = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g;
 
 export function defaultSettings(): RuntimeSettings {
   return {
-    schema_version: 8,
+    schema_version: 9,
     source_language: "id",
     target_language: "en",
+    meeting_listen_source_language: "en",
+    meeting_listen_target_language: "id",
     meeting_setup_state: "new",
     meeting_setup_checkpoint: 1,
     terminology: [],

@@ -29,24 +29,47 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
     audio_path: &str,
     deferred_enqueued_unix_ms: Option<u64>,
 ) -> IncomingAudioProcessResult {
+    process_incoming_wav_with_direction(
+        session_id,
+        event_sequence,
+        utterance_id,
+        audio_path,
+        deferred_enqueued_unix_ms,
+        None,
+    )
+}
+
+fn process_incoming_wav_with_direction(
+    session_id: &str,
+    event_sequence: u64,
+    utterance_id: u64,
+    audio_path: &str,
+    deferred_enqueued_unix_ms: Option<u64>,
+    deferred_direction: Option<(String, String)>,
+) -> IncomingAudioProcessResult {
     let retrying_deferred = deferred_enqueued_unix_ms.is_some();
     if !incoming_session_is_eligible(session_id) {
         return IncomingAudioProcessResult::Complete;
     }
-    let asr_hotwords = load_settings().asr_hotwords();
+    let settings = load_settings();
+    let asr_hotwords = settings.asr_hotwords();
+    let (source_language, target_language) = deferred_direction.unwrap_or_else(|| (
+        settings.meeting_listen_source_language,
+        settings.meeting_listen_target_language,
+    ));
 
     update_incoming_status(
         session_id,
         "transcribing",
         false,
         "",
-        "Finalized English Meeting Sound is being transcribed locally.",
+        "Finalized Meeting Sound is being transcribed locally.",
     );
     let asr = send_helper_worker_task(
         "transcribe",
         json!({
             "audio_path": audio_path,
-            "language": "en",
+            "language": source_language,
             "beam_size": 1,
             "vad_filter": true,
             "hotwords": asr_hotwords,
@@ -71,6 +94,8 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
                     utterance_id,
                     stage: DeferredIncomingStage::NeedsAsr {
                         audio_path: audio_path.to_string(),
+                        source_language: source_language.clone(),
+                        target_language: target_language.clone(),
                     },
                     enqueued_unix_ms,
                 })
@@ -81,6 +106,8 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
                     utterance_id,
                     stage: DeferredIncomingStage::NeedsAsr {
                         audio_path: audio_path.to_string(),
+                        source_language: source_language.clone(),
+                        target_language: target_language.clone(),
                     },
                     enqueued_unix_ms,
                 })
@@ -91,7 +118,7 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
                     "degraded",
                     true,
                     "meeting_incoming:deferred_queue_unavailable",
-                    "Incoming English ASR yielded to required outbound work, but the deferred queue was unavailable. Outbound remains available.",
+                    "Incoming ASR yielded to required outbound work, but the deferred queue was unavailable. Outbound remains available.",
                 );
                 return IncomingAudioProcessResult::Complete;
             }
@@ -112,7 +139,7 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
                 "listening",
                 false,
                 "",
-                "Finalized Meeting Sound did not produce stable English speech. Incoming remains listening.",
+                "Finalized Meeting Sound did not produce stable speech. Incoming remains listening.",
             );
             return IncomingAudioProcessResult::Complete;
         }
@@ -122,7 +149,7 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
                 "listening",
                 true,
                 &blocker,
-                "Incoming English ASR failed for the latest finalized Meeting Sound event. Outbound remains available.",
+                "Incoming ASR failed for the latest finalized Meeting Sound event. Outbound remains available.",
             );
             return IncomingAudioProcessResult::Complete;
         }
@@ -134,6 +161,8 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
         event_sequence,
         utterance_id,
         &transcript,
+        &source_language,
+        &target_language,
         !retrying_deferred,
     );
     if held && retrying_deferred {
@@ -143,6 +172,8 @@ pub(super) fn process_authoritative_finalized_incoming_wav(
             utterance_id,
             stage: DeferredIncomingStage::NeedsTranslation {
                 transcript: transcript.clone(),
+                source_language: source_language.clone(),
+                target_language: target_language.clone(),
             },
             enqueued_unix_ms: deferred_enqueue_unix_ms(
                 deferred_enqueued_unix_ms,
@@ -182,6 +213,8 @@ fn translate_and_commit_incoming_transcript(
     event_sequence: u64,
     utterance_id: u64,
     transcript: &str,
+    source_language: &str,
+    target_language: &str,
     allow_defer: bool,
 ) -> bool {
     update_incoming_status(
@@ -189,15 +222,15 @@ fn translate_and_commit_incoming_transcript(
         "translating",
         false,
         "",
-        "Final English Meeting Sound transcript is being translated to Indonesian.",
+        "Final Meeting Sound transcript is being translated.",
     );
     let terminology = load_settings().terminology;
     let translation = send_helper_worker_task(
         "translate",
         json!({
             "text": transcript,
-            "source_language": "en",
-            "target_language": "id",
+            "source_language": source_language,
+            "target_language": target_language,
             "max_new_tokens": 96,
             "terminology": terminology,
             "meeting_session_id": session_id,
@@ -217,6 +250,8 @@ fn translate_and_commit_incoming_transcript(
                 utterance_id,
                 stage: DeferredIncomingStage::NeedsTranslation {
                     transcript: transcript.to_string(),
+                    source_language: source_language.to_string(),
+                    target_language: target_language.to_string(),
                 },
                 enqueued_unix_ms: unix_ms() as u64,
             });
@@ -250,7 +285,7 @@ fn translate_and_commit_incoming_transcript(
             "degraded",
             true,
             &blocker,
-            "Incoming English -> Indonesian translation failed for the latest event. Outbound Meeting translation remains unaffected.",
+            "Incoming translation failed for the latest event. Outbound Meeting translation remains unaffected.",
         );
         return false;
     }
@@ -262,6 +297,8 @@ fn translate_and_commit_incoming_transcript(
         None,
         utterance_id,
         "incoming",
+        source_language,
+        target_language,
         &transcript,
         &translated_text,
         None,
@@ -298,13 +335,18 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
             ..
         } = job;
         match stage {
-            DeferredIncomingStage::NeedsAsr { audio_path } => {
-                let result = process_authoritative_finalized_incoming_wav(
+            DeferredIncomingStage::NeedsAsr {
+                audio_path,
+                source_language,
+                target_language,
+            } => {
+                let result = process_incoming_wav_with_direction(
                     session_id,
                     event_sequence,
                     utterance_id,
                     &audio_path,
                     Some(enqueued_unix_ms),
+                    Some((source_language, target_language)),
                 );
                 match result {
                     IncomingAudioProcessResult::DeferredAsr => break,
@@ -317,12 +359,18 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                     }
                 }
             }
-            DeferredIncomingStage::NeedsTranslation { transcript } => {
+            DeferredIncomingStage::NeedsTranslation {
+                transcript,
+                source_language,
+                target_language,
+            } => {
                 let held = translate_and_commit_incoming_transcript(
                     session_id,
                     event_sequence,
                     utterance_id,
                     &transcript,
+                    &source_language,
+                    &target_language,
                     false,
                 );
                 if held {
@@ -332,7 +380,11 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                         session_id: session_id.to_string(),
                         event_sequence,
                         utterance_id,
-                        stage: DeferredIncomingStage::NeedsTranslation { transcript },
+                        stage: DeferredIncomingStage::NeedsTranslation {
+                            transcript,
+                            source_language,
+                            target_language,
+                        },
                         enqueued_unix_ms,
                     });
                     if held_count == 0 {

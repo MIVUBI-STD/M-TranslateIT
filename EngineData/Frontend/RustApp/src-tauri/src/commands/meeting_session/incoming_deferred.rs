@@ -20,8 +20,16 @@ pub(super) enum IncomingAsrDisposition {
 
 #[derive(Clone)]
 pub(super) enum DeferredIncomingStage {
-    NeedsAsr { audio_path: String },
-    NeedsTranslation { transcript: String },
+    NeedsAsr {
+        audio_path: String,
+        source_language: String,
+        target_language: String,
+    },
+    NeedsTranslation {
+        transcript: String,
+        source_language: String,
+        target_language: String,
+    },
 }
 
 pub(super) struct DeferredIncomingJob {
@@ -77,7 +85,7 @@ pub(super) fn deferred_enqueue_unix_ms(
 }
 
 fn cleanup_deferred_incoming_job(job: DeferredIncomingJob) {
-    if let DeferredIncomingStage::NeedsAsr { audio_path } = job.stage {
+    if let DeferredIncomingStage::NeedsAsr { audio_path, .. } = job.stage {
         remove_finalized_meeting_utterance_wav(&audio_path);
     }
 }
@@ -156,6 +164,8 @@ mod tests {
             utterance_id: seq,
             stage: DeferredIncomingStage::NeedsTranslation {
                 transcript: transcript.to_string(),
+                source_language: "en".to_string(),
+                target_language: "id".to_string(),
             },
             enqueued_unix_ms,
         }

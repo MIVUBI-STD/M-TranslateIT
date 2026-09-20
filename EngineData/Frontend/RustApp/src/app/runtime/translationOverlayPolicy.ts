@@ -20,7 +20,14 @@ export type TranslationOverlayPreferences = {
 export type PhysicalPoint = { x: number; y: number };
 export type PhysicalRect = { x: number; y: number; width: number; height: number };
 
-type MeetingTurnLike = { sequence: number; lane: string; translated_text: string; created_unix_ms?: number; };
+type MeetingTurnLike = {
+  sequence: number;
+  lane: string;
+  source_language?: string;
+  target_language?: string;
+  translated_text: string;
+  created_unix_ms?: number;
+};
 type MeetingTurnsLike = { ok: boolean; has_session: boolean; session_id: string | null; turns: MeetingTurnLike[]; };
 
 export function normalizeOverlayText(value: string): string {
@@ -35,7 +42,9 @@ export function latestMeetingCaption(snapshot: MeetingTurnsLike | null): Transla
   if (!latest) return null;
   return {
     text: normalizeOverlayText(latest.translated_text),
-    language: latest.lane === "incoming" ? "id" : "en",
+    language: latest.target_language === "id" || latest.target_language === "en"
+      ? latest.target_language
+      : latest.lane === "incoming" ? "id" : "en",
     source: "meeting",
     revision: `${snapshot.session_id}:${latest.sequence}`,
   };
@@ -109,7 +118,9 @@ export function recentMeetingCaptions(snapshot: MeetingTurnsLike | null, limit =
       sequence: turn.sequence,
       lane: turn.lane,
       text: normalizeOverlayText(turn.translated_text),
-      language: turn.lane === "incoming" ? "id" : "en",
+      language: turn.target_language === "id" || turn.target_language === "en"
+        ? turn.target_language
+        : turn.lane === "incoming" ? "id" : "en",
       createdUnixMs: "created_unix_ms" in turn && typeof turn.created_unix_ms === "number" ? turn.created_unix_ms : 0,
     }));
 }

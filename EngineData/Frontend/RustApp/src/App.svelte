@@ -494,7 +494,7 @@
             {meetingTurns}
             actionBusy={meetingActionBusy}
             onMeetingAction={handleMeetingAction}
-            onRefresh={() => refreshSnapshot("Status refreshed.")}
+            onRefresh={refreshSnapshot}
             onFixSetup={fixSetup}
             onOpenMyVoice={() => navigate("my-voice")}
           />

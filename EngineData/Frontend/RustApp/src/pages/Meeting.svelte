@@ -9,6 +9,8 @@
     type VirtualMicRouteContractStatus,
   } from "../app/bridge/runtimeApi";
   import type { ProductRuntimeSnapshot } from "../app/bridge/runtimeProductFacade";
+  import { languageName } from "../app/shared/state";
+  import type { RuntimeSettings } from "../app/shared/types";
   import { setupStateNeedsResume } from "../app/runtime/setupFlow";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
@@ -30,7 +32,7 @@
     meetingTurns: MeetingCommittedTurnsSnapshot | null;
     actionBusy?: boolean;
     onMeetingAction: () => void | Promise<void>;
-    onRefresh: () => void | Promise<void>;
+    onRefresh: (preferredNotice?: string, knownSettings?: RuntimeSettings) => void | Promise<void>;
     onFixSetup: () => void | Promise<void>;
     onOpenMyVoice: () => void;
   } = $props();
@@ -39,6 +41,7 @@
   let meetingDetection = $state<MeetingAppDetection | null>(null);
   let detectionInFlight = false;
   let resumeBusy = $state(false);
+  let directionSaving = $state(false);
   let resumeError = $state("");
 
   const readiness = $derived(snapshot.readiness);
@@ -55,6 +58,8 @@
     String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
   );
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.hasSession && (meeting.live || meeting.busy)));
+  const listenSourceName = $derived(languageName(snapshot.settings.meeting_listen_source_language));
+  const listenTargetName = $derived(languageName(snapshot.settings.meeting_listen_target_language));
 
   function statusTone(ready: boolean, pending = false, unavailable = false): Tone {
     if (unavailable) return "danger";
@@ -102,6 +107,30 @@
                   ? "Everything looks ready. Start Translation will do one final check."
                   : "Finish the items below before starting.",
   );
+
+  async function swapListenDirection(): Promise<void> {
+    if (directionSaving) return;
+    directionSaving = true;
+    const candidate: RuntimeSettings = {
+      ...snapshot.settings,
+      meeting_listen_source_language: snapshot.settings.meeting_listen_target_language,
+      meeting_listen_target_language: snapshot.settings.meeting_listen_source_language,
+      audio: { ...snapshot.settings.audio },
+    };
+    try {
+      const result = await runtimeApi.saveSettings(candidate);
+      if (!result.ok) throw new Error(result.message || "Meeting listening direction could not be saved.");
+      const saved = (await runtimeApi.loadSettings()) ?? candidate;
+      await onRefresh(
+        `Meeting captions: ${languageName(saved.meeting_listen_source_language)} → ${languageName(saved.meeting_listen_target_language)}`,
+        saved,
+      );
+    } catch {
+      await onRefresh("Couldn't change the Meeting listening direction. Try again.");
+    } finally {
+      directionSaving = false;
+    }
+  }
 
   async function refreshMeetingDetection(): Promise<void> {
     if (detectionInFlight || meeting.hasSession) return;
@@ -295,17 +324,20 @@
       </div>
       {/if}
 
-      <section class="flex items-center justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-3.5">
-        <div class="flex min-w-0 items-center gap-3">
-          <Languages size={15} strokeWidth={1.8} class="shrink-0 text-[var(--ti-text-muted)]" />
-          <div class="min-w-0">
-            <strong class="block text-[12.5px] font-semibold">Translate what you hear: English → Indonesian</strong>
-            <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound}</p>
-          </div>
-        </div>
-        <StatusBadge label="Optional" tone="neutral" />
-      </section>
     {/if}
+
+    <section class="flex items-center justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-3.5">
+      <div class="flex min-w-0 items-center gap-3">
+        <Languages size={15} strokeWidth={1.8} class="shrink-0 text-[var(--ti-text-muted)]" />
+        <div class="min-w-0">
+          <strong class="block text-[12.5px] font-semibold">Translate what you hear: {listenSourceName} → {listenTargetName}</strong>
+          <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound}</p>
+        </div>
+      </div>
+      <button type="button" class="ti-button ti-button-secondary min-h-8 px-3 text-xs" disabled={directionSaving} onclick={() => void swapListenDirection()}>
+        {directionSaving ? "Saving..." : "Swap"}
+      </button>
+    </section>
 
     <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
       {#if !activityVisible}

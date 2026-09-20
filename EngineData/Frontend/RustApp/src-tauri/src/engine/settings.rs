@@ -3,7 +3,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-const CURRENT_SCHEMA_VERSION: u32 = 8;
+const CURRENT_SCHEMA_VERSION: u32 = 9;
 const MAX_SETTING_TEXT_CHARS: usize = 160;
 const MAX_TERMINOLOGY_ENTRIES: usize = 24;
 const MAX_TERMINOLOGY_TERM_CHARS: usize = 80;
@@ -18,6 +18,14 @@ fn default_source_language() -> String {
 
 fn default_target_language() -> String {
     "en".to_string()
+}
+
+fn default_meeting_listen_source_language() -> String {
+    "en".to_string()
+}
+
+fn default_meeting_listen_target_language() -> String {
+    "id".to_string()
 }
 
 fn default_meeting_setup_state() -> String {
@@ -62,6 +70,8 @@ pub struct RuntimeSettings {
     pub schema_version: u32,
     pub source_language: String,
     pub target_language: String,
+    pub meeting_listen_source_language: String,
+    pub meeting_listen_target_language: String,
     pub meeting_setup_state: String,
     pub meeting_setup_checkpoint: u8,
     pub terminology: Vec<TerminologyEntry>,
@@ -75,6 +85,8 @@ impl Default for RuntimeSettings {
             schema_version: CURRENT_SCHEMA_VERSION,
             source_language: default_source_language(),
             target_language: default_target_language(),
+            meeting_listen_source_language: default_meeting_listen_source_language(),
+            meeting_listen_target_language: default_meeting_listen_target_language(),
             meeting_setup_state: default_meeting_setup_state(),
             meeting_setup_checkpoint: default_meeting_setup_checkpoint(),
             terminology: Vec::new(),
@@ -122,6 +134,14 @@ impl RuntimeSettings {
         self.schema_version = CURRENT_SCHEMA_VERSION;
         self.source_language = sanitize_language(&self.source_language, "id");
         self.target_language = sanitize_language(&self.target_language, "en");
+        self.meeting_listen_source_language =
+            sanitize_language(&self.meeting_listen_source_language, "en");
+        self.meeting_listen_target_language =
+            sanitize_language(&self.meeting_listen_target_language, "id");
+        if self.meeting_listen_source_language == self.meeting_listen_target_language {
+            self.meeting_listen_source_language = "en".to_string();
+            self.meeting_listen_target_language = "id".to_string();
+        }
         self.meeting_setup_state = sanitize_meeting_setup_state(&self.meeting_setup_state);
         self.meeting_setup_checkpoint = self.meeting_setup_checkpoint.clamp(1, 5);
         self.terminology = sanitize_terminology(self.terminology);
@@ -307,12 +327,28 @@ mod tests {
         assert_eq!(settings.schema_version, CURRENT_SCHEMA_VERSION);
         assert_eq!(settings.source_language, "id");
         assert_eq!(settings.target_language, "en");
+        assert_eq!(settings.meeting_listen_source_language, "en");
+        assert_eq!(settings.meeting_listen_target_language, "id");
         assert_eq!(settings.meeting_setup_state, "new");
         assert_eq!(settings.meeting_setup_checkpoint, 1);
         assert!(settings.terminology.is_empty());
         assert!(settings.spoken_terms.is_empty());
         assert!(settings.audio.input_device_id.is_none());
         assert!(settings.audio.output_device_id.is_none());
+    }
+
+    #[test]
+    fn meeting_listen_direction_defaults_and_rejects_same_language_pair() {
+        let defaults = RuntimeSettings::default();
+        assert_eq!(defaults.meeting_listen_source_language, "en");
+        assert_eq!(defaults.meeting_listen_target_language, "id");
+
+        let mut invalid = RuntimeSettings::default();
+        invalid.meeting_listen_source_language = "id".to_string();
+        invalid.meeting_listen_target_language = "id".to_string();
+        let sanitized = invalid.sanitized();
+        assert_eq!(sanitized.meeting_listen_source_language, "en");
+        assert_eq!(sanitized.meeting_listen_target_language, "id");
     }
 
     #[test]
