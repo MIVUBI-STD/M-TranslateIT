@@ -101,10 +101,10 @@ export type RecentCaptionEntry = {
 export function recentMeetingCaptions(snapshot: MeetingTurnsLike | null, limit = 20): RecentCaptionEntry[] {
   if (!snapshot?.ok || !snapshot.has_session || !snapshot.session_id) return [];
   const boundedLimit = Math.max(1, Math.min(20, Math.trunc(limit) || 20));
-  return snapshot.turns
+  return [...snapshot.turns]
     .filter((turn) => normalizeOverlayText(turn.translated_text).length > 0)
-    .sort((left, right) => left.sequence - right.sequence)
-    .slice(-boundedLimit)
+    .sort((left, right) => right.sequence - left.sequence)
+    .slice(0, boundedLimit)
     .map((turn) => ({
       sequence: turn.sequence,
       lane: turn.lane,
