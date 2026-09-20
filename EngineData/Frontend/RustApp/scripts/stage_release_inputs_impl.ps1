@@ -219,13 +219,13 @@ foreach ($item in $nltkPackages) {
 @('source_kind=nltk_data', 'repository=nltk/nltk_data', "revision=$nltkRevision") + $nltkRecords | Set-Content -LiteralPath (Join-Path $VoiceSource 'NLTK_DATA_SOURCE.txt') -Encoding ascii
 
 Write-Host '[release-stage] Stage pinned FFmpeg n8.1 LGPL executable from BtbN'
-$ffmpegReleaseTag = 'autobuild-2026-09-07-15-39'
+$ffmpegReleaseTag = 'autobuild-2026-09-20-13-11'
 $ffmpegReleaseId = '384189644'
 $ffmpegReleaseName = 'Auto-Build 2026-09-07 15:39'
 $ffmpegReleasePublishedAt = '2026-09-07T15:40:02Z'
 $ffmpegAssetId = '549007162'
-$ffmpegAssetName = 'ffmpeg-n8.1.2-51-g7ba069f4f1-win64-lgpl-8.1.zip'
-$ffmpegArchiveSha = '232464b6f9f1d55fa42c1b0e7ae1c9ca5a19272ba61229e8b32a93751055e135'
+$ffmpegAssetName = 'ffmpeg-n8.1.2-267-gb2f422d306-win64-lgpl-8.1.zip'
+$ffmpegArchiveSha = 'e0e82ba6babc8abc4530e3d018ef563fd24c93be0db731d9bf771379d2b363ac'
 $ffmpegDownloadUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$ffmpegReleaseTag/$ffmpegAssetName"
 $ffmpegArchive = Join-Path $Temp 'ffmpeg.zip'
 Invoke-Download $ffmpegDownloadUrl $ffmpegArchive
