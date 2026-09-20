@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { destroyTranslationOverlay } from "./translationOverlayRuntime";
 import { myVoiceApi } from "../bridge/myVoiceApi";
 import { myVoiceBuildApi } from "../bridge/myVoiceBuildApi";
 import { runtimeApi } from "../bridge/runtimeApi";
@@ -22,7 +23,8 @@ export async function installNativeCloseGuard(
   });
 }
 
-export async function destroyNativeWindow(): Promise<void> {
+export async function destroyTranslateItWindows(): Promise<void> {
+  await destroyTranslationOverlay();
   await getCurrentWindow().destroy();
 }
 

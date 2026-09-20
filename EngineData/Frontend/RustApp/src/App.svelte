@@ -10,10 +10,9 @@
   } from "./app/bridge/runtimeProductFacade";
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { readMeetingPoll } from "./app/runtime/meetingPoll";
-  import { latestMeetingCaption } from "./app/runtime/translationOverlayPolicy";
-  import { publishTranslationOverlay } from "./app/runtime/translationOverlayRuntime";
+  import { publishLatestMeetingOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
-    destroyNativeWindow,
+    destroyTranslateItWindows,
     installNativeCloseGuard,
     resolveNativeCloseVerdict,
     stopAndResolveNativeClose,
@@ -298,7 +297,7 @@
   async function closeNativeWindow(): Promise<void> {
     closeAfterExistingStop = false;
     closeDialogOpen = false;
-    await destroyNativeWindow();
+    await destroyTranslateItWindows();
   }
 
   async function pollMeeting(): Promise<void> {
@@ -313,11 +312,7 @@
       applyMeetingStatus(result.status);
       meetingTurns = result.turns;
       lastTranscriptStatusKey = result.transcriptStatusKey;
-      const overlayCaption = latestMeetingCaption(result.turns);
-      if (overlayCaption && overlayCaption.revision !== lastOverlayMeetingRevision) {
-        lastOverlayMeetingRevision = overlayCaption.revision;
-        void publishTranslationOverlay(overlayCaption);
-      }
+      lastOverlayMeetingRevision = await publishLatestMeetingOverlay(result.turns, lastOverlayMeetingRevision);
       if (result.unavailable) {
         setNotice("Meeting translation is temporarily unavailable.");
       } else if (!result.status.has_session && closeAfterExistingStop) {

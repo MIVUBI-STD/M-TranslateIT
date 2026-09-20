@@ -168,13 +168,13 @@
       onNotice("There is no translated text to show.");
       return;
     }
-    const shown = await publishTranslationOverlay({
+    const result = await publishTranslationOverlay({
       text,
       language: settings.target_language,
       source: "text",
       revision: `text:${targetRevision}:${Date.now()}`,
-    });
-    onNotice(shown ? "Floating caption updated." : "Floating caption is unavailable in browser preview.");
+    }, true);
+    onNotice(result === "shown" ? "Floating caption updated." : "Floating caption is unavailable right now.");
   }
 
   async function copyTranslation(): Promise<void> {
