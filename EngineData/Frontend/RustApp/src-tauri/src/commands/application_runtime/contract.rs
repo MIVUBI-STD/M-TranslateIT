@@ -19,7 +19,6 @@ pub struct ApplicationProblem {
 pub struct ApplicationCapabilities {
     pub meeting_translation: bool,
     pub mic_test: bool,
-    pub text_translation: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -37,7 +36,7 @@ pub struct MeetingSummary {
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkerSummary {
     pub state: String,
-    pub ready: bool,
+    pub process_ready: bool,
     pub degraded: bool,
     pub message: String,
 }
@@ -81,7 +80,6 @@ pub struct ApplicationSubsystemSummaries {
 pub struct ResourceArbitration {
     pub audio_locked: bool,
     pub microphone_available: bool,
-    pub meeting_audio_available: bool,
     pub active_owner: Option<String>,
     pub owner_kind: String,
     pub blocker: String,
