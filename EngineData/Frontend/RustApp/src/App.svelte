@@ -16,7 +16,7 @@
     resolveNativeCloseVerdict,
     stopAndResolveNativeClose,
   } from "./app/runtime/nativeCloseRuntime";
-  import { cloneSettings, compact, defaultSettings } from "./app/shared/state";
+  import { compact, defaultSettings } from "./app/shared/state";
   import {
     createApplicationController,
     type ApplicationControllerState,
@@ -367,14 +367,7 @@
         }
         applicationController.applySettings(loadedSettings);
         applicationState = applicationController.read();
-        if (loadedSettings.meeting_setup_state === "new") {
-          applicationState = {
-            ...applicationState,
-            setupRequired: true,
-            applicationState.runtimeLoaded: false,
-            snapshot: null,
-          };
-        } else {
+        if (loadedSettings.meeting_setup_state !== "new") {
           await refreshSnapshot(undefined, loadedSettings);
         }
       } finally {
