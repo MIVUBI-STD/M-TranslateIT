@@ -16,7 +16,6 @@ import {
   helperBridgeUnavailable,
   mapProductMeetingState,
   mapProductReadiness,
-  parseWorkerCapabilities,
 } from "./runtimeProductState";
 import type {
   ProductMeetingState,
