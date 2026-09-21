@@ -9,7 +9,7 @@ use crate::engine::paths::ProjectPaths;
 
 use super::device_loss_guard::get_device_loss_guard_status;
 use super::helper_bridge::get_helper_bridge_status;
-use super::incident_log::get_recent_runtime_incidents;
+use super::incident_log::{get_recent_runtime_incidents, without_runtime_incident_recording};
 use super::long_session_health::get_long_session_health_status;
 use super::meeting_session::get_meeting_session_status;
 use super::runtime_watchdog::get_runtime_watchdog_status;
@@ -38,14 +38,19 @@ fn sanitized(value: &str) -> String {
 #[tauri::command]
 pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
     let paths = ProjectPaths::discover();
-    let meeting = get_meeting_session_status();
-    let helper = get_helper_bridge_status();
-    let watchdog = get_runtime_watchdog_status();
-    let devices = get_device_loss_guard_status();
-    let recovery = get_startup_recovery_status();
-    let long_session = get_long_session_health_status();
-    let incidents = get_recent_runtime_incidents();
-    let route = get_virtual_mic_route_selection();
+    let (meeting, helper, watchdog, devices, recovery, long_session, incidents, route) =
+        without_runtime_incident_recording(|| {
+            (
+                get_meeting_session_status(),
+                get_helper_bridge_status(),
+                get_runtime_watchdog_status(),
+                get_device_loss_guard_status(),
+                get_startup_recovery_status(),
+                get_long_session_health_status(),
+                get_recent_runtime_incidents(),
+                get_virtual_mic_route_selection(),
+            )
+        });
 
     let payload = json!({
         "schema": "translateit.support_bundle.v1",

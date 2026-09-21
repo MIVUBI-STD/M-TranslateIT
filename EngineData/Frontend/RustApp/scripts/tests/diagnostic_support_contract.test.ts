@@ -19,3 +19,8 @@ test("support bundle omits raw local identifiers", () => {
   assert.doesNotMatch(support, /"session_id"\s*:/);
   assert.match(support, /sanitize_diagnostic_text/);
 });
+
+
+test("support bundle snapshot does not mutate incident history while observing guards", () => {
+  assert.match(support, /without_runtime_incident_recording/);
+});

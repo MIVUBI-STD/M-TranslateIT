@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::cell::Cell;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -12,6 +13,30 @@ const INCIDENT_FILE: &str = "runtime_incidents.json";
 const MAX_INCIDENTS: usize = 20;
 const INCIDENT_REPEAT_SUPPRESSION_MS: u128 = 60_000;
 static INCIDENT_IO_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+thread_local! {
+    static INCIDENT_RECORDING_SUPPRESSED: Cell<bool> = const { Cell::new(false) };
+}
+
+struct IncidentRecordingSuppressionGuard {
+    previous: bool,
+}
+
+impl Drop for IncidentRecordingSuppressionGuard {
+    fn drop(&mut self) {
+        INCIDENT_RECORDING_SUPPRESSED.with(|flag| flag.set(self.previous));
+    }
+}
+
+pub(super) fn without_runtime_incident_recording<T>(action: impl FnOnce() -> T) -> T {
+    let previous = INCIDENT_RECORDING_SUPPRESSED.with(|flag| flag.replace(true));
+    let _guard = IncidentRecordingSuppressionGuard { previous };
+    action()
+}
+
+fn incident_recording_suppressed() -> bool {
+    INCIDENT_RECORDING_SUPPRESSED.with(Cell::get)
+}
 
 fn incident_io_lock() -> &'static Mutex<()> {
     INCIDENT_IO_LOCK.get_or_init(|| Mutex::new(()))
@@ -77,6 +102,10 @@ pub fn record_runtime_incident(
     blocker: &str,
     note: &str,
 ) -> bool {
+    if incident_recording_suppressed() {
+        return true;
+    }
+
     let category = sanitize_diagnostic_text(category);
     let component = sanitize_diagnostic_text(component);
     let blocker = sanitize_diagnostic_text(blocker);
@@ -142,7 +171,10 @@ pub fn get_recent_runtime_incidents() -> RuntimeIncidentSnapshot {
 
 #[cfg(test)]
 mod tests {
-    use super::{RuntimeIncident, INCIDENT_REPEAT_SUPPRESSION_MS, MAX_INCIDENTS};
+    use super::{
+        incident_recording_suppressed, without_runtime_incident_recording, RuntimeIncident,
+        INCIDENT_REPEAT_SUPPRESSION_MS, MAX_INCIDENTS,
+    };
 
     fn same_incident_at(occurred_unix_ms: u128) -> RuntimeIncident {
         RuntimeIncident {
@@ -152,6 +184,15 @@ mod tests {
             note: "stalled".to_string(),
             occurred_unix_ms,
         }
+    }
+
+
+    #[test]
+    fn incident_recording_suppression_is_scoped_and_restored() {
+        assert!(!incident_recording_suppressed());
+        let suppressed = without_runtime_incident_recording(incident_recording_suppressed);
+        assert!(suppressed);
+        assert!(!incident_recording_suppressed());
     }
 
     #[test]
