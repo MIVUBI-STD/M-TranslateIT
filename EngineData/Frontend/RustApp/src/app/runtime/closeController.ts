@@ -71,6 +71,23 @@ export function createCloseController(): {
     showDialog(verdict.title, verdict.message, verdict.action);
   };
 
+  const inspect = async (): Promise<CloseControllerState> => {
+    if (state.checkInFlight || state.busy) return read();
+    state = { ...state, checkInFlight: true };
+    try {
+      await applyVerdict(await resolveNativeCloseVerdict());
+    } catch {
+      showDialog(
+        "Couldn't close TranslateIT",
+        "TranslateIT couldn't confirm that it is safe to close. Keep the app open and try again.",
+        "retry",
+      );
+    } finally {
+      state = { ...state, checkInFlight: false };
+    }
+    return read();
+  };
+
   return {
     read,
 
@@ -85,27 +102,12 @@ export function createCloseController(): {
       return read();
     },
 
-    async inspect(): Promise<CloseControllerState> {
-      if (state.checkInFlight || state.busy) return read();
-      state = { ...state, checkInFlight: true };
-      try {
-        await applyVerdict(await resolveNativeCloseVerdict());
-      } catch {
-        showDialog(
-          "Couldn't close TranslateIT",
-          "TranslateIT couldn't confirm that it is safe to close. Keep the app open and try again.",
-          "retry",
-        );
-      } finally {
-        state = { ...state, checkInFlight: false };
-      }
-      return read();
-    },
+    inspect,
 
     async primary(): Promise<CloseControllerState> {
       if (state.action === "retry") {
         state = { ...state, open: false };
-        return this.inspect();
+        return inspect();
       }
       if (state.action !== "stop" || state.busy) return read();
 
