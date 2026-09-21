@@ -182,3 +182,15 @@ These controllers may coordinate existing public runtime/query APIs, but they mu
 ### Product facade split
 
 `runtimeProductFacade.ts` is a compatibility/public composition surface, not a domain implementation owner. Product audio, text translation, and setup/recovery logic live in `productAudioFacade.ts`, `productTranslationFacade.ts`, and `productSetupFacade.ts` respectively. New unrelated product behavior must not be appended to the root facade by default.
+
+
+### Product-state policy split
+
+Frontend product state policy is split by concern:
+
+- `productMeetingState.ts` — Meeting lifecycle/status/preflight mapping.
+- `productReadinessState.ts` — cross-capability readiness, blockers, voice gate, and product status copy.
+- `workerCapabilities.ts` — parsing worker capability evidence only.
+- `runtimeProductState.ts` — compatibility re-export surface only.
+
+Do not merge these implementations back into one large product-state file. Compatibility surfaces may re-export stable APIs, but policy ownership stays domain-scoped.
