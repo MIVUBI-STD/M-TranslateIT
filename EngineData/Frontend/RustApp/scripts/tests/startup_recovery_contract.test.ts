@@ -17,8 +17,8 @@ test("startup recovery never resumes Meeting and cleans only bounded cache names
 
 test("active previous process prevents destructive stale cleanup", () => {
   assert.match(recovery, /process_is_alive/);
-  assert.match(recovery, /another_instance_detected = true/);
-  assert.match(recovery, /did not touch shared Meeting cache/);
+  assert.match(recovery, /another_instance_detected = live_other_found/);
+  assert.match(recovery, /Shared Meeting cache was left untouched|did not modify the other process's Meeting cache/);
 });
 
 test("clean app exit clears recovery marker only after helper shutdown succeeds", () => {
