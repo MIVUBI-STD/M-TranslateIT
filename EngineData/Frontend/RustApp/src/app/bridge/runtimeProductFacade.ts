@@ -5,10 +5,8 @@ import {
 } from "./runtimeApi";
 import { applicationRuntimeApi } from "./applicationRuntimeApi";
 import { compact, errorMessage } from "../shared/state";
-import { shouldAutoStartHelper } from "../runtime/helperLifecyclePolicy";
 import type {
   AudioDeviceListReport,
-  HelperBridgeStatus,
   RuntimeSettings,
 } from "../shared/types";
 import { myVoiceBuildApi } from "./myVoiceBuildApi";
@@ -75,22 +73,6 @@ export type ProductAudioDeviceSelectionResult = ProductAudioDeviceProbe & {
 export type ProductSetupAction = "check-readiness" | "verify-models";
 export type ProductRecoveryAction = "fix-setup";
 
-async function ensurePostSetupHelperLifecycle(settings: RuntimeSettings): Promise<HelperBridgeStatus> {
-  const helper = await runtimeApi.getHelperBridgeStatus();
-  if (
-    settings.meeting_setup_state === "new" ||
-    helperBridgeUnavailable(helper) ||
-    !shouldAutoStartHelper(helper.state)
-  ) {
-    return helper;
-  }
-
-  // Normal post-setup product use should not require a manual Check Setup after
-  // every app restart. Only known inactive states are restarted automatically.
-  await runtimeApi.startHelperBridge();
-  return runtimeApi.getHelperBridgeStatus();
-}
-
 async function loadApprovedVoiceReady(): Promise<boolean | null> {
   try {
     const build = await myVoiceBuildApi.getStatus();
@@ -102,24 +84,22 @@ async function loadApprovedVoiceReady(): Promise<boolean | null> {
 }
 
 export async function loadProductRuntimeSnapshot(knownSettings?: RuntimeSettings): Promise<ProductRuntimeSnapshot> {
-  const settings = knownSettings ?? await runtimeApi.loadSettings();
+  let application = await applicationRuntimeApi.getSnapshot();
+  const settings = knownSettings ?? application.settings;
   if (!settings) throw new Error("TranslateIT settings are unavailable.");
 
-  // Fresh setup remains Python-free. Input and selected-voice checks are
-  // independent of helper startup, so overlap them with the helper lifecycle.
-  // Meeting preflight waits for the final helper state so readiness cannot be
-  // derived from a stale pre-start helper snapshot.
-  const helperPromise = ensurePostSetupHelperLifecycle(settings);
-  const inputPromise = runtimeApi.getInputStatus();
-  const approvedVoicePromise = loadApprovedVoiceReady();
+  if (
+    settings.meeting_setup_state !== "new"
+    && application.summaries.worker.state === "not_started"
+  ) {
+    application = (await applicationRuntimeApi.dispatchIntent("ensure_runtime_ready")).snapshot;
+  }
 
-  const helper = await helperPromise;
-  const [meetingSession, workerStatus, inputStatus, approvedVoiceReady] = await Promise.all([
-    runtimeApi.getMeetingSessionStatus(),
-    helper.state === "ready" ? runtimeApi.helperBridgeWorkerStatus() : Promise.resolve(null),
-    inputPromise,
-    approvedVoicePromise,
-  ]);
+  const approvedVoiceReady = await loadApprovedVoiceReady();
+  const meetingSession = application.meeting;
+  const helper = application.helper;
+  const workerStatus = application.worker;
+  const inputStatus = application.input;
   const meeting = mapProductMeetingState(meetingSession);
   const readiness = mapProductReadiness({
     settings,
