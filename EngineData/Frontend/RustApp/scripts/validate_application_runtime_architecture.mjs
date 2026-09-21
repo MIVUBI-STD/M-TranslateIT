@@ -122,6 +122,22 @@ if (runtimeStateSource.includes("translateit_rust_live_capture")) {
   failures.push("runtime_state.rs must not collapse Mic Test and My Voice into one live-capture owner");
 }
 
+const sharedTypesSource = readFileSync(
+  join(appRoot, "src", "app", "shared", "types.ts"),
+  "utf8",
+);
+const meetingOwnerLiteral = '"translateit_application_meeting"';
+if (!runtimeStateSource.includes(
+  `APPLICATION_MEETING_OWNER_ID: &str = ${meetingOwnerLiteral}`,
+)) {
+  failures.push("runtime_state.rs missing canonical application Meeting owner literal");
+}
+if (!sharedTypesSource.includes(
+  `APPLICATION_MEETING_OWNER_ID = ${meetingOwnerLiteral}`,
+)) {
+  failures.push("frontend Meeting owner constant must match Rust runtime owner identity");
+}
+
 const applicationContractSource = readFileSync(
   join(runtimeRoot, "contract.rs"),
   "utf8",
