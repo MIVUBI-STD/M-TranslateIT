@@ -2,6 +2,8 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
     builder.invoke_handler(tauri::generate_handler![
         crate::commands::app_update::check_app_update_once,
         crate::commands::app_update::install_app_update,
+        crate::commands::application_runtime::get_application_snapshot,
+        crate::commands::application_runtime::dispatch_product_intent,
         crate::commands::helper_bridge::get_helper_bridge_status,
         crate::commands::runtime::start_helper_bridge,
         crate::commands::runtime::verify_required_outbound_ai_readiness,
