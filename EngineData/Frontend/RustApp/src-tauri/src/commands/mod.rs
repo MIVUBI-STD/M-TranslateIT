@@ -2,6 +2,7 @@ pub mod app_update;
 pub mod audio;
 pub mod bridge_paths;
 pub mod builtin_voice;
+pub mod diagnostic_support;
 pub mod diagnostic_trace;
 pub mod device_loss_guard;
 pub mod helper_bridge;

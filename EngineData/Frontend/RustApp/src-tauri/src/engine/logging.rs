@@ -105,6 +105,10 @@ fn is_unsafe_log_character(character: char) -> bool {
         || ('\u{2066}'..='\u{2069}').contains(&character)
 }
 
+pub fn sanitize_diagnostic_text(value: impl Into<String>) -> String {
+    compact_log_field(value, MAX_LOG_MESSAGE_CHARS)
+}
+
 fn compact_log_field(value: impl Into<String>, max_chars: usize) -> String {
     let input = redact_log_value(&value.into());
     let mut output = String::new();

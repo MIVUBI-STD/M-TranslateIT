@@ -1,5 +1,12 @@
 import { runCommand } from "../shared/tauriBridge";
 
+export type DiagnosticSupportBundleResult = {
+  ok: boolean;
+  file_path: string | null;
+  message: string;
+  blocker: string;
+};
+
 export type DeviceLossGuardStatus = {
   state: string;
   healthy: boolean;
@@ -35,6 +42,15 @@ export type StartupRecoveryReport = {
   note: string;
   checked_unix_ms: number;
 };
+
+export async function exportDiagnosticSupportBundle(): Promise<DiagnosticSupportBundleResult> {
+  return (await runCommand<DiagnosticSupportBundleResult>("export_diagnostic_support_bundle")) ?? {
+    ok: false,
+    file_path: null,
+    message: "Diagnostic support export is unavailable right now.",
+    blocker: "frontend_bridge_unavailable",
+  };
+}
 
 export async function getDeviceLossGuardStatus(): Promise<DeviceLossGuardStatus> {
   return (await runCommand<DeviceLossGuardStatus>("get_device_loss_guard_status")) ?? {
