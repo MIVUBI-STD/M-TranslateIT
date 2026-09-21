@@ -1,14 +1,9 @@
 import { getRuntimeCommandErrors, runCommand } from "../shared/tauriBridge";
 import { meetingSessionStatusFallback } from "../runtime/meetingBridgeFallback";
-import {
-  getRuntimeWatchdogStatus,
-  getStartupRecoveryStatus,
-} from "./reliabilityApi";
 import type {
   AudioDeviceListReport,
   CommandResult,
   HelperBridgeActionResult,
-  HelperBridgeStatus,
   HelperBridgeWorkerResponse,
   InputPreparationStatus,
   ModelInventoryReport,
@@ -294,28 +289,6 @@ function helperWorkerFallback(task: string, message: string): HelperBridgeWorker
   };
 }
 
-function bridgeStatusFallback(message: string): HelperBridgeStatus {
-  return {
-    state: "frontend_bridge_error",
-    message,
-    cuda_ready: false,
-    provider_ready: false,
-    functional_outbound_ready: false,
-    functional_outbound_verified_unix_ms: null,
-    degraded_mode: false,
-    active_task: null,
-    active_request_id: null,
-    active_meeting_generation: null,
-    active_meeting_session_id: null,
-    active_meeting_lane: null,
-    generation_token: 0,
-    last_error: "frontend_bridge_unavailable",
-    stderr_log_path: null,
-    updated_unix_ms: Date.now(),
-    runtime_claim: "frontend_bridge_unavailable",
-  };
-}
-
 function inputStatusFallback(message: string): InputPreparationStatus {
   return {
     ready: false,
@@ -463,9 +436,6 @@ export const runtimeApi = {
     return getRuntimeCommandErrors().slice(0, MAX_COMMAND_ERRORS);
   },
 
-  getRuntimeWatchdogStatus,
-  getStartupRecoveryStatus,
-
   async detectMeetingApp(): Promise<MeetingAppDetection> {
     return invokeOr<MeetingAppDetection>(
       "detect_meeting_app",
@@ -522,22 +492,6 @@ export const runtimeApi = {
     );
   },
 
-  async getHelperBridgeStatus(): Promise<HelperBridgeStatus> {
-    return invokeOr<HelperBridgeStatus>(
-      "get_helper_bridge_status",
-      undefined,
-      bridgeStatusFallback("Helper bridge status is unavailable because the frontend bridge could not call Tauri."),
-    );
-  },
-
-  async startHelperBridge(): Promise<HelperBridgeActionResult> {
-    return invokeOr<HelperBridgeActionResult>(
-      "start_helper_bridge",
-      undefined,
-      helperActionFallback("Start Helper failed before reaching the Tauri command bridge."),
-    );
-  },
-
   async verifyRequiredOutboundAiReadiness(): Promise<HelperBridgeActionResult> {
     return invokeOr<HelperBridgeActionResult>(
       "verify_required_outbound_ai_readiness",
@@ -560,15 +514,6 @@ export const runtimeApi = {
       undefined,
       audioQualityFallback(),
     );
-  },
-
-  async getInputStatus(): Promise<InputPreparationStatus> {
-    const status = await invokeOr<NativeInputPreparationStatus>(
-      "get_input_status",
-      undefined,
-      inputStatusFallback("Microphone status is unavailable because the frontend bridge could not call Tauri."),
-    );
-    return normalizeInputStatus(status);
   },
 
   async listAudioDevices(): Promise<AudioDeviceListReport> {
