@@ -59,7 +59,7 @@
   let closeDialogMessage = $state("");
   let closeDialogAction = $state<CloseDialogAction>(null);
   let stopAndCloseBusy = $state(false);
-  let closeAfterExistingStop = false;
+  let closeAfterExistingStop = $state(false);
   let meetingPollInFlight = false;
   let closeCheckInFlight = false;
   let lastTranscriptStatusKey = "";
@@ -115,6 +115,9 @@
 
   const closePrimaryLabel = $derived(
     closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close",
+  );
+  const meetingPollNeeded = $derived(
+    !booting && !setupRequired && (Boolean(snapshot?.meeting.hasSession) || closeAfterExistingStop),
   );
 
   function setNotice(message: string): void {
@@ -432,13 +435,18 @@
 
     void boot();
     void installCloseGuard();
-    const timer = window.setInterval(() => void pollMeeting(), MEETING_REFRESH_MS);
 
     return () => {
       disposed = true;
-      window.clearInterval(timer);
       unlistenClose?.();
     };
+  });
+
+  $effect(() => {
+    if (!meetingPollNeeded) return;
+    void pollMeeting();
+    const timer = window.setInterval(() => void pollMeeting(), MEETING_REFRESH_MS);
+    return () => window.clearInterval(timer);
   });
 </script>
 
