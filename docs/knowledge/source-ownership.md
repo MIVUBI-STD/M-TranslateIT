@@ -154,3 +154,8 @@ The runtime session authority distinguishes these owners:
 - `translateit_voice_recording` — My Voice guided recording.
 
 Do not collapse Mic Test and My Voice back into a generic live-capture owner. They may share the same lower-level audio engine, but product lifecycle, stop authority, Settings lock copy, and recovery routing require distinct ownership identities.
+
+
+### Shutdown ownership
+
+Application exit coordination is owned by `application_runtime/shutdown.rs`. `main.rs` only delegates the exit decision and restores the main window when shutdown is blocked. Close UI policy consumes the canonical ApplicationSnapshot plus My Voice pending-review state; it must not independently reconstruct Meeting/helper/Voice Build ownership through separate probes.
