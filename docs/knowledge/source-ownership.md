@@ -159,3 +159,8 @@ Do not collapse Mic Test and My Voice back into a generic live-capture owner. Th
 ### Shutdown ownership
 
 Application exit coordination is owned by `application_runtime/shutdown.rs`. `main.rs` only delegates the exit decision and restores the main window when shutdown is blocked. Close UI policy consumes the canonical ApplicationSnapshot plus My Voice pending-review state; it must not independently reconstruct Meeting/helper/Voice Build ownership through separate probes.
+
+
+### Meeting runtime events
+
+Backend Meeting change-token publication is owned by `engine/runtime_events.rs`. Authoritative transcript mutation sites emit lightweight events; they do not serialize transcript text into events. `reliabilityMonitor.ts` owns frontend subscription, debounce, and the slow reconciliation timer. `meetingPoll.ts` remains the authoritative fetch/reconciliation reader despite its historical name; it is no longer the primary freshness mechanism.
