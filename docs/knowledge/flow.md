@@ -141,7 +141,7 @@ Rules:
 2. Cross-feature actions use `dispatch_product_intent`; feature-local read APIs may remain direct until their migration is justified.
 3. `ApplicationSnapshot` is the canonical cross-feature reconciliation payload. Feature-specific snapshots remain valid internal detail, not competing product truth.
 4. Runtime events signal state changes. Polling remains a reconciliation/watchdog mechanism, not the preferred owner of lifecycle transitions.
-5. Existing commands remain temporarily available as compatibility paths while vertical slices migrate. Do not duplicate new orchestration rules in both the UI and feature commands.
+5. Superseded direct mutation commands are removed from the public Tauri surface after migration. Feature-local read APIs remain direct only when they are still useful and do not create a competing lifecycle authority.
 6. New cross-feature conflicts must be solved in `ApplicationRuntime` or the underlying resource owner, never by adding another page-specific boolean maze.
 
 
