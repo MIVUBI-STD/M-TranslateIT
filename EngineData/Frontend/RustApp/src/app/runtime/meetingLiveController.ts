@@ -33,6 +33,7 @@ export function createMeetingLiveController(): {
   reconcile: (
     context: MeetingReconcileContext,
     callbacks: MeetingReconcileCallbacks,
+    forceTurns?: boolean,
   ) => Promise<MeetingLiveViewState>;
 } {
   let state: MeetingLiveViewState = {
@@ -67,6 +68,7 @@ export function createMeetingLiveController(): {
     async reconcile(
       context: MeetingReconcileContext,
       callbacks: MeetingReconcileCallbacks,
+      forceTurns = false,
     ): Promise<MeetingLiveViewState> {
       if (state.inFlight || context.booting || context.setupRequired) return publish();
       if (context.ownerKind !== "meeting" && !context.closeAfterExistingStop) return publish();
@@ -74,7 +76,11 @@ export function createMeetingLiveController(): {
       const revision = state.revision;
       state = { ...state, inFlight: true };
       try {
-        const result = await readMeetingReconciliation(state.turns, state.transcriptStatusKey);
+        const result = await readMeetingReconciliation(
+          state.turns,
+          state.transcriptStatusKey,
+          forceTurns,
+        );
         if (!result || revision !== state.revision) return publish();
 
         callbacks.onStatus(result.status);
