@@ -5,6 +5,10 @@ fn outcome(ok: bool, state: String, message: String) -> IntentOutcome {
     IntentOutcome { ok, state, message }
 }
 
+fn helper_state_allows_start(state: &str) -> bool {
+    matches!(state, "not_started" | "stopped")
+}
+
 pub fn dispatch(intent: &str) -> IntentOutcome {
     match intent {
         "start_meeting" => {
@@ -47,7 +51,7 @@ fn ensure_runtime_ready() -> IntentOutcome {
             "Application runtime is ready.".to_string(),
         );
     }
-    if helper.state == "not_started" {
+    if helper_state_allows_start(&helper.state) {
         let started = helper_bridge::start_helper_bridge();
         return outcome(started.ok, started.state, started.message);
     }
@@ -60,7 +64,7 @@ fn ensure_runtime_ready() -> IntentOutcome {
 
 fn fix_setup() -> IntentOutcome {
     let helper = helper_bridge::get_helper_bridge_status();
-    if matches!(helper.state.as_str(), "not_started" | "stopped") {
+    if helper_state_allows_start(&helper.state) {
         let started = helper_bridge::start_helper_bridge();
         if !started.ok {
             return outcome(false, started.state, started.message);
@@ -75,4 +79,19 @@ fn fix_setup() -> IntentOutcome {
 
     let readiness = runtime::verify_required_outbound_ai_readiness();
     outcome(readiness.ok, readiness.state, readiness.message)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::helper_state_allows_start;
+
+    #[test]
+    fn helper_can_start_from_initial_or_cleanly_stopped_state() {
+        assert!(helper_state_allows_start("not_started"));
+        assert!(helper_state_allows_start("stopped"));
+        assert!(!helper_state_allows_start("ready"));
+        assert!(!helper_state_allows_start("error"));
+        assert!(!helper_state_allows_start("blocked"));
+    }
 }
