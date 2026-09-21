@@ -203,6 +203,20 @@ if (meetingLiveControllerSource.includes('from "./meetingPoll"')) {
   failures.push("meetingLiveController.ts must not restore obsolete meetingPoll module naming");
 }
 
+const ownershipDocs = readFileSync(
+  join(appRoot, "..", "..", "..", "..", "docs", "knowledge", "source-ownership.md"),
+  "utf8",
+);
+for (const stale of [
+  "meetingPoll.ts",
+  "Readiness / Meeting-state mapping | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductState.ts`",
+  "Native process-exit fail-safe / helper shutdown | `src-tauri/src/main.rs` + `commands/helper_bridge.rs`",
+]) {
+  if (ownershipDocs.includes(stale)) {
+    failures.push("source-ownership.md contains stale architecture reference: " + stale);
+  }
+}
+
 const meetingPageSource = readFileSync(join(appRoot, "src", "pages", "Meeting.svelte"), "utf8");
 if (meetingPageSource.includes("startRuntimePoll")) {
   failures.push("Meeting.svelte must not restore generic UI polling; use event-first sync or explicit on-demand refresh");
