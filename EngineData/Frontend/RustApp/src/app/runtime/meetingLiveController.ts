@@ -2,7 +2,7 @@ import type {
   MeetingCommittedTurnsSnapshot,
   MeetingSessionStatus,
 } from "../bridge/runtimeApi";
-import { readMeetingPoll } from "./meetingPoll";
+import { readMeetingPoll } from "./meetingReconcileReader";
 import { publishLatestMeetingOverlay } from "./translationOverlayRuntime";
 
 export type MeetingLiveViewState = {
