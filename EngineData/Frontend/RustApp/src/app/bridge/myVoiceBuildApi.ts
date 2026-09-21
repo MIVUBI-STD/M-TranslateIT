@@ -85,21 +85,21 @@ export const myVoiceBuildApi = {
   },
 
   async start(authorizedVoiceConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
-    const action = await runCommand<MyVoiceBuildActionResult>("start_voice_lab_build", { authorizedVoiceConfirmed });
+    const action = await runCommand<MyVoiceBuildActionResult>("start_product_voice_build", { authorizedVoiceConfirmed });
     return action
       ? normalizeAction(action)
       : unavailableAction("My Voice could not start creating your voice.");
   },
 
   async cancel(): Promise<MyVoiceBuildActionResult> {
-    const action = await runCommand<MyVoiceBuildActionResult>("cancel_voice_lab_build");
+    const action = await runCommand<MyVoiceBuildActionResult>("cancel_product_voice_build");
     return action
       ? normalizeAction(action)
       : unavailableAction("My Voice could not confirm that creation stopped.");
   },
 
   async approve(reviewedLineIds: number[]): Promise<MyVoiceBuildActionResult> {
-    const action = await runCommand<MyVoiceBuildActionResult>("approve_voice_lab_candidate", {
+    const action = await runCommand<MyVoiceBuildActionResult>("approve_product_voice_candidate", {
       reviewedLineIds,
     });
     return action
@@ -112,7 +112,7 @@ export const myVoiceBuildApi = {
   },
 
   async selectBuiltin(voiceId: string, authorizedVoiceConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
-    const action = await runCommand<MyVoiceBuildActionResult>("select_builtin_voice", {
+    const action = await runCommand<MyVoiceBuildActionResult>("select_product_builtin_voice", {
       voiceId,
       authorizedVoiceConfirmed,
     });
