@@ -141,11 +141,6 @@ fn build_model_inventory(
             let next_action = if found {
                 "Installed asset path detected. Runtime load/inference must be checked separately."
                     .to_string()
-            } else if entry.download_url.is_some() {
-                format!(
-                    "Install {} at {} through the approved runtime/release asset flow.",
-                    entry.model_id, entry.expected_path
-                )
             } else {
                 format!(
                     "Install {} at {} through the approved runtime/release asset flow.",

@@ -99,7 +99,7 @@ fn endpoint_pair_identity(name: &str, expected_role: &str) -> Option<String> {
         .split(|character: char| !character.is_ascii_alphanumeric())
         .filter(|token| !token.is_empty())
         .collect::<Vec<_>>();
-    if !tokens.iter().any(|token| *token == expected_role) {
+    if !tokens.contains(&expected_role) {
         return None;
     }
     let identity = tokens

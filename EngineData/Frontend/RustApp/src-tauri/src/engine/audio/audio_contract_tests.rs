@@ -88,6 +88,10 @@ fn utterance_fixture(
         enqueued_at: now,
         finalized_unix_ms: 1,
         speech_boundary_ms: 0,
+        speech_duration_ms: u64::from(duration_ms(
+            sample_count / usize::from(channels.max(1)),
+            sample_rate_hz,
+        )),
         finalization_ms: 0,
         frame: AudioFrame {
             sample_rate_hz,

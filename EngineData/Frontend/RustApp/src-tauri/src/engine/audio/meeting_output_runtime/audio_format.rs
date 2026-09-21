@@ -87,7 +87,7 @@ pub(super) fn decode_wav_bytes(bytes: &[u8]) -> Result<DecodedWav, String> {
         return Err("meeting_output:wav_frame_alignment_invalid".to_string());
     }
 
-    let bytes_per_sample = usize::from((bits_per_sample + 7) / 8);
+    let bytes_per_sample = usize::from(bits_per_sample.div_ceil(8));
     if bytes_per_sample == 0 || usize::from(block_align) != bytes_per_sample * usize::from(channels)
     {
         return Err("meeting_output:wav_sample_layout_invalid".to_string());
@@ -173,10 +173,8 @@ pub(super) fn prepare_output_samples(
         mono.push(sum / source_channels as f32);
     }
 
-    let target_frames = ((source_frames as u128 * u128::from(target_rate_hz)
-        + u128::from(source.sample_rate_hz)
-        - 1)
-        / u128::from(source.sample_rate_hz)) as usize;
+    let target_frames = (source_frames as u128 * u128::from(target_rate_hz))
+        .div_ceil(u128::from(source.sample_rate_hz)) as usize;
     let mut output = Vec::with_capacity(target_frames * usize::from(target_channels));
     for target_index in 0..target_frames {
         let source_position =

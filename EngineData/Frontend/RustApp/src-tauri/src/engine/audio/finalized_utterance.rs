@@ -402,9 +402,7 @@ pub fn wait_take_finalized_incoming_utterance(
     let mut guard = sync.state.lock().ok()?;
 
     loop {
-        let Some(state) = guard.as_mut() else {
-            return None;
-        };
+        let state = guard.as_mut()?;
         if state.session_id != session_id || state.lane != LANE_INCOMING {
             return None;
         }

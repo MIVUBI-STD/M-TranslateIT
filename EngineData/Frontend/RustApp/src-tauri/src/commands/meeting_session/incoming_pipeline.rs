@@ -54,7 +54,6 @@ fn process_incoming_wav_with_direction(
     let settings = load_settings();
     let asr_hotwords = settings.asr_hotwords();
     let (source_language, target_language, translation_style) = deferred_direction
-        .map(|(source, target, style)| (source, target, style))
         .unwrap_or_else(|| (
             settings.meeting_listen_source_language,
             settings.meeting_listen_target_language,
@@ -309,7 +308,7 @@ fn translate_and_commit_incoming_transcript(
         "incoming",
         source_language,
         target_language,
-        &transcript,
+        transcript,
         &translated_text,
         None,
         None,
