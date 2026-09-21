@@ -49,7 +49,9 @@ mod tests {
     use crate::commands::application_runtime::contract::{
         ApplicationSubsystemSummaries, AudioSummary, MeetingSummary, VoiceSummary, WorkerSummary,
     };
-    use crate::engine::runtime_state::{MIC_TEST_OWNER_ID, VOICE_RECORDING_OWNER_ID};
+    use crate::engine::runtime_state::{
+        APPLICATION_MEETING_OWNER_ID, MIC_TEST_OWNER_ID, VOICE_RECORDING_OWNER_ID,
+    };
 
     fn summaries(
         meeting_lifecycle: &str,
