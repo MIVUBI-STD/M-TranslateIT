@@ -52,6 +52,7 @@ for (const forbidden of [
   "start_capture",
   "stop_capture",
   "verify_required_outbound_ai_readiness",
+  "helper_bridge_worker_status",
 ]) {
   if (snapshotSource.includes(forbidden)) {
     failures.push(`snapshot.rs must be read-only and may not execute intent: ${forbidden}`);
@@ -95,13 +96,29 @@ if (runtimeStateSource.includes("translateit_rust_live_capture")) {
 }
 
 const runtimeApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeApi.ts"), "utf8");
-if (runtimeApiSource.includes('"select_audio_device"')) {
-  failures.push("runtimeApi.ts must route audio selection through select_product_audio_device");
+for (const forbidden of [
+  '"select_audio_device"',
+  '"save_runtime_settings"',
+  '"apply_meeting_preset"',
+]) {
+  if (runtimeApiSource.includes(forbidden)) {
+    failures.push(`runtimeApi.ts must route settings/audio mutations through application authority: ${forbidden}`);
+  }
 }
 const myVoiceApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "myVoiceApi.ts"), "utf8");
 for (const forbidden of ['"start_voice_lab_guided_take"', '"stop_voice_lab_guided_take"']) {
   if (myVoiceApiSource.includes(forbidden)) {
     failures.push(`myVoiceApi.ts must route microphone mutations through application authority: ${forbidden}`);
+  }
+}
+
+const nativeCloseSource = readFileSync(join(appRoot, "src", "app", "runtime", "nativeCloseRuntime.ts"), "utf8");
+for (const forbidden of [
+  "runtimeApi.getMeetingSessionStatus(",
+  "myVoiceBuildApi.getStatus(",
+]) {
+  if (nativeCloseSource.includes(forbidden)) {
+    failures.push(`nativeCloseRuntime.ts must use canonical application snapshot: ${forbidden}`);
   }
 }
 
