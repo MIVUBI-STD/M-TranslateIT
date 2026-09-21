@@ -25,13 +25,17 @@ This file maps semantic responsibility to the current owner. It does not carry m
 |---|---|
 | App root / workspace composition | `EngineData/Frontend/RustApp/src/App.svelte` |
 | Product pages | `EngineData/Frontend/RustApp/src/pages/` |
-| Product runtime actions | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductFacade.ts` |
-| Readiness / Meeting-state mapping | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductState.ts` |
+| Product runtime composition | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductFacade.ts` |
+| Product audio actions | `EngineData/Frontend/RustApp/src/app/bridge/productAudioFacade.ts` |
+| Product translation actions | `EngineData/Frontend/RustApp/src/app/bridge/productTranslationFacade.ts` |
+| Product setup / recovery actions | `EngineData/Frontend/RustApp/src/app/bridge/productSetupFacade.ts` |
+| Meeting product-state mapping | `EngineData/Frontend/RustApp/src/app/bridge/productMeetingState.ts` |
+| Product readiness mapping | `EngineData/Frontend/RustApp/src/app/bridge/productReadinessState.ts` |
 | Worker capability parsing / diagnostic display | `EngineData/Frontend/RustApp/src/app/bridge/workerCapabilities.ts` |
 | Product runtime DTOs | `EngineData/Frontend/RustApp/src/app/bridge/runtimeProductTypes.ts` |
 | Meeting performance diagnostics | `EngineData/Frontend/RustApp/src/components/settings/MeetingPerformanceDiagnostics.svelte` + existing Meeting status DTOs |
 | Tauri command bridge calls/types | `EngineData/Frontend/RustApp/src/app/bridge/runtimeApi.ts`, `myVoiceApi.ts`, `myVoiceBuildApi.ts` |
-| Meeting frontend polling / committed-turn refresh | `EngineData/Frontend/RustApp/src/app/runtime/meetingPoll.ts` |
+| Meeting frontend event/reconciliation coordination | `EngineData/Frontend/RustApp/src/app/runtime/meetingLiveController.ts` + `meetingReconcileReader.ts` + `reliabilityMonitor.ts` |
 | Command palette + Quick Translate action surface | `src/components/runtime/ProductivityActions.svelte`, `CommandPalette.svelte`, `src/app/runtime/productCommandRegistry.ts` |
 | Bounded Text translation cache | `src/app/runtime/textTranslationCache.ts` |
 | Meeting preset state / provider suggestions | `src/app/runtime/meetingPresetState.ts` + `src/components/meeting/MeetingPresetPanel.svelte` |
@@ -43,9 +47,9 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Signed native update check/install policy | `EngineData/Frontend/RustApp/src-tauri/src/commands/app_update.rs` |
 | First-setup navigation | `EngineData/Frontend/RustApp/src/components/setup/SetupNavigation.svelte` |
 | Setup checkpoint decode/encode + safe resume policy | `EngineData/Frontend/RustApp/src/app/runtime/setupFlow.ts` |
-| Native safe-close / close policy | `EngineData/Frontend/RustApp/src/app/runtime/nativeCloseRuntime.ts` + `closePolicy.ts` |
+| Native safe-close / close policy | `EngineData/Frontend/RustApp/src/app/runtime/closeController.ts` + `nativeCloseRuntime.ts` + `closePolicy.ts` |
 | Rust app bootstrap / command registration | `EngineData/Frontend/RustApp/src-tauri/src/app_bootstrap.rs`, `commands/registry.rs` |
-| Native process-exit fail-safe / helper shutdown | `src-tauri/src/main.rs` + `commands/helper_bridge.rs` |
+| Native process-exit fail-safe / helper shutdown | `commands/application_runtime/shutdown.rs`; `src-tauri/src/main.rs` delegates only |
 | Meeting public command/status facade | `EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session.rs` |
 | Fresh Meeting virtual-route preparation | `EngineData/Frontend/RustApp/src-tauri/src/commands/runtime.rs` → `commands/virtual_mic_route.rs` |
 | Generation-bound route binding | `commands/meeting_session/lifecycle.rs` → `commands/virtual_mic_route.rs` |
@@ -163,7 +167,7 @@ Application exit coordination is owned by `application_runtime/shutdown.rs`. `ma
 
 ### Meeting runtime events
 
-Backend Meeting change-token publication is owned by `engine/runtime_events.rs`. Authoritative transcript mutation sites emit lightweight events; they do not serialize transcript text into events. `reliabilityMonitor.ts` owns frontend subscription, debounce, and the slow reconciliation timer. `meetingPoll.ts` remains the authoritative fetch/reconciliation reader despite its historical name; it is no longer the primary freshness mechanism.
+Backend Meeting change-token publication is owned by `engine/runtime_events.rs`. Authoritative transcript mutation sites emit lightweight events; they do not serialize transcript text into events. `reliabilityMonitor.ts` owns frontend subscription, debounce, and the slow reconciliation timer. `meetingReconcileReader.ts` is the authoritative Meeting fetch/reconciliation reader; event-first freshness is coordinated by `meetingLiveController.ts` / `reliabilityMonitor.ts`.
 
 
 ### Frontend product-state ownership
