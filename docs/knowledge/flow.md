@@ -129,6 +129,7 @@ Current migrated vertical slices:
 
 - Meeting start / stop
 - Mic Test start / stop
+- Setup recovery / helper readiness
 
 Rules:
 
