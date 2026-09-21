@@ -12,7 +12,7 @@ mod summaries;
 pub use contract::{
     ApplicationCapabilities, ApplicationInputStatus, ApplicationIntentResult, ApplicationProblem, ApplicationSnapshot,
     ApplicationSubsystemSummaries, AudioSummary, MeetingSummary, ResourceArbitration,
-    WorkerSummary,
+    VoiceSummary, WorkerSummary,
 };
 pub use mutations::{
     approve_product_voice_candidate, cancel_product_voice_build, select_product_audio_device,
