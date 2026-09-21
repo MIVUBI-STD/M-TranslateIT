@@ -2,7 +2,6 @@ use serde::Serialize;
 
 use crate::engine::settings::RuntimeSettings;
 
-use super::super::helper_bridge::HelperBridgeWorkerResponse;
 use super::super::helper_bridge_runtime::HelperBridgeStatus;
 use super::super::meeting_session::MeetingSessionStatus;
 
@@ -97,7 +96,6 @@ pub struct ApplicationSnapshot {
     pub settings: RuntimeSettings,
     pub meeting: MeetingSessionStatus,
     pub helper: HelperBridgeStatus,
-    pub worker: Option<HelperBridgeWorkerResponse>,
     pub input: ApplicationInputStatus,
     pub summaries: ApplicationSubsystemSummaries,
     pub resources: ResourceArbitration,
