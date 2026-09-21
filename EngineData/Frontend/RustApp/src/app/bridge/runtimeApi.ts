@@ -662,7 +662,7 @@ export const runtimeApi = {
   },
 
   async selectAudioDevice(kind: "microphone" | "meeting-sound", deviceId: string | null): Promise<AudioDeviceSelectionCommandResult | null> {
-    return invokeNullable<AudioDeviceSelectionCommandResult>("select_audio_device", { kind, deviceId });
+    return invokeNullable<AudioDeviceSelectionCommandResult>("select_product_audio_device", { kind, deviceId });
   },
 
   async quickTranslateText(source: string): Promise<QuickTranslationCommandResult> {
