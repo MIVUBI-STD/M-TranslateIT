@@ -77,3 +77,51 @@ pub fn stop_product_voice_recording(
     events::emit_application_snapshot(&app, "stop_voice_recording", &snapshot);
     result
 }
+
+
+#[tauri::command]
+pub fn start_product_voice_build(
+    app: tauri::AppHandle,
+    authorized_voice_confirmed: bool,
+) -> super::voice_lab_build::VoiceLabBuildActionResult {
+    let result = super::voice_lab_build::start_voice_lab_build(authorized_voice_confirmed);
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "start_voice_build", &snapshot);
+    result
+}
+
+#[tauri::command]
+pub fn cancel_product_voice_build(
+    app: tauri::AppHandle,
+) -> super::voice_lab_build::VoiceLabBuildActionResult {
+    let result = super::voice_lab_build::cancel_voice_lab_build();
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "cancel_voice_build", &snapshot);
+    result
+}
+
+#[tauri::command]
+pub fn approve_product_voice_candidate(
+    app: tauri::AppHandle,
+    reviewed_line_ids: Vec<u32>,
+) -> super::voice_lab_build::VoiceLabBuildActionResult {
+    let result = super::voice_lab_build::approve_voice_lab_candidate(reviewed_line_ids);
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "approve_voice_candidate", &snapshot);
+    result
+}
+
+#[tauri::command]
+pub fn select_product_builtin_voice(
+    app: tauri::AppHandle,
+    voice_id: String,
+    authorized_voice_confirmed: bool,
+) -> super::voice_lab_build::VoiceLabBuildActionResult {
+    let result = super::voice_lab_build::select_builtin_voice(
+        voice_id,
+        authorized_voice_confirmed,
+    );
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "select_builtin_voice", &snapshot);
+    result
+}
