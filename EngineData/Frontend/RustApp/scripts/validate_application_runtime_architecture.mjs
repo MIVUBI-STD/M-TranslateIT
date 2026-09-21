@@ -122,6 +122,28 @@ for (const forbidden of [
   }
 }
 
+const meetingPageSource = readFileSync(join(appRoot, "src", "pages", "Meeting.svelte"), "utf8");
+if (meetingPageSource.includes("startRuntimePoll")) {
+  failures.push("Meeting.svelte must not restore generic UI polling; use event-first sync or explicit on-demand refresh");
+}
+
+const reliabilityMonitorSource = readFileSync(
+  join(appRoot, "src", "app", "runtime", "reliabilityMonitor.ts"),
+  "utf8",
+);
+for (const required of [
+  'MEETING_RUNTIME_EVENT = "translateit://meeting-runtime"',
+  "MEETING_RECONCILIATION_POLL_MS = 10_000",
+  "listen<MeetingRuntimeEvent>",
+]) {
+  if (!reliabilityMonitorSource.includes(required)) {
+    failures.push(`reliabilityMonitor.ts missing event-first Meeting contract: ${required}`);
+  }
+}
+if (reliabilityMonitorSource.includes("1_200")) {
+  failures.push("reliabilityMonitor.ts must not restore 1.2s Meeting state polling");
+}
+
 const myVoiceBuildApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "myVoiceBuildApi.ts"), "utf8");
 for (const forbidden of [
   '"start_voice_lab_build"',
