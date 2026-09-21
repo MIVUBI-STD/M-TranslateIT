@@ -28,9 +28,9 @@ test("overlay preferences default safely and persist bounded choices", () => {
   memory.clear();
   assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard" });
   assert.deepEqual(updateOverlayPreferences({ meetingEnabled: false, visibility: "hidden", textSize: "large" }), {
-    meetingEnabled: false, visibility: "hidden", textSize: "large",
+    meetingEnabled: false, visibility: "hidden", textSize: "large", width: "standard", contrast: "standard",
   });
-  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: false, visibility: "hidden", textSize: "large" });
+  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: false, visibility: "hidden", textSize: "large", width: "standard", contrast: "standard" });
 });
 
 test("corrupt persisted preferences fail back to readable defaults", () => {
