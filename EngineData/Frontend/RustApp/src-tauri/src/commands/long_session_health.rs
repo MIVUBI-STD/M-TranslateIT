@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::engine::paths::ProjectPaths;
+use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
 
 use super::incident_log::{record_runtime_incident, runtime_incident_count};
 use super::meeting_session::{
@@ -69,8 +70,18 @@ pub fn get_long_session_health_status() -> LongSessionHealthStatus {
     let temp_count = meeting_temp_file_count(&ProjectPaths::discover());
     let incident_count = runtime_incident_count();
 
-    let overflow = meeting.outbound.overflow_dropped_utterance_count;
-    let evicted = meeting.outbound.evicted_pending_utterance_count;
+    let meeting_owned =
+        meeting.has_session && meeting.owner_id.as_deref() == Some(APPLICATION_MEETING_OWNER_ID);
+    let overflow = if meeting_owned {
+        meeting.outbound.overflow_dropped_utterance_count
+    } else {
+        0
+    };
+    let evicted = if meeting_owned {
+        meeting.outbound.evicted_pending_utterance_count
+    } else {
+        0
+    };
     let mut warnings = 0usize;
     warnings += usize::from(overflow > 0);
     warnings += usize::from(evicted > 0);
@@ -80,14 +91,14 @@ pub fn get_long_session_health_status() -> LongSessionHealthStatus {
     warnings += usize::from(temp_count > TEMP_FILE_WARNING_THRESHOLD);
 
     let healthy = warnings == 0;
-    let state = if !meeting.has_session {
+    let state = if !meeting_owned {
         "idle"
     } else if healthy {
         "healthy"
     } else {
         "attention"
     };
-    let note = if !meeting.has_session {
+    let note = if !meeting_owned {
         "No Meeting session is active. Long-session pressure counters remain bounded and are available for Diagnostics."
     } else if healthy {
         "No bounded queue, transcript, or Meeting temp-file pressure has been observed in the current session."
@@ -98,7 +109,11 @@ pub fn get_long_session_health_status() -> LongSessionHealthStatus {
     let result = LongSessionHealthStatus {
         state: state.to_string(),
         healthy,
-        session_age_ms: meeting.active_age_ms.unwrap_or(0),
+        session_age_ms: if meeting_owned {
+            meeting.active_age_ms.unwrap_or(0)
+        } else {
+            0
+        },
         outbound_overflow_dropped: overflow,
         outbound_evicted_pending: evicted,
         deferred_incoming_depth: deferred_depth,
@@ -113,7 +128,7 @@ pub fn get_long_session_health_status() -> LongSessionHealthStatus {
         updated_unix_ms: unix_ms(),
     };
 
-    if meeting.has_session && !result.healthy {
+    if meeting_owned && !result.healthy {
         let _ = record_runtime_incident(
             "long_session_health",
             "meeting_runtime",
