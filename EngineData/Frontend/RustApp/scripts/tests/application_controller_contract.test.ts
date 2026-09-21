@@ -11,6 +11,8 @@ const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8
 test("application controller owns the product runtime snapshot", () => {
   assert.match(controller, /snapshot: ProductRuntimeSnapshot \| null/);
   assert.match(controller, /async refresh\(knownSettings\?: RuntimeSettings\)/);
+  assert.match(controller, /async refreshFromApplication/);
+  assert.match(controller, /loadProductRuntimeSnapshotFromApplication/);
   assert.match(controller, /applySettings\(settings: RuntimeSettings\)/);
   assert.match(controller, /applyMeetingSession/);
   assert.match(controller, /ownershipChanged/);
