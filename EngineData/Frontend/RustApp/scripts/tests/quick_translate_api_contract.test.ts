@@ -5,17 +5,16 @@ import test from "node:test";
 const registry = readFileSync(new URL("../../src-tauri/src/commands/registry.rs", import.meta.url), "utf8");
 const command = readFileSync(new URL("../../src-tauri/src/commands/text_translation.rs", import.meta.url), "utf8");
 const api = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", import.meta.url), "utf8");
+const productivity = readFileSync(new URL("../../src/components/runtime/ProductivityActions.svelte", import.meta.url), "utf8");
 const facade = readFileSync(new URL("../../src/app/bridge/runtimeProductFacade.ts", import.meta.url), "utf8");
-const appTree = [
-  readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8"),
-  readFileSync(new URL("../../src/main.ts", import.meta.url), "utf8"),
-].join("\n");
 
-test("quick translate is exposed as an API without installing an activation mechanism", () => {
+test("quick translate is explicit user-facing UI over the canonical runtime API", () => {
   assert.match(registry, /quick_translate_text/);
   assert.match(api, /quickTranslateText/);
-  assert.match(facade, /runProductQuickTranslation/);
-  assert.doesNotMatch(appTree, /quickTranslateText|runProductQuickTranslation/);
+  assert.match(productivity, /Quick Translate Clipboard/);
+  assert.match(productivity, /navigator\.clipboard\?\.readText/);
+  assert.match(productivity, /runtimeApi\.quickTranslateText/);
+  assert.doesNotMatch(facade, /runProductQuickTranslation|ProductQuickTranslationResult/);
 });
 
 test("quick translate reuses the canonical text translation core", () => {
@@ -24,13 +23,13 @@ test("quick translate reuses the canonical text translation core", () => {
   assert.equal((command.match(/send_helper_worker_task\("translate"/g) ?? []).length, 2);
 });
 
-test("quick translate does not add clipboard, keyboard hook, or global shortcut ownership", () => {
-  const combined = [command, api, facade].join("\n");
-  assert.doesNotMatch(combined, /clipboard|globalShortcut|register_all|keyboard hook|SetWindowsHookEx/i);
+test("quick translate has no clipboard watcher or default global OS shortcut", () => {
+  assert.doesNotMatch(productivity, /setInterval|clipboardchange|globalShortcut|register_all|SetWindowsHookEx/i);
+  assert.match(productivity, /Ctrl\+K/);
+  assert.doesNotMatch([command, api].join("\n"), /globalShortcut|SetWindowsHookEx/i);
 });
 
-test("quick translate returns the exact configured language direction without a second settings read", () => {
-  assert.equal((command.match(/let settings = load_settings\(\);/g) ?? []).length, 2);
+test("quick translate returns the exact configured language direction", () => {
   assert.match(command, /source_language: String/);
   assert.match(command, /target_language: String/);
   assert.match(api, /source_language: string/);
