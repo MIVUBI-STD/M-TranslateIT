@@ -57,26 +57,26 @@ function validPreset(value: unknown): MeetingPreset | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
   if (
-    typeof item.id !== "string"
-    || typeof item.name !== "string"
-    || typeof item.sourceLanguage !== "string"
-    || typeof item.targetLanguage !== "string"
-    || typeof item.listenSourceLanguage !== "string"
-    || typeof item.listenTargetLanguage !== "string"
-    || typeof item.translationStyle !== "string"
-    || typeof item.noiseSuppression !== "string"
+    typeof item["id"] !== "string"
+    || typeof item["name"] !== "string"
+    || typeof item["sourceLanguage"] !== "string"
+    || typeof item["targetLanguage"] !== "string"
+    || typeof item["listenSourceLanguage"] !== "string"
+    || typeof item["listenTargetLanguage"] !== "string"
+    || typeof item["translationStyle"] !== "string"
+    || typeof item["noiseSuppression"] !== "string"
   ) return null;
   return {
-    id: item.id.slice(0, 80),
-    name: cleanName(item.name) || "Meeting preset",
-    sourceLanguage: item.sourceLanguage.slice(0, 16),
-    targetLanguage: item.targetLanguage.slice(0, 16),
-    listenSourceLanguage: item.listenSourceLanguage.slice(0, 16),
-    listenTargetLanguage: item.listenTargetLanguage.slice(0, 16),
-    translationStyle: item.translationStyle.slice(0, 24),
-    microphoneId: optionalText(item.microphoneId),
-    meetingSoundId: optionalText(item.meetingSoundId),
-    noiseSuppression: item.noiseSuppression.slice(0, 24),
+    id: item["id"].slice(0, 80),
+    name: cleanName(item["name"]) || "Meeting preset",
+    sourceLanguage: item["sourceLanguage"].slice(0, 16),
+    targetLanguage: item["targetLanguage"].slice(0, 16),
+    listenSourceLanguage: item["listenSourceLanguage"].slice(0, 16),
+    listenTargetLanguage: item["listenTargetLanguage"].slice(0, 16),
+    translationStyle: item["translationStyle"].slice(0, 24),
+    microphoneId: optionalText(item["microphoneId"]),
+    meetingSoundId: optionalText(item["meetingSoundId"]),
+    noiseSuppression: item["noiseSuppression"].slice(0, 24),
   };
 }
 
