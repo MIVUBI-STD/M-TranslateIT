@@ -36,3 +36,17 @@ jobs:
           version: "0.12.1"
       - run: uv lock --check
       - run: git diff --exit-code -- pyproject.toml uv.lock
+
+      - name: Write exact-SHA proof summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## WorkerRuntime Lock Consistency"
+            echo
+            echo "- SHA: \`$GITHUB_SHA\`"
+            echo "- Ref: \`$GITHUB_REF\`"
+            echo "- Event: \`$GITHUB_EVENT_NAME\`"
+            echo
+            echo "This summary identifies the exact source revision evaluated by this workflow run. A completed successful run is source/contract evidence only; it is not TARGET_WINDOWS native acceptance."
+          } >> "$GITHUB_STEP_SUMMARY"
