@@ -184,3 +184,8 @@ Backend Meeting change-token publication is owned by `engine/runtime_events.rs`.
 - `productTranslationFacade.ts` owns standalone product translation mapping.
 - `productSetupFacade.ts` owns setup/readiness/recovery product actions.
 - `runtimeProductFacade.ts` composes/re-exports those modules and owns only the cross-domain product snapshot plus Meeting product action mapping.
+
+
+### Product-state mapping ownership
+
+`productMeetingState.ts` owns Meeting-facing product state mapping. `productReadinessState.ts` owns readiness/capability presentation policy. `workerCapabilities.ts` owns decoding worker status evidence. `runtimeProductState.ts` is not an implementation owner; it exists only to preserve stable imports while modules remain split.
