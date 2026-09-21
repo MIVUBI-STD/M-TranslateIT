@@ -23,6 +23,7 @@ pub struct AudioQualityReport {
 }
 
 fn classify_audio_quality(
+    buffer_active: bool,
     has_audio: bool,
     buffered_duration_ms: u32,
     evidence_reason: &str,
@@ -31,8 +32,22 @@ fn classify_audio_quality(
     clipping_ratio: f32,
     active_frame_ratio: f32,
 ) -> AudioQualityReport {
-    let unavailable = !has_audio || buffered_duration_ms < 160;
-    if unavailable {
+    if buffer_active && !has_audio {
+        return AudioQualityReport {
+            available: true,
+            quality: "no_signal".to_string(),
+            label: "No signal".to_string(),
+            rms,
+            peak,
+            clipping_ratio,
+            active_frame_ratio,
+            buffered_duration_ms,
+            blocker: "audio_quality:no_signal".to_string(),
+            note: "Live microphone capture is active, but no audio samples are reaching the rolling buffer.".to_string(),
+        };
+    }
+
+    if !buffer_active || buffered_duration_ms < 160 {
         return AudioQualityReport {
             available: false,
             quality: "unavailable".to_string(),
@@ -320,6 +335,7 @@ pub fn get_input_status() -> InputPreparationStatus {
 pub fn get_audio_quality() -> AudioQualityReport {
     let status = live_audio_buffer_status();
     classify_audio_quality(
+        status.max_buffer_samples > 0,
         status.has_audio,
         status.buffered_duration_ms,
         &status.evidence.reason,
@@ -336,20 +352,29 @@ mod audio_quality_tests {
 
     #[test]
     fn quality_requires_live_audio_before_claiming_measurement() {
-        let report = classify_audio_quality(false, 0, "", 0.0, 0.0, 0.0, 0.0);
+        let report = classify_audio_quality(false, false, 0, "", 0.0, 0.0, 0.0, 0.0);
         assert!(!report.available);
         assert_eq!(report.quality, "unavailable");
     }
 
     #[test]
+    fn quality_reports_no_signal_only_when_live_buffer_is_active() {
+        let report = classify_audio_quality(true, false, 0, "", 0.0, 0.0, 0.0, 0.0);
+        assert!(report.available);
+        assert_eq!(report.quality, "no_signal");
+        assert_eq!(report.label, "No signal");
+    }
+
+    #[test]
     fn quality_prioritizes_clipping_over_loudness() {
-        let report = classify_audio_quality(true, 500, "", 0.3, 1.0, 0.04, 0.8);
+        let report = classify_audio_quality(true, true, 500, "", 0.3, 1.0, 0.04, 0.8);
         assert_eq!(report.quality, "clipping");
     }
 
     #[test]
     fn quality_surfaces_noise_like_impulses() {
         let report = classify_audio_quality(
+            true,
             true,
             500,
             "rejected_noise_like_impulse",
@@ -363,13 +388,13 @@ mod audio_quality_tests {
 
     #[test]
     fn quality_marks_weak_speech_as_too_quiet() {
-        let report = classify_audio_quality(true, 500, "", 0.003, 0.015, 0.0, 0.04);
+        let report = classify_audio_quality(true, true, 500, "", 0.003, 0.015, 0.0, 0.04);
         assert_eq!(report.quality, "too_quiet");
     }
 
     #[test]
     fn quality_accepts_clear_nonclipping_speech() {
-        let report = classify_audio_quality(true, 500, "", 0.08, 0.4, 0.0, 0.4);
+        let report = classify_audio_quality(true, true, 500, "", 0.08, 0.4, 0.0, 0.4);
         assert_eq!(report.quality, "good");
         assert!(report.blocker.is_empty());
     }
