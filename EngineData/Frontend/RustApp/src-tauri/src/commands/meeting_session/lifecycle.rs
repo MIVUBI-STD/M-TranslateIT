@@ -30,6 +30,7 @@ use super::super::helper_bridge::{
 use super::committed_turns::{
     clear_all_committed_turns, clear_committed_turns_for_session,
     interrupt_committed_turns_for_generation, reset_committed_turns,
+    retain_committed_turns_for_export,
 };
 use super::consumer_runtime::{
     start_meeting_outbound_consumer, stop_meeting_incoming_consumer,
@@ -476,6 +477,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     }
 
     interrupt_committed_turns_for_generation(&session_id, generation);
+    let transcript_retained_for_export = retain_committed_turns_for_export(&session_id);
     let _ = cancel_meeting_output_for_generation(generation);
     clear_prepared_meeting_output_device();
     let capture_stop = stop_live_capture_runtime();
@@ -493,7 +495,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         finalized_audio_cleanup.is_ok() && tts_cache_cleanup.is_ok();
     clear_outbound_status();
 
-    let cleanup_complete = meeting_cleanup_complete(
+    let cleanup_complete = transcript_retained_for_export && meeting_cleanup_complete(
         capture_stop.ok,
         incoming_capture_stop.ok,
         helper_cancel.ok,
@@ -523,6 +525,9 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         }
         if !suppression_cleanup_ok {
             failed.push("self-output suppression state");
+        }
+        if !transcript_retained_for_export {
+            failed.push("transient transcript export snapshot");
         }
         if !transcript_cleanup_ok {
             failed.push("committed transcript state");
