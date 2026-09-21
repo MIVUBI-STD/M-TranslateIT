@@ -5,6 +5,16 @@ import { fileURLToPath } from "node:url";
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const runtimeRoot = join(appRoot, "src-tauri", "src", "commands", "application_runtime");
 
+function collectRustFiles(directory) {
+  const collected = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) collected.push(...collectRustFiles(path));
+    else if (entry.isFile() && entry.name.endsWith(".rs")) collected.push(path);
+  }
+  return collected;
+}
+
 const files = readdirSync(runtimeRoot)
   .filter((name) => name.endsWith(".rs"))
   .map((name) => join(runtimeRoot, name));
@@ -76,6 +86,23 @@ for (const forbidden of [
   }
 }
 
+
+const rustSourceRoot = join(appRoot, "src-tauri", "src");
+for (const path of collectRustFiles(rustSourceRoot)) {
+  if (path.endsWith(join("engine", "runtime_state.rs"))) continue;
+  const body = readFileSync(path, "utf8");
+  for (const literal of [
+    '"translateit_application_meeting"',
+    '"translateit_mic_test"',
+    '"translateit_voice_recording"',
+  ]) {
+    if (body.includes(literal)) {
+      failures.push(
+        `${path}: runtime owner literal ${literal} must come from engine/runtime_state.rs canonical constants`,
+      );
+    }
+  }
+}
 
 const runtimeStateSource = readFileSync(
   join(appRoot, "src-tauri", "src", "engine", "runtime_state.rs"),
