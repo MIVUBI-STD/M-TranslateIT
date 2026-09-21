@@ -9,6 +9,7 @@ pub mod meeting_session;
 pub mod meeting_detection;
 pub mod registry;
 pub mod runtime_inventory;
+pub mod runtime_watchdog;
 pub mod mic_test;
 pub mod runtime;
 pub mod settings;

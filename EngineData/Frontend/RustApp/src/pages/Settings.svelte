@@ -13,6 +13,7 @@
   import { deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
   import MeetingNoiseSuppression from "../components/settings/MeetingNoiseSuppression.svelte";
+  import RuntimeReliabilityDiagnostics from "../components/settings/RuntimeReliabilityDiagnostics.svelte";
   import MeetingPerformanceDiagnostics from "../components/settings/MeetingPerformanceDiagnostics.svelte";
   import TranslationPreferences from "../components/settings/TranslationPreferences.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
@@ -348,6 +349,7 @@
           <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Processing mode: {workerDiagnostics.executionDisplay}. This information is only needed for troubleshooting.</p>
         </article>
 
+        <RuntimeReliabilityDiagnostics />
         <MeetingPerformanceDiagnostics status={snapshot.meetingSession} />
 
         <article class="ti-panel p-5">
