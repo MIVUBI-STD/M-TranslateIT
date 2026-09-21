@@ -82,7 +82,9 @@ jobs:
           set -euo pipefail
 
           controlled=false
-          if [[ "$EVENT_NAME" == "push" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            controlled=true
+          elif [[ "$EVENT_NAME" == "push" ]]; then
             base="$PUSH_BASE"
             if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
               controlled=true
@@ -166,7 +168,7 @@ jobs:
     needs:
       - payload-scope
       - source-contract
-    if: github.event_name == 'push' && needs.payload-scope.outputs.controlled == 'true'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.payload-scope.outputs.controlled == 'true'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -223,3 +225,62 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
           path: ${{ runner.temp }}/translateit-r3-payload-build.json
+
+
+  proof-summary:
+    name: Exact SHA release proof summary
+    if: always()
+    needs:
+      - payload-scope
+      - source-contract
+      - controlled-payload
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Write exact-SHA release proof summary
+        shell: bash
+        env:
+          CONTROLLED: ${{ needs.payload-scope.outputs.controlled }}
+          SOURCE_RESULT: ${{ needs.source-contract.result }}
+          PAYLOAD_RESULT: ${{ needs.controlled-payload.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## TranslateIT R3 Release Contract"
+            echo
+            echo "- SHA: \`$GITHUB_SHA\`"
+            echo "- Ref: \`$GITHUB_REF\`"
+            echo "- Event: \`$GITHUB_EVENT_NAME\`"
+            echo "- Controlled payload required: \`$CONTROLLED\`"
+            echo
+            echo "| Proof | Result |"
+            echo "|---|---|"
+            echo "| Source contract | $SOURCE_RESULT |"
+            echo "| Controlled Windows payload | $PAYLOAD_RESULT |"
+            echo
+            echo "A skipped controlled-payload job is not release payload proof when controlled=true."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce release proof completeness
+        shell: bash
+        env:
+          CONTROLLED: ${{ needs.payload-scope.outputs.controlled }}
+          SOURCE_RESULT: ${{ needs.source-contract.result }}
+          PAYLOAD_RESULT: ${{ needs.controlled-payload.result }}
+        run: |
+          set -euo pipefail
+          failed=false
+
+          if [[ "$SOURCE_RESULT" != "success" ]]; then
+            echo "::error::R3 source contract result was $SOURCE_RESULT"
+            failed=true
+          fi
+
+          if [[ "$CONTROLLED" == "true" && "$PAYLOAD_RESULT" != "success" ]]; then
+            echo "::error::Controlled Windows payload proof required but result was $PAYLOAD_RESULT"
+            failed=true
+          fi
+
+          if [[ "$failed" == "true" ]]; then
+            exit 1
+          fi
