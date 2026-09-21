@@ -38,3 +38,42 @@ pub fn dispatch_product_intent(
         snapshot,
     }
 }
+
+
+#[tauri::command]
+pub fn select_product_audio_device(
+    app: tauri::AppHandle,
+    kind: String,
+    device_id: Option<String>,
+) -> super::settings::AudioDeviceSelectionResult {
+    let result = super::settings::select_audio_device(kind, device_id);
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "select_audio_device", &snapshot);
+    result
+}
+
+#[tauri::command]
+pub fn start_product_voice_recording(
+    app: tauri::AppHandle,
+    line_id: u32,
+    authorized_voice_confirmed: bool,
+) -> super::voice_lab_recording::GuidedRecordingActionResult {
+    let result = super::voice_lab_recording::start_voice_lab_guided_take(
+        line_id,
+        authorized_voice_confirmed,
+    );
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "start_voice_recording", &snapshot);
+    result
+}
+
+#[tauri::command]
+pub fn stop_product_voice_recording(
+    app: tauri::AppHandle,
+    line_id: u32,
+) -> super::voice_lab_recording::GuidedRecordingActionResult {
+    let result = super::voice_lab_recording::stop_voice_lab_guided_take(line_id);
+    let snapshot = current_application_snapshot();
+    events::emit_application_snapshot(&app, "stop_voice_recording", &snapshot);
+    result
+}
