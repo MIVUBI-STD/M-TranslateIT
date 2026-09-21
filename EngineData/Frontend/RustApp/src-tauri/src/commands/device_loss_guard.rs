@@ -119,6 +119,19 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
         ));
     }
 
+    if !devices.ok {
+        return record_if_needed(status(
+            "unverified",
+            false,
+            false,
+            false,
+            false,
+            "audio_host",
+            "device_loss:enumeration_unavailable",
+            "Native audio-device enumeration is temporarily unavailable. Existing active streams are left untouched; no fallback device was selected.",
+        ));
+    }
+
     if settings.audio.input_device_id.is_some()
         && !selected_device_present(
             settings.audio.input_device_id.as_deref(),
@@ -178,19 +191,6 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
             "meeting_sound",
             "device_loss:meeting_sound_callback_error",
             "Meeting Sound capture reported a native callback error. Incoming translation is optional; required outbound translation remains authoritative.",
-        ));
-    }
-
-    if !devices.ok {
-        return record_if_needed(status(
-            "unverified",
-            false,
-            false,
-            false,
-            false,
-            "audio_host",
-            "device_loss:enumeration_unavailable",
-            "Native audio-device enumeration is temporarily unavailable. Existing active streams are left untouched; no fallback device was selected.",
         ));
     }
 

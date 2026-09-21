@@ -180,6 +180,8 @@ fn inspect_previous_markers(
             continue;
         };
         if marker.process_id == current_pid {
+            stale_found = true;
+            let _ = fs::remove_file(path);
             continue;
         }
         if process_is_alive(system, marker.process_id) {
