@@ -160,3 +160,10 @@ The floating translation overlay remains frontend-owned. It manages window prese
 Live Meeting UI freshness uses lightweight backend change events from authoritative committed-turn state. The event payload contains only revision/reason/session/sequence metadata; the frontend then reads authoritative Meeting state. A 10-second Meeting poll remains only as reconciliation fallback if an event is missed.
 
 Reliability monitoring remains polling-based where the condition itself is time-dependent (watchdog, device-loss detection, long-session pressure). Watchdog + device-loss share one live reliability IPC every 8 seconds; long-session health remains on its separate 30-second cadence. UI-only advisory checks such as meeting-app detection and idle audio-quality status are on-demand/page-entry reads rather than permanent polling.
+
+
+### Frontend application controller
+
+The frontend shell consumes one `ProductRuntimeSnapshot` through `src/app/runtime/applicationController.ts`. The controller owns refresh sequencing, setup-state transitions, settings projection, and Meeting-session projection. `App.svelte` owns only UI-shell concerns such as route, transient notices, busy flags, close-dialog state, and the live transcript view.
+
+Do not reintroduce parallel `$state` copies for helper, worker, input, settings, approved voice readiness, or Meeting runtime state in `App.svelte`. Derived views must come from the controller snapshot.
