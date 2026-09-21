@@ -24,6 +24,9 @@ REQUIRED_PATHS = (
     ".github/workflows/repository-verify.yml",
     ".github/workflows/code-health.yml",
     ".github/workflows/milmmt-repo-contract.yml",
+    ".github/workflows/asr-quality-contract.yml",
+    ".github/workflows/tts-quality-contract.yml",
+    ".github/workflows/quality-readiness-contract.yml",
     ".github/workflows/workerruntime-lock.yml",
     ".github/workflows/release-payload-verify.yml",
     "docs/foundation/01-product-overview.md",
@@ -330,6 +333,24 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         if marker not in release:
             fail(errors, f"R3 Release Contract missing release/proof contract: {marker}")
 
+    for workflow in (
+        ".github/workflows/repository-verify.yml",
+        ".github/workflows/milmmt-repo-contract.yml",
+        ".github/workflows/asr-quality-contract.yml",
+        ".github/workflows/tts-quality-contract.yml",
+        ".github/workflows/quality-readiness-contract.yml",
+        ".github/workflows/workerruntime-lock.yml",
+    ):
+        value = text(workflow)
+        for proof_marker in (
+            "workflow_dispatch:",
+            "Write exact-SHA proof summary",
+            "GITHUB_SHA",
+            "not TARGET_WINDOWS native acceptance",
+        ):
+            if proof_marker not in value:
+                fail(errors, f"{workflow} missing exact-SHA proof marker: {proof_marker}")
+
     package = text("EngineData/Frontend/RustApp/package.json")
     for marker in (
         "scripts/tests/*.test.ts",
@@ -376,7 +397,7 @@ def main() -> int:
     print("- development foundation: capability/proof/toolchain/dev routing contracts")
     print("- governance links: resolved")
     print("- workflows: immutable/read-only/bounded and Local-routed")
-    print("- CI: selective domains + canonical bridge contract + frontend reachability")
+    print("- CI: selective domains + exact-SHA proof summaries + canonical source contracts")
     print("- release: controlled payload triggers remain isolated")
     return 0
 
