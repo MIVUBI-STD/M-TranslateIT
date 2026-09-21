@@ -39,6 +39,7 @@ for (const required of [
   "mod problems;",
   "mod resources;",
   "mod snapshot;",
+  "mod shutdown;",
   "mod summaries;",
 ]) {
   if (!modSource.includes(required)) failures.push(`mod.rs missing modular boundary: ${required}`);
