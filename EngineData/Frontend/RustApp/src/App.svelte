@@ -84,9 +84,10 @@
   }
 
   function applyMeetingStatus(status: MeetingSessionStatus, preferredNotice?: string): void {
-    applicationController.applyMeetingSession(status);
+    const ownershipChanged = applicationController.applyMeetingSession(status);
     applicationState = applicationController.read();
     if (preferredNotice) setNotice(preferredNotice);
+    if (ownershipChanged) void refreshSnapshot();
   }
 
   async function refreshSnapshot(preferredNotice?: string, knownSettings?: RuntimeSettings): Promise<void> {
