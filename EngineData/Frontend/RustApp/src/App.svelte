@@ -394,4 +394,16 @@
   </main>
 {/if}
 
-<NativeCloseDialog bind:open={closeDialogOpen} title={closeDialogTitle} message={closeDialogMessage} action={closeDialogAction} busy={closeState.busy} primaryLabel={closePrimaryLabel} onKeepOpen={keepApplicationOpen} onPrimary={handleCloseDialogPrimary} />
+<NativeCloseDialog
+  open={closeState.open}
+  title={closeState.title}
+  message={closeState.message}
+  action={closeState.action}
+  busy={closeState.busy}
+  primaryLabel={closePrimaryLabel}
+  onOpenChange={(open) => {
+    if (!open) closeState = closeController.keepOpen();
+  }}
+  onKeepOpen={keepApplicationOpen}
+  onPrimary={handleCloseDialogPrimary}
+/>
