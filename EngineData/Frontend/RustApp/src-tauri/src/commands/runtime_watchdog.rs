@@ -7,6 +7,7 @@ use super::helper_bridge_runtime::{
 };
 use super::incident_log::record_runtime_incident;
 use super::meeting_session::{get_meeting_session_status, MeetingSessionStatus};
+use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
 
 const WATCHDOG_GRACE_MS: u128 = 15_000;
 const DELIVERY_STALL_THRESHOLD_MS: u128 = 120_000;
@@ -99,8 +100,10 @@ fn evaluate_meeting_watchdog(
     helper_updated_unix_ms: u128,
     now: u128,
 ) -> RuntimeWatchdogStatus {
-    if !meeting.has_session {
-        return healthy_status("idle", "No Meeting session is active.");
+    if !meeting.has_session
+        || meeting.owner_id.as_deref() != Some(APPLICATION_MEETING_OWNER_ID)
+    {
+        return healthy_status("idle", "No application Meeting session is active.");
     }
     if meeting.lifecycle != "live" {
         return healthy_status(
@@ -276,6 +279,16 @@ mod tests {
             },
             runtime_claim: String::new(),
         }
+    }
+
+    #[test]
+    fn non_meeting_runtime_owner_is_not_a_meeting_watchdog_target() {
+        let mut meeting = live_status("listening", 1);
+        meeting.owner_id = Some("translateit_mic_test".to_string());
+        meeting.lifecycle = "live_capture_only".to_string();
+        let result = evaluate_meeting_watchdog(&meeting, None, None, 1, 500_000);
+        assert_eq!(result.state, "idle");
+        assert!(result.healthy);
     }
 
     #[test]
