@@ -22,7 +22,7 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
   read: () => ApplicationControllerState;
   refresh: (knownSettings?: RuntimeSettings) => Promise<ApplicationRefreshResult>;
   applySettings: (settings: RuntimeSettings) => void;
-  applyMeetingSession: (session: ProductRuntimeSnapshot["meetingSession"]) => void;
+  applyMeetingSession: (session: ProductRuntimeSnapshot["meetingSession"]) => boolean;
   invalidate: () => number;
 } {
   let state: ApplicationControllerState = {
@@ -90,8 +90,15 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
       };
     },
 
-    applyMeetingSession(session: ProductRuntimeSnapshot["meetingSession"]): void {
-      if (!state.snapshot) return;
+    applyMeetingSession(session: ProductRuntimeSnapshot["meetingSession"]): boolean {
+      if (!state.snapshot) return false;
+      const previousOwner = state.snapshot.resources.active_owner;
+      const previousLocked = state.snapshot.resources.audio_locked;
+      const nextLocked = session?.has_session === true;
+      const nextOwner = nextLocked ? session?.owner_id ?? null : null;
+      const ownershipChanged =
+        previousLocked !== nextLocked || previousOwner !== nextOwner;
+
       state.revision += 1;
       const meeting = runtimeProductFacade.mapProductMeetingState(session);
       const readiness = runtimeProductFacade.mapProductReadiness({
@@ -111,6 +118,7 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
           readiness,
         },
       };
+      return ownershipChanged;
     },
 
     invalidate(): number {
