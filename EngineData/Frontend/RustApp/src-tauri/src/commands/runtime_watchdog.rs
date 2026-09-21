@@ -222,6 +222,7 @@ mod tests {
         MeetingIncomingRuntimeStatus, MeetingOutboundRuntimeStatus, MeetingSessionPreflightStatus,
         MeetingSessionStatus,
     };
+    use crate::engine::runtime_state::MIC_TEST_OWNER_ID;
 
     fn live_status(stage: &str, updated: u128) -> MeetingSessionStatus {
         MeetingSessionStatus {
@@ -284,7 +285,7 @@ mod tests {
     #[test]
     fn non_meeting_runtime_owner_is_not_a_meeting_watchdog_target() {
         let mut meeting = live_status("listening", 1);
-        meeting.owner_id = Some("translateit_mic_test".to_string());
+        meeting.owner_id = Some(MIC_TEST_OWNER_ID.to_string());
         meeting.lifecycle = "live_capture_only".to_string();
         let result = evaluate_meeting_watchdog(&meeting, None, None, 1, 500_000);
         assert_eq!(result.state, "idle");
