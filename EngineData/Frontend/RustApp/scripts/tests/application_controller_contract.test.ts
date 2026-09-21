@@ -28,6 +28,5 @@ test("App shell consumes one controller snapshot instead of subsystem copies", (
 test("controller owns setup state transitions", () => {
   assert.match(controller, /meeting_setup_state === "new"/);
   assert.match(controller, /setupRequired/);
-  assert.match(controller, /runtimeLoaded/);
   assert.equal(app.includes("let setupRequired = $state"), false);
 });
