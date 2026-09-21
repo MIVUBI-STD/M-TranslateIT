@@ -13,7 +13,6 @@
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import { setupStateNeedsResume } from "../app/runtime/setupFlow";
-  import { startRuntimePoll } from "../app/runtime/pollRuntime";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
   import MeetingPresetPanel from "../components/meeting/MeetingPresetPanel.svelte";
   import MeetingSessionReview from "../components/meeting/MeetingSessionReview.svelte";
@@ -211,16 +210,8 @@
 
   onMount(() => {
     void refreshRouteStatus();
-  });
-
-  $effect(() => meeting.hasSession ? undefined : startRuntimePoll(refreshMeetingDetection, 5000));
-
-  $effect(() => {
-    if (activityVisible) {
-      audioQuality = null;
-      return;
-    }
-    return startRuntimePoll(refreshAudioQuality, 2500);
+    void refreshMeetingDetection();
+    void refreshAudioQuality();
   });
 </script>
 
