@@ -1,7 +1,7 @@
 import { runtimeApi, type MeetingCommittedTurnsSnapshot, type MeetingSessionStatus } from "../bridge/runtimeApi";
 import { meetingBridgeUnavailable } from "../bridge/runtimeProductFacade";
 
-export type MeetingPollResult = {
+export type MeetingReconcileResult = {
   status: MeetingSessionStatus;
   turns: MeetingCommittedTurnsSnapshot | null;
   transcriptStatusKey: string;
@@ -17,10 +17,10 @@ function transcriptStatusKey(status: MeetingSessionStatus): string {
   ].join(":");
 }
 
-export async function readMeetingPoll(
+export async function readMeetingReconciliation(
   currentTurns: MeetingCommittedTurnsSnapshot | null,
   previousStatusKey: string,
-): Promise<MeetingPollResult | null> {
+): Promise<MeetingReconcileResult | null> {
   try {
     const status = await runtimeApi.getMeetingSessionStatus();
     if (meetingBridgeUnavailable(status)) {
@@ -48,7 +48,7 @@ export async function readMeetingPoll(
       unavailable: false,
     };
   } catch {
-    // A thrown poll failure provides no authoritative replacement state.
+    // A failed reconciliation read provides no authoritative replacement state.
     return null;
   }
 }
