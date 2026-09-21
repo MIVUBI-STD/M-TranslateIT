@@ -53,7 +53,7 @@ fn status(
     }
 }
 
-fn selected_device_present(selected: Option<&str>, names: impl Iterator<Item = String>) -> bool {
+fn selected_device_present(selected: Option<&str>, mut names: impl Iterator<Item = String>) -> bool {
     let Some(selected) = selected.map(str::trim).filter(|value| !value.is_empty()) else {
         return true;
     };
