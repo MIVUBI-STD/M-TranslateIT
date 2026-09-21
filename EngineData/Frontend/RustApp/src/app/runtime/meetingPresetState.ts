@@ -49,12 +49,41 @@ export function meetingPresetFromSettings(id: string, name: string, settings: Ru
   };
 }
 
+function optionalText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : null;
+}
+
+function validPreset(value: unknown): MeetingPreset | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (
+    typeof item.id !== "string"
+    || typeof item.name !== "string"
+    || typeof item.sourceLanguage !== "string"
+    || typeof item.targetLanguage !== "string"
+    || typeof item.listenSourceLanguage !== "string"
+    || typeof item.listenTargetLanguage !== "string"
+    || typeof item.translationStyle !== "string"
+    || typeof item.noiseSuppression !== "string"
+  ) return null;
+  return {
+    id: item.id.slice(0, 80),
+    name: cleanName(item.name) || "Meeting preset",
+    sourceLanguage: item.sourceLanguage.slice(0, 16),
+    targetLanguage: item.targetLanguage.slice(0, 16),
+    listenSourceLanguage: item.listenSourceLanguage.slice(0, 16),
+    listenTargetLanguage: item.listenTargetLanguage.slice(0, 16),
+    translationStyle: item.translationStyle.slice(0, 24),
+    microphoneId: optionalText(item.microphoneId),
+    meetingSoundId: optionalText(item.meetingSoundId),
+    noiseSuppression: item.noiseSuppression.slice(0, 24),
+  };
+}
+
 export function readMeetingPresets(): MeetingPreset[] {
-  const values = readJson<MeetingPreset[]>(PRESETS_KEY, []);
+  const values = readJson<unknown[]>(PRESETS_KEY, []);
   if (!Array.isArray(values)) return [];
-  return values
-    .filter((value) => value && typeof value.id === "string" && typeof value.name === "string")
-    .slice(0, MAX_PRESETS);
+  return values.map(validPreset).filter((value): value is MeetingPreset => value !== null).slice(0, MAX_PRESETS);
 }
 
 export function saveMeetingPreset(preset: MeetingPreset): MeetingPreset[] {

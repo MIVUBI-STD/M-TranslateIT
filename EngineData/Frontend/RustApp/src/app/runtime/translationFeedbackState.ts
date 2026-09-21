@@ -19,11 +19,45 @@ const KEY = "translateit.translation-feedback.v1";
 const MAX_ENTRIES = 40;
 const MAX_TEXT_CHARS = 2000;
 
+const VALID_CATEGORIES = new Set<TranslationIssueCategory>([
+  "meaning_changed",
+  "wrong_terminology",
+  "name_number",
+  "incomplete",
+  "unnatural",
+]);
+
+function validFeedback(value: unknown): TranslationFeedbackEntry | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (
+    typeof item.id !== "string"
+    || typeof item.category !== "string"
+    || !VALID_CATEGORIES.has(item.category as TranslationIssueCategory)
+    || typeof item.source !== "string"
+    || typeof item.translation !== "string"
+    || typeof item.sourceLanguage !== "string"
+    || typeof item.targetLanguage !== "string"
+    || typeof item.createdAt !== "number"
+    || !Number.isFinite(item.createdAt)
+  ) return null;
+  return {
+    id: item.id.slice(0, 80),
+    category: item.category as TranslationIssueCategory,
+    source: item.source.slice(0, MAX_TEXT_CHARS),
+    translation: item.translation.slice(0, MAX_TEXT_CHARS),
+    sourceLanguage: item.sourceLanguage.slice(0, 16),
+    targetLanguage: item.targetLanguage.slice(0, 16),
+    createdAt: item.createdAt,
+  };
+}
+
 export function readTranslationFeedback(): TranslationFeedbackEntry[] {
   try {
     const raw = localStorage.getItem(KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_ENTRIES) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(validFeedback).filter((value): value is TranslationFeedbackEntry => value !== null).slice(0, MAX_ENTRIES);
   } catch {
     return [];
   }
