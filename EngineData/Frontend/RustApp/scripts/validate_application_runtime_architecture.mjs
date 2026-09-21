@@ -157,6 +157,58 @@ for (const forbidden of ['"start_voice_lab_guided_take"', '"stop_voice_lab_guide
   }
 }
 
+const applicationEventsSource = readFileSync(
+  join(runtimeRoot, "events.rs"),
+  "utf8",
+);
+const meetingEventsSource = readFileSync(
+  join(appRoot, "src-tauri", "src", "engine", "runtime_events.rs"),
+  "utf8",
+);
+const reliabilityEventSource = readFileSync(
+  join(appRoot, "src", "app", "runtime", "reliabilityMonitor.ts"),
+  "utf8",
+);
+
+for (const [label, backend, frontend, eventName] of [
+  [
+    "application runtime",
+    applicationEventsSource,
+    applicationApiSource,
+    "translateit://application-runtime",
+  ],
+  [
+    "Meeting runtime",
+    meetingEventsSource,
+    reliabilityEventSource,
+    "translateit://meeting-runtime",
+  ],
+]) {
+  if (!backend.includes(eventName)) {
+    failures.push(`${label} backend event contract missing: ${eventName}`);
+  }
+  if (!frontend.includes(eventName)) {
+    failures.push(`${label} frontend event contract missing: ${eventName}`);
+  }
+}
+
+for (const field of ["reason", "snapshot"]) {
+  if (!applicationEventsSource.includes(`${field}:`)) {
+    failures.push(`ApplicationRuntimeEvent backend missing field: ${field}`);
+  }
+  if (!applicationApiSource.includes(`${field}:`)) {
+    failures.push(`ApplicationRuntimeEvent frontend missing field: ${field}`);
+  }
+}
+for (const field of ["revision", "reason", "session_id", "sequence"]) {
+  if (!meetingEventsSource.includes(`pub ${field}:`)) {
+    failures.push(`MeetingRuntimeEvent backend missing field: ${field}`);
+  }
+  if (!reliabilityEventSource.includes(`${field}:`)) {
+    failures.push(`MeetingRuntimeEvent frontend missing field: ${field}`);
+  }
+}
+
 const nativeCloseSource = readFileSync(join(appRoot, "src", "app", "runtime", "nativeCloseRuntime.ts"), "utf8");
 for (const forbidden of [
   "runtimeApi.getMeetingSessionStatus(",
