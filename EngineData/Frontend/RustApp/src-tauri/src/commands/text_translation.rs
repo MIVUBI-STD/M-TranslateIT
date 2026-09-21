@@ -228,12 +228,17 @@ fn ensure_persistent_helper_started() -> Result<(), TextTranslationResult> {
     }
 }
 
-fn translate_with_persistent_helper(source: &str, request_kind: &str) -> TextTranslationResult {
+fn translate_with_persistent_helper(
+    source: &str,
+    request_kind: &str,
+) -> (TextTranslationResult, String, String) {
     if let Err(result) = ensure_persistent_helper_started() {
-        return result;
+        return (result, String::new(), String::new());
     }
 
     let settings = load_settings();
+    let source_language = settings.source_language.clone();
+    let target_language = settings.target_language.clone();
     let payload = json!({
         "text": source,
         "source_language": settings.source_language,
@@ -259,13 +264,21 @@ fn translate_with_persistent_helper(source: &str, request_kind: &str) -> TextTra
         .trim();
 
     if response.ok && worker_response_is_complete(&worker_response) && !translated.is_empty() {
-        return TextTranslationResult::success(translated.to_string(), source_review_hints(source));
+        return (
+            TextTranslationResult::success(translated.to_string(), source_review_hints(source)),
+            source_language,
+            target_language,
+        );
     }
 
-    TextTranslationResult::blocked(
-        "translation_unavailable",
-        worker_failure_message(&worker_response),
-        worker_blocker(&worker_response),
+    (
+        TextTranslationResult::blocked(
+            "translation_unavailable",
+            worker_failure_message(&worker_response),
+            worker_blocker(&worker_response),
+        ),
+        source_language,
+        target_language,
     )
 }
 
@@ -291,7 +304,7 @@ pub fn translate_text(source: String) -> TextTranslationResult {
             "text_translation:input_too_long".to_string(),
         )
     } else {
-        translate_with_persistent_helper(&source, "standalone_text")
+        translate_with_persistent_helper(&source, "standalone_text").0
     };
 
     if result.ok {
@@ -309,9 +322,7 @@ pub fn quick_translate_text(source: String) -> QuickTranslationResult {
         format!("source_chars={}", source.chars().count()),
     );
     let source = clean_source(&source);
-    let settings = load_settings();
-    let source_language = settings.source_language.clone();
-    let target_language = settings.target_language.clone();
+    let mut direction = (String::new(), String::new());
     let result = if source.is_empty() {
         TextTranslationResult::blocked(
             "empty_input",
@@ -327,7 +338,9 @@ pub fn quick_translate_text(source: String) -> QuickTranslationResult {
             "quick_translation:input_too_long".to_string(),
         )
     } else {
-        translate_with_persistent_helper(&source, "quick_text")
+        let translated = translate_with_persistent_helper(&source, "quick_text");
+        direction = (translated.1, translated.2);
+        translated.0
     };
 
     if result.ok {
@@ -335,7 +348,7 @@ pub fn quick_translate_text(source: String) -> QuickTranslationResult {
     } else {
         trace_command_error("quick_translate_text", started, format!("state={}", result.state));
     }
-    QuickTranslationResult::from_text(result, source_language, target_language)
+    QuickTranslationResult::from_text(result, direction.0, direction.1)
 }
 
 #[cfg(test)]
