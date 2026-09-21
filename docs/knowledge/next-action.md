@@ -28,8 +28,10 @@ Do not expand productivity breadth without a concrete source defect or new expli
 
 ## Next Step
 
-Remote feature/source expansion is complete unless CI exposes a concrete regression.
+Remote feature/source expansion and the application-runtime modularization pass are source-complete. The current source now includes typed ApplicationRuntime authority, distinct shared-resource owners, event-first Meeting reconciliation, split frontend controllers, split product facades/state policies, closed superseded mutation entrypoints, and architecture regression guards.
 
-Proceed to `TARGET_WINDOWS` acceptance using `docs/knowledge/operations/target-windows-performance.md`. Validate the installed app on the intended Windows machine: physical microphone, TranslateIT Meeting Microphone route, Zoom/Teams/Meet/Discord reception, real GPU/CPU/RAM/VRAM behavior, Start→Live and speech→playback latency, long-session stability, mixed-DPI overlay, sleep/wake, unplug/replug, My Voice audible quality, updater install, and clean-machine setup.
+Before TARGET_WINDOWS acceptance, obtain matching hosted source proof for the exact current Local SHA when CI is available. If CI exposes a concrete regression, repair only that regression; do not reopen broad architecture expansion.
+
+Then proceed to `TARGET_WINDOWS` acceptance using `docs/knowledge/operations/target-windows-performance.md`. Validate the installed app on the intended Windows machine: physical microphone, TranslateIT Meeting Microphone route, Zoom/Teams/Meet/Discord reception, real GPU/CPU/RAM/VRAM behavior, Start→Live and speech→playback latency, long-session stability, mixed-DPI overlay, sleep/wake, unplug/replug, My Voice audible quality, updater install, and clean-machine setup.
 
 Source/hosted CI proof must not be reported as native-device acceptance.
