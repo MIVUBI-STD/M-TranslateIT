@@ -61,15 +61,6 @@ if (!intentsSource.includes("pub fn dispatch")) {
   failures.push("intents.rs must own the product-intent dispatch boundary");
 }
 
-if (failures.length > 0) {
-  console.error("Application runtime architecture validation failed:");
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exit(1);
-}
-
-console.log(`[application-runtime-architecture] ${files.length} modular kernel files passed boundary checks.`);
-
-
 const facadeSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeProductFacade.ts"), "utf8");
 for (const forbidden of [
   "runtimeApi.startHelperBridge(",
@@ -81,3 +72,12 @@ for (const forbidden of [
     failures.push(`runtimeProductFacade.ts must not own cross-feature lifecycle: ${forbidden}`);
   }
 }
+
+
+if (failures.length > 0) {
+  console.error("Application runtime architecture validation failed:");
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
+
+console.log(`[application-runtime-architecture] ${files.length} modular kernel files passed boundary checks.`);
