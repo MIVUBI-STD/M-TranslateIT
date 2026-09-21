@@ -30,12 +30,6 @@ pub fn current_application_snapshot() -> ApplicationSnapshot {
     };
     let voice_build = voice_lab::current_voice_lab_build_snapshot();
     let voice_recording_active = voice_lab_recording::voice_lab_recording_active();
-    let worker = if helper.state == "ready" {
-        Some(helper_bridge::helper_bridge_worker_status())
-    } else {
-        None
-    };
-
     let summaries = build_subsystem_summaries(
         &meeting,
         &helper,
@@ -55,7 +49,6 @@ pub fn current_application_snapshot() -> ApplicationSnapshot {
         settings,
         meeting,
         helper,
-        worker,
         input,
         summaries,
         resources,
