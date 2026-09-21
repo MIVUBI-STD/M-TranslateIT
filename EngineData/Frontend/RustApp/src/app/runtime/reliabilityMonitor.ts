@@ -105,7 +105,7 @@ function startMeetingReliabilityMonitor(
 }
 
 function startMeetingChangeEvents(
-  pollMeeting: () => void | Promise<void>,
+  pollMeeting: (forceTurns?: boolean) => void | Promise<void>,
 ): () => void {
   let disposed = false;
   let unlisten: UnlistenFn | null = null;
@@ -118,7 +118,7 @@ function startMeetingChangeEvents(
     if (debounceTimer !== null) window.clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(() => {
       debounceTimer = null;
-      if (!disposed) void pollMeeting();
+      if (!disposed) void pollMeeting(true);
     }, MEETING_EVENT_DEBOUNCE_MS);
   };
 
@@ -140,14 +140,14 @@ function startMeetingChangeEvents(
 }
 
 export function startMeetingRuntimeMonitors(
-  pollMeeting: () => void | Promise<void>,
+  pollMeeting: (forceTurns?: boolean) => void | Promise<void>,
   onNotice: (message: string) => void,
   reliabilityEnabled: boolean,
 ): () => void {
-  void pollMeeting();
+  void pollMeeting(false);
   const stopMeetingEvents = startMeetingChangeEvents(pollMeeting);
   const meetingTimer = window.setInterval(
-    () => void pollMeeting(),
+    () => void pollMeeting(false),
     MEETING_RECONCILIATION_POLL_MS,
   );
   const stopReliability = reliabilityEnabled
