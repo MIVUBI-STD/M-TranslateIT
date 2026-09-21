@@ -186,6 +186,7 @@ fn inspect_previous_markers(
         }
         let path = entry.path();
         let Some(marker) = read_marker(&path) else {
+            stale_found = true;
             let _ = fs::remove_file(path);
             continue;
         };
@@ -285,8 +286,10 @@ pub fn get_startup_recovery_status() -> StartupRecoveryReport {
 #[cfg(test)]
 mod tests {
     use super::{
-        cleanup_interrupted_meeting_cache, marker_matches_process_start, marker_path, ProjectPaths,
+        cleanup_interrupted_meeting_cache, inspect_previous_markers, marker_dir,
+        marker_matches_process_start, marker_path, ProjectPaths,
     };
+    use sysinfo::System;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -348,6 +351,24 @@ mod tests {
         let _ = fs::remove_dir_all(&paths.user_data_root);
     }
 
+
+
+    #[test]
+    fn corrupt_marker_is_treated_as_unclean_shutdown_evidence() {
+        let paths = temp_paths();
+        let markers = marker_dir(&paths);
+        fs::create_dir_all(&markers).expect("create marker dir");
+        fs::write(markers.join("runtime_corrupt.json"), b"{not-json").expect("write corrupt marker");
+
+        let system = System::new_all();
+        let (stale_found, live_other_found) =
+            inspect_previous_markers(&paths, std::process::id(), &system);
+
+        assert!(stale_found);
+        assert!(!live_other_found);
+        assert!(!markers.join("runtime_corrupt.json").exists());
+        let _ = fs::remove_dir_all(&paths.user_data_root);
+    }
 
     #[test]
     fn marker_rejects_pid_reuse_by_a_newer_process() {

@@ -19,6 +19,7 @@ test("active previous process prevents destructive stale cleanup without trustin
   assert.match(recovery, /marker_process_is_alive/);
   assert.match(recovery, /process\.start_time\(\)/);
   assert.match(recovery, /marker_matches_process_start/);
+  assert.match(recovery, /let Some\(marker\) = read_marker[\s\S]*stale_found = true/);
   assert.match(recovery, /another_instance_detected = live_other_found/);
   assert.match(recovery, /Shared Meeting cache was left untouched|did not modify the other process's Meeting cache/);
 });
