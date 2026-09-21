@@ -34,7 +34,8 @@ Subject to matching proof for the changed domain, current source establishes:
 - Quality Readiness aggregates Translation + ASR + TTS comparison evidence without recalculating domain metrics, verifies expected candidate identities and input-report SHA-256, and fails closed if any domain is incomplete or regressed;
 - My Voice live inference isolated from one-shot dataset/training/evaluation/package construction;
 - one-shot signed app updater source contract: one startup check only, no updater polling scheduler/daemon, GitHub Release endpoint ownership, activity-safe install blockers, release updater-artifact generation, and fail-closed signing requirements;
-- bounded productivity contracts: explicit command-palette Quick Translate, in-memory Text cache, temporary last-session review, advisory Meeting preset suggestions with atomic Rust-side apply, sanitized bounded local preset/feedback storage, and reviewable/clearable opt-in translation feedback.
+- bounded productivity contracts: explicit command-palette Quick Translate, in-memory Text cache, temporary last-session review, advisory Meeting preset suggestions with atomic Rust-side apply, sanitized bounded local preset/feedback storage, and reviewable/clearable opt-in translation feedback;
+- application-level runtime coordination source contracts: typed cross-feature snapshot/intent/mutation boundaries, distinct Meeting/Mic Test/My Voice resource owners, lightweight event-first Meeting reconciliation with slow fallback, centralized shutdown coordination, and modular frontend application/Meeting/close controllers with guarded compatibility surfaces.
 
 ## Verification surfaces
 
