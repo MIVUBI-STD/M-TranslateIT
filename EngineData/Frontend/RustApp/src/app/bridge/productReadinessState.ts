@@ -1,10 +1,10 @@
+import type { ApplicationInputStatus } from "./applicationRuntimeApi";
 import type { MeetingSessionStatus } from "./runtimeApi";
 import { resolveMeetingVoiceGate } from "../runtime/meetingVoiceGate";
 import { compact, defaultSettings } from "../shared/state";
 import type {
   HelperBridgeStatus,
   HelperBridgeWorkerResponse,
-  InputPreparationStatus,
   RuntimeSettings,
 } from "../shared/types";
 import { parseWorkerCapabilities } from "./workerCapabilities";
@@ -53,14 +53,14 @@ export function helperBridgeUnavailable(helper: HelperBridgeStatus | null): bool
   return helper?.runtime_claim === FRONTEND_BRIDGE_UNAVAILABLE || helper?.state === "frontend_bridge_error";
 }
 
-function inputBridgeUnavailable(status: InputPreparationStatus | null): boolean {
+function inputBridgeUnavailable(status: ApplicationInputStatus | null): boolean {
   return status?.blocker === FRONTEND_BRIDGE_UNAVAILABLE;
 }
 
 function collectBlockers(input: {
   helper: HelperBridgeStatus | null;
   worker: WorkerCapabilitySnapshot;
-  inputStatus: InputPreparationStatus | null;
+  inputStatus: ApplicationInputStatus | null;
   meeting: MeetingPreflightSnapshot;
   textReady: boolean;
   textDirection: TranslationDirection;
@@ -83,7 +83,7 @@ export function mapProductReadiness(input: {
   settings?: RuntimeSettings | null;
   helper: HelperBridgeStatus | null;
   workerStatus?: HelperBridgeWorkerResponse | null;
-  inputStatus: InputPreparationStatus | null;
+  inputStatus: ApplicationInputStatus | null;
   meetingSession?: MeetingSessionStatus | null;
   approvedVoiceReady?: boolean | null;
 }): ProductReadiness {
