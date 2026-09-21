@@ -86,3 +86,24 @@ pub fn select_product_builtin_voice(
         )
     })
 }
+
+
+#[tauri::command]
+pub fn save_product_settings(
+    app: tauri::AppHandle,
+    settings: crate::engine::settings::RuntimeSettings,
+) -> crate::engine::state::CommandResult {
+    emit_after(&app, "save_settings", || {
+        super::super::settings::save_runtime_settings(settings)
+    })
+}
+
+#[tauri::command]
+pub fn apply_product_meeting_preset(
+    app: tauri::AppHandle,
+    settings: crate::engine::settings::RuntimeSettings,
+) -> super::super::settings::MeetingPresetApplyResult {
+    emit_after(&app, "apply_meeting_preset", || {
+        super::super::settings::apply_meeting_preset(settings)
+    })
+}
