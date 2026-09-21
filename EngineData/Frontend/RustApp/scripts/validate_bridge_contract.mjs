@@ -82,6 +82,7 @@ const contractPairs = [
   ["src-tauri/src/commands/application_runtime/contract.rs", "WorkerSummary", "src/app/bridge/applicationRuntimeApi.ts", "WorkerSummary"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "AudioSummary", "src/app/bridge/applicationRuntimeApi.ts", "AudioSummary"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationInputStatus", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationInputStatus"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "VoiceSummary", "src/app/bridge/applicationRuntimeApi.ts", "VoiceSummary"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationSubsystemSummaries", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSubsystemSummaries"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "ResourceArbitration", "src/app/bridge/applicationRuntimeApi.ts", "ResourceArbitration"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationSnapshot", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSnapshot"],
