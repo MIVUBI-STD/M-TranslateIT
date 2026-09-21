@@ -65,8 +65,18 @@ fn marker_path(paths: &ProjectPaths, process_id: u32) -> PathBuf {
     marker_dir(paths).join(format!("runtime_{process_id}.json"))
 }
 
-fn process_is_alive(system: &System, process_id: u32) -> bool {
-    process_id != 0 && system.process(Pid::from_u32(process_id)).is_some()
+fn marker_matches_process_start(marker_started_unix_ms: u128, process_started_unix_s: u64) -> bool {
+    let process_started_unix_ms = u128::from(process_started_unix_s).saturating_mul(1_000);
+    process_started_unix_ms <= marker_started_unix_ms.saturating_add(1_000)
+}
+
+fn marker_process_is_alive(system: &System, marker: &RuntimeOpenMarker) -> bool {
+    if marker.process_id == 0 {
+        return false;
+    }
+    system
+        .process(Pid::from_u32(marker.process_id))
+        .is_some_and(|process| marker_matches_process_start(marker.started_unix_ms, process.start_time()))
 }
 
 fn read_marker(path: &Path) -> Option<RuntimeOpenMarker> {
@@ -184,7 +194,7 @@ fn inspect_previous_markers(
             let _ = fs::remove_file(path);
             continue;
         }
-        if process_is_alive(system, marker.process_id) {
+        if marker_process_is_alive(system, &marker) {
             live_other_found = true;
         } else {
             stale_found = true;
@@ -274,7 +284,9 @@ pub fn get_startup_recovery_status() -> StartupRecoveryReport {
 
 #[cfg(test)]
 mod tests {
-    use super::{cleanup_interrupted_meeting_cache, marker_path, ProjectPaths};
+    use super::{
+        cleanup_interrupted_meeting_cache, marker_matches_process_start, marker_path, ProjectPaths,
+    };
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -334,6 +346,14 @@ mod tests {
         assert!(readiness.join("keep.txt").exists());
 
         let _ = fs::remove_dir_all(&paths.user_data_root);
+    }
+
+
+    #[test]
+    fn marker_rejects_pid_reuse_by_a_newer_process() {
+        assert!(marker_matches_process_start(10_500, 10));
+        assert!(marker_matches_process_start(10_000, 11));
+        assert!(!marker_matches_process_start(10_000, 12));
     }
 
     #[test]

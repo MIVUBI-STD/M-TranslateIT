@@ -15,8 +15,10 @@ test("startup recovery never resumes Meeting and cleans only bounded cache names
   assert.doesNotMatch(recovery, /remove_dir_all\([^)]*user_cache_dir/);
 });
 
-test("active previous process prevents destructive stale cleanup", () => {
-  assert.match(recovery, /process_is_alive/);
+test("active previous process prevents destructive stale cleanup without trusting reused PIDs", () => {
+  assert.match(recovery, /marker_process_is_alive/);
+  assert.match(recovery, /process\.start_time\(\)/);
+  assert.match(recovery, /marker_matches_process_start/);
   assert.match(recovery, /another_instance_detected = live_other_found/);
   assert.match(recovery, /Shared Meeting cache was left untouched|did not modify the other process's Meeting cache/);
 });
