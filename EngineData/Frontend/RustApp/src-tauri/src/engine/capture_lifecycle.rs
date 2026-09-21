@@ -2,12 +2,10 @@ use crate::engine::audio::guided_take::active_guided_take_line_id;
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
 use crate::engine::runtime_state::{
     begin_mic_test_session, clear_runtime_session_if_generation,
-    latest_runtime_session_state,
-    mark_runtime_session_cleanup_incomplete, revoke_runtime_session_authority,
+    latest_runtime_session_state, mark_runtime_session_cleanup_incomplete,
+    revoke_runtime_session_authority, MIC_TEST_OWNER_ID,
 };
 use crate::engine::state::{CommandResult, LifecycleState};
-
-use crate::engine::runtime_state::MIC_TEST_OWNER_ID;
 
 pub fn start_capture() -> CommandResult {
     if active_guided_take_line_id().is_some() {
