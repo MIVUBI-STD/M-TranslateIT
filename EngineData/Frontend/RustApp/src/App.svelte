@@ -35,8 +35,7 @@
   import Settings from "./pages/Settings.svelte";
   import Text from "./pages/Text.svelte";
 
-  let booting = $state(true);
-  let setupRequired = $state(false);
+  let booting = $state(true), setupRequired = $state(false);
   let setupSettings = $state<RuntimeSettings>(defaultSettings());
   let route = $state<AppRoute>("meeting");
   let notice = $state("Getting TranslateIT ready...");
