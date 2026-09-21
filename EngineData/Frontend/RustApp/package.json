@@ -7,7 +7,7 @@
     "dev:frontend": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "dev:app": "tauri dev",
     "build:frontend": "vite build",
-    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "typecheck": "node scripts/run_svelte_check_strict.mjs",
     "test:frontend-runtime": "node --experimental-strip-types --test \"scripts/tests/*.test.ts\"",
     "check:rust": "node scripts/validate_rust_manifest_preflight.mjs",
     "check:tauri-rust-local": "node scripts/run_local_tauri_compile_check.mjs",
