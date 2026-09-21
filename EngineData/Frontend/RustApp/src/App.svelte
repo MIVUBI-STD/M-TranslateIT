@@ -228,6 +228,24 @@
     }
   }
 
+  async function pollMeeting(): Promise<void> {
+    meetingViewState = await meetingLiveController.reconcile(
+      {
+        ownerKind: snapshot?.resources.owner_kind ?? null,
+        booting,
+        setupRequired,
+        closeAfterExistingStop: closeState.closeAfterExistingStop,
+      },
+      {
+        onStatus: (status) => applyMeetingStatus(status),
+        onNotice: setNotice,
+        onStoppedForClose: async () => {
+          closeState = await closeController.closeWindow();
+        },
+      },
+    );
+  }
+
   async function inspectNativeCloseRequest(): Promise<void> {
     closeState = await closeController.inspect();
   }
