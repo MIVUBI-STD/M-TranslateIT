@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import {
-    runtimeApi,
-    type RuntimeWatchdogStatus,
-    type StartupRecoveryReport,
-  } from "../../app/bridge/runtimeApi";
+  import { runtimeApi } from "../../app/bridge/runtimeApi";
+  import type {
+    RuntimeWatchdogStatus,
+    StartupRecoveryReport,
+  } from "../../app/bridge/reliabilityApi";
   import StatusBadge from "../ui/StatusBadge.svelte";
 
   let watchdog = $state<RuntimeWatchdogStatus | null>(null);
