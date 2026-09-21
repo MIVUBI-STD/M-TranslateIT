@@ -206,7 +206,7 @@ fn worker_failure_message(response: &Value) -> &'static str {
     "Translation isn't available for this language direction right now. Check Setup or Diagnostics and try again."
 }
 
-fn ensure_persistent_helper_started() -> Result<(), TextTranslationResult> {
+fn ensure_persistent_helper_started() -> Result<(), Box<TextTranslationResult>> {
     let status = get_helper_bridge_status();
     if !matches!(status.state.as_str(), "not_started" | "stopped" | "error") {
         return Ok(());
@@ -216,7 +216,7 @@ fn ensure_persistent_helper_started() -> Result<(), TextTranslationResult> {
     if start.ok {
         Ok(())
     } else {
-        Err(TextTranslationResult::blocked(
+        Err(Box::new(TextTranslationResult::blocked(
             "runtime_unavailable",
             if start.state == "active_runtime_session" {
                 "Text translation can't restart the local translator while Meeting or Mic Test is active. Stop the active session and try again."
@@ -224,7 +224,7 @@ fn ensure_persistent_helper_started() -> Result<(), TextTranslationResult> {
                 "Local translation isn't available yet. Check Setup or Diagnostics and try again."
             },
             format!("helper_start:{}:{}", start.state, start.message),
-        ))
+        )))
     }
 }
 
@@ -233,7 +233,7 @@ fn translate_with_persistent_helper(
     request_kind: &str,
 ) -> (TextTranslationResult, String, String) {
     if let Err(result) = ensure_persistent_helper_started() {
-        return (result, String::new(), String::new());
+        return (*result, String::new(), String::new());
     }
 
     let settings = load_settings();
@@ -432,7 +432,7 @@ pub fn translate_text_alternative(source: String, current_translation: String) -
             "text_translation:alternative_source_too_long".to_string(),
         )
     } else if let Err(result) = ensure_persistent_helper_started() {
-        result
+        *result
     } else {
         let settings = load_settings();
         let payload = json!({
