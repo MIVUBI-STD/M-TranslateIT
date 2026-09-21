@@ -10,11 +10,7 @@
   } from "./app/bridge/runtimeProductFacade";
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { readMeetingPoll } from "./app/runtime/meetingPoll";
-  import { startRuntimePoll } from "./app/runtime/pollRuntime";
-  import {
-    startMeetingReliabilityMonitor,
-    startupRecoveryNotice,
-  } from "./app/runtime/reliabilityMonitor";
+  import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
   import { publishLatestMeetingOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
     destroyTranslateItWindows,
@@ -419,9 +415,7 @@
         }
         setupSettings = cloneSettings(loadedSettings);
         setupRequired = setupSettings.meeting_setup_state === "new";
-        const recoveryNotice = await startupRecoveryNotice().catch(() => null);
-        if (!setupRequired) await refreshSnapshot(recoveryNotice ?? undefined, loadedSettings);
-        else if (recoveryNotice) setNotice(recoveryNotice);
+        if (!setupRequired) await refreshSnapshot(undefined, loadedSettings);
       } finally {
         if (!disposed) booting = false;
       }
@@ -444,13 +438,11 @@
 
   $effect(() =>
     !booting && !setupRequired && (snapshot?.meeting.hasSession || closeAfterExistingStop)
-      ? startRuntimePoll(pollMeeting, 1200)
-      : undefined,
-  );
-
-  $effect(() =>
-    snapshot?.meeting.applicationOwned && snapshot.meeting.hasSession
-      ? startMeetingReliabilityMonitor(setNotice)
+      ? startMeetingRuntimeMonitors(
+          pollMeeting,
+          setNotice,
+          Boolean(snapshot?.meeting.applicationOwned && snapshot.meeting.hasSession),
+        )
       : undefined,
   );
 </script>

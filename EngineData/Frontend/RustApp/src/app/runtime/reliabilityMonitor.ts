@@ -1,7 +1,6 @@
 import {
   getDeviceLossGuardStatus,
   getRuntimeWatchdogStatus,
-  getStartupRecoveryStatus,
 } from "../bridge/reliabilityApi";
 
 const LIVE_RELIABILITY_POLL_MS = 8_000;
@@ -29,7 +28,7 @@ async function readLiveReliabilityNotice(): Promise<ReliabilityNotice | null> {
   return null;
 }
 
-export function startMeetingReliabilityMonitor(
+function startMeetingReliabilityMonitor(
   onNotice: (message: string) => void,
 ): () => void {
   let disposed = false;
@@ -62,9 +61,18 @@ export function startMeetingReliabilityMonitor(
   };
 }
 
-export async function startupRecoveryNotice(): Promise<string | null> {
-  const recovery = await getStartupRecoveryStatus();
-  if (recovery.blocker) return recovery.note;
-  if (recovery.previous_unclean_shutdown && recovery.cleanup_attempted) return recovery.note;
-  return null;
+export function startMeetingRuntimeMonitors(
+  pollMeeting: () => void | Promise<void>,
+  onNotice: (message: string) => void,
+  reliabilityEnabled: boolean,
+): () => void {
+  void pollMeeting();
+  const meetingTimer = window.setInterval(() => void pollMeeting(), 1_200);
+  const stopReliability = reliabilityEnabled
+    ? startMeetingReliabilityMonitor(onNotice)
+    : () => {};
+  return () => {
+    window.clearInterval(meetingTimer);
+    stopReliability();
+  };
 }

@@ -7,7 +7,7 @@ const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8
 
 test("live reliability monitor is session-scoped and advisory only", () => {
   assert.match(app, /snapshot\.meeting\.applicationOwned && snapshot\.meeting\.hasSession/);
-  assert.match(app, /startMeetingReliabilityMonitor/);
+  assert.match(app, /startMeetingRuntimeMonitors/);
   assert.match(monitor, /getRuntimeWatchdogStatus/);
   assert.match(monitor, /getDeviceLossGuardStatus/);
   assert.doesNotMatch(monitor, /stopMeetingTranslation|startMeetingTranslation|selectAudioDevice|startHelperBridge/);
@@ -19,8 +19,8 @@ test("reliability monitor deduplicates notices and stays low frequency", () => {
   assert.match(monitor, /inFlight/);
 });
 
-test("startup recovery is surfaced only when recovery is noteworthy", () => {
-  assert.match(monitor, /previous_unclean_shutdown && recovery\.cleanup_attempted/);
-  assert.match(monitor, /if \(recovery\.blocker\)/);
-  assert.doesNotMatch(monitor, /return recovery\.note;\s*$/m);
+test("meeting poll and reliability poll share one session-scoped owner", () => {
+  assert.match(monitor, /startMeetingRuntimeMonitors/);
+  assert.match(monitor, /1_200/);
+  assert.match(monitor, /stopReliability/);
 });
