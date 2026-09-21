@@ -15,9 +15,9 @@ pub use contract::{
     VoiceSummary, WorkerSummary,
 };
 pub use mutations::{
-    approve_product_voice_candidate, cancel_product_voice_build, select_product_audio_device,
-    select_product_builtin_voice, start_product_voice_build, start_product_voice_recording,
-    stop_product_voice_recording,
+    apply_product_meeting_preset, approve_product_voice_candidate, cancel_product_voice_build,
+    save_product_settings, select_product_audio_device, select_product_builtin_voice,
+    start_product_voice_build, start_product_voice_recording, stop_product_voice_recording,
 };
 pub use snapshot::current_application_snapshot;
 
