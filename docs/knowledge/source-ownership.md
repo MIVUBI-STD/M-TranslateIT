@@ -116,3 +116,29 @@ What happens now?     → current source + matching proof
 ```
 
 Historical paths/branch names never become current owners merely because an old report references them.
+
+
+## Application runtime kernel
+
+Cross-feature coordination is owned by:
+
+```text
+EngineData/Frontend/RustApp/src-tauri/src/commands/application_runtime/
+```
+
+Ownership boundaries:
+
+- `contract.rs`: public application-runtime contracts only.
+- `summaries.rs`: typed adapters from domain status into stable subsystem summaries.
+- `lifecycle.rs`: derives global application lifecycle from summaries only.
+- `capabilities.rs`: resolves product-level capability availability from summaries/resources.
+- `resources.rs`: derives cross-feature resource availability; it must not duplicate the lower-level runtime session authority store.
+- `problems.rs`: normalizes domain blockers into product-level problems.
+- `snapshot.rs`: read-only aggregation. It must not execute product actions.
+- `intents.rs`: the only application-runtime owner for cross-feature product-intent routing.
+- `events.rs`: application-runtime event publication only.
+- `mod.rs`: thin Tauri/public surface.
+
+Domain implementations remain owned by their existing modules (Meeting, audio, helper worker, voice, translation, overlay, settings). The application runtime coordinates them through typed summaries and public commands; it must not absorb domain algorithms or UI behavior.
+
+The architecture gate `npm run validate:application-runtime` enforces the modular boundary and rejects JSON-typed orchestration, oversized kernel modules, UI/window coupling, and action execution from the read-only snapshot owner.
