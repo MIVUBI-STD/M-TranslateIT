@@ -13,6 +13,7 @@
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import { setupStateNeedsResume } from "../app/runtime/setupFlow";
+  import { startRuntimePoll } from "../app/runtime/pollRuntime";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
   import MeetingTranscriptExport from "../components/meeting/MeetingTranscriptExport.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
@@ -209,21 +210,14 @@
     void refreshRouteStatus();
   });
 
-  $effect(() => {
-    if (meeting.hasSession) return;
-    void refreshMeetingDetection();
-    const detectionTimer = window.setInterval(() => void refreshMeetingDetection(), 5000);
-    return () => window.clearInterval(detectionTimer);
-  });
+  $effect(() => meeting.hasSession ? undefined : startRuntimePoll(refreshMeetingDetection, 5000));
 
   $effect(() => {
     if (activityVisible) {
       audioQuality = null;
       return;
     }
-    void refreshAudioQuality();
-    const qualityTimer = window.setInterval(() => void refreshAudioQuality(), 2500);
-    return () => window.clearInterval(qualityTimer);
+    return startRuntimePoll(refreshAudioQuality, 2500);
   });
 </script>
 

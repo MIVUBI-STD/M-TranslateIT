@@ -10,6 +10,7 @@
   } from "./app/bridge/runtimeProductFacade";
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { readMeetingPoll } from "./app/runtime/meetingPoll";
+  import { startRuntimePoll } from "./app/runtime/pollRuntime";
   import { publishLatestMeetingOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
     destroyTranslateItWindows,
@@ -442,12 +443,7 @@
     };
   });
 
-  $effect(() => {
-    if (!meetingPollNeeded) return;
-    void pollMeeting();
-    const timer = window.setInterval(() => void pollMeeting(), MEETING_REFRESH_MS);
-    return () => window.clearInterval(timer);
-  });
+  $effect(() => meetingPollNeeded ? startRuntimePoll(pollMeeting, MEETING_REFRESH_MS) : undefined);
 </script>
 
 {#if booting}
