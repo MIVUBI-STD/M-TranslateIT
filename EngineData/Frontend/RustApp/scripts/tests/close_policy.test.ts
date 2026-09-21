@@ -6,12 +6,11 @@ import { resolveClosePolicy, type ClosePolicySnapshot } from "../../src/app/runt
 const base: ClosePolicySnapshot = {
   recordingLineId: null,
   pendingReview: false,
-  buildUnavailable: false,
-  buildActive: false,
-  meetingUnavailable: false,
-  hasMeetingSession: true,
-  meetingApplicationOwned: true,
-  meetingLifecycle: "live",
+  runtimeUnavailable: false,
+  voiceBuildActive: false,
+  audioLocked: true,
+  ownerKind: "meeting",
+  lifecycle: "meeting_live",
 };
 
 function verdict(overrides: Partial<ClosePolicySnapshot> = {}) {
@@ -27,8 +26,8 @@ test("blocks close while My Voice is recording", () => {
   });
 });
 
-test("My Voice recording takes precedence over downstream availability", () => {
-  const result = verdict({ recordingLineId: 2, buildUnavailable: true, meetingUnavailable: true });
+test("My Voice recording takes precedence over runtime availability", () => {
+  const result = verdict({ recordingLineId: 2, runtimeUnavailable: true });
   assert.equal(result.kind, "dialog");
   assert.equal(result.kind === "dialog" ? result.title : "", "Voice recording is still running");
 });
@@ -37,44 +36,36 @@ test("blocks close while a take is pending review", () => {
   assert.equal(verdict({ pendingReview: true }).kind, "dialog");
 });
 
-test("fails closed when My Voice build state is unavailable", () => {
-  assert.deepEqual(verdict({ buildUnavailable: true }), {
+test("fails closed when canonical runtime state is unavailable", () => {
+  assert.deepEqual(verdict({ runtimeUnavailable: true }), {
     kind: "dialog",
-    title: "Can't check My Voice yet",
-    message: "TranslateIT can't confirm whether My Voice is still being created. Keep the app open and try again.",
+    title: "Can't confirm runtime state",
+    message: "TranslateIT can't confirm whether shared runtime resources are still active. Keep the app open and try again.",
     action: "retry",
   });
 });
 
 test("blocks close while My Voice build is active", () => {
-  assert.equal(verdict({ buildActive: true }).kind, "dialog");
+  assert.equal(verdict({ voiceBuildActive: true }).kind, "dialog");
 });
 
-test("fails closed when Meeting state is unavailable", () => {
-  assert.deepEqual(verdict({ meetingUnavailable: true }), {
-    kind: "dialog",
-    title: "Can't check the meeting yet",
-    message: "TranslateIT can't confirm whether Meeting translation is still active. Keep the app open or try the check again.",
-    action: "retry",
-  });
-});
-
-test("destroys immediately when no Meeting session exists", () => {
-  assert.deepEqual(verdict({ hasMeetingSession: false }), { kind: "destroy" });
+test("destroys immediately when no shared audio resource is owned", () => {
+  assert.deepEqual(verdict({ audioLocked: false, ownerKind: "none", lifecycle: "ready" }), { kind: "destroy" });
 });
 
 test("blocks close when audio belongs to another action", () => {
-  assert.equal(verdict({ meetingApplicationOwned: false }).kind, "dialog");
+  assert.equal(verdict({ ownerKind: "mic_test", lifecycle: "mic_test_live" }).kind, "dialog");
+  assert.equal(verdict({ ownerKind: "voice_recording", lifecycle: "voice_recording_live" }).kind, "dialog");
 });
 
 test("waits for an existing Meeting stop to finish", () => {
-  assert.deepEqual(verdict({ meetingLifecycle: "stopping" }), {
+  assert.deepEqual(verdict({ lifecycle: "meeting_stopping" }), {
     kind: "wait-for-stop",
     title: "Translation is stopping",
     message: "TranslateIT will close after Meeting translation finishes stopping.",
   });
 });
 
-test("requires stop-and-close for an application-owned active session", () => {
+test("requires stop-and-close for an application-owned active Meeting session", () => {
   assert.deepEqual(verdict(), { kind: "stop-and-close" });
 });
