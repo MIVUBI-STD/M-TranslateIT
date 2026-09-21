@@ -16,10 +16,17 @@ import { defaultSettings } from "../../src/app/shared/state.ts";
 
 class MemoryStorage {
   values = new Map<string, string>();
+  failNextKey: string | null = null;
   getItem(key: string) { return this.values.get(key) ?? null; }
-  setItem(key: string, value: string) { this.values.set(key, String(value)); }
+  setItem(key: string, value: string) {
+    if (this.failNextKey === key) {
+      this.failNextKey = null;
+      throw new Error("simulated storage failure");
+    }
+    this.values.set(key, String(value));
+  }
   removeItem(key: string) { this.values.delete(key); }
-  clear() { this.values.clear(); }
+  clear() { this.values.clear(); this.failNextKey = null; }
 }
 const memory = new MemoryStorage();
 Object.defineProperty(globalThis, "localStorage", { value: memory, configurable: true });
@@ -69,4 +76,20 @@ test("Translation feedback is opt-in bounded, sanitizes malformed data, and clea
   assert.equal(readTranslationFeedback().length, 40);
   assert.equal(clearTranslationFeedback(), true);
   assert.equal(readTranslationFeedback().length, 0);
+});
+
+test("Meeting preset delete rolls back provider map when preset write fails", () => {
+  memory.clear();
+  const settings = defaultSettings();
+  assert.equal(saveMeetingPreset(meetingPresetFromSettings("work", "Work", settings)).ok, true);
+  localStorage.setItem("translateit.meeting-preset-provider.v1", JSON.stringify({ teams: "work" }));
+
+  memory.failNextKey = "translateit.meeting-presets.v1";
+  const result = deleteMeetingPreset("work");
+  assert.equal(result.ok, false);
+  assert.equal(readMeetingPresets().some((entry) => entry.id === "work"), true);
+  assert.deepEqual(
+    JSON.parse(localStorage.getItem("translateit.meeting-preset-provider.v1") ?? "{}"),
+    { teams: "work" },
+  );
 });

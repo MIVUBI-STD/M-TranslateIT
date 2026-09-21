@@ -118,12 +118,26 @@ function readProviderPresetMap(): Record<string, string> {
 }
 
 export function deleteMeetingPreset(id: string): { ok: boolean; presets: MeetingPreset[] } {
-  const next = readMeetingPresets().filter((entry) => entry.id !== id);
-  const presetsSaved = writeJson(PRESETS_KEY, next);
-  const map = readProviderPresetMap();
-  for (const [provider, presetId] of Object.entries(map)) if (presetId === id) delete map[provider];
-  const providerMapSaved = writeJson(PROVIDER_KEY, map);
-  return { ok: presetsSaved && providerMapSaved, presets: presetsSaved ? next : readMeetingPresets() };
+  const previousPresets = readMeetingPresets();
+  const nextPresets = previousPresets.filter((entry) => entry.id !== id);
+  const previousMap = readProviderPresetMap();
+  const nextMap = { ...previousMap };
+  for (const [provider, presetId] of Object.entries(nextMap)) {
+    if (presetId === id) delete nextMap[provider];
+  }
+
+  // Write the advisory provider map first. If this succeeds but the authoritative
+  // preset list write fails, restore the previous map so delete remains all-or-nothing
+  // from the user's perspective. A crash between these writes can only lose a
+  // suggestion mapping while retaining the preset itself, never the reverse.
+  if (!writeJson(PROVIDER_KEY, nextMap)) {
+    return { ok: false, presets: previousPresets };
+  }
+  if (!writeJson(PRESETS_KEY, nextPresets)) {
+    const rollbackOk = writeJson(PROVIDER_KEY, previousMap);
+    return { ok: false, presets: rollbackOk ? previousPresets : readMeetingPresets() };
+  }
+  return { ok: true, presets: nextPresets };
 }
 
 export function rememberProviderPreset(provider: string, presetId: string): boolean {
