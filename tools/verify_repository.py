@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from urllib.parse import unquote
@@ -375,6 +376,51 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
             fail(errors, f"frontend package lost canonical source-validation entrypoint: {marker}")
 
 
+def check_tauri_security_contract(errors: list[str]) -> None:
+    main = json.loads(text("EngineData/Frontend/RustApp/src-tauri/capabilities/default.json"))
+    overlay = json.loads(text("EngineData/Frontend/RustApp/src-tauri/capabilities/translation-overlay.json"))
+
+    if main.get("windows") != ["main"]:
+        fail(errors, "main Tauri capability must target only the main window")
+    if overlay.get("windows") != ["translation-overlay"]:
+        fail(errors, "overlay Tauri capability must target only translation-overlay")
+
+    main_permissions = set(main.get("permissions", []))
+    overlay_permissions = set(overlay.get("permissions", []))
+
+    for required in (
+        "core:default",
+        "core:window:allow-destroy",
+        "core:window:allow-show",
+        "core:window:allow-hide",
+    ):
+        if required not in main_permissions:
+            fail(errors, f"main Tauri capability missing permission: {required}")
+    for forbidden in (
+        "core:window:allow-set-size",
+        "core:window:allow-set-position",
+        "core:window:allow-start-dragging",
+    ):
+        if forbidden in main_permissions:
+            fail(errors, f"main Tauri capability is broader than required: {forbidden}")
+
+    for required in (
+        "core:default",
+        "core:window:allow-set-size",
+        "core:window:allow-set-position",
+        "core:window:allow-start-dragging",
+        "core:window:allow-hide",
+    ):
+        if required not in overlay_permissions:
+            fail(errors, f"overlay Tauri capability missing permission: {required}")
+    for forbidden in (
+        "core:window:allow-destroy",
+        "core:window:allow-show",
+    ):
+        if forbidden in overlay_permissions:
+            fail(errors, f"overlay Tauri capability is broader than required: {forbidden}")
+
+
 def check_decision_boundary(errors: list[str]) -> None:
     current = text("docs/knowledge/decisions/README.md")
     legacy = text("docs/knowledge/decision-log.md")
@@ -395,6 +441,7 @@ def main() -> int:
     check_governance_links(errors)
     check_workflows(errors)
     check_ci_efficiency_contract(errors)
+    check_tauri_security_contract(errors)
     check_decision_boundary(errors)
     if errors:
         print("REPOSITORY VERIFY FAILED")
@@ -410,6 +457,7 @@ def main() -> int:
     print("- workflows: immutable/read-only/bounded and Local-routed")
     print("- CI: selective domains + exact-SHA proof summaries + canonical source contracts")
     print("- release: controlled payload triggers remain isolated")
+    print("- Tauri security: main/overlay capabilities remain least-privilege")
     return 0
 
 
