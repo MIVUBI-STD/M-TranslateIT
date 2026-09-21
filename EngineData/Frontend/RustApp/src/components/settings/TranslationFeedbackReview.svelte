@@ -31,7 +31,10 @@
   }
 
   function clearAll(): void {
-    clearTranslationFeedback();
+    if (!clearTranslationFeedback()) {
+      onNotice("Translation feedback couldn't be cleared from local storage.");
+      return;
+    }
     entries = [];
     onNotice("Translation feedback cleared.");
   }

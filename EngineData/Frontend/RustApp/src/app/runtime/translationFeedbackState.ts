@@ -70,7 +70,7 @@ export function readTranslationFeedback(): TranslationFeedbackEntry[] {
   }
 }
 
-export function saveTranslationFeedback(entry: Omit<TranslationFeedbackEntry, "id" | "createdAt">): void {
+export function saveTranslationFeedback(entry: Omit<TranslationFeedbackEntry, "id" | "createdAt">): boolean {
   const next: TranslationFeedbackEntry = {
     ...entry,
     source: entry.source.slice(0, MAX_TEXT_CHARS),
@@ -78,9 +78,19 @@ export function saveTranslationFeedback(entry: Omit<TranslationFeedbackEntry, "i
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: Date.now(),
   };
-  try { localStorage.setItem(KEY, JSON.stringify([next, ...readTranslationFeedback()].slice(0, MAX_ENTRIES))); } catch {}
+  try {
+    localStorage.setItem(KEY, JSON.stringify([next, ...readTranslationFeedback()].slice(0, MAX_ENTRIES)));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function clearTranslationFeedback(): void {
-  try { localStorage.removeItem(KEY); } catch {}
+export function clearTranslationFeedback(): boolean {
+  try {
+    localStorage.removeItem(KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }

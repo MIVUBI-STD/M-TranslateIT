@@ -26,8 +26,13 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function writeJson(key: string, value: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+function writeJson(key: string, value: unknown): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function cleanName(value: string): string {
@@ -94,34 +99,46 @@ export function readMeetingPresets(): MeetingPreset[] {
   return values.map(validPreset).filter((value): value is MeetingPreset => value !== null).slice(0, MAX_PRESETS);
 }
 
-export function saveMeetingPreset(preset: MeetingPreset): MeetingPreset[] {
+export function saveMeetingPreset(preset: MeetingPreset): { ok: boolean; presets: MeetingPreset[] } {
   const existing = readMeetingPresets().filter((entry) => entry.id !== preset.id);
   const next = [preset, ...existing].slice(0, MAX_PRESETS);
-  writeJson(PRESETS_KEY, next);
-  return next;
+  return { ok: writeJson(PRESETS_KEY, next), presets: next };
 }
 
-export function deleteMeetingPreset(id: string): MeetingPreset[] {
+function readProviderPresetMap(): Record<string, string> {
+  const raw = readJson<unknown>(PROVIDER_KEY, {});
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean: Record<string, string> = {};
+  for (const [provider, presetId] of Object.entries(raw)) {
+    if (typeof presetId === "string" && provider.trim() && presetId.trim()) {
+      clean[provider.trim().toLowerCase().slice(0, 80)] = presetId.trim().slice(0, 80);
+    }
+  }
+  return clean;
+}
+
+export function deleteMeetingPreset(id: string): { ok: boolean; presets: MeetingPreset[] } {
   const next = readMeetingPresets().filter((entry) => entry.id !== id);
-  writeJson(PRESETS_KEY, next);
-  const map = readJson<Record<string, string>>(PROVIDER_KEY, {});
+  const presetsSaved = writeJson(PRESETS_KEY, next);
+  const map = readProviderPresetMap();
   for (const [provider, presetId] of Object.entries(map)) if (presetId === id) delete map[provider];
-  writeJson(PROVIDER_KEY, map);
-  return next;
+  const providerMapSaved = writeJson(PROVIDER_KEY, map);
+  return { ok: presetsSaved && providerMapSaved, presets: presetsSaved ? next : readMeetingPresets() };
 }
 
-export function rememberProviderPreset(provider: string, presetId: string): void {
-  const key = provider.trim().toLowerCase();
-  if (!key) return;
-  const map = readJson<Record<string, string>>(PROVIDER_KEY, {});
-  map[key] = presetId;
-  writeJson(PROVIDER_KEY, map);
+export function rememberProviderPreset(provider: string, presetId: string): boolean {
+  const key = provider.trim().toLowerCase().slice(0, 80);
+  const value = presetId.trim().slice(0, 80);
+  if (!key || !value) return false;
+  const map = readProviderPresetMap();
+  map[key] = value;
+  return writeJson(PROVIDER_KEY, map);
 }
 
 export function suggestedPresetForProvider(provider: string | null): MeetingPreset | null {
   const key = String(provider ?? "").trim().toLowerCase();
   if (!key) return null;
-  const map = readJson<Record<string, string>>(PROVIDER_KEY, {});
+  const map = readProviderPresetMap();
   const id = map[key];
   return id ? readMeetingPresets().find((preset) => preset.id === id) ?? null : null;
 }

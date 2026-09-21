@@ -27,7 +27,11 @@
   ];
 
   function report(category: TranslationIssueCategory): void {
-    saveTranslationFeedback({ category, source, translation, sourceLanguage, targetLanguage });
+    const saved = saveTranslationFeedback({ category, source, translation, sourceLanguage, targetLanguage });
+    if (!saved) {
+      onNotice("Translation issue couldn't be saved locally.");
+      return;
+    }
     open = false;
     onNotice("Translation issue saved locally for later quality review.");
   }

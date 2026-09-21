@@ -45,10 +45,10 @@ test("Meeting preset storage is bounded and drops malformed persisted entries", 
 
   const settings = defaultSettings();
   for (let index = 0; index < 7; index += 1) {
-    saveMeetingPreset(meetingPresetFromSettings(`p-${index}`, `Preset ${index}`, settings));
+    assert.equal(saveMeetingPreset(meetingPresetFromSettings(`p-${index}`, `Preset ${index}`, settings)).ok, true);
   }
   assert.equal(readMeetingPresets().length, 6);
-  deleteMeetingPreset("p-6");
+  assert.equal(deleteMeetingPreset("p-6").ok, true);
   assert.equal(readMeetingPresets().some((entry) => entry.id === "p-6"), false);
 });
 
@@ -58,15 +58,15 @@ test("Translation feedback is opt-in bounded, sanitizes malformed data, and clea
   assert.deepEqual(readTranslationFeedback(), []);
 
   for (let index = 0; index < 45; index += 1) {
-    saveTranslationFeedback({
+    assert.equal(saveTranslationFeedback({
       category: "unnatural",
       source: `source-${index}`,
       translation: `translation-${index}`,
       sourceLanguage: "id",
       targetLanguage: "en",
-    });
+    }), true);
   }
   assert.equal(readTranslationFeedback().length, 40);
-  clearTranslationFeedback();
+  assert.equal(clearTranslationFeedback(), true);
   assert.equal(readTranslationFeedback().length, 0);
 });

@@ -42,14 +42,24 @@
     if (locked) return;
     const name = presetName.trim();
     if (!name) { onNotice("Name the preset before saving it."); return; }
-    presets = saveMeetingPreset(meetingPresetFromSettings(`preset-${Date.now()}`, name, settings));
+    const result = saveMeetingPreset(meetingPresetFromSettings(`preset-${Date.now()}`, name, settings));
+    if (!result.ok) {
+      onNotice("Meeting preset couldn't be saved locally. The previous presets were kept.");
+      return;
+    }
+    presets = result.presets;
     presetName = "";
     onNotice("Meeting preset saved.");
   }
 
   function removePreset(id: string): void {
     if (applying) return;
-    presets = deleteMeetingPreset(id);
+    const result = deleteMeetingPreset(id);
+    if (!result.ok) {
+      onNotice("Meeting preset couldn't be removed from local storage.");
+      return;
+    }
+    presets = result.presets;
     onNotice("Meeting preset removed.");
   }
 
