@@ -153,3 +153,10 @@ The floating translation overlay remains frontend-owned. It manages window prese
 ### Snapshot cost rule
 
 `ApplicationSnapshot` is a cheap reconciliation contract. Building it may inspect local in-process/native status, but it must not run expensive worker requests, model inference, functional probes, or recovery actions. Deep AI readiness belongs to the product/detail query that explicitly needs it. This keeps close checks, settings mutations, and runtime events bounded and prevents orchestration from creating hidden latency.
+
+
+### Event-first Meeting reconciliation
+
+Live Meeting UI freshness uses lightweight backend change events from authoritative committed-turn state. The event payload contains only revision/reason/session/sequence metadata; the frontend then reads authoritative Meeting state. A 10-second Meeting poll remains only as reconciliation fallback if an event is missed.
+
+Reliability monitoring remains polling-based where the condition itself is time-dependent (watchdog, device-loss detection, long-session pressure). Watchdog + device-loss share one live reliability IPC every 8 seconds; long-session health remains on its separate 30-second cadence. UI-only advisory checks such as meeting-app detection and idle audio-quality status are on-demand/page-entry reads rather than permanent polling.
