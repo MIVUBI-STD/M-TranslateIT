@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const settings = readFileSync(new URL("../../src/pages/Settings.svelte", import.meta.url), "utf8");
+const settingsPage = readFileSync(new URL("../../src/pages/Settings.svelte", import.meta.url), "utf8");
+const settings = readFileSync(new URL("../../src/components/settings/MeetingNoiseSuppression.svelte", import.meta.url), "utf8");
 const consumer = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/consumer_runtime.rs", import.meta.url), "utf8");
 const writer = readFileSync(new URL("../../src-tauri/src/engine/audio/live_segment_writer.rs", import.meta.url), "utf8");
 
-test("noise suppression exposes only auto and off", () => {
+test("noise suppression exposes only auto and off through its dedicated settings owner", () => {
+  assert.match(settingsPage, /MeetingNoiseSuppression/);
   assert.match(settings, /Auto · recommended/);
   assert.match(settings, />Off</);
   assert.doesNotMatch(settings, /Low|Medium|High|Aggressive/);
