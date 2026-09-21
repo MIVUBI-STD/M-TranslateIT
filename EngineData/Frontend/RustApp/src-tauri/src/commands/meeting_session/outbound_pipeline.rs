@@ -4,8 +4,6 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::engine::audio::meeting_output::deliver_meeting_output_wav;
-use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_settings::load_settings;
 
@@ -14,17 +12,12 @@ use super::committed_turns::{
     update_committed_turn_outbound_timing,
 };
 use super::super::helper_bridge::{required_outbound_voice_actor_token, send_helper_worker_task};
-use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
 use super::{
-    generation_is_live, incoming_session_is_eligible, worker_blocker, worker_number, worker_text,
-    MeetingOutboundProcessResult,
+    generation_is_live, worker_blocker, worker_number, worker_text, MeetingOutboundProcessResult,
 };
+use super::playback_runtime::{enqueue_meeting_playback, PreparedPlaybackJob};
 use super::session_state::{
-    elapsed_millis, record_first_playback_timing, set_outbound_timing, update_incoming_status,
-    update_outbound_status, OutboundTimingContext,
-};
-use super::suppression::{
-    begin_self_output_suppression, disable_optional_incoming_for_outbound,
+    elapsed_millis, set_outbound_timing, update_outbound_status, OutboundTimingContext,
 };
 
 fn tts_output_path(session_id: &str, generation: u64, event_sequence: u64) -> String {
@@ -40,7 +33,7 @@ fn remove_temporary_tts(path: &str) {
     }
 }
 
-fn remove_temporary_tts_paths(requested_path: &str, reported_path: &str) {
+pub(super) fn remove_temporary_tts_paths(requested_path: &str, reported_path: &str) {
     remove_temporary_tts(reported_path);
     if requested_path.trim() != reported_path.trim() {
         remove_temporary_tts(requested_path);
@@ -385,133 +378,78 @@ pub(super) fn process_outbound_wav(
         };
     }
 
-    let delivery_started_at = Instant::now();
-    let suppression_guard = match begin_self_output_suppression(session_id) {
-        Some(guard) => Some(guard),
-        None => {
-            let incoming_cleanup = disable_optional_incoming_for_outbound(session_id);
-            update_outbound_status(
-                generation,
-                session_id,
-                "delivering",
-                event_sequence,
-                false,
-                true,
-                "",
-                &format!(
-                    "Optional incoming protection became unavailable and incoming was disabled before required outbound delivery. {incoming_cleanup}"
-                ),
-            );
-            None
-        }
-    };
-
-    let _ = update_committed_turn_delivery_state(session_id, generation, utterance_id, "speaking");
-    update_outbound_status(
+    let playback_job = PreparedPlaybackJob {
         generation,
-        session_id,
-        "delivering",
+        session_id: session_id.to_string(),
         event_sequence,
-        true,
-        true,
-        "",
-        "Translated voice is being delivered through TranslateIT Meeting Microphone.",
-    );
-    let bound_output_device = get_bound_virtual_mic_output_device(generation);
-    let bound_route_blocker = bound_output_device.as_ref().err().cloned();
-    let route =
-        deliver_meeting_output_wav(&tts_path, bound_output_device.as_deref().ok(), generation);
-    record_first_playback_timing(
-        &mut timing,
-        delivery_started_at,
-        route.first_playback_at,
-        route.first_playback_unix_ms,
-    );
-    set_outbound_timing(generation, session_id, event_sequence, &timing.metrics);
-    let _ = update_committed_turn_outbound_timing(
-        session_id,
-        generation,
         utterance_id,
-        &timing.metrics,
-    );
-    drop(suppression_guard);
-    if incoming_session_is_eligible(session_id) && meeting_sound_capture_status().stream_active {
-        update_incoming_status(
-            session_id,
-            "listening",
-            false,
-            "",
-            "Incoming Meeting Sound resumed from a fresh speech boundary after TranslateIT TTS playback ended.",
-        );
-    }
-    remove_temporary_tts_paths(&requested_tts_path, &tts_path);
-    if !generation_is_live(generation) {
-        return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
-    }
-    if !route.ok || !route.execution_attempted {
-        let blocker = bound_route_blocker.unwrap_or_else(|| {
-            if route.blocker.is_empty() {
-                "meeting_outbound:meeting_route_delivery_failed".to_string()
-            } else {
-                route.blocker
-            }
-        });
-        let _ = update_committed_turn_delivery_state(
-            session_id,
-            generation,
-            utterance_id,
-            "output_failed",
-        );
-        update_outbound_status(
-            generation,
-            session_id,
-            "attention_needed",
-            event_sequence,
-            false,
-            false,
-            &blocker,
-            "Translated voice could not be safely delivered to the Meeting microphone route.",
-        );
-        return MeetingOutboundProcessResult {
-            ok: false,
-            delivered: false,
-            state: "delivery_failed".to_string(),
-            blocker,
-            note: "Meeting output was not accepted as complete.".to_string(),
-            generation,
-            utterance_sequence: event_sequence,
-            runtime_claim: "meeting_outbound_delivery_failed_or_unproved".to_string(),
-        };
-    }
+        requested_tts_path,
+        actual_tts_path: tts_path,
+        timing,
+        prepared_at: Instant::now(),
+    };
 
     let _ = update_committed_turn_delivery_state(
         session_id,
         generation,
         utterance_id,
-        "output_complete",
+        "queued",
     );
     update_outbound_status(
         generation,
         session_id,
-        "listening",
+        "queued",
         event_sequence,
         false,
         true,
         "",
-        "Translated voice output completed for the authoritative Meeting generation.",
+        "Translated voice is prepared and queued for bounded Meeting playback.",
     );
+
+    if let Err(blocker) = enqueue_meeting_playback(playback_job) {
+        let stale = blocker == "meeting_playback:generation_not_authoritative";
+        let _ = update_committed_turn_delivery_state(
+            session_id,
+            generation,
+            utterance_id,
+            if stale { "interrupted" } else { "output_failed" },
+        );
+        update_outbound_status(
+            generation,
+            session_id,
+            if stale { "listening" } else { "attention_needed" },
+            event_sequence,
+            false,
+            stale,
+            if stale { "" } else { &blocker },
+            if stale {
+                "Prepared voice output was discarded because its Meeting generation lost authority before playback."
+            } else {
+                "Prepared voice output could not enter the bounded Meeting playback runtime."
+            },
+        );
+        return MeetingOutboundProcessResult {
+            ok: stale,
+            delivered: false,
+            state: if stale { "interrupted" } else { "playback_enqueue_failed" }.to_string(),
+            blocker: if stale { String::new() } else { blocker },
+            note: "No additional playback attempt was made.".to_string(),
+            generation,
+            utterance_sequence: event_sequence,
+            runtime_claim: "meeting_outbound_prepared_output_not_delivered".to_string(),
+        };
+    }
+
     MeetingOutboundProcessResult {
         ok: true,
-        delivered: true,
-        state: "output_complete".to_string(),
+        delivered: false,
+        state: "queued".to_string(),
         blocker: String::new(),
-        note: "Generation-aware outbound stages completed. Windows delivery remains local proof."
+        note: "Local ASR, translation, and voice synthesis completed; bounded playback now owns delivery."
             .to_string(),
         generation,
         utterance_sequence: event_sequence,
-        runtime_claim:
-            "meeting_outbound_output_execution_attempted_needs_windows_runtime_validation"
-                .to_string(),
+        runtime_claim: "meeting_outbound_prepared_and_handed_to_bounded_playback".to_string(),
     }
 }
 

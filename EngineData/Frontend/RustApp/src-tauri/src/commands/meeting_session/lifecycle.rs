@@ -41,6 +41,9 @@ use super::incoming_deferred::{
     clear_deferred_incoming_queue, reset_deferred_incoming_drop_counters,
 };
 use super::outbound_pipeline::cleanup_meeting_tts_for_session;
+use super::playback_runtime::{
+    start_meeting_playback_runtime, stop_meeting_playback_runtime,
+};
 use super::preflight::{blocked_result, build_preflight, status_from_report};
 use super::session_state::{
     clear_all_start_preflight, clear_incoming_status, clear_outbound_status,
@@ -63,6 +66,7 @@ fn rollback_starting_meeting_resources(
     let _ = stop_meeting_sound_capture_runtime();
     let helper_cancel = cancel_helper_bridge_meeting_session(session_id);
     let consumer_cleanup = stop_meeting_outbound_consumer(generation);
+    let playback_cleanup = stop_meeting_playback_runtime(generation);
     clear_finalized_meeting_sequence();
     clear_self_output_suppression_for_session(session_id);
     clear_committed_turns_for_session(session_id);
@@ -70,7 +74,13 @@ fn rollback_starting_meeting_resources(
     clear_prepared_meeting_output_device();
     clear_prepared_virtual_mic_route_selection();
     let _ = clear_runtime_session_if_generation(generation);
-    (helper_cancel.message, consumer_cleanup.message)
+    (
+        helper_cancel.message,
+        format!(
+            "{} Playback cleanup: {}",
+            consumer_cleanup.message, playback_cleanup.message
+        ),
+    )
 }
 
 fn recover_helper_after_meeting_stop_if_needed() -> Result<(), String> {
@@ -294,9 +304,27 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
     }
 
-    // The serialized required outbound consumer is a Live dependency, not a post-Live
-    // best effort. Create it while the session is still Starting so a thread-spawn
-    // failure can roll back without ever exposing a transient Live state.
+    // Playback ownership is established before the AI consumer so the first
+    // prepared turn always has a bounded receiver. Failure rolls back before Live.
+    if let Err(error) = start_meeting_playback_runtime(generation, &session_id) {
+        let _ = revoke_runtime_session_authority(
+            generation,
+            "Meeting playback runtime could not start during Starting. Authority was revoked before rollback.",
+        );
+        let (helper_cleanup, runtime_cleanup) =
+            rollback_starting_meeting_resources(generation, &session_id);
+        return blocked_result(
+            "rolled_back",
+            format!(
+                "Start Translation was rolled back before Live because bounded Meeting playback could not start: {error}. Helper cleanup: {} Runtime cleanup: {}",
+                helper_cleanup, runtime_cleanup
+            ),
+        );
+    }
+
+    // The serialized required outbound AI consumer is a Live dependency, not a
+    // post-Live best effort. It hands prepared voice output to bounded playback
+    // instead of waiting for prior playback to finish.
     if let Err(error) = start_meeting_outbound_consumer(generation, &session_id) {
         let _ = revoke_runtime_session_authority(
             generation,
@@ -340,7 +368,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     let committed = commit_application_meeting_session_live(
         generation,
         true,
-        "Required microphone, generation-bound ASR/translation/My Voice functional proof, native Meeting output callback, and serialized outbound consumer were ready before the authoritative generation committed Live.",
+        "Required microphone, generation-bound ASR/translation/My Voice functional proof, native Meeting output callback, bounded playback runtime, and serialized outbound AI consumer were ready before the authoritative generation committed Live.",
     );
     if !committed.blocker.is_empty() {
         let _ = revoke_runtime_session_authority(
@@ -466,6 +494,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     let incoming_capture_stop = stop_meeting_sound_capture_runtime();
     let helper_cancel = cancel_helper_bridge_meeting_session(&session_id);
     let outbound_cleanup = stop_meeting_outbound_consumer(generation);
+    let playback_cleanup = stop_meeting_playback_runtime(generation);
     let incoming_cleanup = stop_meeting_incoming_consumer(&session_id);
 
     let suppression_cleanup_ok = clear_self_output_suppression_for_session(&session_id);
@@ -482,6 +511,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         incoming_capture_stop.ok,
         helper_cancel.ok,
         outbound_cleanup.ok,
+        playback_cleanup.ok,
         incoming_cleanup.ok,
         suppression_cleanup_ok,
         transcript_cleanup_ok,
@@ -501,6 +531,9 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         }
         if !outbound_cleanup.ok {
             failed.push("outbound consumer");
+        }
+        if !playback_cleanup.ok {
+            failed.push("playback runtime");
         }
         if !incoming_cleanup.ok {
             failed.push("incoming consumer");
@@ -534,11 +567,12 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
             ok: false,
             state: "cleanup_incomplete".to_string(),
             message: format!(
-                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: {} Transcript: {} Finalized audio: {} TTS cache: {}",
+                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Playback: {} Incoming: {} Suppression: {} Transcript: {} Finalized audio: {} TTS cache: {}",
                 capture_stop.message,
                 incoming_capture_stop.message,
                 helper_cancel.message,
                 outbound_cleanup.message,
+                playback_cleanup.message,
                 incoming_cleanup.message,
                 if suppression_cleanup_ok { "clean" } else { "unverified" },
                 if transcript_cleanup_ok { "clean" } else { "unverified" },
@@ -576,11 +610,12 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         ok: true,
         state: "stopped".to_string(),
         message: format!(
-            "Translation stopped. Authority was revoked before both audio lanes/helper/consumers and transient transcript/session state were cleaned. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Incoming: {} Suppression: clean Transcript: clean Finalized audio: {} TTS cache: {}",
+            "Translation stopped. Authority was revoked before both audio lanes/helper/consumers and transient transcript/session state were cleaned. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Playback: {} Incoming: {} Suppression: clean Transcript: clean Finalized audio: {} TTS cache: {}",
             capture_stop.message,
             incoming_capture_stop.message,
             helper_cancel.message,
             outbound_cleanup.message,
+            playback_cleanup.message,
             incoming_cleanup.message,
             finalized_audio_cleanup
                 .as_ref()
@@ -600,6 +635,7 @@ pub(super) fn meeting_cleanup_complete(
     meeting_sound_capture_ok: bool,
     helper_cleanup_ok: bool,
     outbound_consumer_ok: bool,
+    playback_runtime_ok: bool,
     incoming_consumer_ok: bool,
     suppression_cleanup_ok: bool,
     transcript_cleanup_ok: bool,
@@ -609,6 +645,7 @@ pub(super) fn meeting_cleanup_complete(
         && meeting_sound_capture_ok
         && helper_cleanup_ok
         && outbound_consumer_ok
+        && playback_runtime_ok
         && incoming_consumer_ok
         && suppression_cleanup_ok
         && transcript_cleanup_ok

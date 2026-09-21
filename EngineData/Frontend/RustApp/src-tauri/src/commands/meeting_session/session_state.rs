@@ -34,6 +34,7 @@ pub(super) fn idle_outbound_status() -> MeetingOutboundRuntimeStatus {
         session_id: None,
         stage: "idle".to_string(),
         utterance_sequence: 0,
+        playback_sequence: None,
         output_active: false,
         last_stage_ok: true,
         timing: None,
@@ -169,12 +170,21 @@ pub(super) fn update_outbound_status(
         } else {
             None
         };
+        let same_runtime = status.generation == Some(generation)
+            && status.session_id.as_deref() == Some(session_id);
+        let playback_sequence = if same_runtime {
+            status.playback_sequence
+        } else {
+            None
+        };
+        let playback_active = same_runtime && status.output_active;
         *status = MeetingOutboundRuntimeStatus {
             generation: Some(generation),
             session_id: Some(session_id.to_string()),
             stage: stage.to_string(),
             utterance_sequence,
-            output_active,
+            playback_sequence,
+            output_active: playback_active || output_active,
             last_stage_ok,
             timing,
             overflow_dropped_utterance_count: overflow_dropped_utterance_count(),
@@ -186,6 +196,29 @@ pub(super) fn update_outbound_status(
                 "meeting_outbound_finalized_segment_contract_source_side_not_windows_runtime_proof"
                     .to_string(),
         };
+    }
+}
+
+pub(super) fn set_outbound_playback_activity(
+    generation: u64,
+    session_id: &str,
+    utterance_sequence: u64,
+    active: bool,
+) {
+    if let Ok(mut status) = outbound_status_store().lock() {
+        if status.generation != Some(generation)
+            || status.session_id.as_deref() != Some(session_id)
+        {
+            return;
+        }
+        if active {
+            status.playback_sequence = Some(utterance_sequence);
+            status.output_active = true;
+        } else if status.playback_sequence == Some(utterance_sequence) {
+            status.playback_sequence = None;
+            status.output_active = false;
+        }
+        status.updated_unix_ms = unix_ms();
     }
 }
 
@@ -237,6 +270,7 @@ pub(super) fn timing_context_from_utterance(
             translation_decode_ms: None,
             translation_tokens_per_second: None,
             tts_ms: None,
+            playback_queue_ms: None,
             delivery_ms: None,
             outbound_latency_ms: None,
         },

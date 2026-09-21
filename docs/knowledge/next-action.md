@@ -10,6 +10,8 @@ The final remote zero-waste pass removed unused productivity state, closed the w
 
 Reliability remains crash-safe and bounded: watchdog, device-loss handling, redacted support export, incident history, long-session pressure monitoring, centralized live-monitor ownership, one canonical local AI pipeline, and one-shot signed updater.
 
+Outbound Meeting orchestration now separates local AI preparation from Meeting playback through one generation-bound playback runtime with a single pending slot. Capture/ASR/translation/TTS remain canonical and serialized, while the next prepared turn may progress during prior playback without creating an unbounded audio backlog. Actual latency improvement remains TARGET_WINDOWS evidence.
+
 ## Active Boundary
 
 Preserve:

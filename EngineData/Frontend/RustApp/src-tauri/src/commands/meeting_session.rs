@@ -14,6 +14,7 @@ mod incoming_deferred;
 mod incoming_pipeline;
 mod lifecycle;
 mod outbound_pipeline;
+mod playback_runtime;
 mod preflight;
 mod session_state;
 mod suppression;
@@ -61,6 +62,7 @@ pub struct MeetingOutboundTiming {
     pub translation_decode_ms: Option<f64>,
     pub translation_tokens_per_second: Option<f64>,
     pub tts_ms: Option<u64>,
+    pub playback_queue_ms: Option<u64>,
     pub delivery_ms: Option<u64>,
     pub outbound_latency_ms: Option<u64>,
 }
@@ -71,6 +73,7 @@ pub struct MeetingOutboundRuntimeStatus {
     pub session_id: Option<String>,
     pub stage: String,
     pub utterance_sequence: u64,
+    pub playback_sequence: Option<u64>,
     pub output_active: bool,
     pub last_stage_ok: bool,
     pub timing: Option<MeetingOutboundTiming>,
@@ -356,6 +359,7 @@ mod c2_latency_tests {
                 translation_decode_ms: Some(2.0),
                 translation_tokens_per_second: Some(72.0),
                 tts_ms: Some(160),
+                playback_queue_ms: None,
                 delivery_ms: None,
                 outbound_latency_ms: None,
             },
@@ -381,15 +385,16 @@ mod cleanup_truth_tests {
 
     #[test]
     fn cleanup_truth_requires_every_owned_resource_to_release() {
-        assert!(meeting_cleanup_complete(true, true, true, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(false, true, true, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, false, true, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, false, true, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, false, true, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, false, true, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, true, false, true, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, false, true));
-        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, true, false));
+        assert!(meeting_cleanup_complete(true, true, true, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(false, true, true, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, false, true, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, false, true, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, false, true, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, false, true, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, false, true, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, false, true, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, true, false, true));
+        assert!(!meeting_cleanup_complete(true, true, true, true, true, true, true, true, false));
     }
 }
 
