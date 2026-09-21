@@ -240,6 +240,27 @@ pub fn dispatch_product_intent(app: tauri::AppHandle, intent: String) -> Applica
             let result = mic_test::stop_capture();
             (result.ok, result.state.to_string(), result.message)
         }
+        "fix_setup" => {
+            let helper = helper_bridge::get_helper_bridge_status();
+            if matches!(helper.state.as_str(), "not_started" | "stopped") {
+                let started = helper_bridge::start_helper_bridge();
+                if !started.ok {
+                    (false, started.state, started.message)
+                } else {
+                    let readiness = runtime::verify_required_outbound_ai_readiness();
+                    (readiness.ok, readiness.state, readiness.message)
+                }
+            } else if helper.state == "ready" {
+                let readiness = runtime::verify_required_outbound_ai_readiness();
+                (readiness.ok, readiness.state, readiness.message)
+            } else {
+                (
+                    false,
+                    "helper_unavailable".to_string(),
+                    "Setup still needs attention because the local helper is unavailable.".to_string(),
+                )
+            }
+        }
         "refresh" => (
             true,
             "refreshed".to_string(),
