@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::{Mutex, OnceLock};
 
+use crate::engine::runtime_events::emit_meeting_runtime_event;
 use crate::engine::runtime_state::latest_runtime_session_state;
 
 use super::super::helper_bridge_runtime::unix_ms;
@@ -327,7 +328,7 @@ pub(super) fn commit_meeting_turn(
     let Some(store) = guard.as_mut() else {
         return false;
     };
-    store.commit_at(
+    let committed = store.commit_at(
         session_id,
         sequence,
         generation,
@@ -340,7 +341,12 @@ pub(super) fn commit_meeting_turn(
         delivery_state,
         outbound_timing,
         unix_ms(),
-    )
+    );
+    drop(guard);
+    if committed {
+        emit_meeting_runtime_event("turn_committed", Some(session_id), Some(sequence));
+    }
+    committed
 }
 
 pub(super) fn update_committed_turn_delivery_state(
@@ -355,13 +361,18 @@ pub(super) fn update_committed_turn_delivery_state(
     let Some(store) = guard.as_mut() else {
         return false;
     };
-    store.update_delivery_state_at(
+    let updated = store.update_delivery_state_at(
         session_id,
         generation,
         utterance_id,
         delivery_state,
         unix_ms(),
-    )
+    );
+    drop(guard);
+    if updated {
+        emit_meeting_runtime_event("delivery_state_changed", Some(session_id), None);
+    }
+    updated
 }
 
 pub(super) fn update_committed_turn_outbound_timing(
@@ -376,7 +387,13 @@ pub(super) fn update_committed_turn_outbound_timing(
     let Some(store) = guard.as_mut() else {
         return false;
     };
-    store.update_outbound_timing_at(session_id, generation, utterance_id, timing, unix_ms())
+    let updated =
+        store.update_outbound_timing_at(session_id, generation, utterance_id, timing, unix_ms());
+    drop(guard);
+    if updated {
+        emit_meeting_runtime_event("outbound_timing_changed", Some(session_id), None);
+    }
+    updated
 }
 
 pub(super) fn interrupt_committed_turns_for_generation(session_id: &str, generation: u64) {
