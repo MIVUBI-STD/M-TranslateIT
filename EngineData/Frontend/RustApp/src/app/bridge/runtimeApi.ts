@@ -643,7 +643,7 @@ export const runtimeApi = {
 
   async saveSettings(settings: RuntimeSettings): Promise<CommandResult> {
     return invokeOr<CommandResult>(
-      "save_runtime_settings",
+      "save_product_settings",
       { settings },
       commandFallback("Settings could not be saved because the frontend bridge could not call Tauri."),
     );
@@ -651,7 +651,7 @@ export const runtimeApi = {
 
   async applyMeetingPreset(settings: RuntimeSettings): Promise<MeetingPresetApplyResult> {
     return invokeOr<MeetingPresetApplyResult>(
-      "apply_meeting_preset",
+      "apply_product_meeting_preset",
       { settings },
       {
         ok: false,
