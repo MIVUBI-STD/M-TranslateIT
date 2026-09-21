@@ -50,10 +50,18 @@
   let deviceSaving = $state(false);
   let deviceMessage = $state("Loading audio devices...");
 
-  const meetingResourcesLocked = $derived(snapshot.meeting.hasSession);
-  const micTestOwnsResources = $derived(snapshot.meeting.hasSession && !snapshot.meeting.applicationOwned);
-  const micTestBlockedByMeeting = $derived(snapshot.meeting.applicationOwned);
-  const meetingResourceLockMessage = "Stop Translation or Mic Test before changing meeting audio or running Repair Setup.";
+  const meetingResourcesLocked = $derived(snapshot.resources.audio_locked);
+  const micTestOwnsResources = $derived(snapshot.resources.owner_kind === "mic_test");
+  const micTestBlockedByMeeting = $derived(snapshot.resources.audio_locked && !micTestOwnsResources);
+  const meetingResourceLockMessage = $derived(
+    snapshot.resources.owner_kind === "meeting"
+      ? "Stop Translation before changing meeting audio or running Repair Setup."
+      : snapshot.resources.owner_kind === "mic_test"
+        ? "Stop Mic Test before changing meeting audio or running Repair Setup."
+        : snapshot.resources.owner_kind === "voice_recording"
+          ? "Stop My Voice recording before changing meeting audio or running Repair Setup."
+          : "Finish the current audio action before changing meeting audio or running Repair Setup.",
+  );
   const meetingMicrophoneDevice = $derived(
     String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
   );
