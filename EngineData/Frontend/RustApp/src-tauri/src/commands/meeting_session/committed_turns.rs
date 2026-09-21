@@ -412,6 +412,22 @@ fn empty_committed_turn_snapshot(
     }
 }
 
+pub(super) fn committed_turn_health_counts() -> (usize, u64, bool) {
+    committed_turn_store()
+        .lock()
+        .ok()
+        .and_then(|guard| {
+            guard.as_ref().map(|store| {
+                (
+                    store.turns.len(),
+                    store.dropped_turn_count,
+                    store.dropped_turn_count > 0,
+                )
+            })
+        })
+        .unwrap_or((0, 0, false))
+}
+
 pub(super) fn current_committed_turn_snapshot() -> MeetingCommittedTurnsSnapshot {
     let session = latest_runtime_session_state().snapshot;
     let Some(session) = session else {

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::engine::logging::sanitize_diagnostic_text;
@@ -9,6 +10,11 @@ use crate::engine::paths::ProjectPaths;
 
 const INCIDENT_FILE: &str = "runtime_incidents.json";
 const MAX_INCIDENTS: usize = 20;
+static INCIDENT_IO_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn incident_io_lock() -> &'static Mutex<()> {
+    INCIDENT_IO_LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeIncident {
@@ -78,6 +84,9 @@ pub fn record_runtime_incident(
         return false;
     }
 
+    let Ok(_io_guard) = incident_io_lock().lock() else {
+        return false;
+    };
     let path = incident_path();
     let mut incidents = read_incidents(&path);
     let next = RuntimeIncident {
@@ -102,8 +111,20 @@ pub fn record_runtime_incident(
 }
 
 #[tauri::command]
+pub fn runtime_incident_count() -> usize {
+    let Ok(_io_guard) = incident_io_lock().lock() else {
+        return 0;
+    };
+    read_incidents(&incident_path()).len()
+}
+
+#[tauri::command]
 pub fn get_recent_runtime_incidents() -> RuntimeIncidentSnapshot {
-    let incidents = read_incidents(&incident_path());
+    let incidents = incident_io_lock()
+        .lock()
+        .ok()
+        .map(|_guard| read_incidents(&incident_path()))
+        .unwrap_or_default();
     RuntimeIncidentSnapshot {
         count: incidents.len(),
         truncated: incidents.len() >= MAX_INCIDENTS,

@@ -250,6 +250,10 @@ pub(crate) fn deferred_incoming_health_counts() -> (usize, u64, u64) {
     incoming_deferred::deferred_incoming_health_counts()
 }
 
+pub(crate) fn committed_turn_health_counts() -> (usize, u64, bool) {
+    committed_turns::committed_turn_health_counts()
+}
+
 #[tauri::command]
 pub fn get_meeting_committed_turns() -> MeetingCommittedTurnsSnapshot {
     current_committed_turn_snapshot()

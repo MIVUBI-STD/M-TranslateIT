@@ -5,9 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::engine::paths::ProjectPaths;
 
-use super::incident_log::{get_recent_runtime_incidents, record_runtime_incident};
+use super::incident_log::{record_runtime_incident, runtime_incident_count};
 use super::meeting_session::{
-    deferred_incoming_health_counts, get_meeting_committed_turns, get_meeting_session_status,
+    committed_turn_health_counts, deferred_incoming_health_counts, get_meeting_session_status,
 };
 
 const TEMP_FILE_WARNING_THRESHOLD: usize = 12;
@@ -62,11 +62,12 @@ fn meeting_temp_file_count(paths: &ProjectPaths) -> usize {
 #[tauri::command]
 pub fn get_long_session_health_status() -> LongSessionHealthStatus {
     let meeting = get_meeting_session_status();
-    let transcript = get_meeting_committed_turns();
+    let (_turn_count, transcript_dropped, transcript_truncated) =
+        committed_turn_health_counts();
     let (deferred_depth, deferred_overflow, deferred_stale) =
         deferred_incoming_health_counts();
     let temp_count = meeting_temp_file_count(&ProjectPaths::discover());
-    let incidents = get_recent_runtime_incidents();
+    let incident_count = runtime_incident_count();
 
     let overflow = meeting.outbound.overflow_dropped_utterance_count;
     let evicted = meeting.outbound.evicted_pending_utterance_count;
@@ -75,7 +76,7 @@ pub fn get_long_session_health_status() -> LongSessionHealthStatus {
     warnings += usize::from(evicted > 0);
     warnings += usize::from(deferred_overflow > 0);
     warnings += usize::from(deferred_stale > 0);
-    warnings += usize::from(transcript.dropped_turn_count > 0);
+    warnings += usize::from(transcript_dropped > 0);
     warnings += usize::from(temp_count > TEMP_FILE_WARNING_THRESHOLD);
 
     let healthy = warnings == 0;
@@ -103,10 +104,10 @@ pub fn get_long_session_health_status() -> LongSessionHealthStatus {
         deferred_incoming_depth: deferred_depth,
         deferred_incoming_dropped_overflow: deferred_overflow,
         deferred_incoming_dropped_stale: deferred_stale,
-        transcript_dropped_turns: transcript.dropped_turn_count,
-        transcript_truncated: transcript.truncated,
+        transcript_dropped_turns: transcript_dropped,
+        transcript_truncated: transcript_truncated,
         meeting_temp_file_count: temp_count,
-        incident_count: incidents.count,
+        incident_count,
         warning_count: warnings,
         note: note.to_string(),
         updated_unix_ms: unix_ms(),
