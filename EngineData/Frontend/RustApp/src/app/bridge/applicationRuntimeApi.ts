@@ -3,7 +3,6 @@ import { runCommand } from "../shared/tauriBridge";
 import type {
   HelperBridgeStatus,
   HelperBridgeWorkerResponse,
-  InputPreparationStatus,
   RuntimeSettings,
 } from "../shared/types";
 import type { MeetingSessionStatus } from "./runtimeApi";
@@ -14,6 +13,7 @@ export type ProductIntent =
   | "start_mic_test"
   | "stop_mic_test"
   | "fix_setup"
+  | "ensure_runtime_ready"
   | "refresh";
 
 export type ApplicationProblem = {
@@ -56,6 +56,18 @@ export type AudioSummary = {
   note: string;
 };
 
+export type ApplicationInputStatus = {
+  ready: boolean;
+  prepared: boolean;
+  functional_verified: boolean;
+  callback_frames_observed: number;
+  selected_device_name: string | null;
+  input_device_name: string | null;
+  device_count: number;
+  blocker: string;
+  note: string;
+};
+
 export type ApplicationSubsystemSummaries = {
   meeting: MeetingSummary;
   worker: WorkerSummary;
@@ -77,7 +89,7 @@ export type ApplicationSnapshot = {
   meeting: MeetingSessionStatus;
   helper: HelperBridgeStatus;
   worker: HelperBridgeWorkerResponse | null;
-  input: InputPreparationStatus;
+  input: ApplicationInputStatus;
   summaries: ApplicationSubsystemSummaries;
   resources: ResourceArbitration;
   capabilities: ApplicationCapabilities;
@@ -108,7 +120,11 @@ function unavailableSnapshot(): ApplicationSnapshot {
     worker: null,
     input: {
       ready: false,
+      prepared: false,
+      functional_verified: false,
+      callback_frames_observed: 0,
       selected_device_name: null,
+      input_device_name: null,
       device_count: 0,
       blocker: "application_runtime:unavailable",
       note: "Application runtime is unavailable.",
