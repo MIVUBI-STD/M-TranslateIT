@@ -21,7 +21,7 @@ This file maps semantic responsibility to the current owner. It does not carry m
 
 ## Desktop product/runtime
 
-| Responsibility | Current owner |
+| Responsibility | Owner |
 |---|---|
 | App root / workspace composition | `EngineData/Frontend/RustApp/src/App.svelte` |
 | Product pages | `EngineData/Frontend/RustApp/src/pages/` |
@@ -58,7 +58,7 @@ This file maps semantic responsibility to the current owner. It does not carry m
 
 ## Local AI / translation / voice
 
-| Responsibility | Current owner |
+| Responsibility | Owner |
 |---|---|
 | Canonical worker entry | `EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker.py` |
 | Worker orchestration/base | `realtime_local_worker_base.py`, `worker_io_runtime.py`, `worker_runtime_common.py` |
