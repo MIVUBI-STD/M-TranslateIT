@@ -22,6 +22,35 @@ pub struct TextTranslationResult {
     pub review_hints: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct QuickTranslationResult {
+    pub ok: bool,
+    pub state: String,
+    pub translated_text: String,
+    pub user_message: String,
+    pub blocker: String,
+    pub needs_review: bool,
+    pub review_hints: Vec<String>,
+    pub source_language: String,
+    pub target_language: String,
+}
+
+impl QuickTranslationResult {
+    fn from_text(result: TextTranslationResult, source_language: String, target_language: String) -> Self {
+        Self {
+            ok: result.ok,
+            state: result.state,
+            translated_text: result.translated_text,
+            user_message: result.user_message,
+            blocker: result.blocker,
+            needs_review: result.needs_review,
+            review_hints: result.review_hints,
+            source_language,
+            target_language,
+        }
+    }
+}
+
 impl TextTranslationResult {
     fn success(translated_text: String, review_hints: Vec<String>) -> Self {
         Self {
@@ -199,7 +228,7 @@ fn ensure_persistent_helper_started() -> Result<(), TextTranslationResult> {
     }
 }
 
-fn translate_with_persistent_helper(source: &str) -> TextTranslationResult {
+fn translate_with_persistent_helper(source: &str, request_kind: &str) -> TextTranslationResult {
     if let Err(result) = ensure_persistent_helper_started() {
         return result;
     }
@@ -209,7 +238,7 @@ fn translate_with_persistent_helper(source: &str) -> TextTranslationResult {
         "text": source,
         "source_language": settings.source_language,
         "target_language": settings.target_language,
-        "request_kind": "standalone_text",
+        "request_kind": request_kind,
         "translation_style": settings.translation_style,
         "terminology": &settings.terminology,
     });
@@ -262,7 +291,7 @@ pub fn translate_text(source: String) -> TextTranslationResult {
             "text_translation:input_too_long".to_string(),
         )
     } else {
-        translate_with_persistent_helper(&source)
+        translate_with_persistent_helper(&source, "standalone_text")
     };
 
     if result.ok {
@@ -271,6 +300,42 @@ pub fn translate_text(source: String) -> TextTranslationResult {
         trace_command_error("translate_text", started, format!("state={}", result.state));
     }
     result
+}
+
+#[tauri::command]
+pub fn quick_translate_text(source: String) -> QuickTranslationResult {
+    let started = trace_command_start(
+        "quick_translate_text",
+        format!("source_chars={}", source.chars().count()),
+    );
+    let source = clean_source(&source);
+    let settings = load_settings();
+    let source_language = settings.source_language.clone();
+    let target_language = settings.target_language.clone();
+    let result = if source.is_empty() {
+        TextTranslationResult::blocked(
+            "empty_input",
+            "Quick Translate needs text to translate.",
+            "quick_translation:empty_input".to_string(),
+        )
+    } else if source.chars().count() > MAX_TEXT_TRANSLATION_CHARS {
+        TextTranslationResult::blocked(
+            "input_too_long",
+            &format!(
+                "Quick Translate text is too long. Limit: {MAX_TEXT_TRANSLATION_CHARS} characters."
+            ),
+            "quick_translation:input_too_long".to_string(),
+        )
+    } else {
+        translate_with_persistent_helper(&source, "quick_text")
+    };
+
+    if result.ok {
+        trace_command_end("quick_translate_text", started, format!("state={}", result.state));
+    } else {
+        trace_command_error("quick_translate_text", started, format!("state={}", result.state));
+    }
+    QuickTranslationResult::from_text(result, source_language, target_language)
 }
 
 #[cfg(test)]

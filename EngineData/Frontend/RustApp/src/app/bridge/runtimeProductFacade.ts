@@ -50,6 +50,11 @@ export type ProductMeetingActionResult = {
   status: MeetingSessionActionResult["status"];
 };
 
+export type ProductQuickTranslationResult = ProductTranslationResult & {
+  sourceLanguage: string;
+  targetLanguage: string;
+};
+
 export type ProductTranslationResult = {
   ok: boolean;
   source: string;
@@ -219,6 +224,52 @@ export async function selectProductAudioDevice(
   };
 }
 
+export async function runProductQuickTranslation(source: string): Promise<ProductQuickTranslationResult> {
+  const cleaned = source.trim();
+  if (!cleaned) {
+    return {
+      ok: false,
+      source,
+      translated: "",
+      status: "empty",
+      message: "Quick Translate needs text to translate.",
+      blocker: "quick_translation:empty_input",
+      needsReview: false,
+      reviewHints: [],
+      sourceLanguage: "",
+      targetLanguage: "",
+    };
+  }
+  try {
+    const result = await runtimeApi.quickTranslateText(cleaned);
+    return {
+      ok: Boolean(result.ok),
+      source: cleaned,
+      translated: result.translated_text,
+      status: result.state,
+      message: result.user_message,
+      blocker: result.blocker,
+      needsReview: Boolean(result.needs_review),
+      reviewHints: Array.isArray(result.review_hints) ? result.review_hints : [],
+      sourceLanguage: result.source_language,
+      targetLanguage: result.target_language,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      source: cleaned,
+      translated: "",
+      status: "frontend_bridge_error",
+      message: "Quick Translate is unavailable right now.",
+      blocker: errorMessage(error),
+      needsReview: false,
+      reviewHints: [],
+      sourceLanguage: "",
+      targetLanguage: "",
+    };
+  }
+}
+
 export async function runProductTranslation(source: string): Promise<ProductTranslationResult> {
   const cleaned = source.trim();
   if (!cleaned) {
@@ -356,6 +407,7 @@ export const runtimeProductFacade = {
   mapProductMeetingState,
   mapProductReadiness,
   runProductMeetingAction,
+  runProductQuickTranslation,
   runProductTranslation,
   runProductTranslationAlternative,
   runProductSetupAction,

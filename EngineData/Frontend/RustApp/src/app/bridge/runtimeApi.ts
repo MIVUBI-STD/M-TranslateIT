@@ -64,6 +64,11 @@ export type VirtualMicRouteContractStatus = {
   updated_unix_ms: number;
 };
 
+export type QuickTranslationCommandResult = TextTranslationCommandResult & {
+  source_language: string;
+  target_language: string;
+};
+
 export type TextTranslationCommandResult = {
   ok: boolean;
   state: string;
@@ -211,6 +216,14 @@ type NativeInputPreparationStatus = InputPreparationStatus & {
 
 function commandFallback(message: string, state = "frontend_bridge_error"): CommandResult {
   return { ok: false, state, message };
+}
+
+function quickTranslationFallback(): QuickTranslationCommandResult {
+  return {
+    ...textTranslationFallback(),
+    source_language: "",
+    target_language: "",
+  };
 }
 
 function textTranslationFallback(): TextTranslationCommandResult {
@@ -561,6 +574,14 @@ export const runtimeApi = {
 
   async selectAudioDevice(kind: "microphone" | "meeting-sound", deviceId: string | null): Promise<AudioDeviceSelectionCommandResult | null> {
     return invokeNullable<AudioDeviceSelectionCommandResult>("select_audio_device", { kind, deviceId });
+  },
+
+  async quickTranslateText(source: string): Promise<QuickTranslationCommandResult> {
+    return invokeOr<QuickTranslationCommandResult>(
+      "quick_translate_text",
+      { source },
+      quickTranslationFallback(),
+    );
   },
 
   async translateText(source: string): Promise<TextTranslationCommandResult> {

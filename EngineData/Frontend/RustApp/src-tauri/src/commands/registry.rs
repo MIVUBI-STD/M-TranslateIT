@@ -24,6 +24,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::mic_test::start_capture,
         crate::commands::mic_test::stop_capture,
         crate::commands::text_translation::translate_text,
+        crate::commands::text_translation::quick_translate_text,
         crate::commands::text_translation::translate_text_alternative,
         crate::commands::voice_lab_recording::get_voice_lab_guided_recording_state,
         crate::commands::voice_lab_recording::start_voice_lab_guided_take,
