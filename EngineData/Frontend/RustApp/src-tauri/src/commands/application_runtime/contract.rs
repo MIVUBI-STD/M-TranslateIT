@@ -89,6 +89,8 @@ pub struct ResourceArbitration {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ApplicationSnapshot {
+    // Monotonic snapshot sequence. It increments when a snapshot is built and is
+    // not a semantic state-version or proof that underlying product state changed.
     pub revision: u64,
     pub lifecycle: String,
     pub active_owner: Option<String>,
