@@ -155,3 +155,37 @@ export async function getStartupRecoveryStatus(): Promise<StartupRecoveryReport>
     checked_unix_ms: Date.now(),
   };
 }
+
+
+export type MeetingReliabilitySnapshot = {
+  watchdog: RuntimeWatchdogStatus;
+  devices: DeviceLossGuardStatus;
+};
+
+export async function getMeetingReliabilitySnapshot(): Promise<MeetingReliabilitySnapshot> {
+  return (await runCommand<MeetingReliabilitySnapshot>("get_meeting_reliability_snapshot")) ?? {
+    watchdog: {
+      state: "unavailable",
+      healthy: false,
+      action_required: false,
+      component: "",
+      stage: "",
+      age_ms: 0,
+      threshold_ms: 0,
+      blocker: "frontend_bridge_unavailable",
+      note: "Runtime watchdog status is unavailable right now.",
+      updated_unix_ms: Date.now(),
+    },
+    devices: {
+      state: "unavailable",
+      healthy: false,
+      action_required: false,
+      required_device_lost: false,
+      optional_device_lost: false,
+      component: "",
+      blocker: "frontend_bridge_unavailable",
+      note: "Device-loss status is unavailable right now.",
+      updated_unix_ms: Date.now(),
+    },
+  };
+}
