@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, Trash2 } from "@lucide/svelte";
+  import { Copy, Plus, Search, Trash2, Upload } from "@lucide/svelte";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
   import FloatingCaptionPreferences from "./FloatingCaptionPreferences.svelte";
@@ -24,6 +24,11 @@
   let spokenAliases = $state("");
   let saving = $state(false);
   let styleSaving = $state(false);
+  let termSearch = $state("");
+  const filteredTerms = $derived(settings.terminology.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
+    const q = termSearch.trim().toLowerCase();
+    return !q || entry.indonesian.toLowerCase().includes(q) || entry.english.toLowerCase().includes(q);
+  }));
 
   async function updateTranslationStyle(style: "natural" | "formal"): Promise<void> {
     if (styleSaving || settings.translation_style === style) return;
@@ -167,6 +172,69 @@
       "Preferred word removed.",
     );
   }
+
+  function csvEscape(value: string): string {
+    return /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+  }
+
+  async function copyTermsCsv(): Promise<void> {
+    const rows = ["indonesian,english", ...settings.terminology.map((entry) => `${csvEscape(entry.indonesian)},${csvEscape(entry.english)}`)];
+    try {
+      await navigator.clipboard.writeText(rows.join("\n"));
+      onNotice("Preferred words copied as CSV.");
+    } catch {
+      onNotice("Couldn't copy preferred words.");
+    }
+  }
+
+  function parseCsvLine(line: string): string[] {
+    const values: string[] = [];
+    let value = "";
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (char === '"') {
+        if (quoted && line[index + 1] === '"') { value += '"'; index += 1; }
+        else quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        values.push(value.trim());
+        value = "";
+      } else {
+        value += char;
+      }
+    }
+    values.push(value.trim());
+    return values;
+  }
+
+  async function importTermsCsv(): Promise<void> {
+    try {
+      const raw = await navigator.clipboard.readText();
+      const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (lines[0]?.toLowerCase() === "indonesian,english") lines.shift();
+      const merged = [...settings.terminology];
+      let added = 0;
+      for (const line of lines) {
+        if (merged.length >= MAX_TERMS) break;
+        const [id, en] = parseCsvLine(line);
+        if (!id || !en) continue;
+        const conflict = merged.some((entry) =>
+          entry.indonesian.toLowerCase() === id.toLowerCase()
+          || entry.english.toLowerCase() === en.toLowerCase()
+        );
+        if (conflict) continue;
+        merged.push({ indonesian: id.slice(0, 80), english: en.slice(0, 80) });
+        added += 1;
+      }
+      if (added === 0) {
+        onNotice("No new valid preferred words found in clipboard CSV.");
+        return;
+      }
+      await persist(merged, `${added} preferred word pair${added === 1 ? "" : "s"} imported.`);
+    } catch {
+      onNotice("Couldn't import preferred words from clipboard.");
+    }
+  }
 </script>
 
 <section class="grid gap-4">
@@ -262,6 +330,16 @@
     </button>
   </div>
 
+  <div class="flex flex-wrap items-center gap-2 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-3">
+    <label class="relative min-w-[200px] flex-1">
+      <Search size={14} class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ti-text-soft)]" />
+      <input class="ti-field min-h-9 w-full pl-9 pr-3 text-xs" bind:value={termSearch} placeholder="Search preferred words..." aria-label="Search preferred words" />
+    </label>
+    <span class="text-[10.5px] text-[var(--ti-text-soft)]">{settings.terminology.length}/{MAX_TERMS}</span>
+    <button type="button" class="ti-button ti-button-secondary min-h-9 px-3 text-xs" disabled={saving || settings.terminology.length === 0} onclick={() => void copyTermsCsv()}><Copy size={14} /> Copy CSV</button>
+    <button type="button" class="ti-button ti-button-secondary min-h-9 px-3 text-xs" disabled={saving || settings.terminology.length >= MAX_TERMS} onclick={() => void importTermsCsv()}><Upload size={14} /> Import CSV</button>
+  </div>
+
   <div class="border-t border-[var(--ti-border)]">
     {#if settings.terminology.length === 0}
       <p class="m-0 px-5 py-5 text-[12.5px] text-[var(--ti-text-muted)]">
@@ -269,7 +347,9 @@
       </p>
     {:else}
       <div class="divide-y divide-[var(--ti-border)]">
-        {#each settings.terminology as entry, index (`${entry.indonesian}::${entry.english}`)}
+        {#each filteredTerms as item (`${item.entry.indonesian}::${item.entry.english}`)}
+          {@const entry = item.entry}
+          {@const index = item.index}
           <div class="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-3 px-5 py-3.5">
             <strong class="min-w-0 truncate text-[13px] font-semibold">{entry.indonesian}</strong>
             <span class="text-[var(--ti-text-soft)]">→</span>
