@@ -10,7 +10,11 @@ pub fn resolve_capabilities(
     let meeting_translation = if meeting.has_session {
         meeting.application_owned
     } else {
-        meeting.ready_for_start && summaries.worker.ready && summaries.audio.ready
+        meeting.ready_for_start
+            && summaries.worker.ready
+            && summaries.audio.ready
+            && !summaries.voice.build_active
+            && !summaries.voice.recording_active
     };
 
     ApplicationCapabilities {
