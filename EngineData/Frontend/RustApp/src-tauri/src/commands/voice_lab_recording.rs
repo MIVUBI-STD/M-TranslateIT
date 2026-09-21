@@ -11,7 +11,7 @@ use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_c
 use crate::engine::audio::live_segment_writer::write_pcm16_wav;
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{
-    begin_direct_live_capture_session, clear_runtime_session_if_generation,
+    begin_voice_recording_session, clear_runtime_session_if_generation,
     latest_runtime_session_state,
     mark_runtime_session_cleanup_incomplete, revoke_runtime_session_authority,
 };
@@ -24,7 +24,7 @@ mod storage_transaction;
 use guided_lines::GUIDED_LINES;
 use storage_transaction::{accept_review_take, discard_review_take};
 
-const CAPTURE_OWNER_ID: &str = "translateit_rust_live_capture";
+use crate::engine::runtime_state::VOICE_RECORDING_OWNER_ID;
 const MAX_REPLAY_WAV_BYTES: u64 = 8 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
@@ -173,11 +173,11 @@ pub fn start_voice_lab_guided_take(
         return result(false, "review_pending", "Replay, retry, or accept the current take before recording another line.");
     }
 
-    let session = begin_direct_live_capture_session();
+    let session = begin_voice_recording_session();
     let Some(snapshot) = session.snapshot.as_ref() else {
         return result(false, "runtime_unavailable", "VoiceLab cannot verify microphone ownership right now.");
     };
-    if !session.blocker.is_empty() || snapshot.owner_id != CAPTURE_OWNER_ID {
+    if !session.blocker.is_empty() || snapshot.owner_id != VOICE_RECORDING_OWNER_ID {
         return result(false, "microphone_in_use", "Stop Meeting translation or Mic Test before recording a VoiceLab line.");
     }
     let generation = snapshot.generation;
@@ -203,7 +203,7 @@ pub fn stop_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
     let Some(snapshot) = current.snapshot.as_ref() else {
         return result(false, "runtime_unavailable", "VoiceLab cannot verify microphone ownership right now.");
     };
-    if snapshot.owner_id != CAPTURE_OWNER_ID {
+    if snapshot.owner_id != VOICE_RECORDING_OWNER_ID {
         return result(false, "owner_conflict", "VoiceLab does not own the active microphone session.");
     }
     let generation = snapshot.generation;
