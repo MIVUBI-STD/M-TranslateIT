@@ -16,7 +16,10 @@ fn main() {
     let app = commands::registry::register(
         tauri::Builder::default()
             .plugin(tauri_plugin_updater::Builder::new().build())
-            .setup(|app| app_bootstrap::configure_main_window(app)),
+            .setup(|app| {
+                engine::runtime_events::install_app_handle(app.handle().clone());
+                app_bootstrap::configure_main_window(app)
+            }),
     )
     .build(tauri::generate_context!())
     .expect("TranslateIT app failed to build");
