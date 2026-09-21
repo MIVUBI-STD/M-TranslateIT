@@ -11,9 +11,11 @@ test("incident history is bounded, redacted and excludes conversation payloads",
   assert.doesNotMatch(incident, /source_text|translated_text|audio_path/);
 });
 
-test("repeated identical incidents are deduplicated at the newest slot", () => {
-  assert.match(incident, /incidents\.first\(\)\.is_some_and/);
-  assert.match(incident, /incidents\[0\] = next/);
+test("repeated incidents deduplicate across interleaved blockers and suppress poll churn", () => {
+  assert.match(incident, /INCIDENT_REPEAT_SUPPRESSION_MS: u128 = 60_000/);
+  assert.match(incident, /incidents\.iter\(\)\.position/);
+  assert.match(incident, /incidents\.remove\(index\)/);
+  assert.match(incident, /saturating_sub\(previous\.occurred_unix_ms\)/);
 });
 
 test("required and optional meeting failures record incidents at their source", () => {
