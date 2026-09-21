@@ -539,25 +539,9 @@
       <span class="ti-kicker">TranslateIT</span>
       <h1 class="mb-0 mt-3 text-2xl font-semibold">TranslateIT isn't ready yet</h1>
       <p class="mb-0 mt-3 text-sm leading-6 text-[var(--ti-text-muted)]">{notice}</p>
-      <button
-        type="button"
-        class="ti-button mt-5"
-        onclick={() => {
-          setNotice("Checking again...");
-          void refreshSnapshot();
-        }}
-      >Try Again</button>
+      <button type="button" class="ti-button mt-5" onclick={() => { setNotice("Checking again..."); void refreshSnapshot(); }}>Try Again</button>
     </section>
   </main>
 {/if}
 
-<NativeCloseDialog
-  bind:open={closeDialogOpen}
-  title={closeDialogTitle}
-  message={closeDialogMessage}
-  action={closeDialogAction}
-  busy={stopAndCloseBusy}
-  primaryLabel={closePrimaryLabel}
-  onKeepOpen={keepApplicationOpen}
-  onPrimary={handleCloseDialogPrimary}
-/>
+<NativeCloseDialog bind:open={closeDialogOpen} title={closeDialogTitle} message={closeDialogMessage} action={closeDialogAction} busy={stopAndCloseBusy} primaryLabel={closePrimaryLabel} onKeepOpen={keepApplicationOpen} onPrimary={handleCloseDialogPrimary} />
