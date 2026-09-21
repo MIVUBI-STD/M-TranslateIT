@@ -406,6 +406,7 @@ mod tests {
         assert!(sequence_is_monotonic(0, 1));
         assert!(sequence_is_monotonic(10, 11));
         assert!(sequence_is_monotonic(10, 12));
+        assert!(sequence_is_monotonic(u64::MAX - 1, u64::MAX));
         assert!(!sequence_is_monotonic(10, 10));
         assert!(!sequence_is_monotonic(10, 9));
     }

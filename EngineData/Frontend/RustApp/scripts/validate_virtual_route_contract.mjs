@@ -8,6 +8,7 @@ const files = {
   meetingLifecycle: resolve(root, "src-tauri/src/commands/meeting_session/lifecycle.rs"),
   runtimeCommands: resolve(root, "src-tauri/src/commands/runtime.rs"),
   outboundPipeline: resolve(root, "src-tauri/src/commands/meeting_session/outbound_pipeline.rs"),
+  playbackRuntime: resolve(root, "src-tauri/src/commands/meeting_session/playback_runtime.rs"),
   route: resolve(root, "src-tauri/src/commands/virtual_mic_route.rs"),
   meetingOutput: resolve(root, "src-tauri/src/engine/audio/meeting_output.rs"),
   meetingOutputRuntime: resolve(root, "src-tauri/src/engine/audio/meeting_output_runtime.rs"),
@@ -39,6 +40,7 @@ forbidMarkers(source.commandsMod, "retired command-layer route owner", ["pub mod
 requireMarkers(source.meeting, "Meeting session output orchestration facade", [
   "mod lifecycle;",
   "mod outbound_pipeline;",
+  "mod playback_runtime;",
   "process_outbound_wav",
 ]);
 requireMarkers(source.runtimeCommands, "Fresh Meeting route preparation owner", [
@@ -55,12 +57,18 @@ requireMarkers(source.meetingLifecycle, "Meeting lifecycle output orchestration"
 forbidMarkers(source.meetingLifecycle, "duplicate Meeting route preparation", [
   "prepare_current_virtual_mic_route_for_meeting",
 ]);
-requireMarkers(source.outboundPipeline, "Meeting outbound delivery ownership", [
+requireMarkers(source.outboundPipeline, "Meeting outbound AI preparation ownership", [
   "pub(super) fn process_outbound_wav(",
+  "enqueue_meeting_playback",
+  "PreparedPlaybackJob",
+]);
+requireMarkers(source.playbackRuntime, "Meeting bounded playback ownership", [
+  "PLAYBACK_QUEUE_CAPACITY",
+  "mpsc::sync_channel::<PreparedPlaybackJob>(PLAYBACK_QUEUE_CAPACITY)",
   "deliver_meeting_output_wav",
   "get_bound_virtual_mic_output_device",
 ]);
-forbidMarkers(`${source.meeting}\n${source.meetingLifecycle}\n${source.outboundPipeline}`, "retired Python route ownership", [
+forbidMarkers(`${source.meeting}\n${source.meetingLifecycle}\n${source.outboundPipeline}\n${source.playbackRuntime}`, "retired Python route ownership", [
   "TRANSLATEIT_ENABLE_VIRTUAL_AUDIO_ROUTE_PROVIDER",
   "dispatch_meeting_virtual_audio_route_provider",
   "prepare_meeting_virtual_audio_route_provider",
