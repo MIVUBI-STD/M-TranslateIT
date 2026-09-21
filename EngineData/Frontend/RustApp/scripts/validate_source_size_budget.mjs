@@ -16,6 +16,8 @@ const defaultBudgets = {
 // Path-specific budgets are allowed only to tighten ownership below the default.
 // They are not exemptions and must never be used to permit oversized source files.
 const pathBudgets = new Map([
+  ["src/App.svelte", 16_000],
+  ["src/app/bridge/runtimeProductFacade.ts", 9_000],
   ["src-tauri/src/commands/voice_lab_recording.rs", 24_000],
 ]);
 
