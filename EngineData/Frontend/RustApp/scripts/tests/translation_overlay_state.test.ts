@@ -26,7 +26,7 @@ Object.defineProperty(globalThis, "localStorage", { value: memory, configurable:
 
 test("overlay preferences default safely and persist bounded choices", () => {
   memory.clear();
-  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium" });
+  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard" });
   assert.deepEqual(updateOverlayPreferences({ meetingEnabled: false, visibility: "hidden", textSize: "large" }), {
     meetingEnabled: false, visibility: "hidden", textSize: "large",
   });
@@ -36,7 +36,7 @@ test("overlay preferences default safely and persist bounded choices", () => {
 test("corrupt persisted preferences fail back to readable defaults", () => {
   memory.clear();
   memory.setItem("translateit.translationOverlay.preferences.v2", "{bad json");
-  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium" });
+  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard" });
 });
 
 test("latest caption and physical position round trip through durable state", () => {
@@ -63,4 +63,19 @@ test("overlay diagnostics are bounded and clearable", () => {
   assert.match(diagnostic.occurredAt, /^\d{4}-\d{2}-\d{2}T/);
   clearOverlayError();
   assert.equal(readOverlayDiagnostic(), null);
+});
+
+
+test("legacy overlay preferences migrate to standard width and contrast", () => {
+  localStorage.setItem(
+    "translateit.translationOverlay.preferences.v2",
+    JSON.stringify({ meetingEnabled: false, visibility: "collapsed", textSize: "large" }),
+  );
+  assert.deepEqual(readOverlayPreferences(), {
+    meetingEnabled: false,
+    visibility: "collapsed",
+    textSize: "large",
+    width: "standard",
+    contrast: "standard",
+  });
 });
