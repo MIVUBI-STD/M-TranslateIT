@@ -88,6 +88,8 @@ const contractPairs = [
   ["src-tauri/src/commands/meeting_session.rs", "MeetingSessionActionResult", "src/app/bridge/runtimeApi.ts", "MeetingSessionActionResult"],
   ["src-tauri/src/commands/meeting_session.rs", "MeetingCommittedTurn", "src/app/bridge/runtimeApi.ts", "MeetingCommittedTurn"],
   ["src-tauri/src/commands/meeting_session.rs", "MeetingCommittedTurnsSnapshot", "src/app/bridge/runtimeApi.ts", "MeetingCommittedTurnsSnapshot"],
+  ["src-tauri/src/commands/meeting_session/transcript_export.rs", "MeetingTranscriptExportStatus", "src/app/bridge/runtimeApi.ts", "MeetingTranscriptExportStatus"],
+  ["src-tauri/src/commands/meeting_session/transcript_export.rs", "MeetingTranscriptExportResult", "src/app/bridge/runtimeApi.ts", "MeetingTranscriptExportResult"],
 ];
 
 for (const [rustFile, rustType, tsFile, tsType] of contractPairs) {
