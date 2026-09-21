@@ -3,7 +3,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-const CURRENT_SCHEMA_VERSION: u32 = 9;
+const CURRENT_SCHEMA_VERSION: u32 = 10;
 const MAX_SETTING_TEXT_CHARS: usize = 160;
 const MAX_TERMINOLOGY_ENTRIES: usize = 24;
 const MAX_TERMINOLOGY_TERM_CHARS: usize = 80;
@@ -17,6 +17,10 @@ fn default_source_language() -> String {
 
 fn default_target_language() -> String {
     "en".to_string()
+}
+
+fn default_translation_style() -> String {
+    "natural".to_string()
 }
 
 fn default_meeting_listen_source_language() -> String {
@@ -69,6 +73,7 @@ pub struct RuntimeSettings {
     pub schema_version: u32,
     pub source_language: String,
     pub target_language: String,
+    pub translation_style: String,
     pub meeting_listen_source_language: String,
     pub meeting_listen_target_language: String,
     pub meeting_setup_state: String,
@@ -84,6 +89,7 @@ impl Default for RuntimeSettings {
             schema_version: CURRENT_SCHEMA_VERSION,
             source_language: default_source_language(),
             target_language: default_target_language(),
+            translation_style: default_translation_style(),
             meeting_listen_source_language: default_meeting_listen_source_language(),
             meeting_listen_target_language: default_meeting_listen_target_language(),
             meeting_setup_state: default_meeting_setup_state(),
@@ -133,6 +139,7 @@ impl RuntimeSettings {
         self.schema_version = CURRENT_SCHEMA_VERSION;
         self.source_language = sanitize_language(&self.source_language, "id");
         self.target_language = sanitize_language(&self.target_language, "en");
+        self.translation_style = sanitize_translation_style(&self.translation_style);
         self.meeting_listen_source_language =
             sanitize_language(&self.meeting_listen_source_language, "en");
         self.meeting_listen_target_language =
@@ -239,6 +246,13 @@ fn sanitize_language(value: &str, fallback: &str) -> String {
         "en".to_string()
     } else {
         fallback.to_string()
+    }
+}
+
+fn sanitize_translation_style(value: &str) -> String {
+    match clean_setting_text(value).to_lowercase().as_str() {
+        "formal" => "formal".to_string(),
+        _ => "natural".to_string(),
     }
 }
 
@@ -380,6 +394,17 @@ mod tests {
         assert_eq!(sanitized.terminology[0].english, "restoration");
         assert_eq!(sanitized.terminology[1].indonesian, "arsip");
         assert_eq!(sanitized.terminology[1].english, "archive");
+    }
+
+    #[test]
+    fn translation_style_accepts_only_natural_or_formal() {
+        let mut settings = RuntimeSettings::default();
+        settings.translation_style = "FORMAL".to_string();
+        assert_eq!(settings.sanitized().translation_style, "formal");
+
+        let mut invalid = RuntimeSettings::default();
+        invalid.translation_style = "creative".to_string();
+        assert_eq!(invalid.sanitized().translation_style, "natural");
     }
 
     #[test]

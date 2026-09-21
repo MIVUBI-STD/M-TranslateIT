@@ -223,6 +223,7 @@ pub(super) fn process_outbound_wav(
             "source_language": "id",
             "target_language": "en",
             "max_new_tokens": 96,
+            "translation_style": settings.translation_style,
             "context_pairs": context_pairs,
             "terminology": terminology,
             "meeting_session_id": session_id,

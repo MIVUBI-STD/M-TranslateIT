@@ -45,7 +45,7 @@ fn process_incoming_wav_with_direction(
     utterance_id: u64,
     audio_path: &str,
     deferred_enqueued_unix_ms: Option<u64>,
-    deferred_direction: Option<(String, String)>,
+    deferred_direction: Option<(String, String, String)>,
 ) -> IncomingAudioProcessResult {
     let retrying_deferred = deferred_enqueued_unix_ms.is_some();
     if !incoming_session_is_eligible(session_id) {
@@ -53,10 +53,13 @@ fn process_incoming_wav_with_direction(
     }
     let settings = load_settings();
     let asr_hotwords = settings.asr_hotwords();
-    let (source_language, target_language) = deferred_direction.unwrap_or_else(|| (
-        settings.meeting_listen_source_language,
-        settings.meeting_listen_target_language,
-    ));
+    let (source_language, target_language, translation_style) = deferred_direction
+        .map(|(source, target, style)| (source, target, style))
+        .unwrap_or_else(|| (
+            settings.meeting_listen_source_language,
+            settings.meeting_listen_target_language,
+            settings.translation_style,
+        ));
 
     update_incoming_status(
         session_id,
@@ -96,6 +99,7 @@ fn process_incoming_wav_with_direction(
                         audio_path: audio_path.to_string(),
                         source_language: source_language.clone(),
                         target_language: target_language.clone(),
+                        translation_style: translation_style.clone(),
                     },
                     enqueued_unix_ms,
                 })
@@ -108,6 +112,7 @@ fn process_incoming_wav_with_direction(
                         audio_path: audio_path.to_string(),
                         source_language: source_language.clone(),
                         target_language: target_language.clone(),
+                        translation_style: translation_style.clone(),
                     },
                     enqueued_unix_ms,
                 })
@@ -163,6 +168,7 @@ fn process_incoming_wav_with_direction(
         &transcript,
         &source_language,
         &target_language,
+        &translation_style,
         !retrying_deferred,
     );
     if held && retrying_deferred {
@@ -215,6 +221,7 @@ fn translate_and_commit_incoming_transcript(
     transcript: &str,
     source_language: &str,
     target_language: &str,
+    translation_style: &str,
     allow_defer: bool,
 ) -> bool {
     update_incoming_status(
@@ -232,6 +239,7 @@ fn translate_and_commit_incoming_transcript(
             "source_language": source_language,
             "target_language": target_language,
             "max_new_tokens": 96,
+            "translation_style": translation_style,
             "terminology": terminology,
             "meeting_session_id": session_id,
             "meeting_lane": "incoming",
@@ -252,6 +260,7 @@ fn translate_and_commit_incoming_transcript(
                     transcript: transcript.to_string(),
                     source_language: source_language.to_string(),
                     target_language: target_language.to_string(),
+                    translation_style: translation_style.to_string(),
                 },
                 enqueued_unix_ms: unix_ms() as u64,
             });
@@ -339,6 +348,7 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                 audio_path,
                 source_language,
                 target_language,
+                translation_style,
             } => {
                 let result = process_incoming_wav_with_direction(
                     session_id,
@@ -346,7 +356,7 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                     utterance_id,
                     &audio_path,
                     Some(enqueued_unix_ms),
-                    Some((source_language, target_language)),
+                    Some((source_language, target_language, translation_style)),
                 );
                 match result {
                     IncomingAudioProcessResult::DeferredAsr => break,
@@ -363,6 +373,7 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                 transcript,
                 source_language,
                 target_language,
+                translation_style,
             } => {
                 let held = translate_and_commit_incoming_transcript(
                     session_id,
@@ -371,6 +382,7 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                     &transcript,
                     &source_language,
                     &target_language,
+                    &translation_style,
                     false,
                 );
                 if held {
@@ -384,6 +396,7 @@ pub(super) fn drain_due_deferred_incoming(session_id: &str) {
                             transcript,
                             source_language,
                             target_language,
+                            translation_style,
                         },
                         enqueued_unix_ms,
                     });

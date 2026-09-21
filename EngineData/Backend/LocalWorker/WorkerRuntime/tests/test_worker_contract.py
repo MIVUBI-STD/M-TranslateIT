@@ -454,3 +454,39 @@ def test_gpu_capability_snapshot_is_reused_until_probe_implementation_changes(mo
     assert calls == {"torch": 1, "ct2": 1}
     assert first == second
     assert first["capability_probe_count"] >= 1
+
+
+def test_formal_translation_style_adds_one_bounded_register_instruction() -> None:
+    from milmmt_translation_provider import build_prompt
+
+    natural = build_prompt("id", "en", "Terima kasih atas waktunya.")
+    formal = build_prompt(
+        "id",
+        "en",
+        "Terima kasih atas waktunya.",
+        translation_style="formal",
+    )
+
+    assert "formal, professional register" not in natural
+    assert formal.count("formal, professional register") == 1
+    assert "preserving the source meaning, names, numbers, and factual details exactly" in formal
+
+
+def test_unknown_translation_style_falls_back_to_natural(monkeypatch) -> None:
+    worker = load_worker_module()
+    fake_torch = types.SimpleNamespace(inference_mode=_FakeInferenceMode)
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
+    _install_fake_generate_runtime(worker, [[5, 6, 7, 9, 2]])
+
+    result = worker.handle_translate(
+        {
+            "text": "halo",
+            "source_language": "id",
+            "target_language": "en",
+            "translation_style": "creative",
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["translation_style"] == "natural"

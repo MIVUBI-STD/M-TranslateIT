@@ -210,6 +210,7 @@ fn translate_with_persistent_helper(source: &str) -> TextTranslationResult {
         "source_language": settings.source_language,
         "target_language": settings.target_language,
         "request_kind": "standalone_text",
+        "translation_style": settings.translation_style,
         "terminology": &settings.terminology,
     });
     let response = send_helper_worker_task("translate", payload);
@@ -361,6 +362,7 @@ pub fn translate_text_alternative(source: String, current_translation: String) -
             "source_language": settings.source_language,
             "target_language": settings.target_language,
             "request_kind": "standalone_alternative",
+            "translation_style": settings.translation_style,
             "alternative_of": current_translation,
             "terminology": &settings.terminology,
         });

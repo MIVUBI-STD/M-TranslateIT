@@ -41,6 +41,7 @@ def build_prompt(
     context_pairs: "list[tuple[str, str]]" = (),
     terminology: "list[tuple[str, str]]" = (),
     alternative_of: str = "",
+    translation_style: str = "natural",
 ) -> str:
     source_name = language_name(source_language)
     target_name = language_name(target_language)
@@ -53,6 +54,10 @@ def build_prompt(
         ]
     else:
         lines = [f"Translate this from {source_name} to {target_name}:"]
+    if translation_style == "formal":
+        lines.append(
+            "Use a formal, professional register while preserving the source meaning, names, numbers, and factual details exactly."
+        )
     if terminology:
         lines.append("Preferred terminology (use when the matching source term appears):")
         for term_source, term_target in terminology:
@@ -385,6 +390,9 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
         alternative_of = host["compact_runtime_text"](
             payload.get("alternative_of", ""), host["MAX_TRANSLATION_TEXT_CHARS"]
         )
+        translation_style = (
+            "formal" if str(payload.get("translation_style", "")).strip().lower() == "formal" else "natural"
+        )
         prompt = build_prompt(
             source_language,
             target_language,
@@ -392,6 +400,7 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             context_pairs,
             terminology,
             alternative_of,
+            translation_style,
         )
         tokenization_started = time.perf_counter()
         inputs = tokenizer(
@@ -482,6 +491,7 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "model_asset_check_performed": model_asset_check_performed,
             "context_pairs_used": len(context_pairs),
             "terminology_entries_used": len(terminology),
+            "translation_style": translation_style,
             "input_tokens": prompt_tokens,
             "prompt_tokens": prompt_tokens,
             "input_token_limit": INPUT_CONTEXT_LIMIT,

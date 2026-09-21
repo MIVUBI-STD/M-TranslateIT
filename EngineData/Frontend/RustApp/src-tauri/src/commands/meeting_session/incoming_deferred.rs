@@ -24,11 +24,13 @@ pub(super) enum DeferredIncomingStage {
         audio_path: String,
         source_language: String,
         target_language: String,
+        translation_style: String,
     },
     NeedsTranslation {
         transcript: String,
         source_language: String,
         target_language: String,
+        translation_style: String,
     },
 }
 
@@ -166,6 +168,7 @@ mod tests {
                 transcript: transcript.to_string(),
                 source_language: "en".to_string(),
                 target_language: "id".to_string(),
+                translation_style: "natural".to_string(),
             },
             enqueued_unix_ms,
         }
