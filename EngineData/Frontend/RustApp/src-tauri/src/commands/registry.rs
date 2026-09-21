@@ -20,6 +20,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::audio::list_audio_devices,
         crate::commands::audio::probe_input_device_candidate,
         crate::commands::audio::probe_output_device_candidate,
+        crate::commands::startup_recovery::get_startup_recovery_status,
         crate::commands::settings::load_runtime_settings,
         crate::commands::settings::save_runtime_settings,
         crate::commands::settings::select_audio_device,

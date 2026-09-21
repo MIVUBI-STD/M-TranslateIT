@@ -80,6 +80,16 @@ fn main() {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
+                return;
+            }
+
+            if !commands::startup_recovery::mark_clean_shutdown() {
+                api.prevent_exit();
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
             }
         }
     });

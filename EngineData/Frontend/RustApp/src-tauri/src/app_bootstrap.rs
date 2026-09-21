@@ -238,7 +238,8 @@ fn configure_runtime_paths<R: Runtime>(
 pub fn configure_main_window<R: Runtime>(
     app: &mut tauri::App<R>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let _paths = configure_runtime_paths(app)?;
+    let paths = configure_runtime_paths(app)?;
+    crate::commands::startup_recovery::begin_startup_recovery(&paths)?;
 
     if let Some(window) = app.get_webview_window("main") {
         #[cfg(target_os = "windows")]

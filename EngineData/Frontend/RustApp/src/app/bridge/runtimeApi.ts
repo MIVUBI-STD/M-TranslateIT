@@ -12,6 +12,17 @@ import type {
   RuntimeSettings,
 } from "../shared/types";
 
+export type StartupRecoveryReport = {
+  previous_unclean_shutdown: boolean;
+  another_instance_detected: boolean;
+  cleanup_attempted: boolean;
+  cleanup_ok: boolean;
+  removed_files: number;
+  blocker: string;
+  note: string;
+  checked_unix_ms: number;
+};
+
 export type AudioQualityReport = {
   available: boolean;
   quality: "good" | "too_quiet" | "clipping" | "noisy" | "no_signal" | "unavailable" | string;
@@ -329,6 +340,19 @@ function normalizeInputStatus(status: NativeInputPreparationStatus): InputPrepar
   };
 }
 
+function startupRecoveryFallback(): StartupRecoveryReport {
+  return {
+    previous_unclean_shutdown: false,
+    another_instance_detected: false,
+    cleanup_attempted: false,
+    cleanup_ok: false,
+    removed_files: 0,
+    blocker: "frontend_bridge_unavailable",
+    note: "Startup recovery status is unavailable right now.",
+    checked_unix_ms: Date.now(),
+  };
+}
+
 function audioQualityFallback(): AudioQualityReport {
   return {
     available: false,
@@ -462,6 +486,14 @@ async function loadRuntimeSettings(): Promise<RuntimeSettings | null> {
 export const runtimeApi = {
   getCommandErrors(): RuntimeCommandError[] {
     return getRuntimeCommandErrors().slice(0, MAX_COMMAND_ERRORS);
+  },
+
+  async getStartupRecoveryStatus(): Promise<StartupRecoveryReport> {
+    return invokeOr<StartupRecoveryReport>(
+      "get_startup_recovery_status",
+      undefined,
+      startupRecoveryFallback(),
+    );
   },
 
   async detectMeetingApp(): Promise<MeetingAppDetection> {
