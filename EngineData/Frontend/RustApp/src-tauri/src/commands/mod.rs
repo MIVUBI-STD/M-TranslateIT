@@ -1,4 +1,5 @@
 pub mod app_update;
+pub mod application_runtime;
 pub mod audio;
 pub mod bridge_paths;
 pub mod builtin_voice;
