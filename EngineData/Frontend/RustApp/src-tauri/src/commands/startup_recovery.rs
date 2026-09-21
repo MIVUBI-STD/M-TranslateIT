@@ -10,7 +10,7 @@ use crate::engine::paths::ProjectPaths;
 
 use super::incident_log::record_runtime_incident;
 
-const MARKER_FILE: &str = "translateit_runtime_open.json";
+const MARKER_DIR: &str = "runtime_sessions";
 const MAX_RECOVERY_BLOCKERS: usize = 8;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,16 +57,16 @@ fn report_store() -> &'static Mutex<StartupRecoveryReport> {
     STARTUP_RECOVERY_REPORT.get_or_init(|| Mutex::new(default_report()))
 }
 
-fn marker_path(paths: &ProjectPaths) -> PathBuf {
-    PathBuf::from(&paths.user_log_dir).join(MARKER_FILE)
+fn marker_dir(paths: &ProjectPaths) -> PathBuf {
+    PathBuf::from(&paths.user_log_dir).join(MARKER_DIR)
 }
 
-fn process_is_alive(process_id: u32) -> bool {
-    if process_id == 0 {
-        return false;
-    }
-    let system = System::new_all();
-    system.process(Pid::from_u32(process_id)).is_some()
+fn marker_path(paths: &ProjectPaths, process_id: u32) -> PathBuf {
+    marker_dir(paths).join(format!("runtime_{process_id}.json"))
+}
+
+fn process_is_alive(system: &System, process_id: u32) -> bool {
+    process_id != 0 && system.process(Pid::from_u32(process_id)).is_some()
 }
 
 fn read_marker(path: &Path) -> Option<RuntimeOpenMarker> {
@@ -83,8 +83,10 @@ fn write_marker(path: &Path, marker: &RuntimeOpenMarker) -> io::Result<()> {
     let body = serde_json::to_vec(marker)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     fs::write(&temp, body)?;
-    fs::rename(temp, path)?;
-    Ok(())
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+    fs::rename(temp, path)
 }
 
 fn remove_matching_files(
@@ -109,8 +111,7 @@ fn remove_matching_files(
         if !predicate(&name) {
             continue;
         }
-        fs::remove_file(entry.path())
-            .map_err(|_| format!("remove_file:{}", name))?;
+        fs::remove_file(entry.path()).map_err(|_| format!("remove_file:{name}"))?;
         removed = removed.saturating_add(1);
     }
     Ok(removed)
@@ -158,44 +159,79 @@ fn cleanup_interrupted_meeting_cache(paths: &ProjectPaths) -> (usize, Vec<String
     (removed, blockers)
 }
 
+fn inspect_previous_markers(
+    paths: &ProjectPaths,
+    current_pid: u32,
+    system: &System,
+) -> (bool, bool) {
+    let Ok(entries) = fs::read_dir(marker_dir(paths)) else {
+        return (false, false);
+    };
+    let mut stale_found = false;
+    let mut live_other_found = false;
+
+    for entry in entries.flatten() {
+        if !entry.file_type().map(|kind| kind.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        let Some(marker) = read_marker(&path) else {
+            let _ = fs::remove_file(path);
+            continue;
+        };
+        if marker.process_id == current_pid {
+            continue;
+        }
+        if process_is_alive(system, marker.process_id) {
+            live_other_found = true;
+        } else {
+            stale_found = true;
+            let _ = fs::remove_file(path);
+        }
+    }
+    (stale_found, live_other_found)
+}
+
 pub fn begin_startup_recovery(paths: &ProjectPaths) -> io::Result<StartupRecoveryReport> {
-    let path = marker_path(paths);
     let current_pid = std::process::id();
-    let previous = read_marker(&path);
+    let system = System::new_all();
+    let (stale_found, live_other_found) = inspect_previous_markers(paths, current_pid, &system);
 
     let mut report = default_report();
-    if let Some(marker) = previous {
-        if marker.process_id != current_pid && process_is_alive(marker.process_id) {
-            report.another_instance_detected = true;
-            report.cleanup_ok = true;
-            report.note = "Another TranslateIT process appears to still be running. Startup recovery did not touch shared Meeting cache owned by that process.".to_string();
+    report.previous_unclean_shutdown = stale_found;
+    report.another_instance_detected = live_other_found;
+
+    if stale_found && !live_other_found {
+        report.cleanup_attempted = true;
+        let (removed, blockers) = cleanup_interrupted_meeting_cache(paths);
+        report.removed_files = removed;
+        report.cleanup_ok = blockers.is_empty();
+        if blockers.is_empty() {
+            report.note = format!(
+                "Recovered from an interrupted previous run. Removed {removed} stale Meeting cache file(s); no Meeting session was resumed."
+            );
         } else {
-            report.previous_unclean_shutdown = true;
-            report.cleanup_attempted = true;
-            let (removed, blockers) = cleanup_interrupted_meeting_cache(paths);
-            report.removed_files = removed;
-            report.cleanup_ok = blockers.is_empty();
-            if blockers.is_empty() {
-                report.note = format!(
-                    "Recovered from an interrupted previous run. Removed {removed} stale Meeting cache file(s); no Meeting session was resumed."
-                );
-            } else {
-                report.blocker = "startup_recovery:cleanup_incomplete".to_string();
-                report.note = format!(
-                    "Previous run ended unexpectedly. Recovery removed {removed} stale Meeting cache file(s), but some cleanup could not be confirmed: {}",
-                    blockers.join(", ")
-                );
-            }
+            report.blocker = "startup_recovery:cleanup_incomplete".to_string();
+            report.note = format!(
+                "Previous run ended unexpectedly. Recovery removed {removed} stale Meeting cache file(s), but some cleanup could not be confirmed: {}",
+                blockers.join(", ")
+            );
         }
+    } else if stale_found && live_other_found {
+        report.cleanup_ok = true;
+        report.note = "An interrupted previous run was detected, but another TranslateIT process is still active. Shared Meeting cache was left untouched to avoid interfering with that live instance.".to_string();
+    } else if live_other_found {
+        report.note = "Another TranslateIT process appears to be running. This instance owns a separate startup marker and did not modify the other process's Meeting cache.".to_string();
     }
 
     write_marker(
-        &path,
+        &marker_path(paths, current_pid),
         &RuntimeOpenMarker {
             process_id: current_pid,
             started_unix_ms: unix_ms(),
         },
     )?;
+
     report.checked_unix_ms = unix_ms();
     if report.previous_unclean_shutdown {
         let blocker = if report.blocker.is_empty() {
@@ -213,7 +249,7 @@ pub fn begin_startup_recovery(paths: &ProjectPaths) -> io::Result<StartupRecover
 
 pub fn mark_clean_shutdown() -> bool {
     let paths = ProjectPaths::discover();
-    let path = marker_path(&paths);
+    let path = marker_path(&paths, std::process::id());
     match fs::remove_file(path) {
         Ok(()) => true,
         Err(error) if error.kind() == io::ErrorKind::NotFound => true,
@@ -299,11 +335,12 @@ mod tests {
     }
 
     #[test]
-    fn marker_lives_in_log_data_not_saved_project() {
+    fn markers_are_pid_scoped_under_log_data() {
         let paths = temp_paths();
-        let marker = marker_path(&paths);
+        let marker = marker_path(&paths, 4242);
         assert!(marker.starts_with(&paths.user_log_dir));
         assert!(!marker.starts_with(&paths.user_saved_dir));
+        assert!(marker.ends_with("runtime_4242.json"));
         let _ = fs::remove_dir_all(&paths.user_data_root);
     }
 }

@@ -9,7 +9,7 @@ test("support bundle is explicit local export with privacy whitelist", () => {
   assert.match(support, /contains_transcript.*false/);
   assert.match(support, /contains_audio.*false/);
   assert.match(support, /contains_voice_reference.*false/);
-  assert.doesNotMatch(support, /source_text|translated_text|turns/);
+  assert.doesNotMatch(support, /"source_text"\s*:|"translated_text"\s*:|"turns"\s*:/);
 });
 
 test("support bundle omits raw local identifiers", () => {

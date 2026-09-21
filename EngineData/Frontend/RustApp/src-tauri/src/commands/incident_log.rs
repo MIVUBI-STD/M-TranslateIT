@@ -58,6 +58,9 @@ fn write_incidents(path: &Path, incidents: &[RuntimeIncident]) -> io::Result<()>
     let body = serde_json::to_vec_pretty(incidents)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     fs::write(&temp, body)?;
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
     fs::rename(temp, path)
 }
 
