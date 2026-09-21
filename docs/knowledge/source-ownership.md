@@ -169,3 +169,18 @@ Backend Meeting change-token publication is owned by `engine/runtime_events.rs`.
 ### Frontend product-state ownership
 
 `src/app/runtime/applicationController.ts` owns the frontend product-runtime snapshot and refresh sequencing. `runtimeProductFacade.ts` remains a product mapping/query layer; it does not own reactive application state. `App.svelte` is the composition shell and must not duplicate subsystem runtime state.
+
+
+### Frontend shell controllers
+
+- `applicationController.ts` owns product snapshot/state sequencing.
+- `meetingLiveController.ts` owns Meeting live transcript/overlay reconciliation state.
+- `closeController.ts` owns close-dialog and native-close coordination state.
+- `App.svelte` owns composition and transient shell interaction only.
+
+### Product facade modules
+
+- `productAudioFacade.ts` owns product-level audio selection/probe mapping.
+- `productTranslationFacade.ts` owns standalone product translation mapping.
+- `productSetupFacade.ts` owns setup/readiness/recovery product actions.
+- `runtimeProductFacade.ts` composes/re-exports those modules and owns only the cross-domain product snapshot plus Meeting product action mapping.
