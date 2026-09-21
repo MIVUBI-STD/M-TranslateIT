@@ -20,7 +20,7 @@ This file contains **current law only**. Superseded choices belong in `docs/know
 ### PR-004 — Product boundary
 **MUST:** Normal top-level product remain `Meeting | Text | My Voice | Settings`.
 
-**NOT CURRENT CORE:** Document Translation, general History/Saved UI, Audio Studio, Push to Talk, Pause/Resume, Realtime/Quality user modes, tone selectors, additional languages, partial translated subtitles, incoming Indonesian TTS, imported-audio/quick-clone My Voice, multiple normal voice engines/providers.
+**NOT CURRENT CORE:** Document Translation, general History/Saved UI, Audio Studio, Push to Talk, Pause/Resume, Realtime/Quality user modes, Auto/Casual tone styles, additional languages, partial translated subtitles, incoming Indonesian TTS, imported-audio/quick-clone My Voice, multiple normal voice engines/providers. Current translation wording style is intentionally bounded to Natural (default) and Formal.
 
 ## 2. Platform and runtime
 
@@ -130,8 +130,10 @@ Indonesian speech
 
 **MUST:** Keep terminology directionally unambiguous: one Indonesian term maps to one preferred English term, and one preferred English term maps back to one Indonesian term. Conflicting entries are rejected/sanitized rather than sent together to the model.
 
-### PR-044 — No tone selector
-**NOT CURRENT CORE:** Auto/Formal/Casual user controls.
+### PR-044 — Bounded translation style
+**MUST:** Translation wording style remain bounded to `Natural` (default) and `Formal`, using the same canonical translation model and preserving meaning, facts, names, numbers, terminology, and completion guarantees.
+
+**MUST NOT:** Add Auto/Casual or open-ended tone/persona controls without a new explicit product decision.
 
 ### PR-044A — Alternative wording
 **SHOULD:** Text translation may offer one on-demand alternative wording using the same canonical translation model. Alternative generation must preserve meaning and facts, must not run on every translation by default, and must not introduce a second translation provider.

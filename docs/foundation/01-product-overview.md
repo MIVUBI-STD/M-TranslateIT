@@ -78,7 +78,7 @@ Removed/deferred from current product:
 - Push to Talk;
 - Pause/Resume;
 - user-facing Realtime/Quality translation modes;
-- Auto/Formal/Casual tone controls;
+- Auto/Casual tone controls; the only current wording styles are Natural (default) and Formal;
 - Document/file translation;
 - general History/Saved workspace;
 - Audio Studio/broadcast workflows;

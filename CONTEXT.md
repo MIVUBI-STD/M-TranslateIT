@@ -51,7 +51,7 @@ Incoming failure must not block otherwise healthy outbound translation.
 
 - Windows only for the current product boundary.
 - Indonesian ↔ English only.
-- One canonical translation pipeline; no user-facing Realtime/Quality modes.
+- One canonical translation pipeline; no user-facing Realtime/Quality modes. Translation wording style is bounded to Natural (default) or Formal.
 - Outbound Meeting translation may use rolling context from the last three committed own-voice translation pairs in the same live session.
 - Incoming translation remains context-free.
 - Text is paste/type only; document/file translation is removed.
