@@ -112,9 +112,7 @@
           : "Microphone, translation & help",
   );
 
-  const closePrimaryLabel = $derived(
-    closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close",
-  );
+  const closePrimaryLabel = $derived(closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close");
 
   function setNotice(message: string): void {
     notice = compact(message, "Status unavailable.", 220);
