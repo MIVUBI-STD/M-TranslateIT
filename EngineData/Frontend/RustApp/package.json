@@ -17,10 +17,11 @@
     "validate:virtual-route": "node scripts/validate_virtual_route_contract.mjs",
     "validate:source-size": "node scripts/validate_source_size_budget.mjs",
     "validate:reachability": "node scripts/validate_frontend_reachability.mjs",
-    "validate:source-contracts": "npm run validate:bridge-contract && npm run validate:virtual-route && npm run validate:source-size && npm run validate:reachability && npm run validate:dependency-usage && npm run validate:rust-dependency-usage && npm run check:rust && npm run preflight:tauri-package",
+    "validate:source-contracts": "npm run validate:bridge-contract && npm run validate:application-runtime && npm run validate:virtual-route && npm run validate:source-size && npm run validate:reachability && npm run validate:dependency-usage && npm run validate:rust-dependency-usage && npm run check:rust && npm run preflight:tauri-package",
     "validate:quick": "npm run validate:source-contracts && npm run typecheck && npm run test:frontend-runtime",
     "validate:dependency-usage": "node scripts/validate_dependency_usage.mjs",
-    "validate:rust-dependency-usage": "node scripts/validate_rust_dependency_usage.mjs"
+    "validate:rust-dependency-usage": "node scripts/validate_rust_dependency_usage.mjs",
+    "validate:application-runtime": "node scripts/validate_application_runtime_architecture.mjs"
   },
   "dependencies": {
     "@lucide/svelte": "^1.26.0",
