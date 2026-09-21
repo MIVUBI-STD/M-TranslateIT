@@ -35,8 +35,6 @@
   import Settings from "./pages/Settings.svelte";
   import Text from "./pages/Text.svelte";
 
-  const MEETING_REFRESH_MS = 1200;
-
   let booting = $state(true);
   let setupRequired = $state(false);
   let setupSettings = $state<RuntimeSettings>(defaultSettings());
@@ -116,9 +114,6 @@
 
   const closePrimaryLabel = $derived(
     closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close",
-  );
-  const meetingPollNeeded = $derived(
-    !booting && !setupRequired && (Boolean(snapshot?.meeting.hasSession) || closeAfterExistingStop),
   );
 
   function setNotice(message: string): void {
@@ -443,7 +438,11 @@
     };
   });
 
-  $effect(() => meetingPollNeeded ? startRuntimePoll(pollMeeting, MEETING_REFRESH_MS) : undefined);
+  $effect(() =>
+    !booting && !setupRequired && (Boolean(snapshot?.meeting.hasSession) || closeAfterExistingStop)
+      ? startRuntimePoll(pollMeeting, 1200)
+      : undefined,
+  );
 </script>
 
 {#if booting}
