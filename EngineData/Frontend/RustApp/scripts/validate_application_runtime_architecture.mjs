@@ -172,6 +172,34 @@ for (const required of [
   }
 }
 
+const productStateSource = readFileSync(
+  join(appRoot, "src", "app", "bridge", "runtimeProductState.ts"),
+  "utf8",
+);
+for (const required of [
+  'from "./productMeetingState"',
+  'from "./productReadinessState"',
+  'from "./workerCapabilities"',
+]) {
+  if (!productStateSource.includes(required)) {
+    failures.push("runtimeProductState.ts must remain a thin compatibility re-export: " + required);
+  }
+}
+if (productStateSource.includes("function mapProductMeetingState") || productStateSource.includes("function mapProductReadiness")) {
+  failures.push("runtimeProductState.ts must not reclaim Meeting/readiness implementation");
+}
+
+const meetingLiveControllerSource = readFileSync(
+  join(appRoot, "src", "app", "runtime", "meetingLiveController.ts"),
+  "utf8",
+);
+if (!meetingLiveControllerSource.includes('from "./meetingReconcileReader"')) {
+  failures.push("meetingLiveController.ts must use meetingReconcileReader semantic boundary");
+}
+if (meetingLiveControllerSource.includes('from "./meetingPoll"')) {
+  failures.push("meetingLiveController.ts must not restore obsolete meetingPoll module naming");
+}
+
 const meetingPageSource = readFileSync(join(appRoot, "src", "pages", "Meeting.svelte"), "utf8");
 if (meetingPageSource.includes("startRuntimePoll")) {
   failures.push("Meeting.svelte must not restore generic UI polling; use event-first sync or explicit on-demand refresh");
