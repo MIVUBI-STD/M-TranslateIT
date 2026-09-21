@@ -33,6 +33,8 @@ test("native updater is signed, GitHub-release based, and activity-safe", () => 
   assert.match(source, /voice_lab_recording_blocks_app_exit/);
   assert.match(source, /current_voice_lab_build_snapshot\(\)\.active/);
   assert.match(source, /runtime\.has_active_session/);
+  assert.ok((source.match(/update_blocker\(\)/g) ?? []).length >= 2);
+  assert.ok(source.lastIndexOf("update_blocker()") < source.indexOf("download_and_install"));
   assert.match(source, /download_and_install/);
 
   assert.doesNotMatch(source, /loop\s*\{/);

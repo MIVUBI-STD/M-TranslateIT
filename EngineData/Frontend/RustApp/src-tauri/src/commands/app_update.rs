@@ -125,6 +125,14 @@ pub async fn install_app_update(app: AppHandle) -> Result<AppUpdateInstall, Stri
         });
     };
 
+    if let Some(blocker) = update_blocker() {
+        return Ok(AppUpdateInstall {
+            installed: false,
+            version: Some(update.version.clone()),
+            message: blocker.to_string(),
+        });
+    }
+
     let version = update.version.clone();
     update
         .download_and_install(|_, _| {}, || {})
