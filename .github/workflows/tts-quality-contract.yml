@@ -21,6 +21,10 @@ on:
       - "EngineData/Frontend/RustApp/src-tauri/src/commands/voice_lab_build/evaluation.rs"
       - ".github/workflows/tts-quality-contract.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
