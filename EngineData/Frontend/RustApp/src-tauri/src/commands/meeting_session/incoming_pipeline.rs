@@ -180,6 +180,7 @@ fn process_incoming_wav_with_direction(
                 transcript: transcript.clone(),
                 source_language: source_language.clone(),
                 target_language: target_language.clone(),
+                translation_style: translation_style.clone(),
             },
             enqueued_unix_ms: deferred_enqueue_unix_ms(
                 deferred_enqueued_unix_ms,
