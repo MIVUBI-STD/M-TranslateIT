@@ -19,6 +19,8 @@ test("reliability monitor deduplicates notices and stays low frequency", () => {
   assert.match(monitor, /LONG_SESSION_POLL_MS = 30_000/);
   assert.match(monitor, /notice\.key !== lastKey/);
   assert.match(monitor, /inFlight/);
+  assert.match(monitor, /longSessionInFlight/);
+  assert.match(monitor, /disposed \|\| longSessionInFlight/);
 });
 
 test("meeting poll and reliability poll share one session-scoped owner", () => {

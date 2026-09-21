@@ -59,24 +59,30 @@ function startMeetingReliabilityMonitor(
   const timer = window.setInterval(() => void poll(), LIVE_RELIABILITY_POLL_MS);
 
   let lastLongSessionState = "";
+  let longSessionInFlight = false;
   const pollLongSession = async () => {
-    if (disposed) return;
-    const health = await getLongSessionHealthStatus();
-    if (!health.healthy && health.warning_count > 0) {
-      const key = [
-        health.outbound_overflow_dropped,
-        health.outbound_evicted_pending,
-        health.deferred_incoming_dropped_overflow,
-        health.deferred_incoming_dropped_stale,
-        health.transcript_dropped_turns,
-        health.meeting_temp_file_count,
-      ].join(":");
-      if (key !== lastLongSessionState) {
-        lastLongSessionState = key;
-        onNotice(health.note);
+    if (disposed || longSessionInFlight) return;
+    longSessionInFlight = true;
+    try {
+      const health = await getLongSessionHealthStatus();
+      if (!health.healthy && health.warning_count > 0) {
+        const key = [
+          health.outbound_overflow_dropped,
+          health.outbound_evicted_pending,
+          health.deferred_incoming_dropped_overflow,
+          health.deferred_incoming_dropped_stale,
+          health.transcript_dropped_turns,
+          health.meeting_temp_file_count,
+        ].join(":");
+        if (key !== lastLongSessionState) {
+          lastLongSessionState = key;
+          onNotice(health.note);
+        }
+      } else {
+        lastLongSessionState = "";
       }
-    } else {
-      lastLongSessionState = "";
+    } finally {
+      longSessionInFlight = false;
     }
   };
   const longSessionTimer = window.setInterval(
