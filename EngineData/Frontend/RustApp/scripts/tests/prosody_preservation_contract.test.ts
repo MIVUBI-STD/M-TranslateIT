@@ -9,6 +9,7 @@ const voice = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntim
 
 test("prosody preservation promotes measured speech duration through the outbound path", () => {
   assert.match(utterance, /speech_duration_ms: u64/);
+  assert.match(utterance, /duration_ms\(speech_end, state\.sample_rate_hz\)/);
   assert.match(consumer, /utterance\.speech_duration_ms/);
   assert.match(outbound, /"source_speech_duration_ms": speech_duration_ms/);
   assert.match(outbound, /"source_text": transcript\.clone\(\)/);

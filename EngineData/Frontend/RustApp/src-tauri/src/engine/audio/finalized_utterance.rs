@@ -507,6 +507,7 @@ fn finalize_current_utterance(state: &mut FinalizedProducerState) -> bool {
         reset_current_utterance(state);
         return false;
     }
+    let speech_duration_ms = duration_ms(speech_end, state.sample_rate_hz);
 
     // PR-052 begins at detected finalized-utterance end. Capture that point before
     // evidence validation/resampling. The preceding VAD/silence boundary is tracked
