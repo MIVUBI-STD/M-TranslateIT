@@ -159,7 +159,6 @@ export type MeetingIncomingRuntimeStatus = {
   updated_unix_ms: number;
   runtime_claim: string;
 };
-
 export type MeetingSessionStatus = {
   lifecycle: string;
   has_session: boolean;
@@ -177,7 +176,6 @@ export type MeetingSessionStatus = {
   incoming: MeetingIncomingRuntimeStatus;
   runtime_claim: string;
 };
-
 export type MeetingSessionActionResult = {
   ok: boolean;
   state: string;

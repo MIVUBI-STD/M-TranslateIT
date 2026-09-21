@@ -403,6 +403,7 @@ mod tests {
 
     #[test]
     fn playback_sequence_accepts_gaps_but_rejects_duplicate_or_older_output() {
+        assert!(sequence_is_monotonic(0, 1));
         assert!(sequence_is_monotonic(10, 11));
         assert!(sequence_is_monotonic(10, 12));
         assert!(!sequence_is_monotonic(10, 10));
