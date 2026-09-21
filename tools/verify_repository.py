@@ -379,6 +379,33 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
 def check_tauri_security_contract(errors: list[str]) -> None:
     main = json.loads(text("EngineData/Frontend/RustApp/src-tauri/capabilities/default.json"))
     overlay = json.loads(text("EngineData/Frontend/RustApp/src-tauri/capabilities/translation-overlay.json"))
+    tauri_config = json.loads(text("EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"))
+    release_config = json.loads(text("EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"))
+
+    if "app" in release_config and isinstance(release_config.get("app"), dict) and "security" in release_config["app"]:
+        fail(errors, "release config must not override canonical Tauri security policy")
+
+    csp = str(tauri_config.get("app", {}).get("security", {}).get("csp", ""))
+    for required in (
+        "default-src 'self'",
+        "script-src 'self'",
+        "object-src 'none'",
+        "frame-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+    ):
+        if required not in csp:
+            fail(errors, f"Tauri CSP missing required directive: {required}")
+    for forbidden in (
+        "'unsafe-eval'",
+        "default-src *",
+        "script-src *",
+        "connect-src *",
+        "frame-src *",
+        "object-src *",
+    ):
+        if forbidden in csp:
+            fail(errors, f"Tauri CSP contains forbidden broad directive: {forbidden}")
 
     if main.get("windows") != ["main"]:
         fail(errors, "main Tauri capability must target only the main window")
