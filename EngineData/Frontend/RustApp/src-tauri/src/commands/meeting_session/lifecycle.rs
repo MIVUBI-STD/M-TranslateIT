@@ -2,7 +2,7 @@ use serde_json::json;
 
 use crate::engine::audio::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, clear_finalized_meeting_sequence,
-    reset_finalized_meeting_sequence,
+    reset_finalized_drop_counters, reset_finalized_meeting_sequence,
 };
 use crate::engine::audio::live_segment_writer::cleanup_finalized_meeting_session_wavs;
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
@@ -37,7 +37,9 @@ use super::consumer_runtime::{
     stop_meeting_outbound_consumer,
 };
 use super::incoming_activation::schedule_optional_incoming_lane;
-use super::incoming_deferred::clear_deferred_incoming_queue;
+use super::incoming_deferred::{
+    clear_deferred_incoming_queue, reset_deferred_incoming_drop_counters,
+};
 use super::outbound_pipeline::cleanup_meeting_tts_for_session;
 use super::preflight::{blocked_result, build_preflight, status_from_report};
 use super::session_state::{
@@ -201,6 +203,8 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             ),
         );
     }
+    reset_finalized_drop_counters();
+    reset_deferred_incoming_drop_counters();
     reset_committed_turns(&session_id);
     reset_finalized_meeting_sequence(&session_id);
     let _ = reset_self_output_suppression(&session_id);

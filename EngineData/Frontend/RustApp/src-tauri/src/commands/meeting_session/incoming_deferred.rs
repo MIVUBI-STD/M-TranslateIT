@@ -145,6 +145,11 @@ pub(super) fn take_due_deferred_incoming(
     None
 }
 
+pub(super) fn reset_deferred_incoming_drop_counters() {
+    DEFERRED_DROPPED_OVERFLOW.store(0, Ordering::Relaxed);
+    DEFERRED_DROPPED_STALE.store(0, Ordering::Relaxed);
+}
+
 pub(super) fn deferred_incoming_health_counts() -> (usize, u64, u64) {
     let depth = deferred_incoming_queue()
         .lock()

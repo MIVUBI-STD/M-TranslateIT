@@ -31,6 +31,11 @@ pub fn evicted_pending_utterance_count() -> u64 {
     EVICTED_PENDING_UTTERANCES.load(Ordering::Relaxed)
 }
 
+pub fn reset_finalized_drop_counters() {
+    OVERFLOW_DROPPED_UTTERANCES.store(0, Ordering::Relaxed);
+    EVICTED_PENDING_UTTERANCES.store(0, Ordering::Relaxed);
+}
+
 fn current_unix_ms() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
