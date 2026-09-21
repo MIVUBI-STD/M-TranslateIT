@@ -229,7 +229,7 @@ fn build_output_stream(
     generation: u64,
     completion_tx: mpsc::SyncSender<Duration>,
     first_playback_tx: mpsc::SyncSender<Instant>,
-    callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_errors: Arc<Mutex<Option<String>>>,
 ) -> Result<cpal::Stream, String> {
     let make_cursor = |tx: mpsc::SyncSender<Duration>| PlaybackCursor {
         samples: Arc::clone(&samples),
@@ -255,7 +255,7 @@ fn build_output_stream(
                     move |data: &mut [f32], info| cursor.fill(data, info, |value| value),
                     move |error| {
                         if let Ok(mut stored) = errors.lock() {
-                            stored.push(error.to_string());
+                            *stored = Some(error.to_string());
                         }
                         let _ = error_tx.try_send(Duration::ZERO);
                     },
@@ -277,7 +277,7 @@ fn build_output_stream(
                     },
                     move |error| {
                         if let Ok(mut stored) = errors.lock() {
-                            stored.push(error.to_string());
+                            *stored = Some(error.to_string());
                         }
                         let _ = error_tx.try_send(Duration::ZERO);
                     },
@@ -300,7 +300,7 @@ fn build_output_stream(
                     },
                     move |error| {
                         if let Ok(mut stored) = errors.lock() {
-                            stored.push(error.to_string());
+                            *stored = Some(error.to_string());
                         }
                         let _ = error_tx.try_send(Duration::ZERO);
                     },
@@ -341,7 +341,7 @@ pub fn probe_prepared_meeting_output_device_functionally(
     let cancel_requested = Arc::new(AtomicBool::new(false));
     let (completion_tx, _completion_rx) = mpsc::sync_channel(1);
     let (first_playback_tx, first_playback_rx) = mpsc::sync_channel(1);
-    let callback_errors = Arc::new(Mutex::new(Vec::new()));
+    let callback_errors = Arc::new(Mutex::new(None));
     let stream = build_output_stream(
         &device,
         &config,
@@ -362,7 +362,7 @@ pub fn probe_prepared_meeting_output_device_functionally(
     let callback_error = callback_errors
         .lock()
         .ok()
-        .and_then(|errors| errors.last().cloned());
+        .and_then(|error| error.clone());
     let still_authoritative = runtime_generation_is_authoritative(generation);
     drop(stream);
 
@@ -486,7 +486,7 @@ pub fn deliver_meeting_output_wav(
     };
     let (completion_tx, completion_rx) = mpsc::sync_channel(1);
     let (first_playback_tx, first_playback_rx) = mpsc::sync_channel(1);
-    let callback_errors = Arc::new(Mutex::new(Vec::new()));
+    let callback_errors = Arc::new(Mutex::new(None));
     let stream = match build_output_stream(
         &device,
         &config,
@@ -518,7 +518,7 @@ pub fn deliver_meeting_output_wav(
     let callback_error = callback_errors
         .lock()
         .ok()
-        .and_then(|errors| errors.last().cloned());
+        .and_then(|error| error.clone());
     let first_playback_at = first_playback_rx.try_recv().ok();
     let first_playback_unix_ms = first_playback_at
         .map(|instant| projected_unix_ms(delivery_started_at, delivery_started_unix_ms, instant));
