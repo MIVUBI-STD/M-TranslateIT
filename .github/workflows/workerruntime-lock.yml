@@ -17,6 +17,10 @@ on:
       - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
       - ".github/workflows/workerruntime-lock.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
