@@ -17,8 +17,13 @@ mod outbound_pipeline;
 mod preflight;
 mod session_state;
 mod suppression;
+mod transcript_export;
 
 use committed_turns::current_committed_turn_snapshot;
+use transcript_export::{
+    export_transcript, transcript_export_status, MeetingTranscriptExportResult,
+    MeetingTranscriptExportStatus,
+};
 use outbound_pipeline::process_outbound_wav;
 use preflight::current_status;
 use session_state::{incoming_lane_enabled, OutboundTimingContext};
@@ -242,6 +247,16 @@ pub fn get_meeting_session_status() -> MeetingSessionStatus {
 #[tauri::command]
 pub fn get_meeting_committed_turns() -> MeetingCommittedTurnsSnapshot {
     current_committed_turn_snapshot()
+}
+
+#[tauri::command]
+pub fn get_meeting_transcript_export_status() -> MeetingTranscriptExportStatus {
+    transcript_export_status()
+}
+
+#[tauri::command]
+pub fn export_meeting_transcript(format: String) -> MeetingTranscriptExportResult {
+    export_transcript(&format)
 }
 
 pub fn start_meeting_translation() -> MeetingSessionActionResult {
