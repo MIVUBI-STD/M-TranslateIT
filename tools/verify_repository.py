@@ -344,6 +344,8 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         value = text(workflow)
         for proof_marker in (
             "workflow_dispatch:",
+            "concurrency:",
+            "cancel-in-progress: true",
             "Write exact-SHA proof summary",
             "GITHUB_SHA",
             "not TARGET_WINDOWS native acceptance",
