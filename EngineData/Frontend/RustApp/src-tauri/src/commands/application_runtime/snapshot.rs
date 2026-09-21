@@ -24,7 +24,6 @@ pub fn current_application_snapshot() -> ApplicationSnapshot {
         callback_frames_observed: native_input.callback_frames_observed,
         selected_device_name: native_input.input_device_name.clone(),
         input_device_name: native_input.input_device_name.clone(),
-        device_count: if native_input.input_device_name.is_some() { 1 } else { 0 },
         blocker: native_input.blocker.clone(),
         note: native_input.note.clone(),
     };
