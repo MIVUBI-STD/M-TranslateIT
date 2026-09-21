@@ -100,6 +100,9 @@ for (const forbidden of [
   '"select_audio_device"',
   '"save_runtime_settings"',
   '"apply_meeting_preset"',
+  '"get_helper_bridge_status"',
+  '"start_helper_bridge"',
+  '"get_input_status"',
 ]) {
   if (runtimeApiSource.includes(forbidden)) {
     failures.push(`runtimeApi.ts must route settings/audio mutations through application authority: ${forbidden}`);
