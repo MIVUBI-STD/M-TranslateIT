@@ -44,10 +44,13 @@ Repository Verify
 → governance / Local-only routing / skills / repository contracts
 
 Code Health
+→ supports push / pull_request / explicit workflow_dispatch
+→ manual workflow_dispatch is full-domain proof for Frontend + Rust + Python
 → frontend: typecheck, build, runtime tests, source-size, bridge contract,
   reachability, virtual-route contract, npm audit
 → Rust: compiler/dead-code, Clippy, unit tests on Linux/hosted Windows when selected
 → Python: compile, Ruff/static/format, pytest on Linux/hosted Windows when selected
+→ exact-SHA proof summary aggregates required domain job results and treats skipped domains as non-evidence
 
 MiLMMT Repository Contract
 → canonical translation provider/repository contract
