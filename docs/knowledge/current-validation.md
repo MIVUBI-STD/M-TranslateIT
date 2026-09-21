@@ -54,21 +54,27 @@ Code Health
 
 MiLMMT Repository Contract
 → canonical translation provider/repository contract
+→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
 
 ASR Quality Contract
 → ASR corpus/evaluator + canonical ASR source contract
+→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
 
 TTS Quality Contract
 → TTS/My Voice corpus/evaluator + canonical held-out voice-evaluation source contract
+→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
 
 Quality Readiness Contract
 → cross-domain aggregation contract over Translation + ASR + TTS comparison reports
+→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
 
 WorkerRuntime Lock Consistency
 → Python dependency-lock integrity
+→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
 
 R3 Release Contract
 → controlled release-source / Windows payload proof when payload inputs change
+→ manual workflow_dispatch explicitly requires the controlled Windows payload job and exact-SHA aggregate proof completeness
 ```
 
 Path-targeted skipped jobs are not evidence for unrelated domains.
