@@ -9,7 +9,7 @@ mod snapshot;
 mod summaries;
 
 pub use contract::{
-    ApplicationCapabilities, ApplicationIntentResult, ApplicationProblem, ApplicationSnapshot,
+    ApplicationCapabilities, ApplicationInputStatus, ApplicationIntentResult, ApplicationProblem, ApplicationSnapshot,
     ApplicationSubsystemSummaries, AudioSummary, MeetingSummary, ResourceArbitration,
     WorkerSummary,
 };
