@@ -19,6 +19,10 @@ on:
       - "EngineData/Backend/LocalWorker/WorkerRuntime/model_manifest.json"
       - ".github/workflows/asr-quality-contract.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
