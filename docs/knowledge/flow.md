@@ -109,3 +109,32 @@ what must it do?      → docs/foundation/
 why was it chosen?    → decisions/
 what does it do now?  → current Local source + matching proof
 ```
+
+
+## Product runtime authority
+
+Interactive product flows now converge through one application-level authority instead of letting individual UI pages own cross-feature lifecycle decisions.
+
+```text
+Svelte UI
+→ Product intent
+→ ApplicationRuntime
+→ subsystem command / resource owner
+→ canonical ApplicationSnapshot
+→ runtime event
+→ UI reconciliation
+```
+
+Current migrated vertical slices:
+
+- Meeting start / stop
+- Mic Test start / stop
+
+Rules:
+
+1. UI may present convenience guards, but the backend runtime is authoritative for resource ownership and lifecycle acceptance.
+2. Cross-feature actions use `dispatch_product_intent`; feature-local read APIs may remain direct until their migration is justified.
+3. `ApplicationSnapshot` is the canonical cross-feature reconciliation payload. Feature-specific snapshots remain valid internal detail, not competing product truth.
+4. Runtime events signal state changes. Polling remains a reconciliation/watchdog mechanism, not the preferred owner of lifecycle transitions.
+5. Existing commands remain temporarily available as compatibility paths while vertical slices migrate. Do not duplicate new orchestration rules in both the UI and feature commands.
+6. New cross-feature conflicts must be solved in `ApplicationRuntime` or the underlying resource owner, never by adding another page-specific boolean maze.
