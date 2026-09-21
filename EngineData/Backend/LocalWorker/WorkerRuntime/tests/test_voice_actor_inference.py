@@ -314,3 +314,65 @@ def test_worker_protocol_exposes_only_trained_actor_tts_commands() -> None:
     assert worker.HANDLERS["voice_actor_synthesize"] is worker.handle_voice_actor_synthesize
     assert "tts_preflight" not in worker.HANDLERS
     assert "synthesize" not in worker.HANDLERS
+
+
+def test_meeting_pace_factor_uses_actor_reference_rate_and_clamps() -> None:
+    from voice_lab_gpt_sovits import meeting_pace_factor
+
+    runtime = {
+        "reference_text": "one two three four",
+        "reference_duration_ms": 2000,
+    }
+    assert meeting_pace_factor(runtime, "one two three four", 2000) == 1.0
+    assert meeting_pace_factor(runtime, "one two three four", 1000) == 1.10
+    assert meeting_pace_factor(runtime, "one two three four", 4000) == 0.90
+    assert meeting_pace_factor(runtime, "", 1000) == 1.0
+
+
+def test_voice_actor_synthesize_forwards_native_speed_factor(tmp_path: Path, monkeypatch) -> None:
+    worker = load_worker_module()
+    cache = tmp_path / "CacheData"
+    cache.mkdir()
+    monkeypatch.setattr(worker.io_runtime.common, "CACHE_ROOT", cache)
+    monkeypatch.setattr(worker.io_runtime.common, "ALLOWED_OUTPUT_ROOTS", [cache])
+
+    runtime = {
+        "device": "cpu",
+        "reference_cached": True,
+        "fingerprint": (("actor.json", 1, 1),),
+        "reference_text": "one two three four",
+        "reference_duration_ms": 2000,
+    }
+    monkeypatch.setattr(worker.io_runtime, "get_voice_actor_runtime", lambda _package=None: runtime)
+
+    seen: list[float] = []
+
+    def synthesize(_runtime, _text, output_path, *, speed_factor=1.0):
+        seen.append(speed_factor)
+        output_path.write_bytes(b"R" * 80)
+        return {
+            "sample_rate": 32_000,
+            "device": "cpu",
+            "reference_cached": True,
+            "speed_factor": speed_factor,
+        }
+
+    monkeypatch.setattr(
+        worker.io_runtime.voice_actor_provider,
+        "synthesize_voice_actor",
+        synthesize,
+    )
+    output = cache / "paced.wav"
+    result = worker.handle_voice_actor_synthesize(
+        {
+            "text": "Translated output.",
+            "source_text": "one two three four",
+            "source_speech_duration_ms": 1000,
+            "output_path": str(output),
+        }
+    )
+
+    assert result["ok"] is True
+    assert seen == [1.10]
+    assert result["pace_applied"] is True
+    assert result["pace_factor"] == 1.10

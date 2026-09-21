@@ -226,6 +226,7 @@ fn process_authoritative_finalized_outbound_wav(
     session_id: &str,
     event_sequence: u64,
     utterance_id: u64,
+    speech_duration_ms: u64,
     audio_path: String,
     timing: OutboundTimingContext,
 ) -> MeetingOutboundProcessResult {
@@ -234,6 +235,7 @@ fn process_authoritative_finalized_outbound_wav(
         session_id,
         event_sequence,
         utterance_id,
+        speech_duration_ms,
         audio_path,
         timing,
     )

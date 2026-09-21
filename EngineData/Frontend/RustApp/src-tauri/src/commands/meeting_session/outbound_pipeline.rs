@@ -121,6 +121,7 @@ pub(super) fn process_outbound_wav(
     session_id: &str,
     event_sequence: u64,
     utterance_id: u64,
+    speech_duration_ms: u64,
     audio_path: String,
     mut timing: OutboundTimingContext,
 ) -> MeetingOutboundProcessResult {
@@ -156,6 +157,7 @@ pub(super) fn process_outbound_wav(
             "meeting_generation": generation,
             "meeting_sequence": event_sequence,
             "utterance_id": utterance_id,
+            "source_speech_duration_ms": speech_duration_ms,
         }),
     );
     timing.metrics.asr_ms = Some(elapsed_millis(asr_started_at, Instant::now()));
@@ -328,6 +330,8 @@ pub(super) fn process_outbound_wav(
         "voice_actor_synthesize",
         json!({
             "text": translated_text.clone(),
+            "source_text": transcript.clone(),
+            "source_speech_duration_ms": speech_duration_ms,
             "output_path": requested_tts_path,
             "expected_actor_token": actor_token,
             "meeting_session_id": session_id,

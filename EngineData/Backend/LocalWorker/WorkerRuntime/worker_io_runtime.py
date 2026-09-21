@@ -319,7 +319,23 @@ def handle_voice_actor_synthesize(payload: dict[str, Any]) -> dict[str, Any]:
         output_path.unlink(missing_ok=True)
         expected = common.compact_runtime_text(payload.get("expected_actor_token", ""), 512)
         runtime, runtime_token = get_bound_voice_actor_runtime(expected)
-        synthesis = voice_actor_provider.synthesize_voice_actor(runtime, text, output_path)
+        source_text = common.compact_runtime_text(
+            payload.get("source_text", ""), common.MAX_TTS_TEXT_CHARS
+        )
+        source_speech_duration_ms = max(
+            0, int(payload.get("source_speech_duration_ms", 0) or 0)
+        )
+        pace_factor = voice_actor_provider.meeting_pace_factor(
+            runtime,
+            source_text,
+            source_speech_duration_ms,
+        )
+        synthesis = voice_actor_provider.synthesize_voice_actor(
+            runtime,
+            text,
+            output_path,
+            speed_factor=pace_factor,
+        )
         if not output_path.is_file() or output_path.stat().st_size <= 44:
             raise voice_actor_provider.VoiceLabProviderError("inference_audio_invalid")
         return {
@@ -330,6 +346,9 @@ def handle_voice_actor_synthesize(payload: dict[str, Any]) -> dict[str, Any]:
             "device": synthesis["device"],
             "reference_cached": synthesis["reference_cached"],
             "sample_rate": synthesis["sample_rate"],
+            "pace_factor": float(synthesis.get("speed_factor", pace_factor)),
+            "pace_applied": abs(float(synthesis.get("speed_factor", pace_factor)) - 1.0) >= 0.01,
+            "source_speech_duration_ms": source_speech_duration_ms,
             "actor_token": runtime_token,
             "output_path": str(output_path),
             "elapsed_ms": common.now_ms() - started,

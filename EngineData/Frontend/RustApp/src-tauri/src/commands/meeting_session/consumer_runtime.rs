@@ -141,6 +141,7 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
                     &utterance.session_id,
                     utterance.sequence,
                     utterance.utterance_id,
+                    utterance.speech_duration_ms,
                     audio_path.clone(),
                     timing,
                 );

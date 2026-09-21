@@ -339,7 +339,12 @@ def create_tts_runtime(
     }
 
 
-def english_tts_inputs(text: str, reference_wav: Path, reference_text: str) -> dict[str, Any]:
+def english_tts_inputs(
+    text: str,
+    reference_wav: Path,
+    reference_text: str,
+    speed_factor: float = 1.0,
+) -> dict[str, Any]:
     return {
         "text": text,
         "text_lang": "en",
@@ -351,6 +356,7 @@ def english_tts_inputs(text: str, reference_wav: Path, reference_text: str) -> d
         "return_fragment": False,
         "streaming_mode": False,
         "seed": 233333,
+        "speed_factor": float(speed_factor),
     }
 
 
@@ -375,14 +381,57 @@ def load_voice_actor_runtime(source_root: Path, actor_dir: Path) -> dict[str, An
     return runtime
 
 
-def synthesize_voice_actor(runtime: dict[str, Any], text: str, output_path: Path) -> dict[str, Any]:
+def reference_words_per_minute(runtime: dict[str, Any]) -> float:
+    reference_text = str(runtime.get("reference_text", "")).strip()
+    reference_duration_ms = int(runtime.get("reference_duration_ms", 0) or 0)
+    words = len(reference_text.split())
+    if words <= 0 or reference_duration_ms <= 0:
+        return 0.0
+    return words * 60_000.0 / reference_duration_ms
+
+
+def source_words_per_minute(text: str, source_speech_duration_ms: int) -> float:
+    words = len(str(text).strip().split())
+    if words <= 0 or source_speech_duration_ms <= 0:
+        return 0.0
+    return words * 60_000.0 / source_speech_duration_ms
+
+
+def meeting_pace_factor(
+    runtime: dict[str, Any],
+    source_text: str,
+    source_speech_duration_ms: int,
+) -> float:
+    reference_wpm = reference_words_per_minute(runtime)
+    source_wpm = source_words_per_minute(source_text, source_speech_duration_ms)
+    if reference_wpm <= 0.0 or source_wpm <= 0.0:
+        return 1.0
+    return max(0.90, min(1.10, source_wpm / reference_wpm))
+
+
+def synthesize_voice_actor(
+    runtime: dict[str, Any],
+    text: str,
+    output_path: Path,
+    *,
+    speed_factor: float = 1.0,
+) -> dict[str, Any]:
     tts = runtime.get("tts")
     reference_wav = runtime.get("reference_wav")
     reference_text = str(runtime.get("reference_text", "")).strip()
     if tts is None or not isinstance(reference_wav, Path) or not reference_text:
         raise VoiceLabProviderError("voice_actor_runtime_invalid")
     with reuse_reference_speaker_embeddings(runtime):
-        outputs = list(tts.run(english_tts_inputs(text, reference_wav, reference_text)))
+        outputs = list(
+            tts.run(
+                english_tts_inputs(
+                    text,
+                    reference_wav,
+                    reference_text,
+                    speed_factor=speed_factor,
+                )
+            )
+        )
     if len(outputs) != 1:
         raise VoiceLabProviderError(f"inference_output_count:{len(outputs)}")
     sample_rate, audio = outputs[0]
@@ -393,4 +442,5 @@ def synthesize_voice_actor(runtime: dict[str, Any], text: str, output_path: Path
         "sample_rate": int(sample_rate),
         "device": str(runtime.get("device", "unknown")),
         "reference_cached": bool(runtime.get("reference_cached")),
+        "speed_factor": float(speed_factor),
     }

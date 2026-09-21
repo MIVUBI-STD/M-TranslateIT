@@ -55,6 +55,7 @@ pub struct FinalizedMeetingUtterance {
     pub enqueued_at: Instant,
     pub finalized_unix_ms: u128,
     pub speech_boundary_ms: u64,
+    pub speech_duration_ms: u64,
     pub finalization_ms: u64,
     pub frame: AudioFrame,
 }
@@ -563,6 +564,7 @@ fn finalize_current_utterance(state: &mut FinalizedProducerState) -> bool {
         enqueued_at,
         finalized_unix_ms,
         speech_boundary_ms,
+        speech_duration_ms: u64::from(speech_duration_ms),
         finalization_ms,
         frame: AudioFrame {
             sample_rate_hz: TARGET_SAMPLE_RATE_HZ,
