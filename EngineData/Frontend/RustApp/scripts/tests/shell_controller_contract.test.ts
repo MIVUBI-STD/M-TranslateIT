@@ -29,9 +29,15 @@ test("close flow coordination is owned outside App.svelte", () => {
   assert.match(app, /createCloseController\(\)/);
   assert.match(close, /resolveNativeCloseVerdict/);
   assert.match(close, /stopAndResolveNativeClose/);
-  assert.equal(app.includes("let closeDialogOpen = $state"), false);
-  assert.equal(app.includes("let closeDialogTitle = $state"), false);
-  assert.equal(app.includes("let closeDialogMessage = $state"), false);
+  for (const stale of [
+    "closeDialogOpen",
+    "closeDialogTitle",
+    "closeDialogMessage",
+    "closeDialogAction",
+  ]) {
+    assert.equal(app.includes(stale), false, stale);
+  }
+  assert.match(app, /onOpenChange=\{\(open\) =>/);
 });
 
 test("runtime product facade remains a thin compatibility surface", () => {
