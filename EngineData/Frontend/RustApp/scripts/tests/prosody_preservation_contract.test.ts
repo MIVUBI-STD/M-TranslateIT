@@ -5,7 +5,7 @@ import test from "node:test";
 const utterance = readFileSync(new URL("../../src-tauri/src/engine/audio/finalized_utterance.rs", import.meta.url), "utf8");
 const consumer = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/consumer_runtime.rs", import.meta.url), "utf8");
 const outbound = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/outbound_pipeline.rs", import.meta.url), "utf8");
-const voice = readFileSync(new URL("../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py", import.meta.url), "utf8");
+const voice = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py", import.meta.url), "utf8");
 
 test("prosody preservation promotes measured speech duration through the outbound path", () => {
   assert.match(utterance, /speech_duration_ms: u64/);
