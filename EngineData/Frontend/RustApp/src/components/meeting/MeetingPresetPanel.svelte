@@ -2,7 +2,6 @@
   import { Plus, Trash2, Video } from "@lucide/svelte";
   import type { MeetingAppDetection } from "../../app/bridge/runtimeApi";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
-  import { runtimeProductFacade } from "../../app/bridge/runtimeProductFacade";
   import {
     deleteMeetingPreset,
     meetingPresetFromSettings,
@@ -32,7 +31,10 @@
   let presets = $state<MeetingPreset[]>(readMeetingPresets());
   let presetName = $state("");
   let applying = $state(false);
-  const suggested = $derived(suggestedPresetForProvider(detection?.detected ? detection.provider : null));
+  const suggested = $derived.by(() => {
+    presets;
+    return suggestedPresetForProvider(detection?.detected ? detection.provider : null);
+  });
 
   function saveCurrent(): void {
     if (locked) return;
@@ -56,17 +58,16 @@
     }
     applying = true;
     try {
-      let current = (await runtimeApi.loadSettings()) ?? settings;
-
-      if (current.audio.input_device_id !== preset.microphoneId) {
-        const selected = await runtimeProductFacade.selectProductAudioDevice("microphone", preset.microphoneId, current);
-        if (!selected.ok) { onNotice(`Preset not applied: ${selected.message}`); return; }
-        current = selected.settings;
+      const current = (await runtimeApi.loadSettings()) ?? settings;
+      const inputProbe = await runtimeApi.probeInputDeviceCandidate(preset.microphoneId);
+      if (!inputProbe.ready) {
+        onNotice("Preset not applied: the saved microphone is unavailable. Choose another microphone or update the preset.");
+        return;
       }
-      if (current.audio.output_device_id !== preset.meetingSoundId) {
-        const selected = await runtimeProductFacade.selectProductAudioDevice("meeting-sound", preset.meetingSoundId, current);
-        if (!selected.ok) { onNotice(`Preset not applied: ${selected.message}`); return; }
-        current = selected.settings;
+      const outputProbe = await runtimeApi.probeOutputDeviceCandidate(preset.meetingSoundId);
+      if (!outputProbe.ok) {
+        onNotice("Preset not applied: the saved Meeting Sound device is unavailable. Choose another device or update the preset.");
+        return;
       }
 
       const candidate: RuntimeSettings = {
@@ -76,7 +77,12 @@
         meeting_listen_source_language: preset.listenSourceLanguage,
         meeting_listen_target_language: preset.listenTargetLanguage,
         translation_style: preset.translationStyle,
-        audio: { ...current.audio, noise_suppression: preset.noiseSuppression },
+        audio: {
+          ...current.audio,
+          input_device_id: preset.microphoneId,
+          output_device_id: preset.meetingSoundId,
+          noise_suppression: preset.noiseSuppression,
+        },
       };
       const result = await runtimeApi.saveSettings(candidate);
       if (!result.ok) { onNotice(result.message || "Meeting preset couldn't be applied."); return; }
