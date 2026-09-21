@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { runtimeApi, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
-  import { applicationRuntimeApi } from "./app/bridge/applicationRuntimeApi";
+  import {
+    applicationRuntimeApi,
+    type ApplicationSnapshot,
+  } from "./app/bridge/applicationRuntimeApi";
   import {
     runtimeProductFacade,
     type ProductSetupAction,
@@ -90,26 +93,47 @@
     if (ownershipChanged) void refreshSnapshot();
   }
 
+  function applyRefreshResult(
+    result: Awaited<ReturnType<typeof applicationController.refresh>>,
+    preferredNotice?: string,
+  ): void {
+    applicationState = applicationController.read();
+    if (!result.applied) return;
+
+    if (result.setupRequired) {
+      meetingViewState = meetingLiveController.reset();
+      setNotice(preferredNotice ?? "Continue Meeting setup to use voice translation.");
+      return;
+    }
+
+    const next = result.snapshot;
+    if (!next) return;
+    if (!next.meeting.hasSession || result.previousSessionId !== result.nextSessionId) {
+      meetingViewState = meetingLiveController.reset();
+    }
+    setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
+  }
+
   async function refreshSnapshot(preferredNotice?: string, knownSettings?: RuntimeSettings): Promise<void> {
     try {
-      const result = await applicationController.refresh(knownSettings);
-      applicationState = applicationController.read();
-      if (!result.applied) return;
-
-      if (result.setupRequired) {
-        meetingViewState = meetingLiveController.reset();
-        setNotice(preferredNotice ?? "Continue Meeting setup to use voice translation.");
-        return;
-      }
-
-      const next = result.snapshot;
-      if (!next) return;
-      if (!next.meeting.hasSession || result.previousSessionId !== result.nextSessionId) {
-        meetingViewState = meetingLiveController.reset();
-      }
-      setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
+      applyRefreshResult(
+        await applicationController.refresh(knownSettings),
+        preferredNotice,
+      );
     } catch {
       setNotice("TranslateIT couldn't refresh its status. Try again.");
+    }
+  }
+
+  async function refreshFromApplicationEvent(
+    application: ApplicationSnapshot,
+  ): Promise<void> {
+    try {
+      applyRefreshResult(
+        await applicationController.refreshFromApplication(application),
+      );
+    } catch {
+      setNotice("TranslateIT couldn't reconcile its runtime event. Try again.");
     }
   }
 
@@ -291,7 +315,7 @@
       try {
         unlistenApplicationRuntime = await applicationRuntimeApi.subscribe((event) => {
           if (disposed || event.snapshot.revision <= 0) return;
-          void refreshSnapshot();
+          void refreshFromApplicationEvent(event.snapshot);
         });
       } catch {}
     };
