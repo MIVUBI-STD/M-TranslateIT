@@ -122,6 +122,27 @@ for (const forbidden of [
   }
 }
 
+const appShellSource = readFileSync(join(appRoot, "src", "App.svelte"), "utf8");
+for (const forbidden of [
+  "let runtimeSettings = $state",
+  "let helperStatus = $state",
+  "let workerStatus = $state",
+  "let inputStatus = $state",
+  "let approvedVoiceReady = $state",
+]) {
+  if (appShellSource.includes(forbidden)) {
+    failures.push("App.svelte must not duplicate product runtime state outside applicationController: " + forbidden);
+  }
+}
+for (const required of [
+  "createApplicationController(",
+  "applicationState.snapshot",
+]) {
+  if (!appShellSource.includes(required)) {
+    failures.push("App.svelte missing canonical frontend controller contract: " + required);
+  }
+}
+
 const meetingPageSource = readFileSync(join(appRoot, "src", "pages", "Meeting.svelte"), "utf8");
 if (meetingPageSource.includes("startRuntimePoll")) {
   failures.push("Meeting.svelte must not restore generic UI polling; use event-first sync or explicit on-demand refresh");
