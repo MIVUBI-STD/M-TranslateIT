@@ -58,7 +58,6 @@ pub struct ApplicationInputStatus {
     pub callback_frames_observed: u64,
     pub selected_device_name: Option<String>,
     pub input_device_name: Option<String>,
-    pub device_count: u32,
     pub blocker: String,
     pub note: String,
 }
