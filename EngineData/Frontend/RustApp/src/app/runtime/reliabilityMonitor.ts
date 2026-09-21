@@ -1,9 +1,11 @@
 import {
   getDeviceLossGuardStatus,
+  getLongSessionHealthStatus,
   getRuntimeWatchdogStatus,
 } from "../bridge/reliabilityApi";
 
 const LIVE_RELIABILITY_POLL_MS = 8_000;
+const LONG_SESSION_POLL_MS = 30_000;
 
 export type ReliabilityNotice = {
   key: string;
@@ -55,9 +57,37 @@ function startMeetingReliabilityMonitor(
 
   void poll();
   const timer = window.setInterval(() => void poll(), LIVE_RELIABILITY_POLL_MS);
+
+  let lastLongSessionState = "";
+  const pollLongSession = async () => {
+    if (disposed) return;
+    const health = await getLongSessionHealthStatus();
+    if (!health.healthy && health.warning_count > 0) {
+      const key = [
+        health.outbound_overflow_dropped,
+        health.outbound_evicted_pending,
+        health.deferred_incoming_dropped_overflow,
+        health.deferred_incoming_dropped_stale,
+        health.transcript_dropped_turns,
+        health.meeting_temp_file_count,
+      ].join(":");
+      if (key !== lastLongSessionState) {
+        lastLongSessionState = key;
+        onNotice(health.note);
+      }
+    } else {
+      lastLongSessionState = "";
+    }
+  };
+  const longSessionTimer = window.setInterval(
+    () => void pollLongSession(),
+    LONG_SESSION_POLL_MS,
+  );
+
   return () => {
     disposed = true;
     window.clearInterval(timer);
+    window.clearInterval(longSessionTimer);
   };
 }
 
