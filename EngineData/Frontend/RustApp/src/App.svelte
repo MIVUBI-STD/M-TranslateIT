@@ -101,16 +101,6 @@
   const routeTitle = $derived(
     route === "meeting" ? "Meeting" : route === "text" ? "Text" : route === "my-voice" ? "My Voice" : "Settings",
   );
-  const routeContext = $derived(
-    route === "meeting"
-      ? "Translate your voice in calls"
-      : route === "text"
-        ? "Indonesian ↔ English"
-        : route === "my-voice"
-          ? "Voice others hear"
-          : "Microphone, translation & help",
-  );
-
   const closePrimaryLabel = $derived(closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close");
 
   function setNotice(message: string): void {
@@ -462,7 +452,6 @@
         <div class="min-w-0 shrink-0">
           <div class="flex items-baseline gap-2.5">
             <strong class="text-[13.5px] font-semibold tracking-[-0.01em]">{routeTitle}</strong>
-            <span class="text-[11px] text-[var(--ti-text-soft)]">{routeContext}</span>
           </div>
         </div>
 
