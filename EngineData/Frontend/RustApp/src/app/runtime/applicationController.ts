@@ -7,7 +7,6 @@ export type ApplicationControllerState = {
   snapshot: ProductRuntimeSnapshot | null;
   setupSettings: RuntimeSettings;
   setupRequired: boolean;
-  runtimeLoaded: boolean;
   revision: number;
 };
 
@@ -30,7 +29,6 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
     snapshot: null,
     setupSettings: cloneSettings(initialSettings),
     setupRequired: false,
-    runtimeLoaded: false,
     revision: 0,
   };
 
@@ -56,7 +54,6 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
       snapshot: setupRequired ? null : next,
       setupSettings: nextSettings,
       setupRequired,
-      runtimeLoaded: !setupRequired,
     };
 
     return {
@@ -85,7 +82,6 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
         ...state,
         setupSettings: nextSettings,
         setupRequired,
-        runtimeLoaded: !setupRequired && state.snapshot !== null,
         snapshot: setupRequired
           ? null
           : state.snapshot
