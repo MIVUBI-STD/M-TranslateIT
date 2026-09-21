@@ -211,9 +211,15 @@ impl MeetingCommittedTurnStore {
 
 static MEETING_COMMITTED_TURNS: OnceLock<Mutex<Option<MeetingCommittedTurnStore>>> =
     OnceLock::new();
+static LAST_ENDED_MEETING_TRANSCRIPT: OnceLock<Mutex<Option<MeetingCommittedTurnsSnapshot>>> =
+    OnceLock::new();
 
 fn committed_turn_store() -> &'static Mutex<Option<MeetingCommittedTurnStore>> {
     MEETING_COMMITTED_TURNS.get_or_init(|| Mutex::new(None))
+}
+
+fn ended_transcript_store() -> &'static Mutex<Option<MeetingCommittedTurnsSnapshot>> {
+    LAST_ENDED_MEETING_TRANSCRIPT.get_or_init(|| Mutex::new(None))
 }
 
 fn terminal_delivery_state(state: Option<&str>) -> bool {
@@ -224,6 +230,9 @@ fn terminal_delivery_state(state: Option<&str>) -> bool {
 }
 
 pub(super) fn reset_committed_turns(session_id: &str) {
+    if let Ok(mut ended) = ended_transcript_store().lock() {
+        *ended = None;
+    }
     if let Ok(mut guard) = committed_turn_store().lock() {
         *guard = Some(MeetingCommittedTurnStore::new(session_id));
     }
@@ -248,7 +257,37 @@ pub(super) fn clear_all_committed_turns() -> bool {
         return false;
     };
     *guard = None;
+    if let Ok(mut ended) = ended_transcript_store().lock() {
+        *ended = None;
+    }
     true
+}
+
+pub(super) fn retain_committed_turns_for_export(session_id: &str) -> bool {
+    let Ok(guard) = committed_turn_store().lock() else {
+        return false;
+    };
+    let Some(store) = guard.as_ref() else {
+        return true;
+    };
+    if store.session_id != session_id {
+        return false;
+    }
+    let snapshot = store.snapshot();
+    drop(guard);
+    let Ok(mut ended) = ended_transcript_store().lock() else {
+        return false;
+    };
+    *ended = if snapshot.turns.is_empty() { None } else { Some(snapshot) };
+    true
+}
+
+pub(super) fn exportable_committed_turn_snapshot() -> Option<MeetingCommittedTurnsSnapshot> {
+    let active = current_committed_turn_snapshot();
+    if active.ok && active.has_session && !active.turns.is_empty() {
+        return Some(active);
+    }
+    ended_transcript_store().lock().ok().and_then(|guard| guard.clone())
 }
 
 pub(super) fn recent_outbound_context_pairs(
