@@ -179,20 +179,27 @@
     onNotice(result === "shown" ? "Floating caption updated." : "Floating caption is unavailable right now.");
   }
 
-  async function copyTranslation(): Promise<void> {
-    if (!targetText.trim()) {
+  async function copySelection(): Promise<void> {
+    const source = sourceText.trim();
+    const target = targetText.trim();
+    const value = copyMode === "source"
+      ? source
+      : copyMode === "bilingual"
+        ? `${sourceLanguageName}\n${source}\n\n${targetLanguageName}\n${target}`
+        : target;
+    if (!value) {
       copyState = "error";
-      onNotice("There is no translated text to copy.");
+      onNotice("There is no text to copy.");
       return;
     }
     try {
       if (!navigator.clipboard?.writeText) throw new Error("Clipboard is unavailable.");
-      await navigator.clipboard.writeText(targetText);
+      await navigator.clipboard.writeText(value);
       copyState = "copied";
-      onNotice("Translation copied.");
+      onNotice(copyMode === "bilingual" ? "Bilingual text copied." : copyMode === "source" ? "Source text copied." : "Translation copied.");
     } catch {
       copyState = "error";
-      onNotice("Couldn't copy the translation. Try again.");
+      onNotice("Couldn't copy the text. Try again.");
     }
   }
 
