@@ -5,10 +5,7 @@ import {
 } from "./runtimeApi";
 import { applicationRuntimeApi } from "./applicationRuntimeApi";
 import { compact, errorMessage } from "../shared/state";
-import {
-  shouldAutoStartHelper,
-  shouldExplicitlyRestartHelper,
-} from "../runtime/helperLifecyclePolicy";
+import { shouldAutoStartHelper } from "../runtime/helperLifecyclePolicy";
 import type {
   AudioDeviceListReport,
   HelperBridgeStatus,
@@ -324,29 +321,19 @@ export async function runProductSetupAction(action: ProductSetupAction): Promise
 export async function runProductRecoveryAction(action: ProductRecoveryAction): Promise<string> {
   if (action !== "fix-setup") return "No product recovery action was selected.";
 
-  let helper = await runtimeApi.getHelperBridgeStatus().catch(() => null);
-  if (helper && shouldExplicitlyRestartHelper(helper.state)) {
-    const started = await runtimeApi.startHelperBridge().catch(() => null);
-    if (!started?.ok) return "Setup still needs attention. Try again, then open Help if the problem continues.";
-    helper = await runtimeApi.getHelperBridgeStatus().catch(() => null);
+  const result = await applicationRuntimeApi.dispatchIntent("fix_setup");
+  if (!result.ok) {
+    return compact(
+      result.message,
+      "Setup still needs attention. Try Check Again, then open Help if needed.",
+    );
   }
-  const readiness = helper?.state === "ready"
-    ? await runtimeApi.verifyRequiredOutboundAiReadiness().catch(() => null)
-    : null;
-  const input = await runtimeApi.getInputStatus().catch(() => null);
-  const workerStatus = helper?.state === "ready"
-    ? await runtimeApi.helperBridgeWorkerStatus().catch(() => null)
-    : null;
-  const worker = parseWorkerCapabilities(workerStatus);
-  const hasProblem = Boolean(
-    !helper ||
-    helper.state !== "ready" ||
-    !readiness?.ok ||
-    input?.blocker ||
-    (worker.responseAvailable && !worker.translationIdEnReady),
-  );
 
-  if (hasProblem) return "Setup still needs attention. Try Check Again, then open Help if needed.";
+  const hasBlockingProblem = result.snapshot.problems.some((problem) => problem.severity === "blocking");
+  if (hasBlockingProblem) {
+    return "Setup still needs attention. Try Check Again, then open Help if needed.";
+  }
+
   return "TranslateIT is ready. Check Meeting again; the TranslateIT microphone may still need attention.";
 }
 
