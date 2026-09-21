@@ -3,6 +3,7 @@ import {
   type AudioDeviceProbeReport,
   type MeetingSessionActionResult,
 } from "./runtimeApi";
+import { applicationRuntimeApi } from "./applicationRuntimeApi";
 import { compact, errorMessage } from "../shared/state";
 import {
   shouldAutoStartHelper,
@@ -136,17 +137,18 @@ export async function loadProductRuntimeSnapshot(knownSettings?: RuntimeSettings
 }
 
 export async function runProductMeetingAction(action: ProductMeetingAction): Promise<ProductMeetingActionResult> {
-  const result = action === "start"
-    ? await runtimeApi.startMeetingTranslation()
-    : await runtimeApi.stopMeetingTranslation();
+  const result = await applicationRuntimeApi.dispatchIntent(
+    action === "start" ? "start_meeting" : "stop_meeting",
+  );
+  const status = result.snapshot.meeting;
   const fallbackMessage = action === "start" ? "Start Translation finished." : "Stop Translation finished.";
   return {
     ok: Boolean(result.ok),
     action,
     state: compact(result.state, result.ok ? "completed" : "blocked"),
     message: compact(result.message, fallbackMessage),
-    meeting: mapProductMeetingState(result.status),
-    status: result.status,
+    meeting: mapProductMeetingState(status),
+    status,
   };
 }
 
