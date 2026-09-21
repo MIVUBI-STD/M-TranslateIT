@@ -32,6 +32,7 @@ export function meetingSessionStatusFallback(message: string) {
       session_id: null,
       stage: "unavailable",
       utterance_sequence: 0,
+      playback_sequence: null,
       output_active: false,
       last_stage_ok: false,
       timing: null,

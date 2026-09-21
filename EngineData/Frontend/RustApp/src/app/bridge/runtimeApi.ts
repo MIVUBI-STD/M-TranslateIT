@@ -128,6 +128,7 @@ export type MeetingOutboundTiming = {
   translation_decode_ms: number | null;
   translation_tokens_per_second: number | null;
   tts_ms: number | null;
+  playback_queue_ms: number | null;
   delivery_ms: number | null;
   outbound_latency_ms: number | null;
 };
@@ -137,6 +138,7 @@ export type MeetingOutboundRuntimeStatus = {
   session_id: string | null;
   stage: string;
   utterance_sequence: number;
+  playback_sequence: number | null;
   output_active: boolean;
   last_stage_ok: boolean;
   timing: MeetingOutboundTiming | null;
@@ -195,7 +197,7 @@ export type MeetingCommittedTurn = {
   target_language: string;
   source_text: string;
   translated_text: string;
-  delivery_state: "preparing_voice" | "speaking" | "output_complete" | "output_failed" | "interrupted" | string | null;
+  delivery_state: "preparing_voice" | "queued" | "speaking" | "output_complete" | "output_failed" | "interrupted" | string | null;
   outbound_timing: MeetingOutboundTiming | null;
   created_unix_ms: number;
   updated_unix_ms: number;

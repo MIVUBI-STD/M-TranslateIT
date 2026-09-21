@@ -93,7 +93,10 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         return;
     }
 
-    let mut timing = job.timing;
+    let mut timing = OutboundTimingContext {
+        finalized_at: job.timing.finalized_at,
+        metrics: job.timing.metrics.clone(),
+    };
     timing.metrics.playback_queue_ms = Some(elapsed_millis(job.prepared_at, Instant::now()));
     set_outbound_timing(
         job.generation,
