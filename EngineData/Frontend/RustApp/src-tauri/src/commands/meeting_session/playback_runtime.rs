@@ -64,8 +64,12 @@ fn mark_interrupted(job: &PreparedPlaybackJob) {
     );
 }
 
+fn sequence_is_monotonic(last_sequence: u64, candidate: u64) -> bool {
+    candidate > last_sequence
+}
+
 fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
-    if job.event_sequence <= *last_sequence {
+    if !sequence_is_monotonic(*last_sequence, job.event_sequence) {
         cleanup_job(&job);
         let _ = update_committed_turn_delivery_state(
             &job.session_id,
@@ -382,5 +386,19 @@ pub(super) fn stop_meeting_playback_runtime(
                 runtime.session_id, generation
             )
         },
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::sequence_is_monotonic;
+
+    #[test]
+    fn playback_sequence_accepts_gaps_but_rejects_duplicate_or_older_output() {
+        assert!(sequence_is_monotonic(10, 11));
+        assert!(sequence_is_monotonic(10, 12));
+        assert!(!sequence_is_monotonic(10, 10));
+        assert!(!sequence_is_monotonic(10, 9));
     }
 }
