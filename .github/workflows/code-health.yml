@@ -133,6 +133,7 @@ jobs:
       - run: npm run test:frontend-runtime
       - run: npm run validate:source-size
       - run: npm run validate:bridge-contract
+      - run: npm run validate:application-runtime
       - run: npm run validate:reachability
       - run: npm run validate:dependency-usage
       - run: npm run validate:rust-dependency-usage
