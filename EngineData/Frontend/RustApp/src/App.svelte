@@ -3,10 +3,7 @@
   import { runtimeApi, type MeetingCommittedTurnsSnapshot, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
   import { applicationRuntimeApi } from "./app/bridge/applicationRuntimeApi";
   import {
-    mapProductMeetingState,
-    mapProductReadiness,
     runtimeProductFacade,
-    type ProductRuntimeSnapshot,
     type ProductSetupAction,
   } from "./app/bridge/runtimeProductFacade";
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
@@ -20,11 +17,12 @@
     stopAndResolveNativeClose,
   } from "./app/runtime/nativeCloseRuntime";
   import { cloneSettings, compact, defaultSettings } from "./app/shared/state";
+  import {
+    createApplicationController,
+    type ApplicationControllerState,
+  } from "./app/runtime/applicationController";
   import type {
     AppRoute,
-    HelperBridgeStatus,
-    HelperBridgeWorkerResponse,
-    InputPreparationStatus,
     RuntimeSettings,
   } from "./app/shared/types";
   import Sidebar from "./components/layout/Sidebar.svelte";
@@ -36,21 +34,16 @@
   import Settings from "./pages/Settings.svelte";
   import Text from "./pages/Text.svelte";
 
-  let booting = $state(true), setupRequired = $state(false);
-  let setupSettings=$state<RuntimeSettings>(defaultSettings());
+  const applicationController = createApplicationController(defaultSettings());
+  let applicationState = $state<ApplicationControllerState>(applicationController.read());
+
+  let booting = $state(true);
   let route=$state<AppRoute>("meeting");
   let notice=$state("Getting TranslateIT ready...");
   let meetingActionBusy=$state(false);
   let setupActionBusy=$state(false);
   let micTestBusy=$state(false);
   let myVoiceRecording = $state(false);
-  let runtimeLoaded = $state(false);
-  let runtimeSettings = $state<RuntimeSettings>(defaultSettings());
-  let helperStatus = $state<HelperBridgeStatus | null>(null);
-  let workerStatus = $state<HelperBridgeWorkerResponse | null>(null);
-  let inputStatus = $state<InputPreparationStatus | null>(null);
-  let approvedVoiceReady = $state<boolean | null>(null);
-  let meetingStatus = $state<MeetingSessionStatus | null>(null);
   let meetingTurns = $state<MeetingCommittedTurnsSnapshot | null>(null);
 
   let closeDialogOpen = $state(false);
@@ -65,25 +58,10 @@
   let lastOverlayMeetingRevision = "";
   let runtimeStateRevision=0;
 
-  const snapshot = $derived.by<ProductRuntimeSnapshot | null>(() => {
-    if (!runtimeLoaded) return null;
-    return {
-      settings: runtimeSettings,
-      helper: helperStatus,
-      workerStatus,
-      inputStatus,
-      meetingSession: meetingStatus,
-      meeting: mapProductMeetingState(meetingStatus),
-      readiness: mapProductReadiness({
-        settings: runtimeSettings,
-        helper: helperStatus,
-        workerStatus,
-        inputStatus,
-        meetingSession: meetingStatus,
-        approvedVoiceReady,
-      }),
-    };
-  });
+  const snapshot = $derived(applicationState.snapshot);
+  const setupRequired = $derived(applicationState.setupRequired);
+  const setupSettings = $derived(applicationState.setupSettings);
+  const meetingStatus = $derived(snapshot?.meetingSession ?? null);
 
   const presence = $derived(
     snapshot?.meeting.live
@@ -114,27 +92,18 @@
   }
 
   function applyMeetingStatus(status: MeetingSessionStatus, preferredNotice?: string): void {
-    meetingStatus = status;
+    applicationController.applyMeetingSession(status);
+    applicationState = applicationController.read();
     if (preferredNotice) setNotice(preferredNotice);
   }
 
   async function refreshSnapshot(preferredNotice?: string, knownSettings?: RuntimeSettings): Promise<void> {
-    const requestRevision = ++runtimeStateRevision;
     try {
-      const previousSessionId = snapshot?.meeting.sessionId ?? null;
-      const next = await runtimeProductFacade.loadProductRuntimeSnapshot(knownSettings);
-      if (requestRevision !== runtimeStateRevision) return;
-      runtimeSettings = cloneSettings(next.settings);
-      setupSettings = cloneSettings(next.settings);
-      helperStatus = next.helper;
-      workerStatus = next.workerStatus;
-      inputStatus = next.inputStatus;
-      approvedVoiceReady = next.readiness.approvedVoiceReady;
+      const result = await applicationController.refresh(knownSettings);
+      applicationState = applicationController.read();
+      if (!result.applied) return;
 
-      if (next.settings.meeting_setup_state === "new") {
-        setupRequired = true;
-        runtimeLoaded = false;
-        meetingStatus = null;
+      if (result.setupRequired) {
         meetingTurns = null;
         lastTranscriptStatusKey = "";
         lastOverlayMeetingRevision = "";
@@ -142,27 +111,22 @@
         return;
       }
 
-      setupRequired = false;
-      runtimeLoaded = true;
-      meetingStatus = next.meetingSession;
-      if (!next.meeting.hasSession || previousSessionId !== next.meeting.sessionId) {
+      const next = result.snapshot;
+      if (!next) return;
+      if (!next.meeting.hasSession || result.previousSessionId !== result.nextSessionId) {
         meetingTurns = null;
         lastTranscriptStatusKey = "";
         lastOverlayMeetingRevision = "";
       }
       setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
     } catch {
-      if (requestRevision === runtimeStateRevision) {
-        setNotice("TranslateIT couldn't refresh its status. Try again.");
-      }
+      setNotice("TranslateIT couldn't refresh its status. Try again.");
     }
   }
 
   async function applySettings(next: RuntimeSettings): Promise<void> {
-    runtimeStateRevision += 1;
-    const nextSettings = cloneSettings(next);
-    runtimeSettings = nextSettings;
-    setupSettings = nextSettings;
+    applicationController.applySettings(next);
+    applicationState = applicationController.read();
   }
 
   async function syncMeetingVoice(message?: string): Promise<void> {
@@ -170,15 +134,15 @@
   }
 
   async function finishFirstSetup(next: RuntimeSettings): Promise<void> {
-    setupSettings = cloneSettings(next);
-    setupRequired = false;
+    applicationController.applySettings(next);
+    applicationState = applicationController.read();
     await refreshSnapshot("Setup saved.", next);
     route = "meeting";
   }
 
   async function openMyVoiceFromSetup(next: RuntimeSettings): Promise<void> {
-    setupSettings = cloneSettings(next);
-    setupRequired = false;
+    applicationController.applySettings(next);
+    applicationState = applicationController.read();
     await refreshSnapshot("Choose a Meeting voice before starting translation.", next);
     route = "my-voice";
   }
@@ -401,9 +365,18 @@
           setNotice("TranslateIT can't reach the desktop runtime yet. Try again when it is available.");
           return;
         }
-        setupSettings = cloneSettings(loadedSettings);
-        setupRequired = setupSettings.meeting_setup_state === "new";
-        if (!setupRequired) await refreshSnapshot(undefined, loadedSettings);
+        applicationController.applySettings(loadedSettings);
+        applicationState = applicationController.read();
+        if (loadedSettings.meeting_setup_state === "new") {
+          applicationState = {
+            ...applicationState,
+            setupRequired: true,
+            applicationState.runtimeLoaded: false,
+            snapshot: null,
+          };
+        } else {
+          await refreshSnapshot(undefined, loadedSettings);
+        }
       } finally {
         if (!disposed) booting = false;
       }
