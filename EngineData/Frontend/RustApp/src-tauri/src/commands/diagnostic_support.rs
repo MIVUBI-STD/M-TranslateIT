@@ -9,6 +9,8 @@ use crate::engine::paths::ProjectPaths;
 
 use super::device_loss_guard::get_device_loss_guard_status;
 use super::helper_bridge::get_helper_bridge_status;
+use super::incident_log::get_recent_runtime_incidents;
+use super::long_session_health::get_long_session_health_status;
 use super::meeting_session::get_meeting_session_status;
 use super::runtime_watchdog::get_runtime_watchdog_status;
 use super::startup_recovery::get_startup_recovery_status;
@@ -41,6 +43,8 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
     let watchdog = get_runtime_watchdog_status();
     let devices = get_device_loss_guard_status();
     let recovery = get_startup_recovery_status();
+    let long_session = get_long_session_health_status();
+    let incidents = get_recent_runtime_incidents();
     let route = get_virtual_mic_route_selection();
 
     let payload = json!({
@@ -123,6 +127,33 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
             "last_error": helper.last_error.as_deref().map(sanitized),
             "message": sanitized(&helper.message),
             "updated_unix_ms": helper.updated_unix_ms,
+        },
+        "long_session": {
+            "state": long_session.state,
+            "healthy": long_session.healthy,
+            "session_age_ms": long_session.session_age_ms,
+            "outbound_overflow_dropped": long_session.outbound_overflow_dropped,
+            "outbound_evicted_pending": long_session.outbound_evicted_pending,
+            "deferred_incoming_depth": long_session.deferred_incoming_depth,
+            "deferred_incoming_dropped_overflow": long_session.deferred_incoming_dropped_overflow,
+            "deferred_incoming_dropped_stale": long_session.deferred_incoming_dropped_stale,
+            "transcript_dropped_turns": long_session.transcript_dropped_turns,
+            "transcript_truncated": long_session.transcript_truncated,
+            "meeting_temp_file_count": long_session.meeting_temp_file_count,
+            "incident_count": long_session.incident_count,
+            "warning_count": long_session.warning_count,
+            "note": sanitized(&long_session.note),
+        },
+        "incident_summary": {
+            "count": incidents.count,
+            "truncated": incidents.truncated,
+            "latest": incidents.incidents.first().map(|incident| json!({
+                "category": &incident.category,
+                "component": &incident.component,
+                "blocker": &incident.blocker,
+                "note": &incident.note,
+                "occurred_unix_ms": incident.occurred_unix_ms,
+            })),
         },
         "virtual_route": {
             "route_ready": route.route_ready,

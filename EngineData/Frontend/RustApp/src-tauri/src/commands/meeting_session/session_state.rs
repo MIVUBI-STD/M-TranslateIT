@@ -157,6 +157,9 @@ pub(super) fn update_outbound_status(
     blocker: &str,
     note: &str,
 ) {
+    if !last_stage_ok && !blocker.is_empty() {
+        let _ = record_runtime_incident("meeting_outbound", stage, blocker, note);
+    }
     if let Ok(mut status) = outbound_status_store().lock() {
         let timing = if status.generation == Some(generation)
             && status.session_id.as_deref() == Some(session_id)
@@ -166,9 +169,6 @@ pub(super) fn update_outbound_status(
         } else {
             None
         };
-        if !last_stage_ok && !blocker.is_empty() {
-            let _ = record_runtime_incident("meeting_outbound", stage, blocker, note);
-        }
         *status = MeetingOutboundRuntimeStatus {
             generation: Some(generation),
             session_id: Some(session_id.to_string()),
@@ -265,11 +265,11 @@ pub(super) fn update_incoming_status(
     blocker: &str,
     note: &str,
 ) {
+    if degraded && !blocker.is_empty() {
+        let _ = record_runtime_incident("meeting_incoming", stage, blocker, note);
+    }
     if let Ok(mut status) = incoming_status_store().lock() {
         let capture = meeting_sound_capture_status();
-        if degraded && !blocker.is_empty() {
-            let _ = record_runtime_incident("meeting_incoming", stage, blocker, note);
-        }
         *status = MeetingIncomingRuntimeStatus {
             session_id: Some(session_id.to_string()),
             stage: stage.to_string(),
