@@ -13,6 +13,9 @@ test("application controller owns the product runtime snapshot", () => {
   assert.match(controller, /async refresh\(knownSettings\?: RuntimeSettings\)/);
   assert.match(controller, /applySettings\(settings: RuntimeSettings\)/);
   assert.match(controller, /applyMeetingSession/);
+  assert.match(controller, /ownershipChanged/);
+  assert.match(controller, /previousOwner/);
+  assert.match(controller, /previousLocked/);
 });
 
 test("App shell consumes one controller snapshot instead of subsystem copies", () => {
