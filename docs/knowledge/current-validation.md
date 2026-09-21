@@ -1,6 +1,6 @@
 # Current Validation
 
-This file owns **proof interpretation**, not a per-run diary. `next-action.md` owns continuation; GitHub remains authoritative for exact run/job metadata.
+This file owns **proof interpretation**, not a run diary. `next-action.md` owns continuation; GitHub remains authoritative for exact run/job metadata.
 
 ## Source Authority
 
@@ -8,73 +8,60 @@ Repository: `MIVUBI-STD/M-TranslateIT`
 
 **Local-only source authority:** `Local` is the sole active branch for development, governance, CI, proof, continuation, and release-source validation.
 
-one SHA does not prove another SHA. A later documentation-only commit may record proof without changing the validated runtime/source identity.
+one SHA does not prove another SHA. Later documentation-only commits do not upgrade runtime/source proof.
 
 ## Current Source Proof
 
-Exact proof identity is read from GitHub Actions for the exact `Local` SHA and changed domain under discussion. This file does not pin a mutable "current source SHA", because doing so becomes stale as soon as `Local` advances.
+Use the latest completed matching verifier for the exact `Local` SHA and changed domain. Ancestor proof applies only to unchanged domains. Queued/running/skipped/cancelled/unrelated jobs are not PASS.
 
-Interpretation: use the latest completed matching verifier for the changed domain. Ancestor proof applies only to unchanged domains. Documentation-only commits create no runtime proof. Queued/running/skipped/cancelled/unrelated jobs are not PASS.
-
-Do not preserve mutable "latest PASS" SHA snapshots here. Read the completed matching GitHub Actions result for the exact source identity and changed domain under discussion. Later translation-quality changes require their own MiLMMT Repository Contract result; GitHub is authoritative for exact run/job IDs.
+Do not preserve mutable “latest PASS” SHA snapshots here; read GitHub Actions for exact run/job identity.
 
 ## Current Source Claims
 
-Subject to matching proof for the changed domain, current source establishes:
+Subject to matching proof, current source establishes:
 
-- one generation-bound Meeting lifecycle authority with fail-closed Start/Stop, cleanup, route binding, stale-work rejection, and bounded helper recovery;
-- explicit owners for Meeting state/consumers/pipelines, helper scheduling/transport/readiness, My Voice recording/build/inference, storage/promotion, and Windows audio;
-- one canonical MiLMMT ID↔EN pipeline, explicit degraded CPU fallback only for known capability absence, and no silent cloud/parallel fallback;
-- generation-bound functional readiness, bounded outbound context, at-most-once output, and explicit incoming degradation;
-- latency hardening through bounded capture, finalized-WAV preparation, deterministic KV-cached MiLMMT generation, warm actor reuse, and reference-speaker embedding caching;
-- Meeting Diagnostics with queue/drop plus translation tokenize/inference/decode/throughput telemetry;
-- translation-quality tooling with baseline-vs-candidate critical regression detection, grouped critical-pass-rate deltas, authorized Meeting-context requests, machine-derived corpus coverage statistics, and a 180-case semantic-risk regression corpus plus a separate 40-case held-out benchmark with risk-tag gates;
-- ASR quality tooling with a 60-case linguistic/accent/acoustic/device/meeting-compression corpus, WER/CER, grouped critical rates, matched provenance, and baseline-vs-candidate regression comparison;
-- TTS/My Voice quality tooling with a 30-case synthesis acceptance corpus, pre-training capture gates, artifact-aware held-out ASR intelligibility + speaker-similarity candidate selection, completed-build/evaluation-to-candidate binding, enforced preview listening, post-approval temporary-build cleanup, matched provenance, and fail-closed regression comparison;
-- Quality Readiness aggregates Translation + ASR + TTS comparison evidence without recalculating domain metrics, verifies expected candidate identities and input-report SHA-256, and fails closed if any domain is incomplete or regressed;
-- My Voice live inference isolated from one-shot dataset/training/evaluation/package construction;
-- one-shot signed app updater source contract: one startup check only, no updater polling scheduler/daemon, GitHub Release endpoint ownership, activity-safe install blockers, release updater-artifact generation, and fail-closed signing requirements;
-- bounded productivity contracts: explicit command-palette Quick Translate, in-memory Text cache, temporary last-session review, advisory Meeting preset suggestions with atomic Rust-side apply, sanitized bounded local preset/feedback storage, and reviewable/clearable opt-in translation feedback;
-- application-level runtime coordination source contracts: typed cross-feature snapshot/intent/mutation boundaries, distinct Meeting/Mic Test/My Voice resource owners, lightweight event-first Meeting reconciliation with slow fallback, centralized shutdown coordination, and modular frontend application/Meeting/close controllers with guarded compatibility surfaces.
+- one generation-bound Meeting lifecycle authority with fail-closed Start/Stop, cleanup, route binding, stale-work rejection, bounded helper recovery, and at-most-once output;
+- explicit ownership for Meeting, Mic Test, My Voice, helper scheduling/transport/readiness, Windows audio, storage/promotion, and shared-resource arbitration;
+- one canonical MiLMMT ID↔EN pipeline with explicit bounded degraded fallback and no silent cloud/parallel fallback;
+- bounded capture/context/queues/transcripts/diagnostics/incidents/cache/feedback/temp data;
+- latency hardening through bounded finalized-audio preparation, deterministic MiLMMT generation, warm actor reuse, and reference-speaker embedding caching;
+- quality tooling for Translation, ASR, and TTS/My Voice with baseline-vs-candidate regression contracts plus cross-domain Quality Readiness aggregation;
+- one-shot signed updater source contract with no updater polling daemon;
+- bounded productivity contracts: Quick Translate, temporary last-session review, Meeting presets, terminology maintenance, in-memory Text cache, and opt-in translation feedback;
+- application-level coordination source contracts: typed ApplicationRuntime snapshot/intent/mutation boundaries, distinct Meeting/Mic Test/My Voice owners, event-first Meeting reconciliation with slow fallback, centralized shutdown, modular frontend controllers, split facades/state policies, and guarded compatibility surfaces.
 
 ## Verification surfaces
 
 ```text
 Repository Verify
-→ governance / Local-only routing / skills / repository contracts
+→ governance / Local-only routing / repository contracts
 
 Code Health
-→ supports push / pull_request / explicit workflow_dispatch
-→ manual workflow_dispatch is full-domain proof for Frontend + Rust + Python
-→ frontend: typecheck, build, runtime tests, source-size, bridge contract,
-  reachability, virtual-route contract, npm audit
-→ Rust: compiler/dead-code, Clippy, unit tests on Linux/hosted Windows when selected
-→ Python: compile, Ruff/static/format, pytest on Linux/hosted Windows when selected
-→ exact-SHA proof summary aggregates required domain job results and treats skipped domains as non-evidence
+→ push / pull_request / workflow_dispatch
+→ manual dispatch = full-domain Frontend + Rust + Python proof
+→ frontend: typecheck, build, runtime tests, bridge/source-size/reachability/dependency/package contracts
+→ Rust: compiler/dead-code, Clippy, unit tests on Linux + hosted Windows
+→ Python: compile, Ruff/static/format, pytest on Linux + hosted Windows
+→ exact-SHA aggregate summary; skipped domains are non-evidence
 
 MiLMMT Repository Contract
-→ canonical translation provider/repository contract
-→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
+→ canonical translation repository contract + exact-SHA summary
 
 ASR Quality Contract
-→ ASR corpus/evaluator + canonical ASR source contract
-→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
+→ ASR corpus/evaluator/runtime contract + exact-SHA summary
 
 TTS Quality Contract
-→ TTS/My Voice corpus/evaluator + canonical held-out voice-evaluation source contract
-→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
+→ TTS/My Voice corpus/evaluator/held-out contract + exact-SHA summary
 
 Quality Readiness Contract
-→ cross-domain aggregation contract over Translation + ASR + TTS comparison reports
-→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
+→ cross-domain Translation + ASR + TTS aggregation + exact-SHA summary
 
 WorkerRuntime Lock Consistency
-→ Python dependency-lock integrity
-→ supports manual exact-SHA source proof and writes the evaluated SHA/ref/event to the run summary
+→ Python dependency-lock integrity + exact-SHA summary
 
 R3 Release Contract
-→ controlled release-source / Windows payload proof when payload inputs change
-→ manual workflow_dispatch explicitly requires the controlled Windows payload job and exact-SHA aggregate proof completeness
+→ release-source contract
+→ manual dispatch explicitly requires controlled Windows payload proof
 ```
 
 Path-targeted skipped jobs are not evidence for unrelated domains.
@@ -85,11 +72,11 @@ Path-targeted skipped jobs are not evidence for unrelated domains.
 
 Can prove source ownership, contracts, hosted execution, bounded recovery behavior, and matching CI tests.
 
-It does **not** prove actual Windows microphone/device behavior, real CUDA throughput, installed-package behavior, meeting-app reception, audio fidelity, or practical latency.
+It does **not** prove physical Windows microphone/device behavior, real CUDA throughput, installed-package behavior, meeting-app reception, audio fidelity, or practical latency.
 
 ### LOCAL_CODE
 
-Can additionally prove the exact checkout/toolchain/filesystem/build that actually ran locally. It still does not automatically prove real target-device acceptance.
+Can additionally prove the exact checkout/toolchain/filesystem/build that actually ran locally. It still does not automatically prove target-device acceptance.
 
 ## Target Windows
 
