@@ -27,6 +27,7 @@ pub struct LiveSegmentWavWriteReport {
     pub note: String,
 }
 
+#[cfg(test)]
 pub fn write_finalized_outbound_utterance_wav(
     utterance: &FinalizedMeetingUtterance,
 ) -> LiveSegmentWavWriteReport {
@@ -43,6 +44,7 @@ pub fn write_finalized_outbound_utterance_wav_with_noise_suppression(
     write_finalized_meeting_utterance_wav(utterance, noise_suppression_enabled)
 }
 
+#[cfg(test)]
 pub fn write_finalized_incoming_utterance_wav(
     utterance: &FinalizedMeetingUtterance,
 ) -> LiveSegmentWavWriteReport {
