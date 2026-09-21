@@ -54,6 +54,8 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/validate_application_runtime_architecture.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_frontend_reachability.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_source_size_budget.mjs",
+    "EngineData/Frontend/RustApp/src-tauri/capabilities/default.json",
+    "EngineData/Frontend/RustApp/src-tauri/capabilities/translation-overlay.json",
 )
 
 FORBIDDEN_PATHS = (
