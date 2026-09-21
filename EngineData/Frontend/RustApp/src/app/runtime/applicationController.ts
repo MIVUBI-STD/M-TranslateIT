@@ -1,5 +1,6 @@
 import { cloneSettings } from "../shared/state";
 import type { RuntimeSettings } from "../shared/types";
+import type { ApplicationSnapshot } from "../bridge/applicationRuntimeApi";
 import { runtimeProductFacade } from "../bridge/runtimeProductFacade";
 import type { ProductRuntimeSnapshot } from "../bridge/runtimeProductTypes";
 
@@ -21,6 +22,10 @@ export type ApplicationRefreshResult = {
 export function createApplicationController(initialSettings: RuntimeSettings): {
   read: () => ApplicationControllerState;
   refresh: (knownSettings?: RuntimeSettings) => Promise<ApplicationRefreshResult>;
+  refreshFromApplication: (
+    application: ApplicationSnapshot,
+    knownSettings?: RuntimeSettings,
+  ) => Promise<ApplicationRefreshResult>;
   applySettings: (settings: RuntimeSettings) => void;
   applyMeetingSession: (session: ProductRuntimeSnapshot["meetingSession"]) => boolean;
   invalidate: () => number;
@@ -71,6 +76,18 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
     async refresh(knownSettings?: RuntimeSettings): Promise<ApplicationRefreshResult> {
       const requestRevision = ++state.revision;
       const next = await runtimeProductFacade.loadProductRuntimeSnapshot(knownSettings);
+      return commitSnapshot(next, requestRevision);
+    },
+
+    async refreshFromApplication(
+      application: ApplicationSnapshot,
+      knownSettings?: RuntimeSettings,
+    ): Promise<ApplicationRefreshResult> {
+      const requestRevision = ++state.revision;
+      const next = await runtimeProductFacade.loadProductRuntimeSnapshotFromApplication(
+        application,
+        knownSettings,
+      );
       return commitSnapshot(next, requestRevision);
     },
 
