@@ -121,75 +121,31 @@ What happens now?     → current source + matching proof
 
 Historical paths/branch names never become current owners merely because an old report references them.
 
+## Runtime coordination
 
-## Application runtime kernel
+Cross-feature coordination is owned by `EngineData/Frontend/RustApp/src-tauri/src/commands/application_runtime/`:
 
-Cross-feature coordination is owned by:
+- `contract.rs`: typed public contracts.
+- `snapshot.rs`: cheap read-only aggregation.
+- `summaries.rs`, `lifecycle.rs`, `capabilities.rs`, `resources.rs`, `problems.rs`: typed product projection.
+- `intents.rs` / `mutations.rs`: cross-feature actions.
+- `events.rs`: application runtime events.
+- `shutdown.rs`: process-exit coordination.
 
-```text
-EngineData/Frontend/RustApp/src-tauri/src/commands/application_runtime/
-```
+Canonical runtime owners are `translateit_application_meeting`, `translateit_mic_test`, and `translateit_voice_recording`. Domain algorithms remain in Meeting/audio/helper/voice/settings/translation modules.
 
-Ownership boundaries:
+Frontend state ownership:
 
-- `contract.rs`: public application-runtime contracts only.
-- `summaries.rs`: typed adapters from domain status into stable subsystem summaries.
-- `lifecycle.rs`: derives global application lifecycle from summaries only.
-- `capabilities.rs`: resolves product-level capability availability from summaries/resources.
-- `resources.rs`: derives cross-feature resource availability; it must not duplicate the lower-level runtime session authority store.
-- `problems.rs`: normalizes domain blockers into product-level problems.
-- `snapshot.rs`: read-only aggregation. It must not execute product actions.
-- `intents.rs`: the application-runtime owner for parameterless cross-feature product-intent routing.
-- `mutations.rs`: typed parameterized cross-feature mutations (audio selection, voice recording/build lifecycle) and post-mutation snapshot publication.
-- `events.rs`: application-runtime event publication only.
-- `mod.rs`: thin Tauri/public surface.
+- `applicationController.ts`: product snapshot/setup sequencing.
+- `meetingLiveController.ts` + `meetingReconcileReader.ts`: event-first Meeting transcript/overlay reconciliation.
+- `closeController.ts`: close-flow state.
+- `App.svelte`: composition and transient UI interaction only.
 
-Domain implementations remain owned by their existing modules (Meeting, audio, helper worker, voice, translation, overlay, settings). The application runtime coordinates them through typed summaries and public commands; it must not absorb domain algorithms or UI behavior.
+Product mapping ownership:
 
-The architecture gate `npm run validate:application-runtime` enforces the modular boundary and rejects JSON-typed orchestration, oversized kernel modules, UI/window coupling, and action execution from the read-only snapshot owner.
+- `productMeetingState.ts`: Meeting product mapping.
+- `productReadinessState.ts`: readiness policy.
+- `workerCapabilities.ts`: worker evidence parsing.
+- `runtimeProductState.ts`: compatibility re-export only.
 
-
-### Shared audio owner identities
-
-The runtime session authority distinguishes these owners:
-
-- `translateit_application_meeting` — Meeting translation.
-- `translateit_mic_test` — Mic Test capture.
-- `translateit_voice_recording` — My Voice guided recording.
-
-Do not collapse Mic Test and My Voice back into a generic live-capture owner. They may share the same lower-level audio engine, but product lifecycle, stop authority, Settings lock copy, and recovery routing require distinct ownership identities.
-
-
-### Shutdown ownership
-
-Application exit coordination is owned by `application_runtime/shutdown.rs`. `main.rs` only delegates the exit decision and restores the main window when shutdown is blocked. Close UI policy consumes the canonical ApplicationSnapshot plus My Voice pending-review state; it must not independently reconstruct Meeting/helper/Voice Build ownership through separate probes.
-
-
-### Meeting runtime events
-
-Backend Meeting change-token publication is owned by `engine/runtime_events.rs`. Authoritative transcript mutation sites emit lightweight events; they do not serialize transcript text into events. `reliabilityMonitor.ts` owns frontend subscription, debounce, and the slow reconciliation timer. `meetingReconcileReader.ts` is the authoritative Meeting fetch/reconciliation reader; event-first freshness is coordinated by `meetingLiveController.ts` / `reliabilityMonitor.ts`.
-
-
-### Frontend product-state ownership
-
-`src/app/runtime/applicationController.ts` owns the frontend product-runtime snapshot and refresh sequencing. `runtimeProductFacade.ts` remains a product mapping/query layer; it does not own reactive application state. `App.svelte` is the composition shell and must not duplicate subsystem runtime state.
-
-
-### Frontend shell controllers
-
-- `applicationController.ts` owns product snapshot/state sequencing.
-- `meetingLiveController.ts` owns Meeting live transcript/overlay reconciliation state.
-- `closeController.ts` owns close-dialog and native-close coordination state.
-- `App.svelte` owns composition and transient shell interaction only.
-
-### Product facade modules
-
-- `productAudioFacade.ts` owns product-level audio selection/probe mapping.
-- `productTranslationFacade.ts` owns standalone product translation mapping.
-- `productSetupFacade.ts` owns setup/readiness/recovery product actions.
-- `runtimeProductFacade.ts` composes/re-exports those modules and owns only the cross-domain product snapshot plus Meeting product action mapping.
-
-
-### Product-state mapping ownership
-
-`productMeetingState.ts` owns Meeting-facing product state mapping. `productReadinessState.ts` owns readiness/capability presentation policy. `workerCapabilities.ts` owns decoding worker status evidence. `runtimeProductState.ts` is not an implementation owner; it exists only to preserve stable imports while modules remain split.
+`runtimeProductFacade.ts` is a thin composition surface over `productAudioFacade.ts`, `productTranslationFacade.ts`, and `productSetupFacade.ts`. The floating translation overlay remains frontend-owned because it is presentation state, not shared-resource authority.
