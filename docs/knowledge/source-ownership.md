@@ -31,6 +31,7 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Worker capability parsing | `workerCapabilities.ts` |
 | Product DTOs | `runtimeProductTypes.ts` |
 | Tauri bridge calls/types | `runtimeApi.ts`, `applicationRuntimeApi.ts`, `myVoiceApi.ts`, `myVoiceBuildApi.ts` |
+| Tauri window permissions | `src-tauri/capabilities/default.json` + `translation-overlay.json` |
 | Frontend application state sequencing | `applicationController.ts` |
 | Meeting event/reconciliation state | `meetingLiveController.ts` + `meetingReconcileReader.ts` + `reliabilityMonitor.ts` |
 | Native close flow | `closeController.ts` + `nativeCloseRuntime.ts` + `closePolicy.ts` |
