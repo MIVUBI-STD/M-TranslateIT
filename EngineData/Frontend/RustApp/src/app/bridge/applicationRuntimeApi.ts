@@ -2,7 +2,6 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { runCommand } from "../shared/tauriBridge";
 import type {
   HelperBridgeStatus,
-  HelperBridgeWorkerResponse,
   RuntimeSettings,
 } from "../shared/types";
 import type { MeetingSessionStatus } from "./runtimeApi";
@@ -97,7 +96,6 @@ export type ApplicationSnapshot = {
   settings: RuntimeSettings;
   meeting: MeetingSessionStatus;
   helper: HelperBridgeStatus;
-  worker: HelperBridgeWorkerResponse | null;
   input: ApplicationInputStatus;
   summaries: ApplicationSubsystemSummaries;
   resources: ResourceArbitration;
@@ -126,7 +124,6 @@ function unavailableSnapshot(): ApplicationSnapshot {
     settings: {} as RuntimeSettings,
     meeting: {} as MeetingSessionStatus,
     helper: {} as HelperBridgeStatus,
-    worker: null,
     input: {
       ready: false,
       prepared: false,
