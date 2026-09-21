@@ -62,7 +62,7 @@
   let closeCheckInFlight = false;
   let lastTranscriptStatusKey = "";
   let lastOverlayMeetingRevision = "";
-  let runtimeStateRevision = 0;
+  let runtimeStateRevision=0;
 
   const snapshot = $derived.by<ProductRuntimeSnapshot | null>(() => {
     if (!runtimeLoaded) return null;
