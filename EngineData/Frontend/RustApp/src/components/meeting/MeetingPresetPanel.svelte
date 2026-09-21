@@ -61,17 +61,6 @@
     applying = true;
     try {
       const current = (await runtimeApi.loadSettings()) ?? settings;
-      const inputProbe = await runtimeApi.probeInputDeviceCandidate(preset.microphoneId);
-      if (!inputProbe.ready) {
-        onNotice("Preset not applied: the saved microphone is unavailable. Choose another microphone or update the preset.");
-        return;
-      }
-      const outputProbe = await runtimeApi.probeOutputDeviceCandidate(preset.meetingSoundId);
-      if (!outputProbe.ok) {
-        onNotice("Preset not applied: the saved Meeting Sound device is unavailable. Choose another device or update the preset.");
-        return;
-      }
-
       const candidate: RuntimeSettings = {
         ...current,
         source_language: preset.sourceLanguage,
@@ -86,11 +75,10 @@
           noise_suppression: preset.noiseSuppression,
         },
       };
-      const result = await runtimeApi.saveSettings(candidate);
-      if (!result.ok) { onNotice(result.message || "Meeting preset couldn't be applied."); return; }
-      const saved = (await runtimeApi.loadSettings()) ?? candidate;
+      const result = await runtimeApi.applyMeetingPreset(candidate);
+      if (!result.ok) { onNotice(result.message); return; }
       if (detection?.detected && detection.provider) rememberProviderPreset(detection.provider, preset.id);
-      await onRefresh(`${preset.name} preset applied.`, saved);
+      await onRefresh(`${preset.name} preset applied.`, result.settings);
     } catch {
       onNotice("Meeting preset couldn't be applied. The previous setup was kept.");
     } finally {

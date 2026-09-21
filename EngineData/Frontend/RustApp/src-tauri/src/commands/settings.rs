@@ -11,6 +11,13 @@ use crate::engine::settings::RuntimeSettings;
 use crate::engine::state::{CommandResult, LifecycleState};
 
 #[derive(Debug, Clone, Serialize)]
+pub struct MeetingPresetApplyResult {
+    pub ok: bool,
+    pub message: String,
+    pub settings: RuntimeSettings,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct AudioDeviceSelectionResult {
     pub ok: bool,
     pub kind: String,
@@ -112,6 +119,59 @@ pub fn save_runtime_settings(settings: RuntimeSettings) -> CommandResult {
         format!("state={}", result.state),
     );
     result
+}
+
+#[tauri::command]
+pub fn apply_meeting_preset(settings: RuntimeSettings) -> MeetingPresetApplyResult {
+    let started = trace_command_start("apply_meeting_preset", "validating and applying Meeting preset");
+    let current = engine::load_settings();
+    if runtime_session_owns_audio_resources() {
+        trace_command_end("apply_meeting_preset", started, "active_runtime_session_locked");
+        return MeetingPresetApplyResult {
+            ok: false,
+            message: "Stop Translation or Mic Test before applying a Meeting preset. The current setup was kept.".to_string(),
+            settings: current,
+        };
+    }
+
+    let candidate = settings.sanitized();
+    let input_probe = probe_input_device_candidate(candidate.audio.input_device_id.clone());
+    if !(input_probe.prepared && input_probe.functional_verified) {
+        trace_command_end("apply_meeting_preset", started, "microphone_unavailable");
+        return MeetingPresetApplyResult {
+            ok: false,
+            message: "Preset not applied: the saved microphone is unavailable. The current setup was kept.".to_string(),
+            settings: current,
+        };
+    }
+
+    let output_probe = probe_output_device_candidate(candidate.audio.output_device_id.clone());
+    if !output_probe.ok {
+        trace_command_end("apply_meeting_preset", started, "meeting_sound_unavailable");
+        return MeetingPresetApplyResult {
+            ok: false,
+            message: "Preset not applied: the saved Meeting Sound device is unavailable. The current setup was kept.".to_string(),
+            settings: current,
+        };
+    }
+
+    let save = persist_runtime_settings(candidate);
+    if !save.ok {
+        trace_command_end("apply_meeting_preset", started, "save_failed");
+        return MeetingPresetApplyResult {
+            ok: false,
+            message: "The preset was validated, but it could not be saved. The previous setup was kept.".to_string(),
+            settings: current,
+        };
+    }
+
+    let saved = engine::load_settings();
+    trace_command_end("apply_meeting_preset", started, "ok");
+    MeetingPresetApplyResult {
+        ok: true,
+        message: "Meeting preset applied.".to_string(),
+        settings: saved,
+    }
 }
 
 #[tauri::command]

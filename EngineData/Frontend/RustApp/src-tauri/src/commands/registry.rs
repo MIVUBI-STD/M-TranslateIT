@@ -29,6 +29,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::startup_recovery::get_startup_recovery_status,
         crate::commands::settings::load_runtime_settings,
         crate::commands::settings::save_runtime_settings,
+        crate::commands::settings::apply_meeting_preset,
         crate::commands::settings::select_audio_device,
         crate::commands::mic_test::start_capture,
         crate::commands::mic_test::stop_capture,

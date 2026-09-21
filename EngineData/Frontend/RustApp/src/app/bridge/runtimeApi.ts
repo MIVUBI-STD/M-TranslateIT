@@ -41,6 +41,12 @@ export type AudioDeviceProbeReport = {
   note: string;
 };
 
+export type MeetingPresetApplyResult = {
+  ok: boolean;
+  message: string;
+  settings: RuntimeSettings;
+};
+
 export type AudioDeviceSelectionCommandResult = {
   ok: boolean;
   kind: string;
@@ -642,6 +648,18 @@ export const runtimeApi = {
       "save_runtime_settings",
       { settings },
       commandFallback("Settings could not be saved because the frontend bridge could not call Tauri."),
+    );
+  },
+
+  async applyMeetingPreset(settings: RuntimeSettings): Promise<MeetingPresetApplyResult> {
+    return invokeOr<MeetingPresetApplyResult>(
+      "apply_meeting_preset",
+      { settings },
+      {
+        ok: false,
+        message: "Meeting preset could not reach the desktop runtime.",
+        settings,
+      },
     );
   },
 
