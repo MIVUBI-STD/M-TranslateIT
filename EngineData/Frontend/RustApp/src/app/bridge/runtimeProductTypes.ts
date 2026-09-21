@@ -1,3 +1,4 @@
+import type { ResourceArbitration } from "./applicationRuntimeApi";
 import type { MeetingSessionStatus } from "./runtimeApi";
 import type {
   HelperBridgeStatus,
@@ -60,6 +61,7 @@ export type ProductRuntimeSnapshot = {
   helper: HelperBridgeStatus | null;
   workerStatus: HelperBridgeWorkerResponse | null;
   inputStatus: InputPreparationStatus | null;
+  resources: ResourceArbitration;
 };
 
 export type WorkerCapabilitySnapshot = {
