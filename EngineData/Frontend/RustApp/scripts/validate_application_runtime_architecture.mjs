@@ -136,10 +136,39 @@ for (const forbidden of [
 }
 for (const required of [
   "createApplicationController(",
+  "createMeetingLiveController(",
+  "createCloseController(",
   "applicationState.snapshot",
 ]) {
   if (!appShellSource.includes(required)) {
     failures.push("App.svelte missing canonical frontend controller contract: " + required);
+  }
+}
+
+for (const forbidden of [
+  "let closeDialogOpen = $state",
+  "let closeDialogTitle = $state",
+  "let closeDialogMessage = $state",
+  "let meetingPollInFlight",
+  "let lastTranscriptStatusKey",
+  "let lastOverlayMeetingRevision",
+]) {
+  if (appShellSource.includes(forbidden)) {
+    failures.push("App.svelte must not reclaim Meeting/close controller state: " + forbidden);
+  }
+}
+
+const productFacadeSource = readFileSync(
+  join(appRoot, "src", "app", "bridge", "runtimeProductFacade.ts"),
+  "utf8",
+);
+for (const required of [
+  'from "./productAudioFacade"',
+  'from "./productTranslationFacade"',
+  'from "./productSetupFacade"',
+]) {
+  if (!productFacadeSource.includes(required)) {
+    failures.push("runtimeProductFacade.ts must remain split by domain: " + required);
   }
 }
 
