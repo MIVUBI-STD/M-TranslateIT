@@ -35,6 +35,7 @@ for (const required of [
   "mod events;",
   "mod intents;",
   "mod lifecycle;",
+  "mod mutations;",
   "mod problems;",
   "mod resources;",
   "mod snapshot;",
@@ -100,6 +101,18 @@ const myVoiceApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "myV
 for (const forbidden of ['"start_voice_lab_guided_take"', '"stop_voice_lab_guided_take"']) {
   if (myVoiceApiSource.includes(forbidden)) {
     failures.push(`myVoiceApi.ts must route microphone mutations through application authority: ${forbidden}`);
+  }
+}
+
+const myVoiceBuildApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "myVoiceBuildApi.ts"), "utf8");
+for (const forbidden of [
+  '"start_voice_lab_build"',
+  '"cancel_voice_lab_build"',
+  '"approve_voice_lab_candidate"',
+  '"select_builtin_voice"',
+]) {
+  if (myVoiceBuildApiSource.includes(forbidden)) {
+    failures.push(`myVoiceBuildApi.ts must route Voice mutations through application authority: ${forbidden}`);
   }
 }
 
