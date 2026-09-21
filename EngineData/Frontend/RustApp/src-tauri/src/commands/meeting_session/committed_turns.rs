@@ -387,13 +387,7 @@ pub(super) fn update_committed_turn_outbound_timing(
     let Some(store) = guard.as_mut() else {
         return false;
     };
-    let updated =
-        store.update_outbound_timing_at(session_id, generation, utterance_id, timing, unix_ms());
-    drop(guard);
-    if updated {
-        emit_meeting_runtime_event("outbound_timing_changed", Some(session_id), None);
-    }
-    updated
+    store.update_outbound_timing_at(session_id, generation, utterance_id, timing, unix_ms())
 }
 
 pub(super) fn interrupt_committed_turns_for_generation(session_id: &str, generation: u64) {
