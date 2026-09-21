@@ -164,3 +164,8 @@ Application exit coordination is owned by `application_runtime/shutdown.rs`. `ma
 ### Meeting runtime events
 
 Backend Meeting change-token publication is owned by `engine/runtime_events.rs`. Authoritative transcript mutation sites emit lightweight events; they do not serialize transcript text into events. `reliabilityMonitor.ts` owns frontend subscription, debounce, and the slow reconciliation timer. `meetingPoll.ts` remains the authoritative fetch/reconciliation reader despite its historical name; it is no longer the primary freshness mechanism.
+
+
+### Frontend product-state ownership
+
+`src/app/runtime/applicationController.ts` owns the frontend product-runtime snapshot and refresh sequencing. `runtimeProductFacade.ts` remains a product mapping/query layer; it does not own reactive application state. `App.svelte` is the composition shell and must not duplicate subsystem runtime state.
