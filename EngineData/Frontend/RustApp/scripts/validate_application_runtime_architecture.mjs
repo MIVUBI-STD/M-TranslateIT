@@ -204,7 +204,7 @@ if (meetingLiveControllerSource.includes('from "./meetingPoll"')) {
 }
 
 const ownershipDocs = readFileSync(
-  join(appRoot, "..", "..", "..", "..", "docs", "knowledge", "source-ownership.md"),
+  join(appRoot, "..", "..", "..", "docs", "knowledge", "source-ownership.md"),
   "utf8",
 );
 for (const stale of [
