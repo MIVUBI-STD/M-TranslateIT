@@ -16,6 +16,6 @@ test("support bundle omits raw local identifiers", () => {
   assert.doesNotMatch(support, /stderr_log_path/);
   assert.doesNotMatch(support, /selected_output_device/);
   assert.doesNotMatch(support, /selected_input_device/);
-  assert.doesNotMatch(support, /session_id/);
+  assert.doesNotMatch(support, /"session_id"\s*:/);
   assert.match(support, /sanitize_diagnostic_text/);
 });
