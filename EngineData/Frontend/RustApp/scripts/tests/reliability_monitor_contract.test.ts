@@ -6,7 +6,8 @@ const monitor = readFileSync(new URL("../../src/app/runtime/reliabilityMonitor.t
 const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8");
 
 test("live reliability monitor is session-scoped and advisory only", () => {
-  assert.match(app, /snapshot\.meeting\.applicationOwned && snapshot\.meeting\.hasSession/);
+  assert.match(app, /snapshot\?\.meeting\.hasSession \|\| closeAfterExistingStop/);
+  assert.match(app, /Boolean\(snapshot\?\.meeting\.applicationOwned && snapshot\.meeting\.hasSession\)/);
   assert.match(app, /startMeetingRuntimeMonitors/);
   assert.match(monitor, /getRuntimeWatchdogStatus/);
   assert.match(monitor, /getDeviceLossGuardStatus/);
