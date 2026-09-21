@@ -132,7 +132,6 @@ export type MeetingOutboundTiming = {
   delivery_ms: number | null;
   outbound_latency_ms: number | null;
 };
-
 export type MeetingOutboundRuntimeStatus = {
   generation: number | null;
   session_id: string | null;
