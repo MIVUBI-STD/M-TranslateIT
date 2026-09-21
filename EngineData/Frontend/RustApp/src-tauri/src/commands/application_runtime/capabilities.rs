@@ -11,8 +11,7 @@ pub fn resolve_capabilities(
         meeting.application_owned
     } else {
         meeting.ready_for_start
-            && summaries.worker.ready
-            && summaries.audio.ready
+            && resources.microphone_available
             && !summaries.voice.build_active
             && !summaries.voice.recording_active
     };
@@ -20,6 +19,5 @@ pub fn resolve_capabilities(
     ApplicationCapabilities {
         meeting_translation,
         mic_test: resources.microphone_available,
-        text_translation: summaries.worker.ready,
     }
 }
