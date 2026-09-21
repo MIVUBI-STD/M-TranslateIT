@@ -18,7 +18,7 @@ const facade = readFileSync(
 
 test("Meeting live coordination is owned outside App.svelte", () => {
   assert.match(app, /createMeetingLiveController\(\)/);
-  assert.match(meeting, /readMeetingPoll/);
+  assert.match(meeting, /readMeetingReconciliation/);
   assert.match(meeting, /publishLatestMeetingOverlay/);
   assert.equal(app.includes("let meetingPollInFlight"), false);
   assert.equal(app.includes("let lastTranscriptStatusKey"), false);
