@@ -61,6 +61,9 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/tests/application_controller_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/shell_controller_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/product_state_split_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/native_close_dialog_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/meeting_reconcile_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/meeting_diagnostics_owner_contract.test.ts",
     "EngineData/Frontend/RustApp/src-tauri/capabilities/default.json",
     "EngineData/Frontend/RustApp/src-tauri/capabilities/translation-overlay.json",
 )
