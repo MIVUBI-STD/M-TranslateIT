@@ -191,6 +191,25 @@ export type MeetingCommittedTurn = {
   updated_unix_ms: number;
 };
 
+export type MeetingTranscriptExportStatus = {
+  available: boolean;
+  session_id: string | null;
+  turn_count: number;
+  truncated: boolean;
+  dropped_turn_count: number;
+  note: string;
+};
+
+export type MeetingTranscriptExportResult = {
+  ok: boolean;
+  format: string;
+  file_path: string | null;
+  turn_count: number;
+  truncated: boolean;
+  message: string;
+  blocker: string;
+};
+
 export type MeetingCommittedTurnsSnapshot = {
   ok: boolean;
   has_session: boolean;
@@ -390,6 +409,29 @@ function meetingSessionActionFallback(message: string): MeetingSessionActionResu
   };
 }
 
+function transcriptExportStatusFallback(): MeetingTranscriptExportStatus {
+  return {
+    available: false,
+    session_id: null,
+    turn_count: 0,
+    truncated: false,
+    dropped_turn_count: 0,
+    note: "Transcript export status is unavailable right now.",
+  };
+}
+
+function transcriptExportFallback(format: string): MeetingTranscriptExportResult {
+  return {
+    ok: false,
+    format,
+    file_path: null,
+    turn_count: 0,
+    truncated: false,
+    message: "Transcript export is unavailable right now.",
+    blocker: "frontend_bridge_unavailable",
+  };
+}
+
 function meetingCommittedTurnsFallback(message: string): MeetingCommittedTurnsSnapshot {
   return {
     ok: false,
@@ -435,6 +477,22 @@ export const runtimeApi = {
       "get_meeting_session_status",
       undefined,
       meetingSessionStatusFallback("Meeting session status is unavailable because the frontend bridge could not call Tauri."),
+    );
+  },
+
+  async getMeetingTranscriptExportStatus(): Promise<MeetingTranscriptExportStatus> {
+    return invokeOr<MeetingTranscriptExportStatus>(
+      "get_meeting_transcript_export_status",
+      undefined,
+      transcriptExportStatusFallback(),
+    );
+  },
+
+  async exportMeetingTranscript(format: "md" | "txt"): Promise<MeetingTranscriptExportResult> {
+    return invokeOr<MeetingTranscriptExportResult>(
+      "export_meeting_transcript",
+      { format },
+      transcriptExportFallback(format),
     );
   },
 
