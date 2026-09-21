@@ -67,7 +67,7 @@ fn record_if_needed(status: DeviceLossGuardStatus) -> DeviceLossGuardStatus {
             &status.component,
             &status.blocker,
             &status.note,
-        ));
+        );
     }
     status
 }
