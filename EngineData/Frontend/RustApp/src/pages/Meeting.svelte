@@ -58,6 +58,8 @@
     String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
   );
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.hasSession && (meeting.live || meeting.busy)));
+  const outboundSourceName = $derived(languageName(snapshot.settings.source_language));
+  const outboundTargetName = $derived(languageName(snapshot.settings.target_language));
   const listenSourceName = $derived(languageName(snapshot.settings.meeting_listen_source_language));
   const listenTargetName = $derived(languageName(snapshot.settings.meeting_listen_target_language));
 
@@ -109,7 +111,7 @@
   );
 
   async function swapListenDirection(): Promise<void> {
-    if (directionSaving) return;
+    if (directionSaving || meeting.live || meeting.busy) return;
     directionSaving = true;
     const candidate: RuntimeSettings = {
       ...snapshot.settings,
@@ -217,14 +219,14 @@
         <div class="flex min-w-0 items-center gap-4">
           <div class="min-w-0">
             <span class="ti-field-label">You speak</span>
-            <strong class="mt-1 block text-[15px] font-semibold">Indonesian</strong>
+            <strong class="mt-1 block text-[15px] font-semibold">{outboundSourceName}</strong>
           </div>
           <div class="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--ti-border)] bg-[var(--ti-surface)] text-[var(--ti-text-soft)]" aria-hidden="true">
             <ArrowRight size={15} />
           </div>
           <div class="min-w-0">
             <span class="ti-field-label">Others hear</span>
-            <strong class="mt-1 block text-[15px] font-semibold">English voice</strong>
+            <strong class="mt-1 block text-[15px] font-semibold">{outboundTargetName} voice</strong>
           </div>
         </div>
       </div>
@@ -334,7 +336,13 @@
           <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound}</p>
         </div>
       </div>
-      <button type="button" class="ti-button ti-button-secondary min-h-8 px-3 text-xs" disabled={directionSaving} onclick={() => void swapListenDirection()}>
+      <button
+        type="button"
+        class="ti-button ti-button-secondary min-h-8 px-3 text-xs"
+        disabled={directionSaving || meeting.live || meeting.busy}
+        title={meeting.live || meeting.busy ? "Stop Meeting translation before changing direction." : "Swap listening direction"}
+        onclick={() => void swapListenDirection()}
+      >
         {directionSaving ? "Saving..." : "Swap"}
       </button>
     </section>
