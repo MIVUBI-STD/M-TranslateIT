@@ -68,10 +68,17 @@ export type ApplicationInputStatus = {
   note: string;
 };
 
+export type VoiceSummary = {
+  recording_active: boolean;
+  build_active: boolean;
+  build_phase: string;
+};
+
 export type ApplicationSubsystemSummaries = {
   meeting: MeetingSummary;
   worker: WorkerSummary;
   audio: AudioSummary;
+  voice: VoiceSummary;
 };
 
 export type ResourceArbitration = {
@@ -153,6 +160,11 @@ function unavailableSnapshot(): ApplicationSnapshot {
         running: false,
         blocker: "application_runtime:unavailable",
         note: "Application runtime is unavailable.",
+      },
+      voice: {
+        recording_active: false,
+        build_active: false,
+        build_phase: "unavailable",
       },
     },
     resources: {
