@@ -4,7 +4,7 @@
 
 `Local` is the sole active source, development, governance, CI, proof, and continuation authority.
 
-Source-side feature work already includes Spoken Terms, Meeting auto detection, recent caption history, Pause Captions, quick direction switching, Natural/Formal translation style, Audio Quality Guard, Noise Suppression, dormant Global Quick Translate API with no default keybind, explicit transcript export, bounded caption readability controls, and bounded My Voice speaking-pace preservation.
+Source-side feature work already includes Spoken Terms, Meeting auto detection, recent caption history, Pause Captions, quick direction switching, Natural/Formal translation style, Audio Quality Guard, Noise Suppression, user-facing Quick Translate Clipboard through the command palette with no default global OS shortcut, explicit transcript export, temporary last-session review, user-driven Meeting presets with detected-app suggestions, searchable/CSV terminology maintenance, a bounded in-memory Text translation cache, local opt-in translation issue feedback, bounded caption readability controls, and bounded My Voice speaking-pace preservation.
 
 Reliability hardening is also implemented: crash-safe startup recovery, bounded watchdog, fail-closed device-loss handling, redacted support export, bounded incident history, long-session pressure monitoring, and centralized live-monitor ownership.
 
@@ -22,7 +22,7 @@ Continue remotely only for concrete source-level defects. Preserve:
 - explicit device selection with no silent hot-swap;
 - privacy-redacted diagnostics with no transcript/audio/voice-reference leakage;
 - no cloud fallback, second normal translation/TTS engine, background updater, or duplicate capture pipeline;
-- Global Quick Translate without a default global shortcut;
+- Quick Translate without a default global OS shortcut;
 - no Auto Language Detection or Screen Translation;
 - no speculative latency/DSP work before TARGET_WINDOWS measurement.
 
@@ -32,4 +32,4 @@ The user is intentionally postponing local/native testing. Do not claim real mic
 
 Keep `Local` synchronized and green. First resolve any exact current-HEAD CI/governance regression. Then audit only falsifiable high-value defects: dead/unreachable reliability code, duplicate polling/monitor ownership, filesystem I/O under runtime locks, unbounded state/log/temp growth, privacy leakage, multi-instance recovery conflicts, bridge/API drift, source-size regressions, and incorrect long-session semantics.
 
-Implement only defects that can be demonstrated from source or CI. If no material remote defect remains, stop feature expansion and preserve the repo for TARGET_WINDOWS acceptance using `docs/knowledge/operations/target-windows-performance.md`.
+Productivity expansion is now bounded: do not add another history database, background clipboard watcher, preset auto-apply, persistent translation cache, or parallel translation workflow. Implement only defects that can be demonstrated from source or CI. If no material remote defect remains, stop feature expansion and preserve the repo for TARGET_WINDOWS acceptance using `docs/knowledge/operations/target-windows-performance.md`.
