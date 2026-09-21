@@ -224,7 +224,8 @@ mod tests {
     fn bundle_text_uses_runtime_redaction() {
         let clean = sanitized(r"failed C:\Users\alice\trace.log alice@example.com token=secret");
         assert!(!clean.contains("alice@example.com"));
-        assert!(!clean.contains("secret"));
+        assert!(!clean.contains("token=secret"));
+        assert!(clean.contains("[redacted-secret]"));
         assert!(!clean.contains("C:\\Users\\alice"));
     }
 }
