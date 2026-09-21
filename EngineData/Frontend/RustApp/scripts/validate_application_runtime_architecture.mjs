@@ -74,6 +74,36 @@ for (const forbidden of [
 }
 
 
+const runtimeStateSource = readFileSync(
+  join(appRoot, "src-tauri", "src", "engine", "runtime_state.rs"),
+  "utf8",
+);
+for (const required of [
+  'MIC_TEST_OWNER_ID: &str = "translateit_mic_test"',
+  'VOICE_RECORDING_OWNER_ID: &str = "translateit_voice_recording"',
+  "pub fn begin_mic_test_session()",
+  "pub fn begin_voice_recording_session()",
+]) {
+  if (!runtimeStateSource.includes(required)) {
+    failures.push(`runtime_state.rs missing distinct shared-resource ownership contract: ${required}`);
+  }
+}
+if (runtimeStateSource.includes("translateit_rust_live_capture")) {
+  failures.push("runtime_state.rs must not collapse Mic Test and My Voice into one live-capture owner");
+}
+
+const runtimeApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeApi.ts"), "utf8");
+if (runtimeApiSource.includes('"select_audio_device"')) {
+  failures.push("runtimeApi.ts must route audio selection through select_product_audio_device");
+}
+const myVoiceApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "myVoiceApi.ts"), "utf8");
+for (const forbidden of ['"start_voice_lab_guided_take"', '"stop_voice_lab_guided_take"']) {
+  if (myVoiceApiSource.includes(forbidden)) {
+    failures.push(`myVoiceApi.ts must route microphone mutations through application authority: ${forbidden}`);
+  }
+}
+
+
 if (failures.length > 0) {
   console.error("Application runtime architecture validation failed:");
   for (const failure of failures) console.error(`- ${failure}`);
