@@ -8,7 +8,12 @@ import type {
 } from "../shared/types";
 import type { MeetingSessionStatus } from "./runtimeApi";
 
-export type ProductIntent = "start_meeting" | "stop_meeting" | "refresh";
+export type ProductIntent =
+  | "start_meeting"
+  | "stop_meeting"
+  | "start_mic_test"
+  | "stop_mic_test"
+  | "refresh";
 
 export type ApplicationProblem = {
   code: string;
