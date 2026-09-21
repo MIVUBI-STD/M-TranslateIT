@@ -391,7 +391,9 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             payload.get("alternative_of", ""), host["MAX_TRANSLATION_TEXT_CHARS"]
         )
         translation_style = (
-            "formal" if str(payload.get("translation_style", "")).strip().lower() == "formal" else "natural"
+            "formal"
+            if str(payload.get("translation_style", "")).strip().lower() == "formal"
+            else "natural"
         )
         prompt = build_prompt(
             source_language,
