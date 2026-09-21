@@ -16,14 +16,7 @@ Exact proof identity is read from GitHub Actions for the exact `Local` SHA and c
 
 Interpretation: use the latest completed matching verifier for the changed domain. Ancestor proof applies only to unchanged domains. Documentation-only commits create no runtime proof. Queued/running/skipped/cancelled/unrelated jobs are not PASS.
 
-Recent verified baseline relevant to the current work:
-
-```text
-Code Health                 e18d12d8ce0895889c78823e8ff96f145a992e2c  PASS
-MiLMMT Repository Contract  848329bb21b45d72eccde0a19160490c9d843f22  PASS
-```
-
-Later translation-quality commits require their own MiLMMT Repository Contract result. GitHub is authoritative for exact run/job IDs.
+Do not preserve mutable "latest PASS" SHA snapshots here. Read the completed matching GitHub Actions result for the exact source identity and changed domain under discussion. Later translation-quality changes require their own MiLMMT Repository Contract result; GitHub is authoritative for exact run/job IDs.
 
 ## Current Source Claims
 
