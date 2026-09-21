@@ -73,9 +73,11 @@ pub struct ApplicationSubsystemSummaries {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ResourceArbitration {
+    pub audio_locked: bool,
     pub microphone_available: bool,
     pub meeting_audio_available: bool,
     pub active_owner: Option<String>,
+    pub owner_kind: String,
     pub blocker: String,
 }
 
