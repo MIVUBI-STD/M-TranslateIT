@@ -424,9 +424,7 @@
     const installCloseGuard = async () => {
       try {
         unlistenClose = await installNativeCloseGuard(inspectNativeCloseRequest);
-      } catch {
-        // Browser-only frontend preview has no native close event. No close success is fabricated.
-      }
+      } catch {}
     };
 
     void boot();
@@ -439,7 +437,7 @@
   });
 
   $effect(() =>
-    !booting && !setupRequired && (Boolean(snapshot?.meeting.hasSession) || closeAfterExistingStop)
+    !booting && !setupRequired && (snapshot?.meeting.hasSession || closeAfterExistingStop)
       ? startRuntimePoll(pollMeeting, 1200)
       : undefined,
   );
