@@ -145,6 +145,18 @@ pub(super) fn take_due_deferred_incoming(
     None
 }
 
+pub(super) fn deferred_incoming_health_counts() -> (usize, u64, u64) {
+    let depth = deferred_incoming_queue()
+        .lock()
+        .map(|guard| guard.len())
+        .unwrap_or(MAX_DEFERRED_INCOMING);
+    (
+        depth,
+        DEFERRED_DROPPED_OVERFLOW.load(Ordering::Relaxed),
+        DEFERRED_DROPPED_STALE.load(Ordering::Relaxed),
+    )
+}
+
 pub(super) fn clear_deferred_incoming_queue() -> Result<(), String> {
     let mut guard = deferred_incoming_queue()
         .lock()

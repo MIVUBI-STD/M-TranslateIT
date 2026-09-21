@@ -7,6 +7,7 @@ pub mod diagnostic_trace;
 pub mod device_loss_guard;
 pub mod helper_bridge;
 pub mod incident_log;
+pub mod long_session_health;
 pub mod helper_bridge_runtime;
 pub mod meeting_session;
 pub mod meeting_detection;

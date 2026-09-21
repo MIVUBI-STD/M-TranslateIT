@@ -1,5 +1,23 @@
 import { runCommand } from "../shared/tauriBridge";
 
+export type LongSessionHealthStatus = {
+  state: string;
+  healthy: boolean;
+  session_age_ms: number;
+  outbound_overflow_dropped: number;
+  outbound_evicted_pending: number;
+  deferred_incoming_depth: number;
+  deferred_incoming_dropped_overflow: number;
+  deferred_incoming_dropped_stale: number;
+  transcript_dropped_turns: number;
+  transcript_truncated: boolean;
+  meeting_temp_file_count: number;
+  incident_count: number;
+  warning_count: number;
+  note: string;
+  updated_unix_ms: number;
+};
+
 export type RuntimeIncident = {
   category: string;
   component: string;
@@ -57,6 +75,26 @@ export type StartupRecoveryReport = {
   note: string;
   checked_unix_ms: number;
 };
+
+export async function getLongSessionHealthStatus(): Promise<LongSessionHealthStatus> {
+  return (await runCommand<LongSessionHealthStatus>("get_long_session_health_status")) ?? {
+    state: "unavailable",
+    healthy: false,
+    session_age_ms: 0,
+    outbound_overflow_dropped: 0,
+    outbound_evicted_pending: 0,
+    deferred_incoming_depth: 0,
+    deferred_incoming_dropped_overflow: 0,
+    deferred_incoming_dropped_stale: 0,
+    transcript_dropped_turns: 0,
+    transcript_truncated: false,
+    meeting_temp_file_count: 0,
+    incident_count: 0,
+    warning_count: 0,
+    note: "Long-session health is unavailable right now.",
+    updated_unix_ms: Date.now(),
+  };
+}
 
 export async function getRecentRuntimeIncidents(): Promise<RuntimeIncidentSnapshot> {
   return (await runCommand<RuntimeIncidentSnapshot>("get_recent_runtime_incidents")) ?? {

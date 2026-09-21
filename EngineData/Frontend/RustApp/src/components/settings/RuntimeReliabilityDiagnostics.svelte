@@ -4,8 +4,10 @@
   import {
     exportDiagnosticSupportBundle,
     getDeviceLossGuardStatus,
+    getLongSessionHealthStatus,
     getRecentRuntimeIncidents,
     type DeviceLossGuardStatus,
+    type LongSessionHealthStatus,
     type RuntimeIncidentSnapshot,
     type RuntimeWatchdogStatus,
     type StartupRecoveryReport,
@@ -16,15 +18,17 @@
   let recovery = $state<StartupRecoveryReport | null>(null);
   let devices = $state<DeviceLossGuardStatus | null>(null);
   let incidents = $state<RuntimeIncidentSnapshot | null>(null);
+  let longSession = $state<LongSessionHealthStatus | null>(null);
   let exporting = $state(false);
   let exportMessage = $state("");
 
   async function refresh(): Promise<void> {
-    [watchdog, recovery, devices, incidents] = await Promise.all([
+    [watchdog, recovery, devices, incidents, longSession] = await Promise.all([
       runtimeApi.getRuntimeWatchdogStatus().catch(() => null),
       runtimeApi.getStartupRecoveryStatus().catch(() => null),
       getDeviceLossGuardStatus().catch(() => null),
       getRecentRuntimeIncidents().catch(() => null),
+      getLongSessionHealthStatus().catch(() => null),
     ]);
   }
 
@@ -76,6 +80,15 @@
       <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{recovery?.note ?? "Startup recovery status has not been loaded."}</p>
     </div>
   </div>
+
+  {#if longSession}
+    <div class="mt-4 grid grid-cols-4 gap-2">
+      <div class="ti-state-card"><span class="ti-field-label">Session age</span><strong class="mt-1 block text-[11.5px]">{Math.round(longSession.session_age_ms / 60000)} min</strong></div>
+      <div class="ti-state-card"><span class="ti-field-label">Queue drops</span><strong class="mt-1 block text-[11.5px]">{longSession.outbound_overflow_dropped + longSession.outbound_evicted_pending}</strong></div>
+      <div class="ti-state-card"><span class="ti-field-label">Transcript drops</span><strong class="mt-1 block text-[11.5px]">{longSession.transcript_dropped_turns}</strong></div>
+      <div class="ti-state-card"><span class="ti-field-label">Meeting temp files</span><strong class="mt-1 block text-[11.5px]">{longSession.meeting_temp_file_count}</strong></div>
+    </div>
+  {/if}
 
   {#if incidents?.incidents[0]}
     <div class="mt-4 ti-subtle-card px-4 py-3">

@@ -246,6 +246,10 @@ pub fn get_meeting_session_status() -> MeetingSessionStatus {
     current_status()
 }
 
+pub(crate) fn deferred_incoming_health_counts() -> (usize, u64, u64) {
+    incoming_deferred::deferred_incoming_health_counts()
+}
+
 #[tauri::command]
 pub fn get_meeting_committed_turns() -> MeetingCommittedTurnsSnapshot {
     current_committed_turn_snapshot()
