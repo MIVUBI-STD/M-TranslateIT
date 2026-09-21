@@ -167,6 +167,13 @@ def check_development_foundation(errors: list[str]) -> None:
         fail(errors, "developer doctor must remain observation-only")
     if "Unified Windows developer routing" not in ownership:
         fail(errors, "source ownership must identify the developer router owner")
+    github_rules = text("GITHUB_RULES.md")
+    for marker in (
+        "CI result is evidence; branch protection/rulesets are enforcement.",
+        "successful workflow still counts only as exact-SHA evidence",
+    ):
+        if marker not in github_rules:
+            fail(errors, f"GITHUB_RULES.md missing hosted-proof enforcement boundary: {marker}")
 
 
 def check_branch_authority(errors: list[str]) -> None:
