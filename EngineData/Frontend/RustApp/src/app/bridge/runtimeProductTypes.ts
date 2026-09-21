@@ -1,9 +1,8 @@
-import type { ResourceArbitration } from "./applicationRuntimeApi";
+import type { ApplicationInputStatus, ResourceArbitration } from "./applicationRuntimeApi";
 import type { MeetingSessionStatus } from "./runtimeApi";
 import type {
   HelperBridgeStatus,
   HelperBridgeWorkerResponse,
-  InputPreparationStatus,
   RuntimeSettings,
 } from "../shared/types";
 
@@ -60,7 +59,7 @@ export type ProductRuntimeSnapshot = {
   meetingSession: MeetingSessionStatus | null;
   helper: HelperBridgeStatus | null;
   workerStatus: HelperBridgeWorkerResponse | null;
-  inputStatus: InputPreparationStatus | null;
+  inputStatus: ApplicationInputStatus | null;
   resources: ResourceArbitration;
 };
 
