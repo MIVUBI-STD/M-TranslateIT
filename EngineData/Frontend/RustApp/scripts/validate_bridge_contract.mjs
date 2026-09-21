@@ -76,6 +76,10 @@ for (const name of sortedDifference(frontendCommands, rustCommands)) {
 }
 
 const contractPairs = [
+  ["src-tauri/src/commands/application_runtime.rs", "ApplicationProblem", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationProblem"],
+  ["src-tauri/src/commands/application_runtime.rs", "ApplicationCapabilities", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationCapabilities"],
+  ["src-tauri/src/commands/application_runtime.rs", "ApplicationSnapshot", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSnapshot"],
+  ["src-tauri/src/commands/application_runtime.rs", "ApplicationIntentResult", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationIntentResult"],
   ["src-tauri/src/commands/helper_bridge_runtime.rs", "HelperBridgeStatus", "src/app/shared/types.ts", "HelperBridgeStatus"],
   ["src-tauri/src/commands/helper_bridge_runtime.rs", "HelperBridgeActionResult", "src/app/shared/types.ts", "HelperBridgeActionResult"],
   ["src-tauri/src/commands/helper_bridge.rs", "HelperBridgeWorkerResponse", "src/app/shared/types.ts", "HelperBridgeWorkerResponse"],
@@ -107,6 +111,7 @@ for (const [rustFile, rustType, tsFile, tsType] of contractPairs) {
 const boundaryFiles = [
   "src/app/shared/types.ts",
   "src/app/shared/tauriBridge.ts",
+  "src/app/bridge/applicationRuntimeApi.ts",
   "src/app/bridge/runtimeApi.ts",
   "src/app/bridge/runtimeProductFacade.ts",
   "src/app/bridge/runtimeProductState.ts",
