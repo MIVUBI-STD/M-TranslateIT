@@ -2,6 +2,7 @@ pub mod audio;
 pub mod capture_lifecycle;
 pub mod logging;
 pub mod paths;
+pub mod runtime_events;
 pub mod runtime_settings;
 pub mod runtime_state;
 pub mod settings;
