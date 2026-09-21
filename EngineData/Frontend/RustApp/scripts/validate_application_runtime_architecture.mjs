@@ -152,6 +152,23 @@ if (applicationContractSource.includes("device_count")) {
 if (applicationApiSource.includes("device_count")) {
   failures.push("frontend ApplicationInputStatus must not restore synthetic device_count");
 }
+for (const overclaim of [
+  "text_translation",
+  "meeting_audio_available",
+]) {
+  if (applicationContractSource.includes(overclaim)) {
+    failures.push(`cheap ApplicationSnapshot contract must not overclaim unproven field: ${overclaim}`);
+  }
+  if (applicationApiSource.includes(overclaim)) {
+    failures.push(`frontend cheap ApplicationSnapshot contract must not restore unproven field: ${overclaim}`);
+  }
+}
+if (applicationContractSource.includes("pub ready: bool")) {
+  failures.push("WorkerSummary must name process readiness explicitly as process_ready");
+}
+if (!applicationContractSource.includes("pub process_ready: bool")) {
+  failures.push("WorkerSummary missing explicit process_ready field");
+}
 
 const runtimeApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeApi.ts"), "utf8");
 for (const forbidden of [
