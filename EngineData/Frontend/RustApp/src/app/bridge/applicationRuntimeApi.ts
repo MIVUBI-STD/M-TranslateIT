@@ -89,6 +89,7 @@ export type ResourceArbitration = {
 };
 
 export type ApplicationSnapshot = {
+  // Monotonic snapshot sequence; not a semantic state-change revision.
   revision: number;
   lifecycle: string;
   active_owner: string | null;
