@@ -9,12 +9,11 @@ export type CloseVerdict =
 export type ClosePolicySnapshot = {
   recordingLineId: number | null;
   pendingReview: boolean;
-  buildUnavailable: boolean;
-  buildActive: boolean;
-  meetingUnavailable: boolean;
-  hasMeetingSession: boolean;
-  meetingApplicationOwned: boolean;
-  meetingLifecycle: string;
+  runtimeUnavailable: boolean;
+  voiceBuildActive: boolean;
+  audioLocked: boolean;
+  ownerKind: string;
+  lifecycle: string;
 };
 
 function dialog(title: string, message: string, action: CloseDialogAction): CloseVerdict {
@@ -38,15 +37,15 @@ export function resolveClosePolicy(snapshot: ClosePolicySnapshot): CloseVerdict 
     );
   }
 
-  if (snapshot.buildUnavailable) {
+  if (snapshot.runtimeUnavailable) {
     return dialog(
-      "Can't check My Voice yet",
-      "TranslateIT can't confirm whether My Voice is still being created. Keep the app open and try again.",
+      "Can't confirm runtime state",
+      "TranslateIT can't confirm whether shared runtime resources are still active. Keep the app open and try again.",
       "retry",
     );
   }
 
-  if (snapshot.buildActive) {
+  if (snapshot.voiceBuildActive) {
     return dialog(
       "My Voice is still being created",
       "Stop My Voice creation before closing TranslateIT so the training process can end safely.",
@@ -54,17 +53,9 @@ export function resolveClosePolicy(snapshot: ClosePolicySnapshot): CloseVerdict 
     );
   }
 
-  if (snapshot.meetingUnavailable) {
-    return dialog(
-      "Can't check the meeting yet",
-      "TranslateIT can't confirm whether Meeting translation is still active. Keep the app open or try the check again.",
-      "retry",
-    );
-  }
+  if (!snapshot.audioLocked) return { kind: "destroy" };
 
-  if (!snapshot.hasMeetingSession) return { kind: "destroy" };
-
-  if (!snapshot.meetingApplicationOwned) {
+  if (snapshot.ownerKind !== "meeting") {
     return dialog(
       "Audio is still in use",
       "Another TranslateIT action is still using the microphone. Finish that action before closing the app.",
@@ -72,7 +63,7 @@ export function resolveClosePolicy(snapshot: ClosePolicySnapshot): CloseVerdict 
     );
   }
 
-  if (snapshot.meetingLifecycle === "stopping") {
+  if (snapshot.lifecycle === "meeting_stopping") {
     return {
       kind: "wait-for-stop",
       title: "Translation is stopping",
