@@ -24,6 +24,7 @@ pub fn dispatch(intent: &str) -> IntentOutcome {
             outcome(result.ok, result.state.to_string(), result.message)
         }
         "fix_setup" => fix_setup(),
+        "ensure_runtime_ready" => ensure_runtime_ready(),
         "refresh" => outcome(
             true,
             "refreshed".to_string(),
@@ -35,6 +36,26 @@ pub fn dispatch(intent: &str) -> IntentOutcome {
             format!("Unsupported product intent: {intent}"),
         ),
     }
+}
+
+fn ensure_runtime_ready() -> IntentOutcome {
+    let helper = helper_bridge::get_helper_bridge_status();
+    if helper.state == "ready" {
+        return outcome(
+            true,
+            "ready".to_string(),
+            "Application runtime is ready.".to_string(),
+        );
+    }
+    if helper.state == "not_started" {
+        let started = helper_bridge::start_helper_bridge();
+        return outcome(started.ok, started.state, started.message);
+    }
+    outcome(
+        false,
+        helper.state,
+        "Application runtime is not ready yet.".to_string(),
+    )
 }
 
 fn fix_setup() -> IntentOutcome {
