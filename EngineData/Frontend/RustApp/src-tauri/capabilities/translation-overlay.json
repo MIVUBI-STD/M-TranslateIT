@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "translation-overlay",
+  "description": "Least-privilege window permissions for the floating translation overlay.",
+  "windows": [
+    "translation-overlay"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-start-dragging",
+    "core:window:allow-hide"
+  ]
+}
