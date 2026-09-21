@@ -1,4 +1,6 @@
-use crate::engine::runtime_state::{MIC_TEST_OWNER_ID, VOICE_RECORDING_OWNER_ID};
+use crate::engine::runtime_state::{
+    APPLICATION_MEETING_OWNER_ID, MIC_TEST_OWNER_ID, VOICE_RECORDING_OWNER_ID,
+};
 
 use super::contract::ApplicationSubsystemSummaries;
 
@@ -30,7 +32,7 @@ pub fn derive_lifecycle(summaries: &ApplicationSubsystemSummaries) -> String {
         };
     }
 
-    if summaries.worker.ready && summaries.audio.ready {
+    if summaries.worker.process_ready && summaries.audio.ready {
         "ready".to_string()
     } else if summaries.worker.state == "frontend_bridge_error"
         || summaries.worker.state == "error"
@@ -53,7 +55,7 @@ mod tests {
         meeting_lifecycle: &str,
         has_session: bool,
         owner_id: Option<&str>,
-        worker_ready: bool,
+        worker_process_ready: bool,
         audio_ready: bool,
         voice_build_active: bool,
     ) -> ApplicationSubsystemSummaries {
@@ -61,7 +63,7 @@ mod tests {
             meeting: MeetingSummary {
                 lifecycle: meeting_lifecycle.to_string(),
                 has_session,
-                application_owned: owner_id == Some("translateit_application_meeting"),
+                application_owned: owner_id == Some(APPLICATION_MEETING_OWNER_ID),
                 ready_for_start: !has_session,
                 owner_id: owner_id.map(str::to_string),
                 blocker: String::new(),
@@ -69,8 +71,8 @@ mod tests {
                 preflight_blockers: Vec::new(),
             },
             worker: WorkerSummary {
-                state: if worker_ready { "ready" } else { "not_started" }.to_string(),
-                ready: worker_ready,
+                state: if worker_process_ready { "ready" } else { "not_started" }.to_string(),
+                process_ready: worker_process_ready,
                 degraded: false,
                 message: String::new(),
             },
@@ -94,7 +96,7 @@ mod tests {
             derive_lifecycle(&summaries(
                 "live",
                 true,
-                Some("translateit_application_meeting"),
+                Some(APPLICATION_MEETING_OWNER_ID),
                 true,
                 true,
                 false,
