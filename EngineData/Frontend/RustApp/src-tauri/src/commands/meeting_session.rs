@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 
 use crate::engine::runtime_state::{
     latest_runtime_session_state, runtime_generation_is_authoritative,
+    APPLICATION_MEETING_OWNER_ID,
 };
 
 use super::helper_bridge::HelperBridgeWorkerResponse;
@@ -29,7 +30,6 @@ use outbound_pipeline::process_outbound_wav;
 use preflight::current_status;
 use session_state::{incoming_lane_enabled, OutboundTimingContext};
 
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MeetingSessionPreflightStatus {
