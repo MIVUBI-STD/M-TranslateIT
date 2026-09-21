@@ -29,7 +29,7 @@ pub fn build_subsystem_summaries(
         },
         worker: WorkerSummary {
             state: helper.state.clone(),
-            ready: helper.state == "ready",
+            process_ready: helper.state == "ready",
             degraded: helper.degraded_mode,
             message: helper.message.clone(),
         },
