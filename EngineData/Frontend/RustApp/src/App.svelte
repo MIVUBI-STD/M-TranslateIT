@@ -459,7 +459,6 @@
 
         <ProductivityActions
           {snapshot}
-          {route}
           meetingBusy={snapshot.meeting.hasSession}
           {myVoiceRecording}
           onNavigate={navigate}

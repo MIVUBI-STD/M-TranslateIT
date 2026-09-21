@@ -64,7 +64,7 @@
     role="presentation"
     onclick={(event) => { if (event.currentTarget === event.target) open = false; }}
   >
-    <section
+    <div
       class="w-full max-w-[620px] overflow-hidden rounded-[16px] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] shadow-2xl"
       role="dialog"
       aria-modal="true"
@@ -100,9 +100,6 @@
                 <strong class="block text-[13px] font-semibold">{command.label}</strong>
                 <span class="mt-0.5 block truncate text-[11.5px] text-[var(--ti-text-soft)]">{command.description}</span>
               </span>
-              {#if command.shortcut}
-                <kbd class="shrink-0 rounded-[6px] border border-[var(--ti-border)] bg-[var(--ti-surface)] px-2 py-1 text-[10px] text-[var(--ti-text-soft)]">{command.shortcut}</kbd>
-              {/if}
             </button>
           {/each}
         {/if}
@@ -112,6 +109,6 @@
         <span>Enter to run · Esc to close</span>
         <span>Local actions only</span>
       </footer>
-    </section>
+    </div>
   </div>
 {/if}

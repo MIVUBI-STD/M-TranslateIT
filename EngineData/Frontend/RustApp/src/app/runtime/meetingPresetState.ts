@@ -3,7 +3,6 @@ import type { RuntimeSettings } from "../shared/types";
 export type MeetingPreset = {
   id: string;
   name: string;
-  createdAt: number;
   sourceLanguage: string;
   targetLanguage: string;
   listenSourceLanguage: string;
@@ -39,7 +38,6 @@ export function meetingPresetFromSettings(id: string, name: string, settings: Ru
   return {
     id,
     name: cleanName(name) || "Meeting preset",
-    createdAt: Date.now(),
     sourceLanguage: settings.source_language,
     targetLanguage: settings.target_language,
     listenSourceLanguage: settings.meeting_listen_source_language,

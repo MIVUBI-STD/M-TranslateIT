@@ -5,13 +5,11 @@ export type ProductCommand = {
   label: string;
   description: string;
   keywords: string[];
-  shortcut?: string;
   disabled?: boolean;
   run: () => void | Promise<void>;
 };
 
 export type ProductCommandContext = {
-  route: AppRoute;
   meetingHasSession: boolean;
   meetingCanStart: boolean;
   meetingCanStop: boolean;

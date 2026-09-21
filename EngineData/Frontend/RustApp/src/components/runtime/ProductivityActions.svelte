@@ -10,7 +10,6 @@
 
   let {
     snapshot,
-    route,
     meetingBusy,
     myVoiceRecording,
     onNavigate,
@@ -18,7 +17,6 @@
     onNotice,
   }: {
     snapshot: ProductRuntimeSnapshot;
-    route: AppRoute;
     meetingBusy: boolean;
     myVoiceRecording: boolean;
     onNavigate: (route: AppRoute) => void;
@@ -30,7 +28,6 @@
   let quickTranslateBusy = $state(false);
 
   const commands = $derived.by(() => buildProductCommands({
-    route,
     meetingHasSession: snapshot.meeting.hasSession,
     meetingCanStart: snapshot.meeting.canStart,
     meetingCanStop: snapshot.meeting.canStop,

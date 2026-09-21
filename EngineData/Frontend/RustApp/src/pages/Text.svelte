@@ -132,7 +132,6 @@
         translated: result.translated,
         reviewHints: result.reviewHints,
         needsReview: result.needsReview,
-        message: result.message,
       });
       if (sourceText.trim() === requestSource) {
         setResult(

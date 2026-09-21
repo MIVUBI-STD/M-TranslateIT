@@ -5,7 +5,6 @@ export type TextTranslationCacheEntry = {
   translated: string;
   reviewHints: string[];
   needsReview: boolean;
-  message: string;
 };
 
 const MAX_ENTRIES = 32;
@@ -45,6 +44,3 @@ export function putCachedTextTranslation(entry: TextTranslationCacheEntry): void
   if (entries.length > MAX_ENTRIES) entries.length = MAX_ENTRIES;
 }
 
-export function textTranslationCacheSize(): number {
-  return entries.length;
-}
