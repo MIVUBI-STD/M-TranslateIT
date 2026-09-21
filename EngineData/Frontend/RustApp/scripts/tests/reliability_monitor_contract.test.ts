@@ -16,13 +16,18 @@ const committedTurns = readFileSync(
 test("live reliability monitor is Meeting-owner scoped and advisory only", () => {
   assert.match(app, /snapshot\?\.resources\.owner_kind === "meeting"/);
   assert.match(app, /startMeetingRuntimeMonitors/);
-  assert.match(monitor, /getRuntimeWatchdogStatus/);
-  assert.match(monitor, /getDeviceLossGuardStatus/);
+  assert.match(monitor, /getMeetingReliabilitySnapshot/);
+  assert.doesNotMatch(monitor, /getRuntimeWatchdogStatus\(/);
+  assert.doesNotMatch(monitor, /getDeviceLossGuardStatus\(/);
   assert.match(monitor, /getLongSessionHealthStatus/);
   assert.doesNotMatch(monitor, /stopMeetingTranslation|startMeetingTranslation|selectAudioDevice|startHelperBridge/);
 });
 
-test("reliability monitor deduplicates notices and stays low frequency", () => {
+test("live reliability uses one aggregated IPC and stays low frequency", () => {
+  assert.match(monitor, /getMeetingReliabilitySnapshot/);
+  assert.match(monitor, /const \{ watchdog, devices \}/);
+  assert.match(monitor, /getLongSessionHealthStatus/);
+
   assert.match(monitor, /LIVE_RELIABILITY_POLL_MS = 8_000/);
   assert.match(monitor, /LONG_SESSION_POLL_MS = 30_000/);
   assert.match(monitor, /notice\.key !== lastKey/);
