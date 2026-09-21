@@ -248,30 +248,31 @@
 
   async function toggleMicTest(): Promise<void> {
     if (micTestBusy || !snapshot) return;
-    if (myVoiceRecording) {
-      setNotice("Stop the current My Voice recording before using Mic Test.");
-      return;
-    }
-    if (snapshot.meeting.applicationOwned) {
-      setNotice(snapshot.meeting.live
+    const ownerKind = snapshot.resources.owner_kind;
+    const micTestOwnsRuntime = ownerKind === "mic_test";
+
+    if (snapshot.resources.audio_locked && !micTestOwnsRuntime) {
+      const message = ownerKind === "meeting"
         ? "Stop Meeting translation before using Mic Test."
-        : "Mic Test is unavailable while Meeting audio is in use.");
+        : ownerKind === "voice_recording"
+          ? "Stop My Voice recording before using Mic Test."
+          : "Finish the current audio action before using Mic Test.";
+      setNotice(message);
       return;
     }
-    const micTestOwnsRuntime = snapshot.meeting.hasSession && !snapshot.meeting.applicationOwned;
-    if (!snapshot.readiness.microphoneReady && !snapshot.readiness.recording && !micTestOwnsRuntime) {
+
+    if (!snapshot.resources.microphone_available && !micTestOwnsRuntime) {
       setNotice("Microphone setup isn't ready yet.");
       return;
     }
 
     micTestBusy = true;
-    const wasRecording = snapshot.readiness.recording || micTestOwnsRuntime;
     try {
       const result = await applicationRuntimeApi.dispatchIntent(
-        wasRecording ? "stop_mic_test" : "start_mic_test",
+        micTestOwnsRuntime ? "stop_mic_test" : "start_mic_test",
       );
       await refreshSnapshot(result.ok
-        ? (wasRecording ? "Mic Test stopped." : "Mic Test started.")
+        ? (micTestOwnsRuntime ? "Mic Test stopped." : "Mic Test started.")
         : result.message || "Mic Test couldn't be completed. Try again.");
     } catch {
       setNotice("Mic Test couldn't be completed. Check your microphone and try again.");
@@ -292,7 +293,7 @@
 
   async function pollMeeting(): Promise<void> {
     if (meetingPollInFlight || booting || setupRequired) return;
-    if (!snapshot?.meeting.hasSession && !closeAfterExistingStop) return;
+    if (snapshot?.resources.owner_kind !== "meeting" && !closeAfterExistingStop) return;
 
     meetingPollInFlight = true;
     const pollRevision = runtimeStateRevision;
@@ -435,7 +436,7 @@
   });
 
   $effect(() =>
-    !booting && !setupRequired && (snapshot?.meeting.hasSession || closeAfterExistingStop)
+    !booting && !setupRequired && (snapshot?.resources.owner_kind === "meeting" || closeAfterExistingStop)
       ? startMeetingRuntimeMonitors(
           pollMeeting,
           setNotice,
