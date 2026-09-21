@@ -13,7 +13,7 @@ test("audio quality guard reuses the live rolling buffer instead of opening capt
 });
 
 test("audio quality guard exposes bounded user-facing states", () => {
-  for (const state of ["good", "too_quiet", "clipping", "noisy", "unavailable"]) {
+  for (const state of ["good", "too_quiet", "clipping", "noisy", "no_signal", "unavailable"]) {
     assert.match(audioCommand, new RegExp(state));
   }
   assert.match(runtimeApi, /getAudioQuality/);
