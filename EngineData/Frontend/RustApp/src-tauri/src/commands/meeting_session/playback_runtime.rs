@@ -20,6 +20,7 @@ use super::suppression::{
 };
 use super::{generation_is_live, incoming_session_is_eligible};
 
+const PLAYBACK_QUEUE_CAPACITY: usize = 1;
 const ENQUEUE_RETRY_DELAY: Duration = Duration::from_millis(10);
 
 pub(super) struct PreparedPlaybackJob {
@@ -275,7 +276,8 @@ pub(super) fn start_meeting_playback_runtime(
         return Err("meeting_playback:runtime_already_active".to_string());
     }
 
-    let (sender, receiver) = mpsc::sync_channel::<PreparedPlaybackJob>(1);
+    let (sender, receiver) =
+        mpsc::sync_channel::<PreparedPlaybackJob>(PLAYBACK_QUEUE_CAPACITY);
     let thread_session_id = session_id.to_string();
     let runtime_session_id = thread_session_id.clone();
     let handle = thread::Builder::new()
@@ -392,7 +394,12 @@ pub(super) fn stop_meeting_playback_runtime(
 
 #[cfg(test)]
 mod tests {
-    use super::sequence_is_monotonic;
+    use super::{sequence_is_monotonic, PLAYBACK_QUEUE_CAPACITY};
+
+    #[test]
+    fn bounded_playback_keeps_exactly_one_pending_slot() {
+        assert_eq!(PLAYBACK_QUEUE_CAPACITY, 1);
+    }
 
     #[test]
     fn playback_sequence_accepts_gaps_but_rejects_duplicate_or_older_output() {

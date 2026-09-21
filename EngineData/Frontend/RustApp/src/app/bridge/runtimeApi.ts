@@ -148,7 +148,6 @@ export type MeetingOutboundRuntimeStatus = {
   updated_unix_ms: number;
   runtime_claim: string;
 };
-
 export type MeetingIncomingRuntimeStatus = {
   session_id: string | null;
   stage: string;
