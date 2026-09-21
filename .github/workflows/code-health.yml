@@ -320,3 +320,84 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D clippy::correctness
       - name: Run Windows Rust unit tests
         run: cargo test --locked -- --test-threads=1
+
+
+  proof-summary:
+    name: Exact SHA proof summary
+    if: always()
+    needs:
+      - changes
+      - frontend
+      - python
+      - python-windows
+      - rust
+      - rust-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Write exact-SHA proof summary
+        shell: bash
+        env:
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          PYTHON_CHANGED: ${{ needs.changes.outputs.python }}
+          RUST_CHANGED: ${{ needs.changes.outputs.rust }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          PYTHON_RESULT: ${{ needs.python.result }}
+          PYTHON_WINDOWS_RESULT: ${{ needs.python-windows.result }}
+          RUST_RESULT: ${{ needs.rust.result }}
+          RUST_WINDOWS_RESULT: ${{ needs.rust-windows.result }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## TranslateIT Code Health"
+            echo
+            echo "- SHA: \`$GITHUB_SHA\`"
+            echo "- Ref: \`$GITHUB_REF\`"
+            echo "- Event: \`$GITHUB_EVENT_NAME\`"
+            echo
+            echo "| Domain | Changed | Result |"
+            echo "|---|---:|---|"
+            echo "| Frontend | $FRONTEND_CHANGED | $FRONTEND_RESULT |"
+            echo "| Python Linux | $PYTHON_CHANGED | $PYTHON_RESULT |"
+            echo "| Python Windows | $PYTHON_CHANGED | $PYTHON_WINDOWS_RESULT |"
+            echo "| Rust Linux | $RUST_CHANGED | $RUST_RESULT |"
+            echo "| Rust Windows | $RUST_CHANGED | $RUST_WINDOWS_RESULT |"
+            echo
+            echo "A skipped domain is not evidence for that domain. Only completed matching jobs on this exact SHA count as hosted source proof."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce matching changed-domain proof
+        shell: bash
+        env:
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          PYTHON_CHANGED: ${{ needs.changes.outputs.python }}
+          RUST_CHANGED: ${{ needs.changes.outputs.rust }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          PYTHON_RESULT: ${{ needs.python.result }}
+          PYTHON_WINDOWS_RESULT: ${{ needs.python-windows.result }}
+          RUST_RESULT: ${{ needs.rust.result }}
+          RUST_WINDOWS_RESULT: ${{ needs.rust-windows.result }}
+        run: |
+          set -euo pipefail
+          failed=false
+
+          require_success() {
+            local changed="$1"
+            local result="$2"
+            local label="$3"
+            if [[ "$changed" == "true" && "$result" != "success" ]]; then
+              echo "::error::$label required for this SHA but result was $result"
+              failed=true
+            fi
+          }
+
+          require_success "$FRONTEND_CHANGED" "$FRONTEND_RESULT" "Frontend source health"
+          require_success "$PYTHON_CHANGED" "$PYTHON_RESULT" "Python Linux source health"
+          require_success "$PYTHON_CHANGED" "$PYTHON_WINDOWS_RESULT" "Python Windows source health"
+          require_success "$RUST_CHANGED" "$RUST_RESULT" "Rust Linux source health"
+          require_success "$RUST_CHANGED" "$RUST_WINDOWS_RESULT" "Rust Windows source health"
+
+          if [[ "$failed" == "true" ]]; then
+            exit 1
+          fi
