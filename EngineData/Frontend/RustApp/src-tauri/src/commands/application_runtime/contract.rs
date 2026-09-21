@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-use crate::engine::audio::input::InputPreparationStatus;
 use crate::engine::settings::RuntimeSettings;
 
 use super::super::helper_bridge::HelperBridgeWorkerResponse;
@@ -53,6 +52,19 @@ pub struct AudioSummary {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ApplicationInputStatus {
+    pub ready: bool,
+    pub prepared: bool,
+    pub functional_verified: bool,
+    pub callback_frames_observed: u64,
+    pub selected_device_name: Option<String>,
+    pub input_device_name: Option<String>,
+    pub device_count: u32,
+    pub blocker: String,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ApplicationSubsystemSummaries {
     pub meeting: MeetingSummary,
     pub worker: WorkerSummary,
@@ -76,7 +88,7 @@ pub struct ApplicationSnapshot {
     pub meeting: MeetingSessionStatus,
     pub helper: HelperBridgeStatus,
     pub worker: Option<HelperBridgeWorkerResponse>,
-    pub input: InputPreparationStatus,
+    pub input: ApplicationInputStatus,
     pub summaries: ApplicationSubsystemSummaries,
     pub resources: ResourceArbitration,
     pub capabilities: ApplicationCapabilities,
