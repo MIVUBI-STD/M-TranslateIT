@@ -5,8 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_RUNTIME_NOTE_CHARS: usize = 360;
 const MAX_RUNTIME_STATE_CHARS: usize = 120;
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
-const DIRECT_LIVE_CAPTURE_OWNER_ID: &str = "translateit_rust_live_capture";
+pub const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
+pub const MIC_TEST_OWNER_ID: &str = "translateit_mic_test";
+pub const VOICE_RECORDING_OWNER_ID: &str = "translateit_voice_recording";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RuntimeSessionSnapshot {
@@ -175,12 +176,21 @@ pub fn runtime_generation_is_authoritative(generation: u64) -> bool {
         .unwrap_or(false)
 }
 
-pub fn begin_direct_live_capture_session() -> RuntimeSessionStateReport {
+pub fn begin_mic_test_session() -> RuntimeSessionStateReport {
     begin_runtime_session(
-        DIRECT_LIVE_CAPTURE_OWNER_ID,
-        "live_capture",
+        MIC_TEST_OWNER_ID,
+        "mic_test",
         "live_capture_only",
-        "Direct live-capture session authority was created for microphone test ownership only.",
+        "Mic Test session authority was created for microphone ownership.",
+    )
+}
+
+pub fn begin_voice_recording_session() -> RuntimeSessionStateReport {
+    begin_runtime_session(
+        VOICE_RECORDING_OWNER_ID,
+        "voice_recording",
+        "live_capture_only",
+        "My Voice recording session authority was created for microphone ownership.",
     )
 }
 
@@ -421,7 +431,7 @@ mod tests {
 
         let meeting = begin_application_meeting_session();
         assert!(meeting.blocker.is_empty());
-        let mic_after_meeting = begin_direct_live_capture_session();
+        let mic_after_meeting = begin_mic_test_session();
         assert_eq!(mic_after_meeting.blocker, "runtime_session:already_active");
         assert_eq!(
             mic_after_meeting
@@ -432,7 +442,7 @@ mod tests {
         );
 
         reset_test_state();
-        let mic = begin_direct_live_capture_session();
+        let mic = begin_mic_test_session();
         assert!(mic.blocker.is_empty());
         let meeting_after_mic = begin_application_meeting_session();
         assert_eq!(meeting_after_mic.blocker, "runtime_session:already_active");
@@ -441,7 +451,7 @@ mod tests {
                 .snapshot
                 .as_ref()
                 .map(|value| value.owner_id.as_str()),
-            Some(DIRECT_LIVE_CAPTURE_OWNER_ID),
+            Some(MIC_TEST_OWNER_ID),
         );
 
         reset_test_state();
@@ -545,7 +555,7 @@ mod tests {
         let cleared = clear_runtime_session_if_generation(meeting_generation);
         assert_eq!(cleared.blocker, "runtime_session:cleared");
 
-        let mic_test = begin_direct_live_capture_session();
+        let mic_test = begin_mic_test_session();
         let mic_generation = mic_test.snapshot.as_ref().expect("mic claim").generation;
         assert_ne!(meeting_generation, mic_generation);
 
@@ -560,7 +570,7 @@ mod tests {
                 .snapshot
                 .as_ref()
                 .map(|value| value.owner_id.as_str()),
-            Some(DIRECT_LIVE_CAPTURE_OWNER_ID),
+            Some(MIC_TEST_OWNER_ID),
         );
 
         let final_clear = clear_runtime_session_if_generation(mic_generation);
@@ -580,7 +590,7 @@ mod tests {
             "runtime_session:cleared"
         );
 
-        let mic = begin_direct_live_capture_session();
+        let mic = begin_mic_test_session();
         let mic_generation = mic.snapshot.as_ref().expect("mic claim").generation;
         assert!(runtime_generation_is_authoritative(mic_generation));
 
@@ -588,7 +598,7 @@ mod tests {
         let snapshot = stale_revoke.snapshot.as_ref().expect("newer owner retained");
         assert_eq!(stale_revoke.blocker, "runtime_session:generation_mismatch");
         assert_eq!(snapshot.generation, mic_generation);
-        assert_eq!(snapshot.owner_id, DIRECT_LIVE_CAPTURE_OWNER_ID);
+        assert_eq!(snapshot.owner_id, MIC_TEST_OWNER_ID);
         assert!(snapshot.authority_active);
         assert!(runtime_generation_is_authoritative(mic_generation));
 
@@ -630,7 +640,7 @@ mod tests {
         assert!(!snapshot.authority_active);
         assert_eq!(incomplete.blocker, "runtime_session:cleanup_incomplete");
 
-        let competing = begin_direct_live_capture_session();
+        let competing = begin_mic_test_session();
         assert_eq!(competing.blocker, "runtime_session:already_active");
         assert_eq!(
             competing
