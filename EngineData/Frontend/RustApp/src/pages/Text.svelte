@@ -10,6 +10,7 @@
   const MAX_MANUAL_TRANSLATION_CHARS = 2000;
   type TextResultState = "idle" | "translating" | "success" | "stale" | "error";
   type CopyState = "idle" | "copied" | "error";
+  type CopyMode = "translation" | "source" | "bilingual";
 
   let {
     settings,
@@ -32,6 +33,7 @@
   let resultMessage = $state("Enter text, then choose Translate.");
   let lastTranslatedSource = $state<string | null>(null);
   let copyState = $state<CopyState>("idle");
+  let copyMode = $state<CopyMode>("translation");
   let reviewHints = $state<string[]>([]);
   let alternativeBusy = $state(false);
   let targetRevision = 0;
@@ -329,7 +331,20 @@
         <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}>
           <RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}
         </button>
-        <button type="button" class="ti-button ti-button-secondary min-w-24" disabled={!targetText.trim()} onclick={() => void copyTranslation()}>
+        <label class="flex items-center gap-2">
+          <span class="sr-only">Copy format</span>
+          <select
+            class="ti-field min-h-9 w-[126px] px-2 text-[11.5px]"
+            bind:value={copyMode}
+            onchange={() => { copyState = "idle"; }}
+            aria-label="Copy format"
+          >
+            <option value="translation">Translation</option>
+            <option value="source">Source</option>
+            <option value="bilingual">Bilingual</option>
+          </select>
+        </label>
+        <button type="button" class="ti-button ti-button-secondary min-w-24" disabled={copyMode === "source" ? !sourceText.trim() : !targetText.trim()} onclick={() => void copySelection()}>
           {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
           {copyState === "copied" ? "Copied" : "Copy"}
         </button>
