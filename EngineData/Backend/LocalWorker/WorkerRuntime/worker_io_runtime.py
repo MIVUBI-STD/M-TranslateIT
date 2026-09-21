@@ -323,17 +323,25 @@ def handle_voice_actor_synthesize(payload: dict[str, Any]) -> dict[str, Any]:
             payload.get("source_text", ""), common.MAX_TTS_TEXT_CHARS
         )
         source_speech_duration_ms = max(0, int(payload.get("source_speech_duration_ms", 0) or 0))
-        pace_factor = voice_actor_provider.meeting_pace_factor(
-            runtime,
-            source_text,
-            source_speech_duration_ms,
+        has_pace_evidence = bool(source_text) and source_speech_duration_ms > 0
+        pace_factor = (
+            voice_actor_provider.meeting_pace_factor(
+                runtime,
+                source_text,
+                source_speech_duration_ms,
+            )
+            if has_pace_evidence
+            else 1.0
         )
-        synthesis = voice_actor_provider.synthesize_voice_actor(
-            runtime,
-            text,
-            output_path,
-            speed_factor=pace_factor,
-        )
+        if has_pace_evidence:
+            synthesis = voice_actor_provider.synthesize_voice_actor(
+                runtime,
+                text,
+                output_path,
+                speed_factor=pace_factor,
+            )
+        else:
+            synthesis = voice_actor_provider.synthesize_voice_actor(runtime, text, output_path)
         if not output_path.is_file() or output_path.stat().st_size <= 44:
             raise voice_actor_provider.VoiceLabProviderError("inference_audio_invalid")
         return {

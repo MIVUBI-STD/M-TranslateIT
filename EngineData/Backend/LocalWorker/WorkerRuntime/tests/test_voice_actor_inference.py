@@ -343,7 +343,11 @@ def test_voice_actor_synthesize_forwards_native_speed_factor(tmp_path: Path, mon
         "reference_text": "one two three four",
         "reference_duration_ms": 2000,
     }
-    monkeypatch.setattr(worker.io_runtime, "get_voice_actor_runtime", lambda _package=None: runtime)
+    monkeypatch.setattr(
+        worker.io_runtime,
+        "get_bound_voice_actor_runtime",
+        lambda _expected="": (runtime, '[["actor.json",1,1]]'),
+    )
 
     seen: list[float] = []
 
