@@ -1,13 +1,13 @@
 use crate::engine::audio::guided_take::active_guided_take_line_id;
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
 use crate::engine::runtime_state::{
-    begin_direct_live_capture_session, clear_runtime_session_if_generation,
+    begin_mic_test_session, clear_runtime_session_if_generation,
     latest_runtime_session_state,
     mark_runtime_session_cleanup_incomplete, revoke_runtime_session_authority,
 };
 use crate::engine::state::{CommandResult, LifecycleState};
 
-const MIC_TEST_CAPTURE_OWNER_ID: &str = "translateit_rust_live_capture";
+use crate::engine::runtime_state::MIC_TEST_OWNER_ID;
 
 pub fn start_capture() -> CommandResult {
     if active_guided_take_line_id().is_some() {
@@ -17,14 +17,14 @@ pub fn start_capture() -> CommandResult {
         );
     }
 
-    let session = begin_direct_live_capture_session();
+    let session = begin_mic_test_session();
     let Some(snapshot) = session.snapshot.as_ref() else {
         return CommandResult::blocked(
             LifecycleState::Error,
             "Microphone test cannot verify runtime ownership right now. No capture resource was opened.",
         );
     };
-    if !session.blocker.is_empty() || snapshot.owner_id != MIC_TEST_CAPTURE_OWNER_ID {
+    if !session.blocker.is_empty() || snapshot.owner_id != MIC_TEST_OWNER_ID {
         return CommandResult::blocked(
             LifecycleState::ConversionPending,
             "Microphone test cannot start while Meeting or another capture session owns runtime resources.",
@@ -60,7 +60,7 @@ pub fn stop_capture() -> CommandResult {
         );
     }
     if let Some(snapshot) = current.snapshot.as_ref() {
-        if snapshot.owner_id != MIC_TEST_CAPTURE_OWNER_ID {
+        if snapshot.owner_id != MIC_TEST_OWNER_ID {
             return CommandResult::blocked(
                 LifecycleState::ConversionPending,
                 "Microphone test Stop cannot control an active Meeting session. Stop Translation from the Meeting workspace instead.",
