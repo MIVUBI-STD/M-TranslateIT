@@ -408,15 +408,6 @@ function meetingAppDetectionFallback(): MeetingAppDetection {
   };
 }
 
-function meetingSessionActionFallback(message: string): MeetingSessionActionResult {
-  return {
-    ok: false,
-    state: "frontend_bridge_error",
-    message,
-    status: meetingSessionStatusFallback(message),
-  };
-}
-
 function transcriptExportStatusFallback(): MeetingTranscriptExportStatus {
   return {
     available: false,
@@ -523,22 +514,6 @@ export const runtimeApi = {
     );
   },
 
-  async startMeetingTranslation(): Promise<MeetingSessionActionResult> {
-    return invokeOr<MeetingSessionActionResult>(
-      "start_meeting_translation",
-      undefined,
-      meetingSessionActionFallback("Start Translation failed before reaching the Tauri Meeting session command."),
-    );
-  },
-
-  async stopMeetingTranslation(): Promise<MeetingSessionActionResult> {
-    return invokeOr<MeetingSessionActionResult>(
-      "stop_meeting_translation",
-      undefined,
-      meetingSessionActionFallback("Stop Translation failed before reaching the Tauri Meeting session command."),
-    );
-  },
-
   async getVirtualMicRouteStatus(): Promise<VirtualMicRouteContractStatus> {
     return invokeOr<VirtualMicRouteContractStatus>(
       "get_virtual_mic_route_contract_status",
@@ -576,22 +551,6 @@ export const runtimeApi = {
       "helper_bridge_worker_status",
       undefined,
       helperWorkerFallback("status", "Worker status failed before reaching the Tauri command bridge."),
-    );
-  },
-
-  async startCapture(): Promise<CommandResult> {
-    return invokeOr<CommandResult>(
-      "start_capture",
-      undefined,
-      commandFallback("Start capture failed before reaching the Tauri command bridge."),
-    );
-  },
-
-  async stopCapture(): Promise<CommandResult> {
-    return invokeOr<CommandResult>(
-      "stop_capture",
-      undefined,
-      commandFallback("Stop capture failed before reaching the Tauri command bridge."),
     );
   },
 
