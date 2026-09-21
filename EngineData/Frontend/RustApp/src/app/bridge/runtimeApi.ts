@@ -14,7 +14,7 @@ import type {
 
 export type AudioQualityReport = {
   available: boolean;
-  quality: "good" | "too_quiet" | "clipping" | "noisy" | "unavailable" | string;
+  quality: "good" | "too_quiet" | "clipping" | "noisy" | "no_signal" | "unavailable" | string;
   label: string;
   rms: number;
   peak: number;
