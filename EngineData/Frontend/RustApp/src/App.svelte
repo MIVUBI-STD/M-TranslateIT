@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { runtimeApi, type MeetingCommittedTurnsSnapshot, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
+  import { applicationRuntimeApi } from "./app/bridge/applicationRuntimeApi";
   import {
     mapProductMeetingState,
     mapProductReadiness,
@@ -389,6 +390,7 @@
   onMount(() => {
     let disposed = false;
     let unlistenClose: (() => void) | null = null;
+    let unlistenApplicationRuntime: (() => void) | null = null;
     const boot = async () => {
       try {
         const loadedSettings = await runtimeApi.loadSettings();
@@ -410,12 +412,23 @@
       } catch {}
     };
 
+    const installApplicationRuntimeSync = async () => {
+      try {
+        unlistenApplicationRuntime = await applicationRuntimeApi.subscribe((event) => {
+          if (disposed || event.snapshot.revision <= 0) return;
+          void refreshSnapshot();
+        });
+      } catch {}
+    };
+
     void boot();
     void installCloseGuard();
+    void installApplicationRuntimeSync();
 
     return () => {
       disposed = true;
       unlistenClose?.();
+      unlistenApplicationRuntime?.();
     };
   });
 
