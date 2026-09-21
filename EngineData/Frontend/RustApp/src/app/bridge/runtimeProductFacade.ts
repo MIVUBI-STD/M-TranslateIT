@@ -1,4 +1,7 @@
-import { applicationRuntimeApi } from "./applicationRuntimeApi";
+import {
+  applicationRuntimeApi,
+  type ApplicationSnapshot,
+} from "./applicationRuntimeApi";
 import { myVoiceBuildApi } from "./myVoiceBuildApi";
 import { runtimeApi, type MeetingSessionActionResult } from "./runtimeApi";
 import { compact } from "../shared/state";
@@ -84,10 +87,11 @@ async function loadApprovedVoiceReady(): Promise<boolean | null> {
   }
 }
 
-export async function loadProductRuntimeSnapshot(
+async function mapApplicationSnapshotToProduct(
+  initialApplication: ApplicationSnapshot,
   knownSettings?: RuntimeSettings,
 ): Promise<ProductRuntimeSnapshot> {
-  let application = await applicationRuntimeApi.getSnapshot();
+  let application = initialApplication;
   const settings = knownSettings ?? application.settings;
   if (!settings) throw new Error("TranslateIT settings are unavailable.");
 
@@ -127,6 +131,22 @@ export async function loadProductRuntimeSnapshot(
   };
 }
 
+export async function loadProductRuntimeSnapshot(
+  knownSettings?: RuntimeSettings,
+): Promise<ProductRuntimeSnapshot> {
+  return mapApplicationSnapshotToProduct(
+    await applicationRuntimeApi.getSnapshot(),
+    knownSettings,
+  );
+}
+
+export async function loadProductRuntimeSnapshotFromApplication(
+  application: ApplicationSnapshot,
+  knownSettings?: RuntimeSettings,
+): Promise<ProductRuntimeSnapshot> {
+  return mapApplicationSnapshotToProduct(application, knownSettings);
+}
+
 export async function runProductMeetingAction(
   action: ProductMeetingAction,
 ): Promise<ProductMeetingActionResult> {
@@ -150,6 +170,7 @@ export async function runProductMeetingAction(
 
 export const runtimeProductFacade = {
   loadProductRuntimeSnapshot,
+  loadProductRuntimeSnapshotFromApplication,
   loadProductAudioDevices,
   probeProductAudioDevice,
   selectProductAudioDevice,
