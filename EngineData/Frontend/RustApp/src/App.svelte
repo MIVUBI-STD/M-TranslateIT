@@ -6,14 +6,12 @@
     runtimeProductFacade,
     type ProductSetupAction,
   } from "./app/bridge/runtimeProductFacade";
-  import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
+  import { installNativeCloseGuard } from "./app/runtime/nativeCloseRuntime";
   import {
-    destroyTranslateItWindows,
-    installNativeCloseGuard,
-    resolveNativeCloseVerdict,
-    stopAndResolveNativeClose,
-  } from "./app/runtime/nativeCloseRuntime";
+    createCloseController,
+    type CloseControllerState,
+  } from "./app/runtime/closeController";
   import { compact, defaultSettings } from "./app/shared/state";
   import {
     createApplicationController,
@@ -38,8 +36,10 @@
 
   const applicationController = createApplicationController(defaultSettings());
   const meetingLiveController = createMeetingLiveController();
+  const closeController = createCloseController();
   let applicationState = $state<ApplicationControllerState>(applicationController.read());
   let meetingViewState = $state<MeetingLiveViewState>(meetingLiveController.read());
+  let closeState = $state<CloseControllerState>(closeController.read());
 
   let booting = $state(true);
   let route=$state<AppRoute>("meeting");
@@ -49,13 +49,6 @@
   let micTestBusy=$state(false);
   let myVoiceRecording = $state(false);
 
-  let closeDialogOpen = $state(false);
-  let closeDialogTitle = $state("Close TranslateIT?");
-  let closeDialogMessage = $state("");
-  let closeDialogAction = $state<CloseDialogAction>(null);
-  let stopAndCloseBusy = $state(false);
-  let closeAfterExistingStop = $state(false);
-  let closeCheckInFlight = false;
 
   const snapshot = $derived(applicationState.snapshot);
   const setupRequired = $derived(applicationState.setupRequired);
@@ -76,7 +69,7 @@
               : "Checking",
   );
 
-  const closePrimaryLabel = $derived(closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close");
+  const closePrimaryLabel = $derived(closeState.action === "retry" ? "Try Again" : closeState.busy ? "Stopping..." : "Stop & Close");
 
   function setNotice(message: string): void {
     notice = compact(message, "Status unavailable.", 220);
@@ -235,106 +228,16 @@
     }
   }
 
-  async function closeNativeWindow(): Promise<void> {
-    closeAfterExistingStop = false;
-    try {
-      await destroyTranslateItWindows();
-      closeDialogOpen = false;
-    } catch {
-      showCloseDialog("Couldn't close TranslateIT", "The floating caption couldn't close safely. TranslateIT will stay open.", "retry");
-    }
-  }
-
-  async function pollMeeting(): Promise<void> {
-    meetingViewState = await meetingLiveController.reconcile(
-      {
-        ownerKind: snapshot?.resources.owner_kind ?? null,
-        booting,
-        setupRequired,
-        closeAfterExistingStop,
-      },
-      {
-        onStatus: (status) => applyMeetingStatus(status),
-        onNotice: setNotice,
-        onStoppedForClose: closeNativeWindow,
-      },
-    );
-  }
-
-  function showCloseDialog(title: string, message: string, action: CloseDialogAction): void {
-    closeDialogTitle = title;
-    closeDialogMessage = compact(message, "Status unavailable.", 220);
-    closeDialogAction = action;
-    closeDialogOpen = true;
-  }
-
-  function keepApplicationOpen(): void {
-    closeAfterExistingStop = false;
-    stopAndCloseBusy = false;
-    closeDialogAction = null;
-    closeDialogOpen = false;
-  }
-
-  function applyCloseVerdict(verdict: CloseVerdict): void {
-    if (verdict.kind === "destroy") {
-      void closeNativeWindow();
-      return;
-    }
-    if (verdict.kind === "stop-and-close") {
-      showCloseDialog(
-        "Translation is still running",
-        "Stop & Close ends Meeting translation safely before closing TranslateIT.",
-        "stop",
-      );
-      return;
-    }
-    if (verdict.kind === "wait-for-stop") {
-      closeAfterExistingStop = true;
-      showCloseDialog(verdict.title, verdict.message, null);
-      return;
-    }
-    showCloseDialog(verdict.title, verdict.message, verdict.action);
-  }
-
   async function inspectNativeCloseRequest(): Promise<void> {
-    if (closeCheckInFlight || stopAndCloseBusy) return;
-    closeCheckInFlight = true;
-    try {
-      applyCloseVerdict(await resolveNativeCloseVerdict());
-    } catch {
-      showCloseDialog(
-        "Couldn't close TranslateIT",
-        "TranslateIT couldn't confirm that it is safe to close. Keep the app open and try again.",
-        "retry",
-      );
-    } finally {
-      closeCheckInFlight = false;
-    }
-  }
-
-  async function handleStopAndClose(): Promise<void> {
-    if (stopAndCloseBusy) return;
-    stopAndCloseBusy = true;
-    try {
-      applyCloseVerdict(await stopAndResolveNativeClose());
-    } catch {
-      showCloseDialog(
-        "Couldn't close TranslateIT",
-        "The app will stay open. Try again in a moment.",
-        "retry",
-      );
-    } finally {
-      stopAndCloseBusy = false;
-    }
+    closeState = await closeController.inspect();
   }
 
   async function handleCloseDialogPrimary(): Promise<void> {
-    if (closeDialogAction === "retry") {
-      closeDialogOpen = false;
-      await inspectNativeCloseRequest();
-      return;
-    }
-    if (closeDialogAction === "stop") await handleStopAndClose();
+    closeState = await closeController.primary();
+  }
+
+  function keepApplicationOpen(): void {
+    closeState = closeController.keepOpen();
   }
 
   onMount(() => {
@@ -385,7 +288,7 @@
   });
 
   $effect(() =>
-    !booting && !setupRequired && (snapshot?.resources.owner_kind === "meeting" || closeAfterExistingStop)
+    !booting && !setupRequired && (snapshot?.resources.owner_kind === "meeting" || closeState.closeAfterExistingStop)
       ? startMeetingRuntimeMonitors(
           pollMeeting,
           setNotice,
@@ -473,4 +376,4 @@
   </main>
 {/if}
 
-<NativeCloseDialog bind:open={closeDialogOpen} title={closeDialogTitle} message={closeDialogMessage} action={closeDialogAction} busy={stopAndCloseBusy} primaryLabel={closePrimaryLabel} onKeepOpen={keepApplicationOpen} onPrimary={handleCloseDialogPrimary} />
+<NativeCloseDialog bind:open={closeDialogOpen} title={closeDialogTitle} message={closeDialogMessage} action={closeDialogAction} busy={closeState.busy} primaryLabel={closePrimaryLabel} onKeepOpen={keepApplicationOpen} onPrimary={handleCloseDialogPrimary} />
