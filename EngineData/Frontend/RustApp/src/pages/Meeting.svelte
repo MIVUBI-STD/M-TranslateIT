@@ -207,14 +207,23 @@
 
   onMount(() => {
     void refreshRouteStatus();
+  });
+
+  $effect(() => {
+    if (meeting.hasSession) return;
     void refreshMeetingDetection();
-    void refreshAudioQuality();
     const detectionTimer = window.setInterval(() => void refreshMeetingDetection(), 5000);
+    return () => window.clearInterval(detectionTimer);
+  });
+
+  $effect(() => {
+    if (activityVisible) {
+      audioQuality = null;
+      return;
+    }
+    void refreshAudioQuality();
     const qualityTimer = window.setInterval(() => void refreshAudioQuality(), 2500);
-    return () => {
-      window.clearInterval(detectionTimer);
-      window.clearInterval(qualityTimer);
-    };
+    return () => window.clearInterval(qualityTimer);
   });
 </script>
 
