@@ -354,6 +354,8 @@ Branch/tag deletion, PR merge/close, release publication/deletion, repository se
 
 ## GitHub Actions and hosted proof
 
+- CI result is evidence; branch protection/rulesets are enforcement. Never infer one from the other.
+- If `Local` is unprotected or has no required-check ruleset, a successful workflow still counts only as exact-SHA evidence, not as proof that GitHub prevented unchecked writes.
 - Workflows are verification/deployment/artifact infrastructure, not a source editor or remote shell.
 - Automatic triggers target `Local` only under the current model.
 - Verification workflows are read-only by default and never commit/push back.
