@@ -273,7 +273,8 @@ pub(super) fn retain_committed_turns_for_export(session_id: &str) -> bool {
     if store.session_id != session_id {
         return false;
     }
-    let snapshot = store.snapshot();
+    let mut snapshot = store.snapshot();
+    snapshot.has_session = false;
     drop(guard);
     let Ok(mut ended) = ended_transcript_store().lock() else {
         return false;

@@ -10,6 +10,7 @@ const ui = readFileSync(new URL("../../src/components/meeting/MeetingTranscriptE
 test("ended transcript is retained only in memory before committed state cleanup", () => {
   assert.match(lifecycle, /retain_committed_turns_for_export\(&session_id\)/);
   assert.match(committed, /LAST_ENDED_MEETING_TRANSCRIPT/);
+  assert.match(committed, /snapshot\.has_session = false/);
   assert.match(committed, /reset_committed_turns[\s\S]*\*ended = None/);
   assert.doesNotMatch(committed, /fs::write|File::create/);
 });
