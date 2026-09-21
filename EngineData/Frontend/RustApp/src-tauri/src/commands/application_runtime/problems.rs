@@ -47,7 +47,7 @@ pub fn collect_problems(summaries: &ApplicationSubsystemSummaries) -> Vec<Applic
         }
     }
 
-    if !summaries.worker.state.is_empty() && !summaries.worker.ready {
+    if !summaries.worker.state.is_empty() && !summaries.worker.process_ready {
         problems.push(problem(
             format!("helper:{}", summaries.worker.state),
             "worker",
