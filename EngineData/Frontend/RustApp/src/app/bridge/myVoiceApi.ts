@@ -47,7 +47,7 @@ export const myVoiceApi = {
   },
 
   async startTake(lineId: number, authorizedVoiceConfirmed: boolean): Promise<GuidedRecordingActionResult> {
-    const action = await runCommand<GuidedRecordingActionResult>("start_voice_lab_guided_take", {
+    const action = await runCommand<GuidedRecordingActionResult>("start_product_voice_recording", {
       lineId,
       authorizedVoiceConfirmed,
     });
@@ -55,7 +55,7 @@ export const myVoiceApi = {
   },
 
   async stopTake(lineId: number): Promise<GuidedRecordingActionResult> {
-    const action = await runCommand<GuidedRecordingActionResult>("stop_voice_lab_guided_take", { lineId });
+    const action = await runCommand<GuidedRecordingActionResult>("stop_product_voice_recording", { lineId });
     return action ? normalizeAction(action) : unavailableAction("My Voice could not stop recording safely.");
   },
 
