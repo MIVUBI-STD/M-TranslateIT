@@ -70,7 +70,7 @@ fn rollback_starting_meeting_resources(
     clear_prepared_meeting_output_device();
     clear_prepared_virtual_mic_route_selection();
     let _ = clear_runtime_session_if_generation(generation);
-    (helper_cleanup, consumer_cleanup)
+    (helper_cancel.message, consumer_cleanup.message)
 }
 
 fn recover_helper_after_meeting_stop_if_needed() -> Result<(), String> {
