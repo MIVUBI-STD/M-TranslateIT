@@ -135,10 +135,22 @@ Ownership boundaries:
 - `resources.rs`: derives cross-feature resource availability; it must not duplicate the lower-level runtime session authority store.
 - `problems.rs`: normalizes domain blockers into product-level problems.
 - `snapshot.rs`: read-only aggregation. It must not execute product actions.
-- `intents.rs`: the only application-runtime owner for cross-feature product-intent routing.
+- `intents.rs`: the application-runtime owner for parameterless cross-feature product-intent routing.
+- `mutations.rs`: typed parameterized cross-feature mutations (audio selection, voice recording/build lifecycle) and post-mutation snapshot publication.
 - `events.rs`: application-runtime event publication only.
 - `mod.rs`: thin Tauri/public surface.
 
 Domain implementations remain owned by their existing modules (Meeting, audio, helper worker, voice, translation, overlay, settings). The application runtime coordinates them through typed summaries and public commands; it must not absorb domain algorithms or UI behavior.
 
 The architecture gate `npm run validate:application-runtime` enforces the modular boundary and rejects JSON-typed orchestration, oversized kernel modules, UI/window coupling, and action execution from the read-only snapshot owner.
+
+
+### Shared audio owner identities
+
+The runtime session authority distinguishes these owners:
+
+- `translateit_application_meeting` — Meeting translation.
+- `translateit_mic_test` — Mic Test capture.
+- `translateit_voice_recording` — My Voice guided recording.
+
+Do not collapse Mic Test and My Voice back into a generic live-capture owner. They may share the same lower-level audio engine, but product lifecycle, stop authority, Settings lock copy, and recovery routing require distinct ownership identities.
