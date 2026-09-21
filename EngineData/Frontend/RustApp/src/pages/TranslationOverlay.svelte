@@ -13,6 +13,7 @@
     defaultBottomCenterPosition,
     overlayFontSize,
     overlayHeightForTextSize,
+    overlayWidth,
     recentMeetingCaptions,
     type PhysicalRect,
     type RecentCaptionEntry,
@@ -28,7 +29,6 @@
     writeOverlayPosition,
   } from "../app/runtime/translationOverlayState";
 
-  const NORMAL_WIDTH = 620;
   const COLLAPSED_WIDTH = 260;
   const HISTORY_HEIGHT = 420;
   let caption = $state<TranslationOverlayPayload | null>(null);
@@ -42,7 +42,7 @@
   let pendingCaption = $state<TranslationOverlayPayload | null>(null);
 
   const collapsed = $derived(preferences.visibility === "collapsed");
-  const currentWidth = $derived(collapsed ? COLLAPSED_WIDTH : NORMAL_WIDTH);
+  const currentWidth = $derived(collapsed ? COLLAPSED_WIDTH : overlayWidth(preferences.width));
   const currentHeight = $derived(historyOpen ? HISTORY_HEIGHT : overlayHeightForTextSize(preferences.textSize, collapsed));
   const fontSize = $derived(overlayFontSize(preferences.textSize));
 
@@ -93,7 +93,7 @@
     if (next.visibility === "hidden") { await getCurrentWindow().hide(); return; }
     if (next.visibility === "collapsed") historyOpen = false;
     await getCurrentWindow().setSize(new LogicalSize(
-      next.visibility === "collapsed" ? COLLAPSED_WIDTH : NORMAL_WIDTH,
+      next.visibility === "collapsed" ? COLLAPSED_WIDTH : overlayWidth(next.width),
       historyOpen ? HISTORY_HEIGHT : overlayHeightForTextSize(next.textSize, next.visibility === "collapsed"),
     ));
     if (reposition) await restorePosition();
@@ -114,13 +114,13 @@
       historyEntries = recentMeetingCaptions(snapshot, 20);
       historyMessage = historyEntries.length === 0 ? "No recent committed translations yet." : "";
       historyOpen = true;
-      await getCurrentWindow().setSize(new LogicalSize(NORMAL_WIDTH, HISTORY_HEIGHT));
+      await getCurrentWindow().setSize(new LogicalSize(overlayWidth(preferences.width), HISTORY_HEIGHT));
       await restorePosition();
     } catch {
       historyEntries = [];
       historyMessage = "Recent translations are unavailable right now.";
       historyOpen = true;
-      await getCurrentWindow().setSize(new LogicalSize(NORMAL_WIDTH, HISTORY_HEIGHT));
+      await getCurrentWindow().setSize(new LogicalSize(overlayWidth(preferences.width), HISTORY_HEIGHT));
       await restorePosition();
     } finally {
       historyLoading = false;
@@ -131,7 +131,7 @@
     historyOpen = false;
     historyMessage = "";
     await getCurrentWindow().setSize(new LogicalSize(
-      NORMAL_WIDTH,
+      overlayWidth(preferences.width),
       overlayHeightForTextSize(preferences.textSize, false),
     ));
     await restorePosition();
@@ -186,7 +186,7 @@
   });
 </script>
 
-<main class:collapsed class="overlay-shell" style={`--caption-font-size: ${fontSize}px`}>
+<main class:collapsed class:high-contrast={preferences.contrast === "high"} class="overlay-shell" style={`--caption-font-size: ${fontSize}px`}>
   <section class="caption-card" aria-label="Floating translation caption">
     <header class="caption-header" data-tauri-drag-region>
       <div class="caption-meta" data-tauri-drag-region>

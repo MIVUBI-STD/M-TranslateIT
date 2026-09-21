@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -27,6 +27,7 @@ test("placement chooses only a work area intersected by caption", () => {
 test("readability presets stay bounded", () => {
   assert.equal(overlayFontSize("medium"), 22); assert.equal(overlayFontSize("extra-large"), 30);
   assert.equal(overlayHeightForTextSize("extra-large"), 240); assert.equal(overlayHeightForTextSize("extra-large", true), 64);
+  assert.equal(overlayWidth("compact"), 520); assert.equal(overlayWidth("standard"), 620); assert.equal(overlayWidth("wide"), 760);
 });
 
 test("monitor overlap scoring prefers the display containing most of the caption", () => {

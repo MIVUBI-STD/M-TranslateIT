@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Eye, Plus, Trash2 } from "@lucide/svelte";
+  import { Plus, Trash2 } from "@lucide/svelte";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import { notifyOverlayPreferencesChanged, showTranslationOverlay } from "../../app/runtime/translationOverlayRuntime";
   import { readOverlayDiagnostic, readOverlayPreferences, updateOverlayPreferences } from "../../app/runtime/translationOverlayState";
@@ -26,8 +26,6 @@
   let spokenAliases = $state("");
   let saving = $state(false);
   let styleSaving = $state(false);
-  let overlayPreferences = $state(readOverlayPreferences());
-  let overlayDiagnostic = $state(readOverlayDiagnostic());
 
   async function updateTranslationStyle(style: "natural" | "formal"): Promise<void> {
     if (styleSaving || settings.translation_style === style) return;
@@ -51,20 +49,6 @@
     } finally {
       styleSaving = false;
     }
-  }
-
-  async function updateFloatingCaptions(patch: { meetingEnabled?: boolean; textSize?: OverlayTextSize }): Promise<void> {
-    overlayPreferences = updateOverlayPreferences(patch);
-    await notifyOverlayPreferencesChanged(overlayPreferences);
-    overlayDiagnostic = readOverlayDiagnostic();
-    onNotice("Floating caption preference saved.");
-  }
-
-  async function showFloatingCaption(): Promise<void> {
-    const shown = await showTranslationOverlay();
-    overlayPreferences = readOverlayPreferences();
-    overlayDiagnostic = readOverlayDiagnostic();
-    onNotice(shown ? "Floating caption shown." : "Floating caption is unavailable right now.");
   }
 
   async function persist(next: TerminologyEntry[], message: string): Promise<void> {
@@ -205,26 +189,7 @@
   </div>
 </article>
 
-<article class="ti-panel overflow-hidden">
-  <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-    <h3 class="m-0 text-[15px] font-semibold">Floating captions</h3>
-    <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">Keep translated speech readable above other windows without opening a second translation engine.</p>
-  </header>
-  <div class="grid gap-4 p-5">
-    <label class="flex items-start justify-between gap-5">
-      <span><strong class="block text-[13px] font-semibold">Show during meetings</strong><small class="mt-1 block text-[11.5px] leading-5 text-[var(--ti-text-soft)]">New committed meeting translations appear automatically. Hiding the caption is always respected.</small></span>
-      <input type="checkbox" class="mt-1 size-4" checked={overlayPreferences.meetingEnabled} onchange={(event) => void updateFloatingCaptions({ meetingEnabled: (event.currentTarget as HTMLInputElement).checked })} />
-    </label>
-    <label class="grid max-w-[360px] gap-2">
-      <span class="ti-field-label">Caption text size</span>
-      <select class="ti-field min-h-10 px-3" value={overlayPreferences.textSize} onchange={(event) => void updateFloatingCaptions({ textSize: (event.currentTarget as HTMLSelectElement).value as OverlayTextSize })}>
-        <option value="small">Small</option><option value="medium">Medium · recommended</option><option value="large">Large</option><option value="extra-large">Extra large</option>
-      </select>
-    </label>
-    <div><button type="button" class="ti-button ti-button-secondary" onclick={() => void showFloatingCaption()}><Eye size={15} /> Show floating caption</button></div>
-    {#if overlayDiagnostic}<p class="m-0 text-[11.5px] leading-5 text-[var(--ti-warning)]">Floating caption last reported: {overlayDiagnostic.message}</p>{/if}
-  </div>
-</article>
+<FloatingCaptionPreferences {onNotice} />
 
 <article class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">

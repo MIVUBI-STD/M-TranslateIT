@@ -1,6 +1,8 @@
 import type {
+  OverlayContrast,
   OverlayTextSize,
   OverlayVisibility,
+  OverlayWidth,
   TranslationOverlayPayload,
   TranslationOverlayPreferences,
 } from "./translationOverlayPolicy";
@@ -8,6 +10,8 @@ const DEFAULT_OVERLAY_PREFERENCES: TranslationOverlayPreferences = {
   meetingEnabled: true,
   visibility: "expanded",
   textSize: "medium",
+  width: "standard",
+  contrast: "standard",
 };
 
 const LATEST_KEY = "translateit.translationOverlay.latest.v2";
@@ -31,7 +35,11 @@ export function readOverlayPreferences(): TranslationOverlayPreferences {
       ? parsed.visibility as OverlayVisibility : DEFAULT_OVERLAY_PREFERENCES.visibility;
     const textSize: OverlayTextSize = ["small", "medium", "large", "extra-large"].includes(String(parsed.textSize))
       ? parsed.textSize as OverlayTextSize : DEFAULT_OVERLAY_PREFERENCES.textSize;
-    return { meetingEnabled: parsed.meetingEnabled !== false, visibility, textSize };
+    const width: OverlayWidth = ["compact", "standard", "wide"].includes(String(parsed.width))
+      ? parsed.width as OverlayWidth : DEFAULT_OVERLAY_PREFERENCES.width;
+    const contrast: OverlayContrast = ["standard", "high"].includes(String(parsed.contrast))
+      ? parsed.contrast as OverlayContrast : DEFAULT_OVERLAY_PREFERENCES.contrast;
+    return { meetingEnabled: parsed.meetingEnabled !== false, visibility, textSize, width, contrast };
   } catch { return { ...DEFAULT_OVERLAY_PREFERENCES }; }
 }
 

@@ -10,11 +10,15 @@ export type TranslationOverlayPayload = {
 
 export type OverlayVisibility = "expanded" | "collapsed" | "hidden";
 export type OverlayTextSize = "small" | "medium" | "large" | "extra-large";
+export type OverlayWidth = "compact" | "standard" | "wide";
+export type OverlayContrast = "standard" | "high";
 
 export type TranslationOverlayPreferences = {
   meetingEnabled: boolean;
   visibility: OverlayVisibility;
   textSize: OverlayTextSize;
+  width: OverlayWidth;
+  contrast: OverlayContrast;
 };
 
 export type PhysicalPoint = { x: number; y: number };
@@ -56,6 +60,12 @@ export function overlayHeightForTextSize(size: OverlayTextSize, collapsed = fals
   if (size === "large") return 210;
   if (size === "extra-large") return 240;
   return 180;
+}
+
+export function overlayWidth(width: OverlayWidth): number {
+  if (width === "compact") return 520;
+  if (width === "wide") return 760;
+  return 620;
 }
 
 export function overlayFontSize(size: OverlayTextSize): number {
