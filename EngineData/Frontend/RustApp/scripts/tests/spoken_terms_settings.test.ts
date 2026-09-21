@@ -5,7 +5,7 @@ import { cloneSettings, defaultSettings } from "../../src/app/shared/state.ts";
 
 test("runtime settings default spoken terms to an empty list", () => {
   const settings = defaultSettings();
-  assert.equal(settings.schema_version, 10);
+  assert.equal(settings.schema_version, 11);
   assert.deepEqual(settings.spoken_terms, []);
 });
 
@@ -21,4 +21,10 @@ test("cloning runtime settings deep-clones spoken term aliases", () => {
 test("runtime settings default translation style to natural", () => {
   const settings = defaultSettings();
   assert.equal(settings.translation_style, "natural");
+});
+
+
+test("runtime settings default noise suppression to auto", () => {
+  const settings = defaultSettings();
+  assert.equal(settings.audio.noise_suppression, "auto");
 });

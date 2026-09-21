@@ -8,10 +8,12 @@ use crate::engine::audio::finalized_utterance::{
     wait_take_finalized_outbound_utterance,
 };
 use crate::engine::audio::live_segment_writer::{
-    remove_finalized_meeting_utterance_wav, write_finalized_incoming_utterance_wav,
-    write_finalized_outbound_utterance_wav,
+    remove_finalized_meeting_utterance_wav,
+    write_finalized_incoming_utterance_wav_with_noise_suppression,
+    write_finalized_outbound_utterance_wav_with_noise_suppression,
 };
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
+use crate::engine;
 
 use super::incoming_deferred::clear_deferred_incoming_queue;
 use super::incoming_pipeline::{
@@ -67,6 +69,8 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
 
     let thread_session_id = session_id.to_string();
     let thread_session_for_runtime = thread_session_id.clone();
+    let noise_suppression_enabled =
+        engine::load_settings().audio.noise_suppression != "off";
     let handle = thread::Builder::new()
         .name("translateit-meeting-outbound".to_string())
         .spawn(move || {
@@ -81,7 +85,10 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
                 }
 
                 let audio_prepare_started_at = Instant::now();
-                let write = write_finalized_outbound_utterance_wav(&utterance);
+                let write = write_finalized_outbound_utterance_wav_with_noise_suppression(
+                    &utterance,
+                    noise_suppression_enabled,
+                );
                 let audio_prepare_ms = elapsed_millis(audio_prepare_started_at, Instant::now());
                 let timing = timing_context_from_utterance(&utterance, queue_ms, audio_prepare_ms);
                 if !write.ok {
@@ -211,6 +218,8 @@ pub(super) fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), St
 
     let thread_session_id = session_id.to_string();
     let runtime_session_id = thread_session_id.clone();
+    let noise_suppression_enabled =
+        engine::load_settings().audio.noise_suppression != "off";
     let handle = thread::Builder::new()
         .name("translateit-meeting-incoming".to_string())
         .spawn(move || {
@@ -237,7 +246,10 @@ pub(super) fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), St
                     continue;
                 }
 
-                let write = write_finalized_incoming_utterance_wav(&utterance);
+                let write = write_finalized_incoming_utterance_wav_with_noise_suppression(
+                    &utterance,
+                    noise_suppression_enabled,
+                );
                 if !write.ok {
                     update_incoming_status(
                         &thread_session_id,

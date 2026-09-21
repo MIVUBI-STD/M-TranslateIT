@@ -3,7 +3,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-const CURRENT_SCHEMA_VERSION: u32 = 10;
+const CURRENT_SCHEMA_VERSION: u32 = 11;
 const MAX_SETTING_TEXT_CHARS: usize = 160;
 const MAX_TERMINOLOGY_ENTRIES: usize = 24;
 const MAX_TERMINOLOGY_TERM_CHARS: usize = 80;
@@ -44,6 +44,7 @@ fn default_meeting_setup_checkpoint() -> u8 {
 pub struct AudioSettings {
     pub input_device_id: Option<String>,
     pub output_device_id: Option<String>,
+    pub noise_suppression: String,
 }
 
 impl Default for AudioSettings {
@@ -51,6 +52,7 @@ impl Default for AudioSettings {
         Self {
             input_device_id: None,
             output_device_id: None,
+            noise_suppression: "auto".to_string(),
         }
     }
 }
@@ -156,6 +158,8 @@ impl RuntimeSettings {
             sanitize_optional_runtime_text(self.audio.input_device_id.take());
         self.audio.output_device_id =
             sanitize_optional_runtime_text(self.audio.output_device_id.take());
+        self.audio.noise_suppression =
+            sanitize_noise_suppression(&self.audio.noise_suppression);
         self
     }
 
@@ -246,6 +250,13 @@ fn sanitize_language(value: &str, fallback: &str) -> String {
         "en".to_string()
     } else {
         fallback.to_string()
+    }
+}
+
+fn sanitize_noise_suppression(value: &str) -> String {
+    match clean_setting_text(value).to_lowercase().as_str() {
+        "off" => "off".to_string(),
+        _ => "auto".to_string(),
     }
 }
 
@@ -394,6 +405,17 @@ mod tests {
         assert_eq!(sanitized.terminology[0].english, "restoration");
         assert_eq!(sanitized.terminology[1].indonesian, "arsip");
         assert_eq!(sanitized.terminology[1].english, "archive");
+    }
+
+    #[test]
+    fn noise_suppression_accepts_only_auto_or_off() {
+        let mut settings = RuntimeSettings::default();
+        settings.audio.noise_suppression = "OFF".to_string();
+        assert_eq!(settings.sanitized().audio.noise_suppression, "off");
+
+        let mut invalid = RuntimeSettings::default();
+        invalid.audio.noise_suppression = "maximum".to_string();
+        assert_eq!(invalid.sanitized().audio.noise_suppression, "auto");
     }
 
     #[test]

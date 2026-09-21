@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+use super::evidence::AudioEvidenceReport;
 use super::finalized_utterance::FinalizedMeetingUtterance;
 use super::{duration_ms, TARGET_SAMPLE_RATE_HZ};
 use crate::engine::paths::ProjectPaths;
@@ -29,23 +30,38 @@ pub struct LiveSegmentWavWriteReport {
 pub fn write_finalized_outbound_utterance_wav(
     utterance: &FinalizedMeetingUtterance,
 ) -> LiveSegmentWavWriteReport {
+    write_finalized_outbound_utterance_wav_with_noise_suppression(utterance, false)
+}
+
+pub fn write_finalized_outbound_utterance_wav_with_noise_suppression(
+    utterance: &FinalizedMeetingUtterance,
+    noise_suppression_enabled: bool,
+) -> LiveSegmentWavWriteReport {
     if utterance.lane != "you" || utterance.generation.is_none() {
         return invalid_lane_report(utterance, "you", "finalized_outbound_writer");
     }
-    write_finalized_meeting_utterance_wav(utterance)
+    write_finalized_meeting_utterance_wav(utterance, noise_suppression_enabled)
 }
 
 pub fn write_finalized_incoming_utterance_wav(
     utterance: &FinalizedMeetingUtterance,
 ) -> LiveSegmentWavWriteReport {
+    write_finalized_incoming_utterance_wav_with_noise_suppression(utterance, false)
+}
+
+pub fn write_finalized_incoming_utterance_wav_with_noise_suppression(
+    utterance: &FinalizedMeetingUtterance,
+    noise_suppression_enabled: bool,
+) -> LiveSegmentWavWriteReport {
     if utterance.lane != "incoming" || utterance.generation.is_some() {
         return invalid_lane_report(utterance, "incoming", "finalized_incoming_writer");
     }
-    write_finalized_meeting_utterance_wav(utterance)
+    write_finalized_meeting_utterance_wav(utterance, noise_suppression_enabled)
 }
 
 fn write_finalized_meeting_utterance_wav(
     utterance: &FinalizedMeetingUtterance,
+    noise_suppression_enabled: bool,
 ) -> LiveSegmentWavWriteReport {
     let frame = &utterance.frame;
     let frame_duration_ms = duration_ms(frame.samples.len(), frame.sample_rate_hz);
@@ -93,11 +109,18 @@ fn write_finalized_meeting_utterance_wav(
     let audio_path = audio_dir.join(&filename);
     let label = format!("{FINALIZED_SEGMENT_ROOT_LABEL}{filename}");
 
+    let suppressed_samples = if noise_suppression_enabled {
+        suppress_low_level_noise(&frame.samples)
+    } else {
+        None
+    };
+    let samples = suppressed_samples.as_deref().unwrap_or(&frame.samples);
+
     match write_pcm16_wav(
         &audio_path,
         frame.sample_rate_hz,
         frame.channels,
-        &frame.samples,
+        samples,
     ) {
         Ok(()) => LiveSegmentWavWriteReport {
             ok: true,
@@ -332,6 +355,33 @@ pub(crate) fn write_pcm16_wav(
     write_result
 }
 
+fn suppress_low_level_noise(samples: &[f32]) -> Option<Vec<f32>> {
+    if samples.len() < 320 {
+        return None;
+    }
+    let evidence = AudioEvidenceReport::from_samples(samples);
+    if evidence.rms < 0.012 || evidence.clipping_ratio > 0.025 {
+        return None;
+    }
+
+    let threshold = (evidence.rms * 0.08).clamp(0.0015, 0.006);
+    let transition_end = threshold * 2.5;
+    let mut output = Vec::with_capacity(samples.len());
+    for sample in samples {
+        let value = safe_sample(*sample);
+        let level = value.abs();
+        let gain = if level <= threshold {
+            0.22
+        } else if level < transition_end {
+            0.22 + 0.78 * ((level - threshold) / (transition_end - threshold))
+        } else {
+            1.0
+        };
+        output.push(value * gain);
+    }
+    Some(output)
+}
+
 fn safe_sample(value: f32) -> f32 {
     if value.is_finite() {
         value.clamp(-1.0, 1.0)
@@ -354,6 +404,22 @@ mod tests {
             "translateit-{label}-{}-{nonce}",
             std::process::id()
         ))
+    }
+
+    #[test]
+    fn noise_suppression_attenuates_floor_without_reducing_strong_speech() {
+        let mut samples = vec![0.002_f32; 320];
+        samples.extend(vec![0.12_f32; 320]);
+        let processed = suppress_low_level_noise(&samples).expect("strong speech should allow cleanup");
+        assert!(processed[0].abs() < samples[0].abs() * 0.4);
+        assert!((processed[400] - samples[400]).abs() <= 1e-6);
+    }
+
+    #[test]
+    fn noise_suppression_bypasses_quiet_or_clipping_audio() {
+        assert!(suppress_low_level_noise(&vec![0.002_f32; 640]).is_none());
+        let clipping = (0..640).map(|index| if index % 10 == 0 { 1.0 } else { 0.1 }).collect::<Vec<_>>();
+        assert!(suppress_low_level_noise(&clipping).is_none());
     }
 
     #[test]

@@ -39,6 +39,7 @@ export type RuntimeSettings = {
   audio: {
     input_device_id: string | null;
     output_device_id: string | null;
+    noise_suppression: "auto" | "off" | string;
   };
 };
 
