@@ -35,7 +35,6 @@ pub fn resolve_resources(summaries: &ApplicationSubsystemSummaries) -> ResourceA
     ResourceArbitration {
         audio_locked,
         microphone_available: !audio_locked && summaries.audio.ready,
-        meeting_audio_available: !audio_locked,
         active_owner: meeting.owner_id.clone(),
         owner_kind: owner_kind(meeting.owner_id.as_deref()).to_string(),
         blocker,
