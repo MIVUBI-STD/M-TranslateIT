@@ -87,6 +87,7 @@ const contractPairs = [
   ["src-tauri/src/commands/application_runtime/contract.rs", "ResourceArbitration", "src/app/bridge/applicationRuntimeApi.ts", "ResourceArbitration"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationSnapshot", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSnapshot"],
   ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationIntentResult", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationIntentResult"],
+  ["src-tauri/src/commands/reliability_snapshot.rs", "MeetingReliabilitySnapshot", "src/app/bridge/reliabilityApi.ts", "MeetingReliabilitySnapshot"],
   ["src-tauri/src/commands/helper_bridge_runtime.rs", "HelperBridgeStatus", "src/app/shared/types.ts", "HelperBridgeStatus"],
   ["src-tauri/src/commands/helper_bridge_runtime.rs", "HelperBridgeActionResult", "src/app/shared/types.ts", "HelperBridgeActionResult"],
   ["src-tauri/src/commands/helper_bridge.rs", "HelperBridgeWorkerResponse", "src/app/shared/types.ts", "HelperBridgeWorkerResponse"],
