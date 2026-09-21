@@ -18,12 +18,14 @@
     detection,
     settings,
     locked = false,
+    advisoryCopy,
     onRefresh,
     onNotice,
   }: {
     detection: MeetingAppDetection | null;
     settings: RuntimeSettings;
     locked?: boolean;
+    advisoryCopy: string;
     onRefresh: (preferredNotice?: string, knownSettings?: RuntimeSettings) => void | Promise<void>;
     onNotice: (message: string) => void;
   } = $props();
@@ -104,7 +106,7 @@
         <div class="grid size-8 shrink-0 place-items-center rounded-[9px] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] text-[var(--ti-text-muted)]" aria-hidden="true"><Video size={15} /></div>
         <div class="min-w-0">
           <strong class="block truncate text-[12.5px] font-semibold">{detection.provider} detected</strong>
-          <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">{suggested ? `Suggested preset: ${suggested.name}` : "Choose a saved preset or keep the current setup."}</p>
+          <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">{suggested ? `Suggested preset: ${suggested.name}. ${advisoryCopy}` : advisoryCopy}</p>
         </div>
         <StatusBadge label="Detected" tone="good" />
       {:else}

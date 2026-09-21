@@ -69,6 +69,7 @@
   const outboundTargetName = $derived(languageName(snapshot.settings.target_language));
   const listenSourceName = $derived(languageName(snapshot.settings.meeting_listen_source_language));
   const listenTargetName = $derived(languageName(snapshot.settings.meeting_listen_target_language));
+  const meetingDetectionAdvisory = "Meeting detection is advisory. Translation will only start when you choose Start Translation.";
 
   function statusTone(ready: boolean, pending = false, unavailable = false): Tone {
     if (unavailable) return "danger";
@@ -267,6 +268,7 @@
         detection={meetingDetection}
         settings={snapshot.settings}
         locked={meeting.hasSession}
+        advisoryCopy={meetingDetectionAdvisory}
         {onRefresh}
         onNotice={(message) => void onRefresh(message)}
       />
