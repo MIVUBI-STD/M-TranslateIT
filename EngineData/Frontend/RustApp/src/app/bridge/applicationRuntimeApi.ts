@@ -31,6 +31,44 @@ export type ApplicationCapabilities = {
   text_translation: boolean;
 };
 
+export type MeetingSummary = {
+  lifecycle: string;
+  has_session: boolean;
+  application_owned: boolean;
+  ready_for_start: boolean;
+  owner_id: string | null;
+  blocker: string;
+  note: string;
+  preflight_blockers: string[];
+};
+
+export type WorkerSummary = {
+  state: string;
+  ready: boolean;
+  degraded: boolean;
+  message: string;
+};
+
+export type AudioSummary = {
+  ready: boolean;
+  running: boolean;
+  blocker: string;
+  note: string;
+};
+
+export type ApplicationSubsystemSummaries = {
+  meeting: MeetingSummary;
+  worker: WorkerSummary;
+  audio: AudioSummary;
+};
+
+export type ResourceArbitration = {
+  microphone_available: boolean;
+  meeting_audio_available: boolean;
+  active_owner: string | null;
+  blocker: string;
+};
+
 export type ApplicationSnapshot = {
   revision: number;
   lifecycle: string;
@@ -40,6 +78,8 @@ export type ApplicationSnapshot = {
   helper: HelperBridgeStatus;
   worker: HelperBridgeWorkerResponse | null;
   input: InputPreparationStatus;
+  summaries: ApplicationSubsystemSummaries;
+  resources: ResourceArbitration;
   capabilities: ApplicationCapabilities;
   problems: ApplicationProblem[];
 };
@@ -72,6 +112,36 @@ function unavailableSnapshot(): ApplicationSnapshot {
       device_count: 0,
       blocker: "application_runtime:unavailable",
       note: "Application runtime is unavailable.",
+    },
+    summaries: {
+      meeting: {
+        lifecycle: "unavailable",
+        has_session: false,
+        application_owned: false,
+        ready_for_start: false,
+        owner_id: null,
+        blocker: "application_runtime:unavailable",
+        note: "Application runtime is unavailable.",
+        preflight_blockers: [],
+      },
+      worker: {
+        state: "unavailable",
+        ready: false,
+        degraded: false,
+        message: "Application runtime is unavailable.",
+      },
+      audio: {
+        ready: false,
+        running: false,
+        blocker: "application_runtime:unavailable",
+        note: "Application runtime is unavailable.",
+      },
+    },
+    resources: {
+      microphone_available: false,
+      meeting_audio_available: false,
+      active_owner: null,
+      blocker: "application_runtime:unavailable",
     },
     capabilities: {
       meeting_translation: false,
