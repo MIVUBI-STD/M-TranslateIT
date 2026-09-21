@@ -13,6 +13,7 @@ export type ProductIntent =
   | "stop_meeting"
   | "start_mic_test"
   | "stop_mic_test"
+  | "fix_setup"
   | "refresh";
 
 export type ApplicationProblem = {
