@@ -1,15 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { runtimeApi, type MeetingCommittedTurnsSnapshot, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
+  import { runtimeApi, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
   import { applicationRuntimeApi } from "./app/bridge/applicationRuntimeApi";
   import {
     runtimeProductFacade,
     type ProductSetupAction,
   } from "./app/bridge/runtimeProductFacade";
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
-  import { readMeetingPoll } from "./app/runtime/meetingPoll";
   import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
-  import { publishLatestMeetingOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
     destroyTranslateItWindows,
     installNativeCloseGuard,
@@ -21,6 +19,10 @@
     createApplicationController,
     type ApplicationControllerState,
   } from "./app/runtime/applicationController";
+  import {
+    createMeetingLiveController,
+    type MeetingLiveViewState,
+  } from "./app/runtime/meetingLiveController";
   import type {
     AppRoute,
     RuntimeSettings,
@@ -35,7 +37,9 @@
   import Text from "./pages/Text.svelte";
 
   const applicationController = createApplicationController(defaultSettings());
+  const meetingLiveController = createMeetingLiveController();
   let applicationState = $state<ApplicationControllerState>(applicationController.read());
+  let meetingViewState = $state<MeetingLiveViewState>(meetingLiveController.read());
 
   let booting = $state(true);
   let route=$state<AppRoute>("meeting");
@@ -44,7 +48,6 @@
   let setupActionBusy=$state(false);
   let micTestBusy=$state(false);
   let myVoiceRecording = $state(false);
-  let meetingTurns = $state<MeetingCommittedTurnsSnapshot | null>(null);
 
   let closeDialogOpen = $state(false);
   let closeDialogTitle = $state("Close TranslateIT?");
@@ -52,11 +55,7 @@
   let closeDialogAction = $state<CloseDialogAction>(null);
   let stopAndCloseBusy = $state(false);
   let closeAfterExistingStop = $state(false);
-  let meetingPollInFlight = false;
   let closeCheckInFlight = false;
-  let lastTranscriptStatusKey = "";
-  let lastOverlayMeetingRevision = "";
-  let runtimeStateRevision=0;
 
   const snapshot = $derived(applicationState.snapshot);
   const setupRequired = $derived(applicationState.setupRequired);
@@ -104,9 +103,7 @@
       if (!result.applied) return;
 
       if (result.setupRequired) {
-        meetingTurns = null;
-        lastTranscriptStatusKey = "";
-        lastOverlayMeetingRevision = "";
+        meetingViewState = meetingLiveController.reset();
         setNotice(preferredNotice ?? "Continue Meeting setup to use voice translation.");
         return;
       }
@@ -114,9 +111,7 @@
       const next = result.snapshot;
       if (!next) return;
       if (!next.meeting.hasSession || result.previousSessionId !== result.nextSessionId) {
-        meetingTurns = null;
-        lastTranscriptStatusKey = "";
-        lastOverlayMeetingRevision = "";
+        meetingViewState = meetingLiveController.reset();
       }
       setNotice(preferredNotice ?? (next.meeting.hasSession ? next.meeting.message : next.readiness.summary));
     } catch {
@@ -161,11 +156,9 @@
     }
 
     meetingActionBusy = true;
-    runtimeStateRevision += 1;
     setNotice(action === "start" ? "Starting translation..." : "Stopping translation...");
     try {
       const result = await runtimeProductFacade.runProductMeetingAction(action);
-      runtimeStateRevision += 1;
       const resultNotice = result.ok
         ? action === "start" ? "Translation is live." : "Translation stopped."
         : action === "start"
@@ -173,12 +166,9 @@
           : "Translation couldn't stop. Try again.";
       applyMeetingStatus(result.status, resultNotice);
       if (!result.status.has_session || action === "start") {
-        meetingTurns = null;
-        lastTranscriptStatusKey = "";
-        lastOverlayMeetingRevision = "";
+        meetingViewState = meetingLiveController.reset();
       }
     } catch {
-      runtimeStateRevision += 1;
       setNotice("That action couldn't be completed. Try again.");
       await refreshSnapshot();
     } finally {
@@ -256,26 +246,19 @@
   }
 
   async function pollMeeting(): Promise<void> {
-    if (meetingPollInFlight || booting || setupRequired) return;
-    if (snapshot?.resources.owner_kind !== "meeting" && !closeAfterExistingStop) return;
-
-    meetingPollInFlight = true;
-    const pollRevision = runtimeStateRevision;
-    try {
-      const result = await readMeetingPoll(meetingTurns, lastTranscriptStatusKey);
-      if (!result || pollRevision !== runtimeStateRevision) return;
-      applyMeetingStatus(result.status);
-      meetingTurns = result.turns;
-      lastTranscriptStatusKey = result.transcriptStatusKey;
-      lastOverlayMeetingRevision = await publishLatestMeetingOverlay(result.turns, lastOverlayMeetingRevision);
-      if (result.unavailable) {
-        setNotice("Meeting translation is temporarily unavailable.");
-      } else if (!result.status.has_session && closeAfterExistingStop) {
-        await closeNativeWindow();
-      }
-    } finally {
-      meetingPollInFlight = false;
-    }
+    meetingViewState = await meetingLiveController.reconcile(
+      {
+        ownerKind: snapshot?.resources.owner_kind ?? null,
+        booting,
+        setupRequired,
+        closeAfterExistingStop,
+      },
+      {
+        onStatus: (status) => applyMeetingStatus(status),
+        onNotice: setNotice,
+        onStoppedForClose: closeNativeWindow,
+      },
+    );
   }
 
   function showCloseDialog(title: string, message: string, action: CloseDialogAction): void {
@@ -442,7 +425,7 @@
           <Meeting
             {snapshot}
             {meetingStatus}
-            {meetingTurns}
+            meetingTurns={meetingViewState.turns}
             actionBusy={meetingActionBusy}
             onMeetingAction={handleMeetingAction}
             onRefresh={refreshSnapshot}
