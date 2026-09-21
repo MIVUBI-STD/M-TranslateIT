@@ -68,3 +68,16 @@ if (failures.length > 0) {
 }
 
 console.log(`[application-runtime-architecture] ${files.length} modular kernel files passed boundary checks.`);
+
+
+const facadeSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeProductFacade.ts"), "utf8");
+for (const forbidden of [
+  "runtimeApi.startHelperBridge(",
+  "runtimeApi.getHelperBridgeStatus(",
+  "runtimeApi.helperBridgeWorkerStatus(",
+  "runtimeApi.getMeetingSessionStatus(",
+]) {
+  if (facadeSource.includes(forbidden)) {
+    failures.push(`runtimeProductFacade.ts must not own cross-feature lifecycle: ${forbidden}`);
+  }
+}
