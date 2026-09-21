@@ -252,6 +252,7 @@ mod tests {
                 session_id: Some("session-a".to_string()),
                 stage: stage.to_string(),
                 utterance_sequence: 1,
+                playback_sequence: None,
                 output_active: false,
                 last_stage_ok: true,
                 timing: None,

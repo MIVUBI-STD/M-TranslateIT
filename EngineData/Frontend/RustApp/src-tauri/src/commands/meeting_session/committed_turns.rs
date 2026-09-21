@@ -496,6 +496,7 @@ mod tests {
             translation_decode_ms: Some(1.0),
             translation_tokens_per_second: Some(50.0),
             tts_ms: Some(7),
+            playback_queue_ms: None,
             delivery_ms: None,
             outbound_latency_ms: None,
         }
