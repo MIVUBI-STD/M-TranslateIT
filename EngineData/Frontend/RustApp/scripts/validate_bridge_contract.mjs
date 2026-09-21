@@ -76,10 +76,15 @@ for (const name of sortedDifference(frontendCommands, rustCommands)) {
 }
 
 const contractPairs = [
-  ["src-tauri/src/commands/application_runtime.rs", "ApplicationProblem", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationProblem"],
-  ["src-tauri/src/commands/application_runtime.rs", "ApplicationCapabilities", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationCapabilities"],
-  ["src-tauri/src/commands/application_runtime.rs", "ApplicationSnapshot", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSnapshot"],
-  ["src-tauri/src/commands/application_runtime.rs", "ApplicationIntentResult", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationIntentResult"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationProblem", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationProblem"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationCapabilities", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationCapabilities"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "MeetingSummary", "src/app/bridge/applicationRuntimeApi.ts", "MeetingSummary"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "WorkerSummary", "src/app/bridge/applicationRuntimeApi.ts", "WorkerSummary"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "AudioSummary", "src/app/bridge/applicationRuntimeApi.ts", "AudioSummary"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationSubsystemSummaries", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSubsystemSummaries"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "ResourceArbitration", "src/app/bridge/applicationRuntimeApi.ts", "ResourceArbitration"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationSnapshot", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationSnapshot"],
+  ["src-tauri/src/commands/application_runtime/contract.rs", "ApplicationIntentResult", "src/app/bridge/applicationRuntimeApi.ts", "ApplicationIntentResult"],
   ["src-tauri/src/commands/helper_bridge_runtime.rs", "HelperBridgeStatus", "src/app/shared/types.ts", "HelperBridgeStatus"],
   ["src-tauri/src/commands/helper_bridge_runtime.rs", "HelperBridgeActionResult", "src/app/shared/types.ts", "HelperBridgeActionResult"],
   ["src-tauri/src/commands/helper_bridge.rs", "HelperBridgeWorkerResponse", "src/app/shared/types.ts", "HelperBridgeWorkerResponse"],
