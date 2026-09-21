@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::engine::audio::live_capture::live_capture_status;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 use crate::engine::runtime_settings::load_settings;
+use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
 
 use super::audio::list_audio_devices;
 use super::incident_log::record_runtime_incident;
@@ -75,7 +76,9 @@ fn record_if_needed(status: DeviceLossGuardStatus) -> DeviceLossGuardStatus {
 #[tauri::command]
 pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
     let meeting = get_meeting_session_status();
-    if !meeting.has_session {
+    if !meeting.has_session
+        || meeting.owner_id.as_deref() != Some(APPLICATION_MEETING_OWNER_ID)
+    {
         return record_if_needed(status(
             "idle",
             true,
@@ -84,7 +87,7 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
             false,
             "",
             "",
-            "No Meeting session is active, so no live device ownership can be lost.",
+            "No application Meeting session is active, so Meeting device-loss checks are idle.",
         ));
     }
 
