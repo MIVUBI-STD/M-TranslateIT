@@ -48,7 +48,9 @@ REQUIRED_PATHS = (
     ".agents/skills/windows-audio-runtime-development/SKILL.md",
     ".agents/skills/release-packaging-development/SKILL.md",
     "EngineData/Frontend/RustApp/scripts/validate_bridge_contract.mjs",
+    "EngineData/Frontend/RustApp/scripts/validate_application_runtime_architecture.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_frontend_reachability.mjs",
+    "EngineData/Frontend/RustApp/scripts/validate_source_size_budget.mjs",
 )
 
 FORBIDDEN_PATHS = (
@@ -290,6 +292,11 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
     code_health = text(".github/workflows/code-health.yml")
     for marker in (
         "Detect changed source domains",
+        "workflow_dispatch:",
+        "Exact SHA proof summary",
+        "Enforce matching changed-domain proof",
+        "A skipped domain is not evidence for that domain.",
+        'EVENT_NAME" == "workflow_dispatch"',
         "fetch-depth: 0",
         "git diff --name-only",
         "needs.changes.outputs.frontend == 'true'",
@@ -313,14 +320,22 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         '"EngineData/Frontend/RustApp/scripts/build_r3_external_payload.py"',
         '"EngineData/Frontend/RustApp/scripts/validate_release_payload.mjs"',
         '"EngineData/Frontend/RustApp/src-tauri/windows/**"',
+        "workflow_dispatch:",
+        'EVENT_NAME" == "workflow_dispatch"',
+        "controlled=true",
+        "Exact SHA release proof summary",
+        "Enforce release proof completeness",
+        "Controlled Windows payload proof required but result was",
     ):
         if marker not in release:
-            fail(errors, f"R3 Release Contract missing release-affecting trigger: {marker}")
+            fail(errors, f"R3 Release Contract missing release/proof contract: {marker}")
 
     package = text("EngineData/Frontend/RustApp/package.json")
     for marker in (
         "scripts/tests/*.test.ts",
         '"validate:bridge-contract"',
+        '"validate:application-runtime"',
+        '"validate:source-size"',
         '"validate:reachability"',
         '"validate:source-contracts"',
     ):
