@@ -18,6 +18,10 @@ const defaultBudgets = {
 const pathBudgets = new Map([
   ["src/App.svelte", 16_000],
   ["src/app/bridge/runtimeProductFacade.ts", 9_000],
+  ["src/app/bridge/runtimeProductState.ts", 2_000],
+  ["src/app/bridge/productMeetingState.ts", 8_000],
+  ["src/app/bridge/productReadinessState.ts", 10_000],
+  ["src/app/bridge/runtimeApi.ts", 18_000],
   ["src-tauri/src/commands/voice_lab_recording.rs", 24_000],
 ]);
 
