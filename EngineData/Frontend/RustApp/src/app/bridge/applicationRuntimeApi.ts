@@ -75,9 +75,11 @@ export type ApplicationSubsystemSummaries = {
 };
 
 export type ResourceArbitration = {
+  audio_locked: boolean;
   microphone_available: boolean;
   meeting_audio_available: boolean;
   active_owner: string | null;
+  owner_kind: "meeting" | "mic_test" | "voice_recording" | "other" | "none" | string;
   blocker: string;
 };
 
@@ -154,9 +156,11 @@ function unavailableSnapshot(): ApplicationSnapshot {
       },
     },
     resources: {
+      audio_locked: true,
       microphone_available: false,
       meeting_audio_available: false,
       active_owner: null,
+      owner_kind: "other",
       blocker: "application_runtime:unavailable",
     },
     capabilities: {
