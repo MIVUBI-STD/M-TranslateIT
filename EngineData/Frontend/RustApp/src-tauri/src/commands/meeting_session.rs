@@ -19,7 +19,7 @@ mod session_state;
 mod suppression;
 mod transcript_export;
 
-use committed_turns::current_committed_turn_snapshot;
+use committed_turns::{current_committed_turn_snapshot, exportable_committed_turn_snapshot};
 use transcript_export::{
     export_transcript, transcript_export_status, MeetingTranscriptExportResult,
     MeetingTranscriptExportStatus,
@@ -257,6 +257,21 @@ pub(crate) fn committed_turn_health_counts() -> (usize, u64, bool) {
 #[tauri::command]
 pub fn get_meeting_committed_turns() -> MeetingCommittedTurnsSnapshot {
     current_committed_turn_snapshot()
+}
+
+#[tauri::command]
+pub fn get_recent_meeting_transcript() -> MeetingCommittedTurnsSnapshot {
+    exportable_committed_turn_snapshot().unwrap_or(MeetingCommittedTurnsSnapshot {
+        ok: true,
+        has_session: false,
+        session_id: None,
+        turns: Vec::new(),
+        dropped_turn_count: 0,
+        truncated: false,
+        blocker: String::new(),
+        note: "No recently ended Meeting transcript is retained.".to_string(),
+        runtime_claim: "meeting_recent_transcript_source_contract_not_rendered_runtime_proof".to_string(),
+    })
 }
 
 #[tauri::command]

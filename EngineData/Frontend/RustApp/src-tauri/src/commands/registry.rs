@@ -14,6 +14,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::meeting_session::get_meeting_session_status,
         crate::commands::meeting_detection::detect_meeting_app,
         crate::commands::meeting_session::get_meeting_committed_turns,
+        crate::commands::meeting_session::get_recent_meeting_transcript,
         crate::commands::meeting_session::get_meeting_transcript_export_status,
         crate::commands::meeting_session::export_meeting_transcript,
         crate::commands::runtime::start_meeting_translation,

@@ -511,6 +511,14 @@ export const runtimeApi = {
     );
   },
 
+  async getRecentMeetingTranscript(): Promise<MeetingCommittedTurnsSnapshot> {
+    return invokeOr<MeetingCommittedTurnsSnapshot>(
+      "get_recent_meeting_transcript",
+      undefined,
+      meetingCommittedTurnsFallback("The most recently ended Meeting transcript is unavailable."),
+    );
+  },
+
   async startMeetingTranslation(): Promise<MeetingSessionActionResult> {
     return invokeOr<MeetingSessionActionResult>(
       "start_meeting_translation",
