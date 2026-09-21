@@ -30,25 +30,32 @@ const VALID_CATEGORIES = new Set<TranslationIssueCategory>([
 function validFeedback(value: unknown): TranslationFeedbackEntry | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
+  const id = item["id"];
+  const category = item["category"];
+  const source = item["source"];
+  const translation = item["translation"];
+  const sourceLanguage = item["sourceLanguage"];
+  const targetLanguage = item["targetLanguage"];
+  const createdAt = item["createdAt"];
   if (
-    typeof item["id"] !== "string"
-    || typeof item["category"] !== "string"
-    || !VALID_CATEGORIES.has(item["category"] as TranslationIssueCategory)
-    || typeof item["source"] !== "string"
-    || typeof item["translation"] !== "string"
-    || typeof item["source"]Language !== "string"
-    || typeof item["targetLanguage"] !== "string"
-    || typeof item["createdAt"] !== "number"
-    || !Number.isFinite(item["createdAt"])
+    typeof id !== "string"
+    || typeof category !== "string"
+    || !VALID_CATEGORIES.has(category as TranslationIssueCategory)
+    || typeof source !== "string"
+    || typeof translation !== "string"
+    || typeof sourceLanguage !== "string"
+    || typeof targetLanguage !== "string"
+    || typeof createdAt !== "number"
+    || !Number.isFinite(createdAt)
   ) return null;
   return {
-    id: item["id"].slice(0, 80),
-    category: item["category"] as TranslationIssueCategory,
-    source: item["source"].slice(0, MAX_TEXT_CHARS),
-    translation: item["translation"].slice(0, MAX_TEXT_CHARS),
-    sourceLanguage: item["source"]Language.slice(0, 16),
-    targetLanguage: item["targetLanguage"].slice(0, 16),
-    createdAt: item["createdAt"],
+    id: id.slice(0, 80),
+    category: category as TranslationIssueCategory,
+    source: source.slice(0, MAX_TEXT_CHARS),
+    translation: translation.slice(0, MAX_TEXT_CHARS),
+    sourceLanguage: sourceLanguage.slice(0, 16),
+    targetLanguage: targetLanguage.slice(0, 16),
+    createdAt,
   };
 }
 

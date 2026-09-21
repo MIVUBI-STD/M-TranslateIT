@@ -56,27 +56,35 @@ function optionalText(value: unknown): string | null {
 function validPreset(value: unknown): MeetingPreset | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Record<string, unknown>;
+  const id = item["id"];
+  const name = item["name"];
+  const sourceLanguage = item["sourceLanguage"];
+  const targetLanguage = item["targetLanguage"];
+  const listenSourceLanguage = item["listenSourceLanguage"];
+  const listenTargetLanguage = item["listenTargetLanguage"];
+  const translationStyle = item["translationStyle"];
+  const noiseSuppression = item["noiseSuppression"];
   if (
-    typeof item["id"] !== "string"
-    || typeof item["name"] !== "string"
-    || typeof item["sourceLanguage"] !== "string"
-    || typeof item["targetLanguage"] !== "string"
-    || typeof item["listenSourceLanguage"] !== "string"
-    || typeof item["listenTargetLanguage"] !== "string"
-    || typeof item["translationStyle"] !== "string"
-    || typeof item["noiseSuppression"] !== "string"
+    typeof id !== "string"
+    || typeof name !== "string"
+    || typeof sourceLanguage !== "string"
+    || typeof targetLanguage !== "string"
+    || typeof listenSourceLanguage !== "string"
+    || typeof listenTargetLanguage !== "string"
+    || typeof translationStyle !== "string"
+    || typeof noiseSuppression !== "string"
   ) return null;
   return {
-    id: item["id"].slice(0, 80),
-    name: cleanName(item["name"]) || "Meeting preset",
-    sourceLanguage: item["sourceLanguage"].slice(0, 16),
-    targetLanguage: item["targetLanguage"].slice(0, 16),
-    listenSourceLanguage: item["listenSourceLanguage"].slice(0, 16),
-    listenTargetLanguage: item["listenTargetLanguage"].slice(0, 16),
-    translationStyle: item["translationStyle"].slice(0, 24),
+    id: id.slice(0, 80),
+    name: cleanName(name) || "Meeting preset",
+    sourceLanguage: sourceLanguage.slice(0, 16),
+    targetLanguage: targetLanguage.slice(0, 16),
+    listenSourceLanguage: listenSourceLanguage.slice(0, 16),
+    listenTargetLanguage: listenTargetLanguage.slice(0, 16),
+    translationStyle: translationStyle.slice(0, 24),
     microphoneId: optionalText(item["microphoneId"]),
     meetingSoundId: optionalText(item["meetingSoundId"]),
-    noiseSuppression: item["noiseSuppression"].slice(0, 24),
+    noiseSuppression: noiseSuppression.slice(0, 24),
   };
 }
 
