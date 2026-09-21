@@ -1,4 +1,5 @@
 use crate::engine::audio::input::InputPreparationStatus;
+use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
 
 use super::contract::{
     ApplicationSubsystemSummaries, AudioSummary, MeetingSummary, VoiceSummary, WorkerSummary,
@@ -7,7 +8,6 @@ use super::super::helper_bridge_runtime::HelperBridgeStatus;
 use super::super::meeting_session::MeetingSessionStatus;
 use super::super::voice_lab::VoiceLabBuildSnapshot;
 
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 
 pub fn build_subsystem_summaries(
     meeting: &MeetingSessionStatus,
