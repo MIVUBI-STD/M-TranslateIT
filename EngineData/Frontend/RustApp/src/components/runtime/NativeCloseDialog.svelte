@@ -3,7 +3,7 @@
   import type { CloseDialogAction } from "../../app/runtime/closePolicy";
 
   let {
-    open = $bindable(false),
+    open = false,
     title,
     message,
     action,
@@ -11,6 +11,7 @@
     primaryLabel,
     onKeepOpen,
     onPrimary,
+    onOpenChange,
   }: {
     open?: boolean;
     title: string;
@@ -20,10 +21,11 @@
     primaryLabel: string;
     onKeepOpen: () => void;
     onPrimary: () => void | Promise<void>;
+    onOpenChange?: (open: boolean) => void;
   } = $props();
 </script>
 
-<Dialog.Root bind:open>
+<Dialog.Root {open} onOpenChange={(nextOpen) => onOpenChange?.(nextOpen)}>
   <Dialog.Portal>
     <Dialog.Overlay class="fixed inset-0 z-50 bg-[var(--ti-overlay)] backdrop-blur-[2px]" />
     <Dialog.Content class="fixed left-1/2 top-1/2 z-50 w-[min(500px,calc(100vw-48px))] -translate-x-1/2 -translate-y-1/2 rounded-[var(--ti-radius-lg)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface)] p-6 shadow-[var(--ti-shadow-dialog)]">
