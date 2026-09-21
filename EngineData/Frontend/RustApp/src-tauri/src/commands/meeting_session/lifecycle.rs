@@ -285,7 +285,6 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             generation,
             "Meeting output functional verification failed during Starting. Authority was revoked before rollback.",
         );
-        let _ = cancel_meeting_output_for_generation(generation);
         let _ = rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
             "rolled_back",
