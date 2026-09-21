@@ -11,8 +11,7 @@
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { readMeetingPoll } from "./app/runtime/meetingPoll";
   import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
-  import { publishLatestMeetingOverlay, publishTranslationOverlay } from "./app/runtime/translationOverlayRuntime";
-  import { buildProductCommands } from "./app/runtime/productCommandRegistry";
+  import { publishLatestMeetingOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
     destroyTranslateItWindows,
     installNativeCloseGuard,
@@ -28,9 +27,8 @@
     RuntimeSettings,
   } from "./app/shared/types";
   import Sidebar from "./components/layout/Sidebar.svelte";
-  import CommandPalette from "./components/runtime/CommandPalette.svelte";
   import NativeCloseDialog from "./components/runtime/NativeCloseDialog.svelte";
-  import UpdateAction from "./components/runtime/UpdateAction.svelte";
+  import ProductivityActions from "./components/runtime/ProductivityActions.svelte";
   import FirstSetup from "./pages/FirstSetup.svelte";
   import Meeting from "./pages/Meeting.svelte";
   import MyVoice from "./pages/MyVoice.svelte";
@@ -53,8 +51,6 @@
   let approvedVoiceReady = $state<boolean | null>(null);
   let meetingStatus = $state<MeetingSessionStatus | null>(null);
   let meetingTurns = $state<MeetingCommittedTurnsSnapshot | null>(null);
-  let commandPaletteOpen = $state(false);
-  let quickTranslateBusy = $state(false);
 
   let closeDialogOpen = $state(false);
   let closeDialogTitle = $state("Close TranslateIT?");
@@ -117,17 +113,6 @@
 
   const closePrimaryLabel = $derived(closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close");
 
-  const productCommands = $derived.by(() => buildProductCommands({
-    route,
-    meetingHasSession: Boolean(snapshot?.meeting.hasSession),
-    meetingCanStart: Boolean(snapshot?.meeting.canStart),
-    meetingCanStop: Boolean(snapshot?.meeting.canStop),
-    quickTranslateReady: Boolean(snapshot?.readiness.textReady) && !quickTranslateBusy,
-    navigate,
-    toggleMeeting: handleMeetingAction,
-    quickTranslateClipboard,
-  }));
-
   function setNotice(message: string): void {
     notice = compact(message, "Status unavailable.", 220);
   }
@@ -138,43 +123,6 @@
       return;
     }
     route = next;
-  }
-
-  async function quickTranslateClipboard(): Promise<void> {
-    if (quickTranslateBusy || !snapshot?.readiness.textReady) {
-      setNotice("Quick Translate is unavailable until Text translation is ready.");
-      return;
-    }
-    quickTranslateBusy = true;
-    try {
-      if (!navigator.clipboard?.readText) throw new Error("Clipboard access is unavailable.");
-      const source = (await navigator.clipboard.readText()).trim();
-      if (!source) {
-        setNotice("Copy some text first, then run Quick Translate Clipboard.");
-        return;
-      }
-      if (Array.from(source).length > 2000) {
-        setNotice("Clipboard text is too long for Quick Translate. Open Text for longer content.");
-        return;
-      }
-      setNotice("Quick translating clipboard...");
-      const result = await runtimeApi.quickTranslateText(source);
-      if (!result.ok || !result.translated_text.trim()) {
-        setNotice(result.user_message || "Quick Translate couldn't translate the clipboard.");
-        return;
-      }
-      const shown = await publishTranslationOverlay({
-        text: result.translated_text.trim(),
-        language: result.target_language || snapshot.settings.target_language,
-        source: "text",
-        revision: `quick:${Date.now()}`,
-      }, true);
-      setNotice(shown === "shown" ? "Clipboard translated in the floating caption." : "Translation is ready, but the floating caption couldn't open.");
-    } catch {
-      setNotice("Quick Translate couldn't read the clipboard. Try again from Text.");
-    } finally {
-      quickTranslateBusy = false;
-    }
   }
 
   function applyMeetingStatus(status: MeetingSessionStatus, preferredNotice?: string): void {
@@ -454,14 +402,6 @@
   onMount(() => {
     let disposed = false;
     let unlistenClose: (() => void) | null = null;
-    const handleGlobalKeydown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        commandPaletteOpen = !commandPaletteOpen;
-      }
-    };
-    window.addEventListener("keydown", handleGlobalKeydown);
-
     const boot = async () => {
       try {
         const loadedSettings = await runtimeApi.loadSettings();
@@ -489,7 +429,6 @@
     return () => {
       disposed = true;
       unlistenClose?.();
-      window.removeEventListener("keydown", handleGlobalKeydown);
     };
   });
 
@@ -529,19 +468,13 @@
 
         <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite" title={notice}>{notice}</p>
 
-        <button
-          type="button"
-          class="ti-button ti-button-secondary min-h-8 shrink-0 px-2.5 text-[11px]"
-          aria-label="Open quick actions"
-          title="Quick actions · Ctrl+K"
-          onclick={() => { commandPaletteOpen = true; }}
-        >
-          Quick Actions <kbd class="ml-1 text-[9px] opacity-65">Ctrl K</kbd>
-        </button>
-
-        <UpdateAction
+        <ProductivityActions
+          {snapshot}
+          {route}
           meetingBusy={snapshot.meeting.hasSession}
           {myVoiceRecording}
+          onNavigate={navigate}
+          onToggleMeeting={handleMeetingAction}
           onNotice={setNotice}
         />
 
@@ -610,7 +543,5 @@
     </section>
   </main>
 {/if}
-
-<CommandPalette bind:open={commandPaletteOpen} commands={productCommands} />
 
 <NativeCloseDialog bind:open={closeDialogOpen} title={closeDialogTitle} message={closeDialogMessage} action={closeDialogAction} busy={stopAndCloseBusy} primaryLabel={closePrimaryLabel} onKeepOpen={keepApplicationOpen} onPrimary={handleCloseDialogPrimary} />
