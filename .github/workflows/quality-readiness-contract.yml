@@ -21,6 +21,10 @@ on:
       - "tools/tts_quality/**"
       - ".github/workflows/quality-readiness-contract.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
