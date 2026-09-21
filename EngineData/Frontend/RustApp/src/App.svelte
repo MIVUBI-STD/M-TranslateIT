@@ -28,7 +28,7 @@
   } from "./app/shared/types";
   import Sidebar from "./components/layout/Sidebar.svelte";
   import NativeCloseDialog from "./components/runtime/NativeCloseDialog.svelte";
-  import ProductivityActions from "./components/runtime/ProductivityActions.svelte";
+  import AppHeader from "./components/layout/AppHeader.svelte";
   import FirstSetup from "./pages/FirstSetup.svelte";
   import Meeting from "./pages/Meeting.svelte";
   import MyVoice from "./pages/MyVoice.svelte";
@@ -98,9 +98,6 @@
               : "Checking",
   );
 
-  const routeTitle = $derived(
-    route === "meeting" ? "Meeting" : route === "text" ? "Text" : route === "my-voice" ? "My Voice" : "Settings",
-  );
   const closePrimaryLabel = $derived(closeDialogAction === "retry" ? "Try Again" : stopAndCloseBusy ? "Stopping..." : "Stop & Close");
 
   function setNotice(message: string): void {
@@ -448,36 +445,15 @@
     <Sidebar active={route} {presence} onNavigate={navigate} />
 
     <section class="flex min-w-0 flex-1 flex-col">
-      <header class="ti-appbar flex min-h-16 shrink-0 items-center gap-5 border-b border-[var(--ti-border)] bg-[var(--ti-bg)] px-6">
-        <div class="min-w-0 shrink-0">
-          <div class="flex items-baseline gap-2.5">
-            <strong class="text-[13.5px] font-semibold tracking-[-0.01em]">{routeTitle}</strong>
-          </div>
-        </div>
-
-        <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite" title={notice}>{notice}</p>
-
-        <ProductivityActions
-          {snapshot}
-          meetingBusy={snapshot.meeting.hasSession}
-          {myVoiceRecording}
-          onNavigate={navigate}
-          onToggleMeeting={handleMeetingAction}
-          onNotice={setNotice}
-        />
-
-        {#if snapshot.meeting.applicationOwned && snapshot.meeting.hasSession}
-          <button
-            type="button"
-            class="flex shrink-0 items-center gap-2 rounded-full border border-[var(--ti-success-border)] bg-[var(--ti-success-surface)] px-3 py-1.5 text-left"
-            aria-label="Open active Meeting translation"
-            onclick={() => { navigate("meeting"); }}
-          >
-            <span class="size-2 rounded-full bg-[var(--ti-success)]" aria-hidden="true"></span>
-            <strong class="text-[11.5px] font-semibold text-[var(--ti-success)]">{snapshot.meeting.label}</strong>
-          </button>
-        {/if}
-      </header>
+      <AppHeader
+        {snapshot}
+        {route}
+        {notice}
+        {myVoiceRecording}
+        onNavigate={navigate}
+        onToggleMeeting={handleMeetingAction}
+        onNotice={setNotice}
+      />
 
       <div class="min-h-0 flex-1 overflow-y-auto">
         {#if route === "meeting"}
