@@ -229,7 +229,7 @@
     }
   }
 
-  async function pollMeeting(): Promise<void> {
+  async function pollMeeting(forceTurns = false): Promise<void> {
     meetingViewState = await meetingLiveController.reconcile(
       {
         ownerKind: snapshot?.resources.owner_kind ?? null,
@@ -244,6 +244,7 @@
           closeState = await closeController.closeWindow();
         },
       },
+      forceTurns,
     );
   }
 
