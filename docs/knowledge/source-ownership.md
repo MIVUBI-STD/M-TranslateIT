@@ -32,6 +32,12 @@ This file maps semantic responsibility to the current owner. It does not carry m
 | Meeting performance Diagnostics | `EngineData/Frontend/RustApp/src/components/settings/MeetingPerformanceDiagnostics.svelte` + existing Meeting status DTOs |
 | Tauri command bridge calls/types | `EngineData/Frontend/RustApp/src/app/bridge/runtimeApi.ts`, `myVoiceApi.ts`, `myVoiceBuildApi.ts` |
 | Meeting frontend polling / committed-turn refresh | `EngineData/Frontend/RustApp/src/app/runtime/meetingPoll.ts` |
+| Command palette + Quick Translate action surface | `src/components/runtime/ProductivityActions.svelte`, `CommandPalette.svelte`, `src/app/runtime/productCommandRegistry.ts` |
+| Bounded Text translation cache | `src/app/runtime/textTranslationCache.ts` |
+| Meeting preset local state / provider suggestion memory | `src/app/runtime/meetingPresetState.ts` + `src/components/meeting/MeetingPresetPanel.svelte` |
+| Atomic Meeting preset validation/persistence | Rust `commands/settings.rs::apply_meeting_preset` |
+| Temporary last-session review | `src/components/meeting/MeetingSessionReview.svelte` + Rust `commands/meeting_session/committed_turns.rs` |
+| Local translation feedback state/review | `src/app/runtime/translationFeedbackState.ts`, `src/components/text/TranslationFeedback.svelte`, `src/components/settings/TranslationFeedbackReview.svelte` |
 | Native close dialog presentation | `EngineData/Frontend/RustApp/src/components/runtime/NativeCloseDialog.svelte` |
 | One-shot app update frontend lifecycle | `EngineData/Frontend/RustApp/src/app/update/appUpdateApi.ts` + `src/components/runtime/UpdateAction.svelte` |
 | Signed native update check/install policy | `EngineData/Frontend/RustApp/src-tauri/src/commands/app_update.rs` |

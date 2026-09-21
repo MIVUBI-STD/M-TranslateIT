@@ -33,7 +33,8 @@ Subject to matching proof for the changed domain, current source establishes:
 - TTS/My Voice quality tooling with a 30-case synthesis acceptance corpus, pre-training capture gates, artifact-aware held-out ASR intelligibility + speaker-similarity candidate selection, completed-build/evaluation-to-candidate binding, enforced preview listening, post-approval temporary-build cleanup, matched provenance, and fail-closed regression comparison;
 - Quality Readiness aggregates Translation + ASR + TTS comparison evidence without recalculating domain metrics, verifies expected candidate identities and input-report SHA-256, and fails closed if any domain is incomplete or regressed;
 - My Voice live inference isolated from one-shot dataset/training/evaluation/package construction;
-- one-shot signed app updater source contract: one startup check only, no updater polling scheduler/daemon, GitHub Release endpoint ownership, activity-safe install blockers, release updater-artifact generation, and fail-closed signing requirements.
+- one-shot signed app updater source contract: one startup check only, no updater polling scheduler/daemon, GitHub Release endpoint ownership, activity-safe install blockers, release updater-artifact generation, and fail-closed signing requirements;
+- bounded productivity contracts: explicit command-palette Quick Translate, in-memory Text cache, temporary last-session review, advisory Meeting preset suggestions with atomic Rust-side apply, sanitized bounded local preset/feedback storage, and reviewable/clearable opt-in translation feedback.
 
 ## Verification surfaces
 

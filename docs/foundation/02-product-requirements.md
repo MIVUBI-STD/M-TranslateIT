@@ -239,6 +239,16 @@ Indonesian speech
 ### PR-093 — Size truth
 **MUST NOT:** Silently truncate large Text input; expose a clear bounded limit/failure.
 
+### PR-094 — Text cache
+**MAY:** Reuse identical Text translations from a small in-memory per-launch cache keyed by source, direction, style, and terminology state.
+
+**MUST:** Cache remain bounded and process-local. **MUST NOT:** Persist translation results across app launches or use cached Meeting context.
+
+### PR-095 — Quick Translate
+**MAY:** Offer explicit user-invoked Quick Translate from clipboard/selected-text workflows.
+
+**MUST NOT:** Run a background clipboard watcher or assign a default global OS shortcut without a new explicit product decision.
+
 ## 11. Privacy and storage
 
 ### PR-100 — No general persistence dependency
@@ -252,6 +262,16 @@ Indonesian speech
 
 ### PR-103 — Storage roots
 **MUST:** Preserve `CacheData` temporary, `LogData` redacted diagnostics, `SavedProject/VoiceLab` approved persistent My Voice actor. `VoiceLab` is storage compatibility vocabulary only.
+
+### PR-104 — Temporary session review
+**MAY:** Retain only the most recently ended Meeting transcript in memory for explicit review/copy/export until a new Meeting starts or the app exits.
+
+**MUST NOT:** Turn this into general persistent History.
+
+### PR-105 — Translation feedback
+**MAY:** Store opt-in local translation issue reports for quality review.
+
+**MUST:** Feedback remain bounded, explicitly reviewable/exportable/clearable, and never become automatic model context.
 
 ## 12. My Voice and built-in voices
 
@@ -303,6 +323,11 @@ Indonesian speech
 
 ### PR-164 — Settings
 **MUST:** Meeting settings own device/setup preferences; Advanced owns diagnostics. My Voice creation remains on My Voice.
+
+### PR-164A — Meeting presets
+**MAY:** Users may save a small bounded set of Meeting presets for language/style/audio preferences.
+
+**MUST:** Applying a preset is explicit, validates required devices before persistence, and never silently auto-applies from meeting-app detection. Detection may only suggest the last explicitly used preset for that provider.
 
 ### PR-165 — Vocabulary
 **MUST:** Normal users see product states such as Ready, Live, Setup Needed, Unavailable, Checking, Training, Needs Review rather than internal runtime vocabulary.
