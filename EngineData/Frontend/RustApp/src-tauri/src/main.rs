@@ -3,8 +3,7 @@ mod commands;
 mod engine;
 
 use tauri::Manager;
-
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
+use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
 
 fn main() {
     let app = commands::registry::register(
