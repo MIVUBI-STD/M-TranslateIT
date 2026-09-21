@@ -9,6 +9,10 @@ const workflow = readFileSync(
 
 test("Code Health supports explicit exact-SHA proof runs", () => {
   assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /if \[\[ "\$EVENT_NAME" == "workflow_dispatch" \]\]/);
+  assert.match(workflow, /frontend=true/);
+  assert.match(workflow, /python=true/);
+  assert.match(workflow, /rust=true/);
   assert.match(workflow, /proof-summary:/);
   assert.match(workflow, /Exact SHA proof summary/);
 });
