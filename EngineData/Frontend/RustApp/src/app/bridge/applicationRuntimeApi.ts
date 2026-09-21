@@ -62,7 +62,6 @@ export type ApplicationInputStatus = {
   callback_frames_observed: number;
   selected_device_name: string | null;
   input_device_name: string | null;
-  device_count: number;
   blocker: string;
   note: string;
 };
@@ -131,7 +130,6 @@ function unavailableSnapshot(): ApplicationSnapshot {
       callback_frames_observed: 0,
       selected_device_name: null,
       input_device_name: null,
-      device_count: 0,
       blocker: "application_runtime:unavailable",
       note: "Application runtime is unavailable.",
     },
