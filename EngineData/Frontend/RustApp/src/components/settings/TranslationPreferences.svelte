@@ -3,6 +3,7 @@
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
   import FloatingCaptionPreferences from "./FloatingCaptionPreferences.svelte";
+  import TranslationFeedbackReview from "./TranslationFeedbackReview.svelte";
 
   const MAX_TERMS = 24;
   const MAX_SPOKEN_TERMS = 24;
@@ -256,6 +257,8 @@
 </article>
 
 <FloatingCaptionPreferences {onNotice} />
+
+<TranslationFeedbackReview {onNotice} />
 
 <article class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">

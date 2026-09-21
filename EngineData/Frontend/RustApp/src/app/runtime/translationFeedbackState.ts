@@ -19,7 +19,7 @@ const KEY = "translateit.translation-feedback.v1";
 const MAX_ENTRIES = 40;
 const MAX_TEXT_CHARS = 2000;
 
-function readAll(): TranslationFeedbackEntry[] {
+export function readTranslationFeedback(): TranslationFeedbackEntry[] {
   try {
     const raw = localStorage.getItem(KEY);
     const parsed = raw ? JSON.parse(raw) : [];
@@ -37,9 +37,9 @@ export function saveTranslationFeedback(entry: Omit<TranslationFeedbackEntry, "i
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: Date.now(),
   };
-  try { localStorage.setItem(KEY, JSON.stringify([next, ...readAll()].slice(0, MAX_ENTRIES))); } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify([next, ...readTranslationFeedback()].slice(0, MAX_ENTRIES))); } catch {}
 }
 
-export function translationFeedbackCount(): number {
-  return readAll().length;
+export function clearTranslationFeedback(): void {
+  try { localStorage.removeItem(KEY); } catch {}
 }
