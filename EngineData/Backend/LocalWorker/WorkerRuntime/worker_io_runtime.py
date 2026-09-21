@@ -322,9 +322,7 @@ def handle_voice_actor_synthesize(payload: dict[str, Any]) -> dict[str, Any]:
         source_text = common.compact_runtime_text(
             payload.get("source_text", ""), common.MAX_TTS_TEXT_CHARS
         )
-        source_speech_duration_ms = max(
-            0, int(payload.get("source_speech_duration_ms", 0) or 0)
-        )
+        source_speech_duration_ms = max(0, int(payload.get("source_speech_duration_ms", 0) or 0))
         pace_factor = voice_actor_provider.meeting_pace_factor(
             runtime,
             source_text,
