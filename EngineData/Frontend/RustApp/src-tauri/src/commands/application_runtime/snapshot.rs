@@ -6,7 +6,9 @@ use super::lifecycle::derive_lifecycle;
 use super::problems::collect_problems;
 use super::resources::resolve_resources;
 use super::summaries::build_subsystem_summaries;
-use super::super::{audio, helper_bridge, meeting_session, settings};
+use super::super::{
+    audio, helper_bridge, meeting_session, settings, voice_lab, voice_lab_recording,
+};
 
 static APPLICATION_REVISION: AtomicU64 = AtomicU64::new(0);
 
@@ -26,13 +28,21 @@ pub fn current_application_snapshot() -> ApplicationSnapshot {
         blocker: native_input.blocker.clone(),
         note: native_input.note.clone(),
     };
+    let voice_build = voice_lab::current_voice_lab_build_snapshot();
+    let voice_recording_active = voice_lab_recording::voice_lab_recording_active();
     let worker = if helper.state == "ready" {
         Some(helper_bridge::helper_bridge_worker_status())
     } else {
         None
     };
 
-    let summaries = build_subsystem_summaries(&meeting, &helper, &native_input);
+    let summaries = build_subsystem_summaries(
+        &meeting,
+        &helper,
+        &native_input,
+        &voice_build,
+        voice_recording_active,
+    );
     let resources = resolve_resources(&summaries);
     let lifecycle = derive_lifecycle(&summaries);
     let capabilities = resolve_capabilities(&summaries, &resources);
