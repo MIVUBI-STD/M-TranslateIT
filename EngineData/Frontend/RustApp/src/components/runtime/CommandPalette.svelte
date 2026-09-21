@@ -67,6 +67,7 @@
     <div
       class="w-full max-w-[620px] overflow-hidden rounded-[16px] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] shadow-2xl"
       role="dialog"
+      tabindex="-1"
       aria-modal="true"
       aria-label="Quick actions"
       onkeydown={handleKeydown}
