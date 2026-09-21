@@ -20,6 +20,7 @@ function transcriptStatusKey(status: MeetingSessionStatus): string {
 export async function readMeetingReconciliation(
   currentTurns: MeetingCommittedTurnsSnapshot | null,
   previousStatusKey: string,
+  forceTurns = false,
 ): Promise<MeetingReconcileResult | null> {
   try {
     const status = await runtimeApi.getMeetingSessionStatus();
@@ -32,7 +33,7 @@ export async function readMeetingReconciliation(
     }
 
     const statusKey = transcriptStatusKey(status);
-    if (statusKey === previousStatusKey) {
+    if (statusKey === previousStatusKey && !forceTurns) {
       return { status, turns: currentTurns, transcriptStatusKey: previousStatusKey, unavailable: false };
     }
 
