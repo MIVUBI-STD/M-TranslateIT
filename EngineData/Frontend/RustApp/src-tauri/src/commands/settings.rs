@@ -6,7 +6,10 @@ use crate::commands::diagnostic_trace::{trace_command_end, trace_command_start};
 use crate::engine;
 use crate::engine::logging::{write_jsonl_event, RuntimeLogEvent};
 use crate::engine::paths::ProjectPaths;
-use crate::engine::runtime_state::latest_runtime_session_state;
+use crate::engine::runtime_state::{
+    latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID, MIC_TEST_OWNER_ID,
+    VOICE_RECORDING_OWNER_ID,
+};
 use crate::engine::settings::RuntimeSettings;
 use crate::engine::state::{CommandResult, LifecycleState};
 
@@ -69,6 +72,24 @@ fn runtime_session_owns_audio_resources() -> bool {
     latest_runtime_session_state().has_active_session
 }
 
+fn audio_resource_lock_message(action: &str) -> String {
+    let runtime = latest_runtime_session_state();
+    let owner = runtime
+        .snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.owner_id.as_str());
+
+    let activity = match owner {
+        Some(APPLICATION_MEETING_OWNER_ID) => "Translation",
+        Some(MIC_TEST_OWNER_ID) => "Mic Test",
+        Some(VOICE_RECORDING_OWNER_ID) => "My Voice recording",
+        Some(_) => "the current audio action",
+        None => "the current audio action",
+    };
+
+    format!("Stop {activity} before {action}. The current audio preferences were kept.")
+}
+
 fn audio_preferences_changed(current: &RuntimeSettings, candidate: &RuntimeSettings) -> bool {
     current.audio.input_device_id != candidate.audio.input_device_id
         || current.audio.output_device_id != candidate.audio.output_device_id
@@ -108,7 +129,7 @@ pub fn save_runtime_settings(settings: RuntimeSettings) -> CommandResult {
     {
         CommandResult::blocked(
             LifecycleState::Error,
-            "Stop Translation or Mic Test before changing audio devices. The current audio preferences were kept.",
+            audio_resource_lock_message("changing audio devices"),
         )
     } else {
         persist_runtime_settings(candidate)
@@ -129,7 +150,8 @@ pub fn apply_meeting_preset(settings: RuntimeSettings) -> MeetingPresetApplyResu
         trace_command_end("apply_meeting_preset", started, "active_runtime_session_locked");
         return MeetingPresetApplyResult {
             ok: false,
-            message: "Stop Translation or Mic Test before applying a Meeting preset. The current setup was kept.".to_string(),
+            message: audio_resource_lock_message("applying a Meeting preset")
+                .replace("audio preferences", "setup"),
             settings: current,
         };
     }
@@ -207,8 +229,8 @@ pub fn select_audio_device(kind: String, device_id: Option<String>) -> AudioDevi
             kind: kind.clone(),
             device_id: requested,
             device_name: current_device_label(&current, &kind),
-            message: "Stop Translation or Mic Test before changing audio devices. The current preference was kept."
-                .to_string(),
+            message: audio_resource_lock_message("changing audio devices")
+                .replace("audio preferences", "preference"),
             settings: current,
         };
     }
