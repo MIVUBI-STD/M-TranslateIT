@@ -134,6 +134,7 @@ jobs:
       - run: npm run validate:source-size
       - run: npm run validate:bridge-contract
       - run: npm run validate:reachability
+      - run: npm run validate:dependency-usage
       - run: npm run validate:virtual-route
       - run: npm run preflight:tauri-package
       - name: Audit production npm dependencies
