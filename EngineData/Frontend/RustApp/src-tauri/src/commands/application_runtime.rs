@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::Emitter;
 
-use super::{audio, helper_bridge, meeting_session, runtime, settings};
+use super::{audio, helper_bridge, meeting_session, mic_test, runtime, settings};
 
 static APPLICATION_REVISION: AtomicU64 = AtomicU64::new(0);
 
@@ -232,6 +232,14 @@ pub fn dispatch_product_intent(app: tauri::AppHandle, intent: String) -> Applica
             let result = meeting_session::stop_meeting_translation();
             (result.ok, result.state, result.message)
         }
+        "start_mic_test" => {
+            let result = mic_test::start_capture();
+            (result.ok, result.state.to_string(), result.message)
+        }
+        "stop_mic_test" => {
+            let result = mic_test::stop_capture();
+            (result.ok, result.state.to_string(), result.message)
+        }
         "refresh" => (
             true,
             "refreshed".to_string(),
@@ -258,7 +266,8 @@ pub fn dispatch_product_intent(app: tauri::AppHandle, intent: String) -> Applica
 
 #[cfg(test)]
 mod tests {
-    use super::{derive_lifecycle, json};
+    use super::derive_lifecycle;
+    use serde_json::json;
     
     #[test]
     fn lifecycle_prefers_active_meeting_truth() {
