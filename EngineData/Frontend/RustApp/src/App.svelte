@@ -267,10 +267,12 @@
     micTestBusy = true;
     const wasRecording = snapshot.readiness.recording || micTestOwnsRuntime;
     try {
-      const result = wasRecording ? await runtimeApi.stopCapture() : await runtimeApi.startCapture();
+      const result = await applicationRuntimeApi.dispatchIntent(
+        wasRecording ? "stop_mic_test" : "start_mic_test",
+      );
       await refreshSnapshot(result.ok
         ? (wasRecording ? "Mic Test stopped." : "Mic Test started.")
-        : "Mic Test couldn't be completed. Try again.");
+        : result.message || "Mic Test couldn't be completed. Try again.");
     } catch {
       setNotice("Mic Test couldn't be completed. Check your microphone and try again.");
     } finally {
