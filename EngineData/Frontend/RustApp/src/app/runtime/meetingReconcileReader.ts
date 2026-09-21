@@ -1,5 +1,6 @@
 import { runtimeApi, type MeetingCommittedTurnsSnapshot, type MeetingSessionStatus } from "../bridge/runtimeApi";
 import { meetingBridgeUnavailable } from "../bridge/runtimeProductFacade";
+import { APPLICATION_MEETING_OWNER_ID } from "../shared/types";
 
 export type MeetingReconcileResult = {
   status: MeetingSessionStatus;
@@ -28,7 +29,10 @@ export async function readMeetingReconciliation(
       return { status, turns: null, transcriptStatusKey: "", unavailable: true };
     }
 
-    if (!status.has_session) {
+    if (
+      !status.has_session
+      || status.owner_id !== APPLICATION_MEETING_OWNER_ID
+    ) {
       return { status, turns: null, transcriptStatusKey: "", unavailable: false };
     }
 
