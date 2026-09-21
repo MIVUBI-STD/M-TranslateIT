@@ -4,11 +4,11 @@
 
 `Local` is the sole active source, development, governance, CI, proof, and continuation authority.
 
-Current source includes Spoken Terms, Meeting app detection, recent/paused captions, direction switching, Natural/Formal style, Audio Quality Guard, Noise Suppression, command-palette Quick Translate Clipboard, transcript export, temporary last-session review, user-driven Meeting presets with detected-app suggestions, searchable/CSV terminology maintenance, bounded in-memory Text translation cache, local opt-in translation issue feedback, caption readability controls, and bounded My Voice pace preservation.
+Remote source work now includes the bounded productivity set: command-palette Quick Translate Clipboard, Smart Copy, searchable/pinnable live Meeting turns, temporary last-session review, user-driven Meeting presets with detected-app suggestions, searchable/CSV terminology maintenance, bounded in-memory Text cache, and opt-in local translation feedback with explicit review/export/clear.
 
-Reliability includes crash-safe startup recovery, bounded watchdog, fail-closed device loss, redacted support export, bounded incident history, long-session pressure monitoring, and centralized live-monitor ownership.
+The final remote zero-waste pass removed unused productivity state, closed the write-only feedback loop, removed Command Palette accessibility warnings, sanitizes malformed local preset/feedback storage, and moves Meeting preset application into one Rust command that checks runtime ownership, validates both audio devices, sanitizes the candidate, and persists once.
 
-Architecture remains one Tauri 2 / Svelte 5 / Rust desktop app plus one canonical Python worker for Faster-Whisper ASR, MiLMMT ID↔EN translation, and GPT-SoVITS voice work. Updates remain a signed one-shot startup check with no updater daemon.
+Reliability remains crash-safe and bounded: watchdog, device-loss handling, redacted support export, incident history, long-session pressure monitoring, centralized live-monitor ownership, one canonical local AI pipeline, and one-shot signed updater.
 
 ## Active Boundary
 
@@ -22,10 +22,12 @@ Preserve:
 - no cloud fallback, second normal translation/TTS engine, background updater, clipboard watcher, persistent translation cache, Auto Language Detection, or Screen Translation;
 - Quick Translate without a default global OS shortcut.
 
-Remote proof never implies native Windows, GPU, audio-route, installer, meeting-app, mixed-DPI, sleep/wake, device-loss, audible My Voice, updater-install, or clean-machine acceptance.
+Do not expand productivity breadth without a concrete source defect or new explicit product decision.
 
 ## Next Step
 
-Keep `Local` green. Resolve exact current-HEAD CI/governance regressions first. Then audit only falsifiable high-value defects: dead/unreachable reliability code, duplicate polling ownership, filesystem I/O under runtime locks, unbounded growth, privacy leakage, multi-instance recovery conflicts, bridge/API drift, source-size regressions, and incorrect long-session semantics.
+Remote feature/source expansion is complete unless CI exposes a concrete regression.
 
-Do not expand productivity breadth further unless a concrete gap is demonstrated. If no material remote defect remains, preserve the repo for TARGET_WINDOWS acceptance using `docs/knowledge/operations/target-windows-performance.md`.
+Proceed to `TARGET_WINDOWS` acceptance using `docs/knowledge/operations/target-windows-performance.md`. Validate the installed app on the intended Windows machine: physical microphone, TranslateIT Meeting Microphone route, Zoom/Teams/Meet/Discord reception, real GPU/CPU/RAM/VRAM behavior, Start→Live and speech→playback latency, long-session stability, mixed-DPI overlay, sleep/wake, unplug/replug, My Voice audible quality, updater install, and clean-machine setup.
+
+Source/hosted CI proof must not be reported as native-device acceptance.
