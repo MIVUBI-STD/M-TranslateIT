@@ -12,6 +12,19 @@ import type {
   RuntimeSettings,
 } from "../shared/types";
 
+export type AudioQualityReport = {
+  available: boolean;
+  quality: "good" | "too_quiet" | "clipping" | "noisy" | "unavailable" | string;
+  label: string;
+  rms: number;
+  peak: number;
+  clipping_ratio: number;
+  active_frame_ratio: number;
+  buffered_duration_ms: number;
+  blocker: string;
+  note: string;
+};
+
 export type AudioDeviceProbeReport = {
   ok: boolean;
   device_kind: string;
@@ -284,6 +297,21 @@ function normalizeInputStatus(status: NativeInputPreparationStatus): InputPrepar
   };
 }
 
+function audioQualityFallback(): AudioQualityReport {
+  return {
+    available: false,
+    quality: "unavailable",
+    label: "Run Mic Test to measure",
+    rms: 0,
+    peak: 0,
+    clipping_ratio: 0,
+    active_frame_ratio: 0,
+    buffered_duration_ms: 0,
+    blocker: "frontend_bridge_unavailable",
+    note: "Audio quality is unavailable right now.",
+  };
+}
+
 function audioDevicesFallback(message: string): AudioDeviceListReport {
   return {
     ok: false,
@@ -474,6 +502,14 @@ export const runtimeApi = {
       "stop_capture",
       undefined,
       commandFallback("Stop capture failed before reaching the Tauri command bridge."),
+    );
+  },
+
+  async getAudioQuality(): Promise<AudioQualityReport> {
+    return invokeOr<AudioQualityReport>(
+      "get_audio_quality",
+      undefined,
+      audioQualityFallback(),
     );
   },
 

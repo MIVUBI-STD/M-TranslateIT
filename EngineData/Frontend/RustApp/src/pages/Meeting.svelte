@@ -6,6 +6,7 @@
     type MeetingCommittedTurnsSnapshot,
     type MeetingSessionStatus,
     type MeetingAppDetection,
+    type AudioQualityReport,
     type VirtualMicRouteContractStatus,
   } from "../app/bridge/runtimeApi";
   import type { ProductRuntimeSnapshot } from "../app/bridge/runtimeProductFacade";
@@ -39,7 +40,9 @@
 
   let routeStatus = $state<VirtualMicRouteContractStatus | null>(null);
   let meetingDetection = $state<MeetingAppDetection | null>(null);
+  let audioQuality = $state<AudioQualityReport | null>(null);
   let detectionInFlight = false;
+  let audioQualityInFlight = false;
   let resumeBusy = $state(false);
   let directionSaving = $state(false);
   let resumeError = $state("");
@@ -73,6 +76,12 @@
   const microphoneUnavailable = $derived(readiness.microphoneStatus === "Unavailable");
   const microphoneTone = $derived(statusTone(readiness.microphoneReady, checking, microphoneUnavailable));
   const routeTone = $derived(statusTone(readiness.meetingRouteReady, checking, runtimeUnavailable));
+  const audioQualityTone = $derived<Tone>(
+    audioQuality?.quality === "good" ? "good"
+      : audioQuality?.quality === "clipping" ? "danger"
+      : audioQuality?.available ? "warning"
+      : "neutral",
+  );
   const meetingTone = $derived(
     runtimeUnavailable
       ? "danger"
@@ -134,6 +143,18 @@
     }
   }
 
+  async function refreshAudioQuality(): Promise<void> {
+    if (audioQualityInFlight) return;
+    audioQualityInFlight = true;
+    try {
+      audioQuality = await runtimeApi.getAudioQuality();
+    } catch {
+      audioQuality = null;
+    } finally {
+      audioQualityInFlight = false;
+    }
+  }
+
   async function refreshMeetingDetection(): Promise<void> {
     if (detectionInFlight || meeting.hasSession) return;
     detectionInFlight = true;
@@ -186,8 +207,13 @@
   onMount(() => {
     void refreshRouteStatus();
     void refreshMeetingDetection();
+    void refreshAudioQuality();
     const detectionTimer = window.setInterval(() => void refreshMeetingDetection(), 5000);
-    return () => window.clearInterval(detectionTimer);
+    const qualityTimer = window.setInterval(() => void refreshAudioQuality(), 2500);
+    return () => {
+      window.clearInterval(detectionTimer);
+      window.clearInterval(qualityTimer);
+    };
   });
 </script>
 
@@ -272,6 +298,14 @@
           </div>
           <strong class="mt-2 block break-words text-[13px] font-semibold leading-5">{microphone}</strong>
           <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">The microphone you speak into.</p>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <StatusBadge label={audioQuality?.label ?? "Checking audio"} tone={audioQualityTone} />
+            {#if audioQuality?.available}
+              <span class="text-[10.5px] text-[var(--ti-text-soft)]" title={audioQuality.note}>
+                RMS {audioQuality.rms.toFixed(3)} · peak {audioQuality.peak.toFixed(3)}
+              </span>
+            {/if}
+          </div>
           {#if !readiness.microphoneReady}
             <div class="mt-3">
               <StatusBadge

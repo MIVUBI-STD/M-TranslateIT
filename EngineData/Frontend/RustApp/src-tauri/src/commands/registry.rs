@@ -14,6 +14,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::virtual_mic_route::get_virtual_mic_route_contract_status,
         crate::commands::runtime::verify_models,
         crate::commands::audio::get_input_status,
+        crate::commands::audio::get_audio_quality,
         crate::commands::audio::list_audio_devices,
         crate::commands::audio::probe_input_device_candidate,
         crate::commands::audio::probe_output_device_candidate,

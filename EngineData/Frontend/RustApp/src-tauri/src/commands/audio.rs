@@ -3,9 +3,93 @@ use serde::Serialize;
 
 use crate::engine;
 use crate::engine::audio::input::{probe_input_device_functionally, InputPreparationStatus};
+use crate::engine::audio::live_audio_buffer::live_audio_buffer_status;
 
 const MAX_AUDIO_DEVICE_NAME_CHARS: usize = 160;
 const MAX_AUDIO_DEVICES_PER_KIND: usize = 64;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AudioQualityReport {
+    pub available: bool,
+    pub quality: String,
+    pub label: String,
+    pub rms: f32,
+    pub peak: f32,
+    pub clipping_ratio: f32,
+    pub active_frame_ratio: f32,
+    pub buffered_duration_ms: u32,
+    pub blocker: String,
+    pub note: String,
+}
+
+fn classify_audio_quality(
+    has_audio: bool,
+    buffered_duration_ms: u32,
+    evidence_reason: &str,
+    rms: f32,
+    peak: f32,
+    clipping_ratio: f32,
+    active_frame_ratio: f32,
+) -> AudioQualityReport {
+    let unavailable = !has_audio || buffered_duration_ms < 160;
+    if unavailable {
+        return AudioQualityReport {
+            available: false,
+            quality: "unavailable".to_string(),
+            label: "Run Mic Test to measure".to_string(),
+            rms,
+            peak,
+            clipping_ratio,
+            active_frame_ratio,
+            buffered_duration_ms,
+            blocker: "audio_quality:not_enough_live_audio".to_string(),
+            note: "Audio quality uses the existing live microphone buffer. Start Mic Test or Meeting translation to measure it.".to_string(),
+        };
+    }
+
+    let (quality, label, blocker, note) = if clipping_ratio > 0.025 {
+        (
+            "clipping",
+            "Clipping",
+            "audio_quality:clipping",
+            "Input is clipping. Lower microphone gain or move farther from the microphone.",
+        )
+    } else if evidence_reason == "rejected_noise_like_impulse" {
+        (
+            "noisy",
+            "Noisy",
+            "audio_quality:noise_like_input",
+            "Input contains noise-like impulses that may reduce speech recognition accuracy.",
+        )
+    } else if rms < 0.006 || peak < 0.021 || active_frame_ratio < 0.05 {
+        (
+            "too_quiet",
+            "Too quiet",
+            "audio_quality:too_quiet",
+            "Speech level is low for the active Meeting VAD profile. Move closer or raise microphone gain.",
+        )
+    } else {
+        (
+            "good",
+            "Good",
+            "",
+            "Input level is within the current Meeting speech thresholds and is not clipping.",
+        )
+    };
+
+    AudioQualityReport {
+        available: true,
+        quality: quality.to_string(),
+        label: label.to_string(),
+        rms,
+        peak,
+        clipping_ratio,
+        active_frame_ratio,
+        buffered_duration_ms,
+        blocker: blocker.to_string(),
+        note: note.to_string(),
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioDeviceSummary {
@@ -229,4 +313,64 @@ pub fn probe_output_device_candidate(device_id: Option<String>) -> AudioDevicePr
 pub fn get_input_status() -> InputPreparationStatus {
     let settings = engine::load_settings();
     InputPreparationStatus::inspect_input_device(settings.audio.input_device_id.as_deref())
+}
+
+
+#[tauri::command]
+pub fn get_audio_quality() -> AudioQualityReport {
+    let status = live_audio_buffer_status();
+    classify_audio_quality(
+        status.has_audio,
+        status.buffered_duration_ms,
+        &status.evidence.reason,
+        status.evidence.rms,
+        status.evidence.peak,
+        status.evidence.clipping_ratio,
+        status.evidence.active_frame_ratio,
+    )
+}
+
+#[cfg(test)]
+mod audio_quality_tests {
+    use super::classify_audio_quality;
+
+    #[test]
+    fn quality_requires_live_audio_before_claiming_measurement() {
+        let report = classify_audio_quality(false, 0, "", 0.0, 0.0, 0.0, 0.0);
+        assert!(!report.available);
+        assert_eq!(report.quality, "unavailable");
+    }
+
+    #[test]
+    fn quality_prioritizes_clipping_over_loudness() {
+        let report = classify_audio_quality(true, 500, "", 0.3, 1.0, 0.04, 0.8);
+        assert_eq!(report.quality, "clipping");
+    }
+
+    #[test]
+    fn quality_surfaces_noise_like_impulses() {
+        let report = classify_audio_quality(
+            true,
+            500,
+            "rejected_noise_like_impulse",
+            0.08,
+            0.5,
+            0.0,
+            0.2,
+        );
+        assert_eq!(report.quality, "noisy");
+    }
+
+    #[test]
+    fn quality_marks_weak_speech_as_too_quiet() {
+        let report = classify_audio_quality(true, 500, "", 0.003, 0.015, 0.0, 0.04);
+        assert_eq!(report.quality, "too_quiet");
+    }
+
+    #[test]
+    fn quality_accepts_clear_nonclipping_speech() {
+        let report = classify_audio_quality(true, 500, "", 0.08, 0.4, 0.0, 0.4);
+        assert_eq!(report.quality, "good");
+        assert!(report.blocker.is_empty());
+    }
 }
