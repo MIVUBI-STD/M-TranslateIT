@@ -130,6 +130,10 @@ Current migrated vertical slices:
 - Meeting start / stop
 - Mic Test start / stop
 - Setup recovery / helper readiness
+- Shared audio device selection
+- My Voice recording start / stop
+- My Voice build start / cancel / approve
+- Built-in Meeting voice selection
 
 Rules:
 
@@ -139,3 +143,8 @@ Rules:
 4. Runtime events signal state changes. Polling remains a reconciliation/watchdog mechanism, not the preferred owner of lifecycle transitions.
 5. Existing commands remain temporarily available as compatibility paths while vertical slices migrate. Do not duplicate new orchestration rules in both the UI and feature commands.
 6. New cross-feature conflicts must be solved in `ApplicationRuntime` or the underlying resource owner, never by adding another page-specific boolean maze.
+
+
+### Intentional frontend-owned module: translation overlay
+
+The floating translation overlay remains frontend-owned. It manages window presentation, local preferences, caption rendering, and position state; these are UI concerns rather than shared resource ownership. Do not move overlay window implementation into ApplicationRuntime. Only promote an overlay concern into the application kernel if it becomes a real cross-feature lifecycle/resource invariant.
