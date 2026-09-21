@@ -95,6 +95,21 @@ if (runtimeStateSource.includes("translateit_rust_live_capture")) {
   failures.push("runtime_state.rs must not collapse Mic Test and My Voice into one live-capture owner");
 }
 
+const applicationContractSource = readFileSync(
+  join(runtimeRoot, "contract.rs"),
+  "utf8",
+);
+const applicationApiSource = readFileSync(
+  join(appRoot, "src", "app", "bridge", "applicationRuntimeApi.ts"),
+  "utf8",
+);
+if (applicationContractSource.includes("device_count")) {
+  failures.push("ApplicationInputStatus must not expose synthetic device_count");
+}
+if (applicationApiSource.includes("device_count")) {
+  failures.push("frontend ApplicationInputStatus must not restore synthetic device_count");
+}
+
 const runtimeApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeApi.ts"), "utf8");
 for (const forbidden of [
   '"select_audio_device"',
