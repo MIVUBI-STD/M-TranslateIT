@@ -11,6 +11,10 @@
   import { type CloseDialogAction, type CloseVerdict } from "./app/runtime/closePolicy";
   import { readMeetingPoll } from "./app/runtime/meetingPoll";
   import { startRuntimePoll } from "./app/runtime/pollRuntime";
+  import {
+    startMeetingReliabilityMonitor,
+    startupRecoveryNotice,
+  } from "./app/runtime/reliabilityMonitor";
   import { publishLatestMeetingOverlay } from "./app/runtime/translationOverlayRuntime";
   import {
     destroyTranslateItWindows,
@@ -415,7 +419,9 @@
         }
         setupSettings = cloneSettings(loadedSettings);
         setupRequired = setupSettings.meeting_setup_state === "new";
-        if (!setupRequired) await refreshSnapshot(undefined, loadedSettings);
+        const recoveryNotice = await startupRecoveryNotice().catch(() => null);
+        if (!setupRequired) await refreshSnapshot(recoveryNotice ?? undefined, loadedSettings);
+        else if (recoveryNotice) setNotice(recoveryNotice);
       } finally {
         if (!disposed) booting = false;
       }
@@ -439,6 +445,12 @@
   $effect(() =>
     !booting && !setupRequired && (snapshot?.meeting.hasSession || closeAfterExistingStop)
       ? startRuntimePoll(pollMeeting, 1200)
+      : undefined,
+  );
+
+  $effect(() =>
+    snapshot?.meeting.applicationOwned && snapshot.meeting.hasSession
+      ? startMeetingReliabilityMonitor(setNotice)
       : undefined,
   );
 </script>
