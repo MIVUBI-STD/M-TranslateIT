@@ -1,5 +1,17 @@
 import { runCommand } from "../shared/tauriBridge";
 
+export type DeviceLossGuardStatus = {
+  state: string;
+  healthy: boolean;
+  action_required: boolean;
+  required_device_lost: boolean;
+  optional_device_lost: boolean;
+  component: string;
+  blocker: string;
+  note: string;
+  updated_unix_ms: number;
+};
+
 export type RuntimeWatchdogStatus = {
   state: string;
   healthy: boolean;
@@ -23,6 +35,20 @@ export type StartupRecoveryReport = {
   note: string;
   checked_unix_ms: number;
 };
+
+export async function getDeviceLossGuardStatus(): Promise<DeviceLossGuardStatus> {
+  return (await runCommand<DeviceLossGuardStatus>("get_device_loss_guard_status")) ?? {
+    state: "unavailable",
+    healthy: false,
+    action_required: false,
+    required_device_lost: false,
+    optional_device_lost: false,
+    component: "",
+    blocker: "frontend_bridge_unavailable",
+    note: "Device-loss status is unavailable right now.",
+    updated_unix_ms: Date.now(),
+  };
+}
 
 export async function getRuntimeWatchdogStatus(): Promise<RuntimeWatchdogStatus> {
   return (await runCommand<RuntimeWatchdogStatus>("get_runtime_watchdog_status")) ?? {

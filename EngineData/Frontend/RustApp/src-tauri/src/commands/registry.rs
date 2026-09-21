@@ -6,6 +6,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::runtime::start_helper_bridge,
         crate::commands::runtime::verify_required_outbound_ai_readiness,
         crate::commands::runtime_watchdog::get_runtime_watchdog_status,
+        crate::commands::device_loss_guard::get_device_loss_guard_status,
         crate::commands::helper_bridge::helper_bridge_worker_status,
         crate::commands::meeting_session::get_meeting_session_status,
         crate::commands::meeting_detection::detect_meeting_app,

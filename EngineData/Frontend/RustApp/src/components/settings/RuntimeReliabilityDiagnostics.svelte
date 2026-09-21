@@ -1,19 +1,23 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
-  import type {
-    RuntimeWatchdogStatus,
-    StartupRecoveryReport,
+  import {
+    getDeviceLossGuardStatus,
+    type DeviceLossGuardStatus,
+    type RuntimeWatchdogStatus,
+    type StartupRecoveryReport,
   } from "../../app/bridge/reliabilityApi";
   import StatusBadge from "../ui/StatusBadge.svelte";
 
   let watchdog = $state<RuntimeWatchdogStatus | null>(null);
   let recovery = $state<StartupRecoveryReport | null>(null);
+  let devices = $state<DeviceLossGuardStatus | null>(null);
 
   async function refresh(): Promise<void> {
-    [watchdog, recovery] = await Promise.all([
+    [watchdog, recovery, devices] = await Promise.all([
       runtimeApi.getRuntimeWatchdogStatus().catch(() => null),
       runtimeApi.getStartupRecoveryStatus().catch(() => null),
+      getDeviceLossGuardStatus().catch(() => null),
     ]);
   }
 
@@ -34,11 +38,16 @@
     />
   </div>
 
-  <div class="mt-4 grid grid-cols-2 gap-3">
+  <div class="mt-4 grid grid-cols-3 gap-3">
     <div class="ti-state-card">
       <span class="ti-field-label">Watchdog</span>
       <strong class="mt-2 block text-[12px]">{watchdog?.state ?? "Not checked"}</strong>
       <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{watchdog?.note ?? "Open Diagnostics again to refresh runtime health."}</p>
+    </div>
+    <div class="ti-state-card">
+      <span class="ti-field-label">Devices</span>
+      <strong class="mt-2 block text-[12px]">{devices?.state ?? "Not checked"}</strong>
+      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{devices?.note ?? "Device-loss status has not been loaded."}</p>
     </div>
     <div class="ti-state-card">
       <span class="ti-field-label">Previous shutdown</span>

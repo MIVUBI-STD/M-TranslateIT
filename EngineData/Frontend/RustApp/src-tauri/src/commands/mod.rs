@@ -3,6 +3,7 @@ pub mod audio;
 pub mod bridge_paths;
 pub mod builtin_voice;
 pub mod diagnostic_trace;
+pub mod device_loss_guard;
 pub mod helper_bridge;
 pub mod helper_bridge_runtime;
 pub mod meeting_session;
