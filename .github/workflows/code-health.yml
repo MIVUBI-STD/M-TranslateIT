@@ -1,6 +1,7 @@
 name: Code Health
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - Local
