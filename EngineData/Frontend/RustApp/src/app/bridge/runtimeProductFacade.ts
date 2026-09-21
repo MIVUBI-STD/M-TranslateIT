@@ -95,10 +95,12 @@ export async function loadProductRuntimeSnapshot(knownSettings?: RuntimeSettings
     application = (await applicationRuntimeApi.dispatchIntent("ensure_runtime_ready")).snapshot;
   }
 
-  const approvedVoiceReady = await loadApprovedVoiceReady();
-  const meetingSession = application.meeting;
   const helper = application.helper;
-  const workerStatus = application.worker;
+  const [approvedVoiceReady, workerStatus] = await Promise.all([
+    loadApprovedVoiceReady(),
+    helper.state === "ready" ? runtimeApi.helperBridgeWorkerStatus() : Promise.resolve(null),
+  ]);
+  const meetingSession = application.meeting;
   const inputStatus = application.input;
   const meeting = mapProductMeetingState(meetingSession);
   const readiness = mapProductReadiness({
