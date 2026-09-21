@@ -27,7 +27,6 @@ export type ApplicationProblem = {
 export type ApplicationCapabilities = {
   meeting_translation: boolean;
   mic_test: boolean;
-  text_translation: boolean;
 };
 
 export type MeetingSummary = {
@@ -43,7 +42,7 @@ export type MeetingSummary = {
 
 export type WorkerSummary = {
   state: string;
-  ready: boolean;
+  process_ready: boolean;
   degraded: boolean;
   message: string;
 };
@@ -82,7 +81,6 @@ export type ApplicationSubsystemSummaries = {
 export type ResourceArbitration = {
   audio_locked: boolean;
   microphone_available: boolean;
-  meeting_audio_available: boolean;
   active_owner: string | null;
   owner_kind: "meeting" | "mic_test" | "voice_recording" | "other" | "none" | string;
   blocker: string;
@@ -147,7 +145,7 @@ function unavailableSnapshot(): ApplicationSnapshot {
       },
       worker: {
         state: "unavailable",
-        ready: false,
+        process_ready: false,
         degraded: false,
         message: "Application runtime is unavailable.",
       },
@@ -166,7 +164,6 @@ function unavailableSnapshot(): ApplicationSnapshot {
     resources: {
       audio_locked: true,
       microphone_available: false,
-      meeting_audio_available: false,
       active_owner: null,
       owner_kind: "other",
       blocker: "application_runtime:unavailable",
@@ -174,7 +171,6 @@ function unavailableSnapshot(): ApplicationSnapshot {
     capabilities: {
       meeting_translation: false,
       mic_test: false,
-      text_translation: false,
     },
     problems: [{
       code: "application_runtime:unavailable",
