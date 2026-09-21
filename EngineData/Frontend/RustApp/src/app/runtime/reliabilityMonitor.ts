@@ -1,8 +1,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
-  getDeviceLossGuardStatus,
   getLongSessionHealthStatus,
-  getRuntimeWatchdogStatus,
+  getMeetingReliabilitySnapshot,
 } from "../bridge/reliabilityApi";
 
 const LIVE_RELIABILITY_POLL_MS = 8_000;
@@ -24,10 +23,7 @@ type MeetingRuntimeEvent = {
 };
 
 async function readLiveReliabilityNotice(): Promise<ReliabilityNotice | null> {
-  const [watchdog, devices] = await Promise.all([
-    getRuntimeWatchdogStatus(),
-    getDeviceLossGuardStatus(),
-  ]);
+  const { watchdog, devices } = await getMeetingReliabilitySnapshot();
 
   if (devices.action_required && devices.blocker) {
     return { key: devices.blocker, message: devices.note };
