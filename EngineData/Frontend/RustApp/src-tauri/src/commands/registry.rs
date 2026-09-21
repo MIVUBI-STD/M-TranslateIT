@@ -17,6 +17,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::runtime::start_helper_bridge,
         crate::commands::runtime::verify_required_outbound_ai_readiness,
         crate::commands::runtime_watchdog::get_runtime_watchdog_status,
+        crate::commands::reliability_snapshot::get_meeting_reliability_snapshot,
         crate::commands::device_loss_guard::get_device_loss_guard_status,
         crate::commands::incident_log::get_recent_runtime_incidents,
         crate::commands::long_session_health::get_long_session_health_status,
