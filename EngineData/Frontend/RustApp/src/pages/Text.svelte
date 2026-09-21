@@ -3,9 +3,11 @@
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
   import { publishTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
+  import { getCachedTextTranslation, putCachedTextTranslation, textTranslationCacheKey } from "../app/runtime/textTranslationCache";
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
+  import TranslationFeedback from "../components/text/TranslationFeedback.svelte";
 
   const MAX_MANUAL_TRANSLATION_CHARS = 2000;
   type TextResultState = "idle" | "translating" | "success" | "stale" | "error";
@@ -86,6 +88,20 @@
     const requestSource = source;
     const requestTargetRevision = targetRevision;
     const previousTarget = targetText;
+    const cacheKey = textTranslationCacheKey(requestSource, settings);
+    const cached = getCachedTextTranslation(cacheKey);
+    if (cached) {
+      targetText = cached.translated;
+      reviewHints = cached.reviewHints;
+      lastTranslatedSource = requestSource;
+      setResult(
+        cached.needsReview ? "stale" : "success",
+        cached.needsReview ? "Check details" : "Translated",
+        "Translation restored from this app session.",
+      );
+      onNotice("Translation restored instantly from the local session cache.");
+      return;
+    }
     translating = true;
     copyState = "idle";
     reviewHints = [];
@@ -111,6 +127,13 @@
       targetText = result.translated;
       reviewHints = result.reviewHints;
       lastTranslatedSource = requestSource;
+      putCachedTextTranslation({
+        key: cacheKey,
+        translated: result.translated,
+        reviewHints: result.reviewHints,
+        needsReview: result.needsReview,
+        message: result.message,
+      });
       if (sourceText.trim() === requestSource) {
         setResult(
           result.needsReview ? "stale" : "success",
@@ -355,6 +378,13 @@
           {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
           {copyState === "copied" ? "Copied" : "Copy"}
         </button>
+        <TranslationFeedback
+          source={sourceText.trim()}
+          translation={targetText.trim()}
+          sourceLanguage={settings.source_language}
+          targetLanguage={settings.target_language}
+          {onNotice}
+        />
         <button type="button" class="ti-button min-w-28" disabled={translating || alternativeBusy} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
       </div>
     </footer>
