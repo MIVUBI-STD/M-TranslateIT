@@ -109,7 +109,16 @@ export async function loadProductRuntimeSnapshot(knownSettings?: RuntimeSettings
     meetingSession,
     approvedVoiceReady,
   });
-  return { settings, readiness, meeting, meetingSession, helper, workerStatus, inputStatus };
+  return {
+    settings,
+    readiness,
+    meeting,
+    meetingSession,
+    helper,
+    workerStatus,
+    inputStatus,
+    resources: application.resources,
+  };
 }
 
 export async function runProductMeetingAction(action: ProductMeetingAction): Promise<ProductMeetingActionResult> {
