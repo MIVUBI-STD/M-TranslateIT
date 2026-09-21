@@ -31,7 +31,9 @@ export function textTranslationCacheKey(source: string, settings: RuntimeSetting
 export function getCachedTextTranslation(key: string): TextTranslationCacheEntry | null {
   const index = entries.findIndex((entry) => entry.key === key);
   if (index < 0) return null;
-  const [hit] = entries.splice(index, 1);
+  const hit = entries[index];
+  if (!hit) return null;
+  entries.splice(index, 1);
   entries.unshift(hit);
   return { ...hit, reviewHints: [...hit.reviewHints] };
 }
