@@ -2,7 +2,7 @@ import type {
   MeetingCommittedTurnsSnapshot,
   MeetingSessionStatus,
 } from "../bridge/runtimeApi";
-import { readMeetingPoll } from "./meetingReconcileReader";
+import { readMeetingReconciliation } from "./meetingReconcileReader";
 import { publishLatestMeetingOverlay } from "./translationOverlayRuntime";
 
 export type MeetingLiveViewState = {
@@ -74,7 +74,7 @@ export function createMeetingLiveController(): {
       const revision = state.revision;
       state = { ...state, inFlight: true };
       try {
-        const result = await readMeetingPoll(state.turns, state.transcriptStatusKey);
+        const result = await readMeetingReconciliation(state.turns, state.transcriptStatusKey);
         if (!result || revision !== state.revision) return publish();
 
         callbacks.onStatus(result.status);
