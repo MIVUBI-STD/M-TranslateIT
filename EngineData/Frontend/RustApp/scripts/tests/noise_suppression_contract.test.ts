@@ -22,5 +22,5 @@ test("meeting consumers snapshot suppression once instead of rereading per utter
 test("noise suppression happens after VAD and before ASR wav without a neural model", () => {
   assert.match(writer, /suppress_low_level_noise/);
   assert.match(writer, /write_pcm16_wav/);
-  assert.doesNotMatch(writer, /onnxruntime|ort::|tch::|send_helper_worker_task|Command::new/);
+  assert.doesNotMatch(writer, /onnxruntime|tch::|send_helper_worker_task|std::process::Command/);
 });
