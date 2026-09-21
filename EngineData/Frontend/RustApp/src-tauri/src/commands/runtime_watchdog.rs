@@ -5,6 +5,7 @@ use super::helper_bridge::get_helper_bridge_status;
 use super::helper_bridge_runtime::{
     WORKER_INFERENCE_RESPONSE_DEADLINE_MS, WORKER_SYNTHESIS_RESPONSE_DEADLINE_MS,
 };
+use super::incident_log::record_runtime_incident;
 use super::meeting_session::{get_meeting_session_status, MeetingSessionStatus};
 
 const WATCHDOG_GRACE_MS: u128 = 15_000;
@@ -193,13 +194,22 @@ fn evaluate_meeting_watchdog(
 pub fn get_runtime_watchdog_status() -> RuntimeWatchdogStatus {
     let meeting = get_meeting_session_status();
     let helper = get_helper_bridge_status();
-    evaluate_meeting_watchdog(
+    let status = evaluate_meeting_watchdog(
         &meeting,
         helper.active_task.as_deref(),
         helper.active_meeting_session_id.as_deref(),
         helper.updated_unix_ms,
         unix_ms(),
-    )
+    );
+    if !status.healthy && !status.blocker.is_empty() {
+        let _ = record_runtime_incident(
+            "runtime_watchdog",
+            &status.component,
+            &status.blocker,
+            &status.note,
+        );
+    }
+    status
 }
 
 #[cfg(test)]

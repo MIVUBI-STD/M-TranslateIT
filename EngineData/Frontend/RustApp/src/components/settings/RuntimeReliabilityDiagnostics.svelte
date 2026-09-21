@@ -4,7 +4,9 @@
   import {
     exportDiagnosticSupportBundle,
     getDeviceLossGuardStatus,
+    getRecentRuntimeIncidents,
     type DeviceLossGuardStatus,
+    type RuntimeIncidentSnapshot,
     type RuntimeWatchdogStatus,
     type StartupRecoveryReport,
   } from "../../app/bridge/reliabilityApi";
@@ -13,14 +15,16 @@
   let watchdog = $state<RuntimeWatchdogStatus | null>(null);
   let recovery = $state<StartupRecoveryReport | null>(null);
   let devices = $state<DeviceLossGuardStatus | null>(null);
+  let incidents = $state<RuntimeIncidentSnapshot | null>(null);
   let exporting = $state(false);
   let exportMessage = $state("");
 
   async function refresh(): Promise<void> {
-    [watchdog, recovery, devices] = await Promise.all([
+    [watchdog, recovery, devices, incidents] = await Promise.all([
       runtimeApi.getRuntimeWatchdogStatus().catch(() => null),
       runtimeApi.getStartupRecoveryStatus().catch(() => null),
       getDeviceLossGuardStatus().catch(() => null),
+      getRecentRuntimeIncidents().catch(() => null),
     ]);
   }
 
@@ -72,6 +76,14 @@
       <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{recovery?.note ?? "Startup recovery status has not been loaded."}</p>
     </div>
   </div>
+
+  {#if incidents?.incidents[0]}
+    <div class="mt-4 ti-subtle-card px-4 py-3">
+      <span class="ti-field-label">Last incident · {incidents.incidents[0].category}</span>
+      <strong class="mt-1 block text-[11.5px]">{incidents.incidents[0].blocker}</strong>
+      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{incidents.incidents[0].note}</p>
+    </div>
+  {/if}
 
   <div class="mt-4 flex items-center justify-between gap-4 border-t border-[var(--ti-border)] pt-4">
     <p class="m-0 text-[11px] leading-5 text-[var(--ti-text-soft)]">

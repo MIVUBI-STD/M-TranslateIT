@@ -1,5 +1,20 @@
 import { runCommand } from "../shared/tauriBridge";
 
+export type RuntimeIncident = {
+  category: string;
+  component: string;
+  blocker: string;
+  note: string;
+  occurred_unix_ms: number;
+};
+
+export type RuntimeIncidentSnapshot = {
+  incidents: RuntimeIncident[];
+  count: number;
+  truncated: boolean;
+  note: string;
+};
+
 export type DiagnosticSupportBundleResult = {
   ok: boolean;
   file_path: string | null;
@@ -42,6 +57,15 @@ export type StartupRecoveryReport = {
   note: string;
   checked_unix_ms: number;
 };
+
+export async function getRecentRuntimeIncidents(): Promise<RuntimeIncidentSnapshot> {
+  return (await runCommand<RuntimeIncidentSnapshot>("get_recent_runtime_incidents")) ?? {
+    incidents: [],
+    count: 0,
+    truncated: false,
+    note: "Recent incident history is unavailable right now.",
+  };
+}
 
 export async function exportDiagnosticSupportBundle(): Promise<DiagnosticSupportBundleResult> {
   return (await runCommand<DiagnosticSupportBundleResult>("export_diagnostic_support_bundle")) ?? {

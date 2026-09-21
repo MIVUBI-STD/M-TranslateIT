@@ -8,6 +8,8 @@ use sysinfo::{Pid, System};
 
 use crate::engine::paths::ProjectPaths;
 
+use super::incident_log::record_runtime_incident;
+
 const MARKER_FILE: &str = "translateit_runtime_open.json";
 const MAX_RECOVERY_BLOCKERS: usize = 8;
 
@@ -195,6 +197,14 @@ pub fn begin_startup_recovery(paths: &ProjectPaths) -> io::Result<StartupRecover
         },
     )?;
     report.checked_unix_ms = unix_ms();
+    if report.previous_unclean_shutdown {
+        let blocker = if report.blocker.is_empty() {
+            "startup_recovery:previous_unclean_shutdown"
+        } else {
+            report.blocker.as_str()
+        };
+        let _ = record_runtime_incident("startup_recovery", "application", blocker, &report.note);
+    }
     if let Ok(mut guard) = report_store().lock() {
         *guard = report.clone();
     }

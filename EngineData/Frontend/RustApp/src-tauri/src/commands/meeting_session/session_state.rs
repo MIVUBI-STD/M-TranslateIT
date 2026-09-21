@@ -7,6 +7,7 @@ use crate::engine::audio::finalized_utterance::{
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 
 use super::super::helper_bridge_runtime::unix_ms;
+use super::super::incident_log::record_runtime_incident;
 use super::{
     MeetingIncomingRuntimeStatus, MeetingOutboundRuntimeStatus, MeetingOutboundTiming,
     MeetingSessionPreflightStatus,
@@ -165,6 +166,9 @@ pub(super) fn update_outbound_status(
         } else {
             None
         };
+        if !last_stage_ok && !blocker.is_empty() {
+            let _ = record_runtime_incident("meeting_outbound", stage, blocker, note);
+        }
         *status = MeetingOutboundRuntimeStatus {
             generation: Some(generation),
             session_id: Some(session_id.to_string()),
@@ -263,6 +267,9 @@ pub(super) fn update_incoming_status(
 ) {
     if let Ok(mut status) = incoming_status_store().lock() {
         let capture = meeting_sound_capture_status();
+        if degraded && !blocker.is_empty() {
+            let _ = record_runtime_incident("meeting_incoming", stage, blocker, note);
+        }
         *status = MeetingIncomingRuntimeStatus {
             session_id: Some(session_id.to_string()),
             stage: stage.to_string(),

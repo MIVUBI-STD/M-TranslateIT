@@ -7,6 +7,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::runtime::verify_required_outbound_ai_readiness,
         crate::commands::runtime_watchdog::get_runtime_watchdog_status,
         crate::commands::device_loss_guard::get_device_loss_guard_status,
+        crate::commands::incident_log::get_recent_runtime_incidents,
         crate::commands::diagnostic_support::export_diagnostic_support_bundle,
         crate::commands::helper_bridge::helper_bridge_worker_status,
         crate::commands::meeting_session::get_meeting_session_status,
