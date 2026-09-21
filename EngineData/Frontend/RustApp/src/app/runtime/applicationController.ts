@@ -80,12 +80,17 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
     applySettings(settings: RuntimeSettings): void {
       state.revision += 1;
       const nextSettings = cloneSettings(settings);
+      const setupRequired = nextSettings.meeting_setup_state === "new";
       state = {
         ...state,
         setupSettings: nextSettings,
-        snapshot: state.snapshot
-          ? { ...state.snapshot, settings: nextSettings }
-          : null,
+        setupRequired,
+        runtimeLoaded: !setupRequired && state.snapshot !== null,
+        snapshot: setupRequired
+          ? null
+          : state.snapshot
+            ? { ...state.snapshot, settings: nextSettings }
+            : null,
       };
     },
 
