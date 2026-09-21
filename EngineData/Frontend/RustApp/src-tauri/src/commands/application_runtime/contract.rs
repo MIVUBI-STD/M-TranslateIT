@@ -65,10 +65,18 @@ pub struct ApplicationInputStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct VoiceSummary {
+    pub recording_active: bool,
+    pub build_active: bool,
+    pub build_phase: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ApplicationSubsystemSummaries {
     pub meeting: MeetingSummary,
     pub worker: WorkerSummary,
     pub audio: AudioSummary,
+    pub voice: VoiceSummary,
 }
 
 #[derive(Debug, Clone, Serialize)]
