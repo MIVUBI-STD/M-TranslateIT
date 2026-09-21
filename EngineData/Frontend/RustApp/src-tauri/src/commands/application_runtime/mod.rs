@@ -7,6 +7,7 @@ mod mutations;
 mod problems;
 mod resources;
 mod snapshot;
+mod shutdown;
 mod summaries;
 
 pub use contract::{
@@ -19,6 +20,7 @@ pub use mutations::{
     save_product_settings, select_product_audio_device, select_product_builtin_voice,
     start_product_voice_build, start_product_voice_recording, stop_product_voice_recording,
 };
+pub use shutdown::prepare_for_app_exit;
 pub use snapshot::current_application_snapshot;
 
 #[tauri::command]
