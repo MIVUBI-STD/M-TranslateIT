@@ -167,3 +167,18 @@ Reliability monitoring remains polling-based where the condition itself is time-
 The frontend shell consumes one `ProductRuntimeSnapshot` through `src/app/runtime/applicationController.ts`. The controller owns refresh sequencing, setup-state transitions, settings projection, and Meeting-session projection. `App.svelte` owns only UI-shell concerns such as route, transient notices, busy flags, close-dialog state, and the live transcript view.
 
 Do not reintroduce parallel `$state` copies for helper, worker, input, settings, approved voice readiness, or Meeting runtime state in `App.svelte`. Derived views must come from the controller snapshot.
+
+
+### Shell controller split
+
+`App.svelte` is intentionally a composition shell. Runtime-heavy view coordination is split into focused frontend controllers:
+
+- `applicationController.ts` — product snapshot, setup transition, refresh sequencing.
+- `meetingLiveController.ts` — transcript reconciliation, overlay revision, Meeting live-view freshness.
+- `closeController.ts` — native-close dialog/check/stop flow.
+
+These controllers may coordinate existing public runtime/query APIs, but they must not absorb domain algorithms. The shell keeps route, notices, and transient button busy state only.
+
+### Product facade split
+
+`runtimeProductFacade.ts` is a compatibility/public composition surface, not a domain implementation owner. Product audio, text translation, and setup/recovery logic live in `productAudioFacade.ts`, `productTranslationFacade.ts`, and `productSetupFacade.ts` respectively. New unrelated product behavior must not be appended to the root facade by default.
