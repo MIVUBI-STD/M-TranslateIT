@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Download } from "@lucide/svelte";
-  import { onMount } from "svelte";
   import { runtimeApi, type MeetingTranscriptExportStatus } from "../../app/bridge/runtimeApi";
 
   let {
@@ -14,7 +13,7 @@
   let status = $state<MeetingTranscriptExportStatus | null>(null);
   let format = $state<"md" | "txt">("md");
   let busy = $state(false);
-  let lastSessionState = $state(hasSession);
+  let lastSessionState = $state<boolean | null>(null);
 
   async function refreshStatus(): Promise<void> {
     try {
@@ -47,10 +46,6 @@
       lastSessionState = hasSession;
       void refreshStatus();
     }
-  });
-
-  onMount(() => {
-    void refreshStatus();
   });
 </script>
 

@@ -1,10 +1,8 @@
 <script lang="ts">
   import { Plus, Trash2 } from "@lucide/svelte";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
-  import { notifyOverlayPreferencesChanged, showTranslationOverlay } from "../../app/runtime/translationOverlayRuntime";
-  import { readOverlayDiagnostic, readOverlayPreferences, updateOverlayPreferences } from "../../app/runtime/translationOverlayState";
-  import type { OverlayTextSize } from "../../app/runtime/translationOverlayPolicy";
   import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
+  import FloatingCaptionPreferences from "./FloatingCaptionPreferences.svelte";
 
   const MAX_TERMS = 24;
   const MAX_SPOKEN_TERMS = 24;
