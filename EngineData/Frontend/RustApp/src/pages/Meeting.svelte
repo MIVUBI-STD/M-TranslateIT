@@ -14,6 +14,7 @@
   import type { RuntimeSettings } from "../app/shared/types";
   import { setupStateNeedsResume } from "../app/runtime/setupFlow";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
+  import MeetingTranscriptExport from "../components/meeting/MeetingTranscriptExport.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
 
   type Tone = "neutral" | "good" | "warning" | "danger";
@@ -392,6 +393,7 @@
       {/if}
 
       <div class="ti-action-row ml-auto">
+        <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
         {#if setupDeferred && !meeting.live && !meeting.busy}
           <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening..." : "Resume Setup"}</button>
         {:else}
