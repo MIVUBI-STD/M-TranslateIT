@@ -62,6 +62,8 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/tests/tauri_capability_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/application_controller_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/application_event_snapshot_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/application_intent_parity_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/runtime_event_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/helper_lifecycle_authority_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/readiness_authority_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/shell_controller_contract.test.ts",
