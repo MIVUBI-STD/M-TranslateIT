@@ -14,13 +14,14 @@ export type AppUpdateInstall = {
   message: string;
 };
 
-let startupCheckStarted = false;
+let startupCheckPromise: Promise<AppUpdateCheck | null> | null = null;
 
 export const appUpdateApi = {
-  async checkAtStartupOnce(): Promise<AppUpdateCheck | null> {
-    if (startupCheckStarted) return null;
-    startupCheckStarted = true;
-    return runCommand<AppUpdateCheck>("check_app_update_once");
+  checkAtStartupOnce(): Promise<AppUpdateCheck | null> {
+    if (!startupCheckPromise) {
+      startupCheckPromise = runCommand<AppUpdateCheck>("check_app_update_once");
+    }
+    return startupCheckPromise;
   },
 
   install(): Promise<AppUpdateInstall | null> {
