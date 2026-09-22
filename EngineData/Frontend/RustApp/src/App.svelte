@@ -144,7 +144,7 @@
   }
 
   async function syncMeetingVoice(message?: string): Promise<void> {
-    await refreshSnapshot(message ?? "Meeting voice updated.");
+    setNotice(message ?? "Meeting voice updated.");
   }
 
   async function finishFirstSetup(next: RuntimeSettings): Promise<void> {
