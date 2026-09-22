@@ -7,6 +7,7 @@ use std::sync::{Condvar, Mutex, OnceLock};
 use std::time::Duration;
 
 use crate::engine::paths::ProjectPaths;
+use crate::engine::runtime_events::emit_voice_build_runtime_event;
 
 use super::bridge_paths::{resolve_worker_python_command, worker_root, worker_python_unavailable_message};
 use super::helper_bridge::invalidate_required_outbound_readiness_for_voice_change;
@@ -602,6 +603,13 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
         } else {
             "VoiceLab could not create a reviewable Voice Actor. Check Diagnostics and try again.".to_string()
         };
+        let event_reason = if ready {
+            "voice_build_completed"
+        } else if cancelling {
+            "voice_build_cancelled"
+        } else {
+            "voice_build_failed"
+        };
         let (lock, signal) = process_store();
         if let Ok(mut process) = lock.lock() {
             if process.generation == Some(generation) {
@@ -611,6 +619,7 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
             }
             signal.notify_all();
         }
+        emit_voice_build_runtime_event(event_reason, generation);
     });
 
     result(true, "building", "VoiceLab started creating My Voice. You can leave this page open while it works.")
