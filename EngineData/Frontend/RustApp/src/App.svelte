@@ -307,16 +307,26 @@
 
     const installCloseGuard = async () => {
       try {
-        unlistenClose = await installNativeCloseGuard(inspectNativeCloseRequest);
+        const stop = await installNativeCloseGuard(inspectNativeCloseRequest);
+        if (disposed) {
+          stop();
+          return;
+        }
+        unlistenClose = stop;
       } catch {}
     };
 
     const installApplicationRuntimeSync = async () => {
       try {
-        unlistenApplicationRuntime = await applicationRuntimeApi.subscribe((event) => {
+        const stop = await applicationRuntimeApi.subscribe((event) => {
           if (disposed || event.snapshot.revision <= 0) return;
           void refreshFromApplicationEvent(event.snapshot);
         });
+        if (disposed) {
+          stop();
+          return;
+        }
+        unlistenApplicationRuntime = stop;
       } catch {}
     };
 
