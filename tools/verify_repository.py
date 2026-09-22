@@ -60,6 +60,7 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/tests/workflow_proof_surfaces_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/tauri_capability_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/application_controller_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/application_event_snapshot_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/shell_controller_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/product_state_split_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/native_close_dialog_contract.test.ts",
