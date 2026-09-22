@@ -127,10 +127,11 @@
 
   async function refreshFromApplicationEvent(
     application: ApplicationSnapshot,
+    reason: string,
   ): Promise<void> {
     try {
       applyRefreshResult(
-        await applicationController.refreshFromApplication(application),
+        await applicationController.refreshFromApplication(application, reason),
       );
     } catch {
       setNotice("TranslateIT couldn't reconcile its runtime event. Try again.");
@@ -320,7 +321,7 @@
       try {
         const stop = await applicationRuntimeApi.subscribe((event) => {
           if (disposed || event.snapshot.revision <= 0) return;
-          void refreshFromApplicationEvent(event.snapshot);
+          void refreshFromApplicationEvent(event.snapshot, event.reason);
         });
         if (disposed) {
           stop();
