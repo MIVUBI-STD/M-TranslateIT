@@ -53,6 +53,7 @@ export type ProductMeetingState = {
 };
 
 export type ProductRuntimeSnapshot = {
+  applicationRevision: number;
   settings: RuntimeSettings;
   readiness: ProductReadiness;
   meeting: ProductMeetingState;
