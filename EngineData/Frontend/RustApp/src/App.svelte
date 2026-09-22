@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { appUpdateApi } from "./app/update/appUpdateApi";
   import { runtimeApi, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
   import {
     applicationRuntimeApi,
@@ -286,6 +287,8 @@
   }
 
   onMount(() => {
+    void appUpdateApi.checkAtStartupOnce().catch(() => null);
+
     let disposed = false;
     let unlistenClose: (() => void) | null = null;
     let unlistenApplicationRuntime: (() => void) | null = null;
