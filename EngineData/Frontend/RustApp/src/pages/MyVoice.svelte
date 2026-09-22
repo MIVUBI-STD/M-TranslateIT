@@ -434,5 +434,5 @@
     </aside>
   </div>
 
-  <MyVoiceBuild {onNotice} {onMeetingVoiceChanged} refreshRevision={buildRefreshRevision} />
+  <MyVoiceBuild {onNotice} {onMeetingVoiceChanged} {onRuntimeStateChanged} refreshRevision={buildRefreshRevision} />
 </section>
