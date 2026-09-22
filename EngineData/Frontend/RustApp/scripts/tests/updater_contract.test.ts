@@ -27,12 +27,17 @@ test("updater remains one-shot and has no polling scheduler", () => {
 
 test("native updater is signed, GitHub-release based, and activity-safe", () => {
   const source = read("src-tauri/src/commands/app_update.rs");
+  const action = read("src/components/runtime/UpdateAction.svelte");
 
   assert.match(source, /option_env!\("TRANSLATEIT_UPDATER_PUBLIC_KEY"\)/);
   assert.match(source, /releases\/latest\/download\/latest\.json/);
   assert.match(source, /voice_lab_recording_blocks_app_exit/);
   assert.match(source, /current_voice_lab_build_snapshot\(\)\.active/);
   assert.match(source, /runtime\.has_active_session/);
+  assert.match(action, /voiceBuildActive/);
+  assert.match(action, /myVoiceRecording/);
+  assert.match(action, /meetingBusy/);
+  assert.match(action, /Wait for My Voice creation to finish before updating TranslateIT/);
   assert.ok((source.match(/update_blocker\(\)/g) ?? []).length >= 2);
   assert.ok(source.lastIndexOf("update_blocker()") < source.indexOf("download_and_install"));
   assert.match(source, /download_and_install/);
