@@ -27,6 +27,8 @@ test("updater remains one-shot and has no polling scheduler", () => {
 
 test("native updater is signed, GitHub-release based, and activity-safe", () => {
   const source = read("src-tauri/src/commands/app_update.rs");
+  const header = read("src/components/layout/AppHeader.svelte");
+  const productivity = read("src/components/runtime/ProductivityActions.svelte");
   const action = read("src/components/runtime/UpdateAction.svelte");
 
   assert.match(source, /option_env!\("TRANSLATEIT_UPDATER_PUBLIC_KEY"\)/);
@@ -34,6 +36,9 @@ test("native updater is signed, GitHub-release based, and activity-safe", () => 
   assert.match(source, /voice_lab_recording_blocks_app_exit/);
   assert.match(source, /current_voice_lab_build_snapshot\(\)\.active/);
   assert.match(source, /runtime\.has_active_session/);
+  assert.match(header, /voiceBuildActive=\{snapshot\.voiceBuildActive\}/);
+  assert.match(productivity, /voiceBuildActive/);
+  assert.match(productivity, /<UpdateAction \{meetingBusy\} \{voiceBuildActive\} \{myVoiceRecording\}/);
   assert.match(action, /voiceBuildActive/);
   assert.match(action, /myVoiceRecording/);
   assert.match(action, /meetingBusy/);
