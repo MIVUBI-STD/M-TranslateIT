@@ -4,7 +4,14 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = resolve(appRoot, "src");
-const runtimeApiPath = resolve(sourceRoot, "app", "bridge", "runtimeApi.ts");
+
+const apiObjects = [
+  ["runtimeApi", "app/bridge/runtimeApi.ts"],
+  ["applicationRuntimeApi", "app/bridge/applicationRuntimeApi.ts"],
+  ["myVoiceApi", "app/bridge/myVoiceApi.ts"],
+  ["myVoiceBuildApi", "app/bridge/myVoiceBuildApi.ts"],
+  ["appUpdateApi", "app/update/appUpdateApi.ts"],
+];
 
 function collect(directory) {
   const files = [];
@@ -16,33 +23,58 @@ function collect(directory) {
   return files;
 }
 
-const runtimeApiSource = readFileSync(runtimeApiPath, "utf8");
-const methodNames = new Set(
-  [...runtimeApiSource.matchAll(/^\s{2}(?:async\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm)]
-    .map((match) => match[1])
-    .filter((name) => name !== "constructor"),
-);
+function objectBlock(source, objectName) {
+  const marker = `export const ${objectName} = {`;
+  const start = source.indexOf(marker);
+  if (start < 0) throw new Error(`bridge-api-usage: missing export object ${objectName}`);
+  const bodyStart = start + marker.length;
+  const end = source.indexOf("\n};", bodyStart);
+  if (end < 0) throw new Error(`bridge-api-usage: unterminated export object ${objectName}`);
+  return source.slice(bodyStart, end);
+}
 
-const consumers = collect(sourceRoot).filter((path) => path !== runtimeApiPath);
-const usage = new Map([...methodNames].map((name) => [name, []]));
+function objectMethods(source, objectName) {
+  const block = objectBlock(source, objectName);
+  const names = new Set();
 
-for (const path of consumers) {
-  const body = readFileSync(path, "utf8");
+  for (const match of block.matchAll(/^\s{2}(?:async\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm)) {
+    names.add(match[1]);
+  }
+  for (const match of block.matchAll(/^\s{2}([A-Za-z_][A-Za-z0-9_]*)\s*:/gm)) {
+    names.add(match[1]);
+  }
+  for (const match of block.matchAll(/^\s{2}([A-Za-z_][A-Za-z0-9_]*)\s*,\s*$/gm)) {
+    names.add(match[1]);
+  }
+
+  return names;
+}
+
+const allSource = collect(sourceRoot);
+const failures = [];
+let totalMethods = 0;
+
+for (const [objectName, relativePath] of apiObjects) {
+  const apiPath = resolve(sourceRoot, relativePath);
+  const source = readFileSync(apiPath, "utf8");
+  const methodNames = objectMethods(source, objectName);
+  totalMethods += methodNames.size;
+
+  const consumers = allSource.filter((path) => path !== apiPath);
   for (const name of methodNames) {
-    const pattern = new RegExp(`\\bruntimeApi\\.${name}\\b`);
-    if (pattern.test(body)) usage.get(name).push(relative(appRoot, path).replaceAll("\\", "/"));
+    const pattern = new RegExp(`\\b${objectName}\\.${name}\\b`);
+    const usedBy = consumers
+      .filter((path) => pattern.test(readFileSync(path, "utf8")))
+      .map((path) => relative(appRoot, path).replaceAll("\\", "/"));
+
+    if (usedBy.length === 0) failures.push(`${objectName}.${name}`);
   }
 }
 
-const unused = [...usage.entries()]
-  .filter(([, paths]) => paths.length === 0)
-  .map(([name]) => name)
-  .sort();
-
-if (unused.length > 0) {
-  console.error("Runtime API method reachability failed; bridge wrappers have no frontend consumer:");
-  for (const name of unused) console.error(`- runtimeApi.${name}`);
+if (failures.length > 0) {
+  console.error("Bridge object API method reachability failed; wrappers have no frontend consumer:");
+  for (const name of failures.sort()) console.error(`- ${name}`);
   process.exit(1);
 }
 
-console.log(`[runtime-api-usage] ${methodNames.size} runtimeApi methods have frontend consumers.`);
+console.log(`[bridge-api-usage] ${totalMethods} bridge object methods have frontend consumers.`);
