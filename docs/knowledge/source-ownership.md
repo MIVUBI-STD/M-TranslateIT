@@ -120,3 +120,8 @@ What happens now?     → current source + matching proof
 ```
 
 Historical paths never become current owners merely because an old report references them.
+
+
+### Bridge proof ownership
+
+Command-name/response-shape parity is owned by `validate_bridge_contract.mjs`. Rust-command argument-key parity is owned by `validate_tauri_command_args.mjs`. Frontend bridge wrapper reachability is owned by `validate_runtime_api_usage.mjs`. These checks are complementary: a registered command can still be waste if its frontend wrapper has no consumer, and a command name can still match while its invocation arguments drift.
