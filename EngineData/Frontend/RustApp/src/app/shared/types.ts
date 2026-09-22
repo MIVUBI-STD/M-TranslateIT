@@ -84,19 +84,17 @@ export type HelperBridgeWorkerResponse = {
 };
 
 export type AudioDeviceSummary = {
-  id?: string;
+  id: string;
   name: string;
-  is_default?: boolean;
-  [key: string]: unknown;
+  is_default: boolean;
 };
 
 export type AudioDeviceListReport = {
   ok: boolean;
   input_devices: AudioDeviceSummary[];
   output_devices: AudioDeviceSummary[];
-  blocker?: string;
-  note?: string;
-  [key: string]: unknown;
+  blocker: string;
+  note: string;
 };
 
 export type InputPreparationStatus = {
@@ -113,16 +111,26 @@ export type InputPreparationStatus = {
 };
 
 export type ModelInventoryItem = {
+  model_id: string;
   required: boolean;
+  expected_path: string;
   found: boolean;
-  [key: string]: unknown;
+  file_count: number;
+  size_bytes: number;
+  gpu_capable: string;
+  cpu_fallback: boolean;
+  download_url: string | null;
+  status: string;
+  blocker: string | null;
+  next_action: string;
 };
 
 export type ModelInventoryReport = {
   ok: boolean;
+  scope: string;
   status: string;
+  created_at: string;
   items: ModelInventoryItem[];
   blockers: string[];
-  note?: string;
-  [key: string]: unknown;
+  note: string;
 };
