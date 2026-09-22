@@ -291,7 +291,6 @@ pub fn start_meeting_translation() -> MeetingSessionActionResult {
     lifecycle::start_meeting_translation_impl()
 }
 
-#[tauri::command]
 pub fn stop_meeting_translation() -> MeetingSessionActionResult {
     lifecycle::stop_meeting_translation_impl()
 }
