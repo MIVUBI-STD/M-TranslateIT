@@ -102,6 +102,10 @@ jobs:
                 EngineData/Frontend/RustApp/src/*|EngineData/Frontend/RustApp/scripts/*|EngineData/Frontend/RustApp/package.json|EngineData/Frontend/RustApp/package-lock.json|EngineData/Frontend/RustApp/tsconfig.json)
                   frontend=true
                   ;;
+                EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker_base.py|EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py)
+                  frontend=true
+                  python=true
+                  ;;
                 EngineData/Backend/LocalWorker/WorkerRuntime/*)
                   python=true
                   ;;
