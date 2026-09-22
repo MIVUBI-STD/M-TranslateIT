@@ -143,7 +143,6 @@ pub fn prepare_required_outbound_ai_runtime(meeting_generation: u64) -> Result<(
     Ok(())
 }
 
-#[tauri::command]
 pub fn get_helper_bridge_status() -> HelperBridgeStatus {
     let started = trace_command_start("get_helper_bridge_status", "reading helper bridge status");
     match runtime().lock() {
