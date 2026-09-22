@@ -33,11 +33,6 @@ pub fn dispatch(intent: &str) -> IntentOutcome {
             outcome(readiness.ok, readiness.state, readiness.message)
         }
         "ensure_runtime_ready" => ensure_runtime_ready(),
-        "refresh" => outcome(
-            true,
-            "refreshed".to_string(),
-            "Application runtime snapshot refreshed.".to_string(),
-        ),
         _ => outcome(
             false,
             "unsupported_intent".to_string(),
