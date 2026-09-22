@@ -64,6 +64,7 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/tests/application_controller_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/app_listener_lifecycle_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/application_event_deep_refresh_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/application_event_ordering_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/application_event_snapshot_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/application_intent_parity_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/runtime_event_contract.test.ts",
