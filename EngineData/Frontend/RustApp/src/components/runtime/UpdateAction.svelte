@@ -3,12 +3,14 @@
   import { appUpdateApi, type AppUpdateCheck } from "../../app/update/appUpdateApi";
 
   let {
-    meetingBusy,
+    audioLocked,
+    audioOwnerKind,
     voiceBuildActive,
     myVoiceRecording,
     onNotice,
   }: {
-    meetingBusy: boolean;
+    audioLocked: boolean;
+    audioOwnerKind: string;
     voiceBuildActive: boolean;
     myVoiceRecording: boolean;
     onNotice: (message: string) => void;
@@ -33,8 +35,15 @@
 
   async function install(): Promise<void> {
     if (busy) return;
-    if (meetingBusy) {
-      onNotice("Stop Translation or Mic Test before updating TranslateIT.");
+    if (audioLocked) {
+      const message = audioOwnerKind === "meeting"
+        ? "Stop Translation before updating TranslateIT."
+        : audioOwnerKind === "mic_test"
+          ? "Stop Mic Test before updating TranslateIT."
+          : audioOwnerKind === "voice_recording"
+            ? "Stop the current My Voice recording before updating TranslateIT."
+            : "Finish the current audio action before updating TranslateIT.";
+      onNotice(message);
       return;
     }
     if (myVoiceRecording) {
@@ -66,9 +75,15 @@
   <button
     type="button"
     class="ti-button ti-button-secondary min-h-8 shrink-0 px-3 text-[11.5px]"
-    disabled={busy || meetingBusy || myVoiceRecording || voiceBuildActive}
-    title={meetingBusy
-      ? "Stop Translation or Mic Test before updating."
+    disabled={busy || audioLocked || myVoiceRecording || voiceBuildActive}
+    title={audioLocked
+      ? audioOwnerKind === "meeting"
+        ? "Stop Translation before updating."
+        : audioOwnerKind === "mic_test"
+          ? "Stop Mic Test before updating."
+          : audioOwnerKind === "voice_recording"
+            ? "Stop the current My Voice recording before updating."
+            : "Finish the current audio action before updating."
       : myVoiceRecording
         ? "Stop the current My Voice recording before updating."
         : voiceBuildActive
