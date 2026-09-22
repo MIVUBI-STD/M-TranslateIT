@@ -329,6 +329,7 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         "npm run build:frontend",
         "npm run validate:bridge-contract",
         "npm run validate:reachability",
+        "npm run validate:runtime-api-usage",
         '"EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"',
         '"EngineData/Frontend/RustApp/src-tauri/capabilities/**"',
         "npm run preflight:tauri-package",
