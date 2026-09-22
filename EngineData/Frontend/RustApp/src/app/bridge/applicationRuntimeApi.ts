@@ -215,15 +215,21 @@ export async function subscribeApplicationRuntime(
       listener(event.payload);
     },
   );
-  const voiceBuildStop = await listen<VoiceBuildRuntimeEvent>(
-    "translateit://voice-build-runtime",
-    (event) => {
-      void getApplicationSnapshot().then((snapshot) => {
-        if (snapshot.revision <= 0 || snapshot.lifecycle === "unavailable") return;
-        listener({ reason: event.payload.reason, snapshot });
-      });
-    },
-  );
+  let voiceBuildStop: UnlistenFn;
+  try {
+    voiceBuildStop = await listen<VoiceBuildRuntimeEvent>(
+      "translateit://voice-build-runtime",
+      (event) => {
+        void getApplicationSnapshot().then((snapshot) => {
+          if (snapshot.revision <= 0 || snapshot.lifecycle === "unavailable") return;
+          listener({ reason: event.payload.reason, snapshot });
+        });
+      },
+    );
+  } catch (error) {
+    applicationStop();
+    throw error;
+  }
 
   return () => {
     applicationStop();
