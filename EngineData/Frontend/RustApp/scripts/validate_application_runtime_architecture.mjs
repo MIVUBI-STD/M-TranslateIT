@@ -188,6 +188,7 @@ for (const forbidden of [
   '"get_helper_bridge_status"',
   '"start_helper_bridge"',
   '"get_input_status"',
+  '"verify_required_outbound_ai_readiness"',
 ]) {
   if (runtimeApiSource.includes(forbidden)) {
     failures.push(`runtimeApi.ts must route settings/audio mutations through application authority: ${forbidden}`);
