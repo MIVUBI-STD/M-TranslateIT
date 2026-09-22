@@ -98,6 +98,9 @@ const WORKER_REUSE_SAFE_REASONS = new Set([
   "stop_voice_recording",
   "start_voice_build",
   "cancel_voice_build",
+  "voice_build_completed",
+  "voice_build_cancelled",
+  "voice_build_failed",
 ]);
 
 const VOICE_REUSE_SAFE_REASONS = new Set([
