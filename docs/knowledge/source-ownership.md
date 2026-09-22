@@ -34,6 +34,7 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Tauri window permissions | `src-tauri/capabilities/default.json` + `translation-overlay.json` |
 | Frontend application state sequencing | `applicationController.ts` |
 | Meeting event/reconciliation state | `meetingLiveController.ts` + `meetingReconcileReader.ts` + `reliabilityMonitor.ts` |
+| Background My Voice build event reconciliation | `voiceBuildRuntimeSync.ts` + `myVoiceBuildApi.ts` + `engine/runtime_events.rs` |
 | Native close flow | `closeController.ts` + `nativeCloseRuntime.ts` + `closePolicy.ts` |
 | Translation overlay presentation | `translationOverlay*.ts` + `pages/TranslationOverlay.svelte` |
 | First-setup navigation/resume | `SetupNavigation.svelte` + `setupFlow.ts` |
