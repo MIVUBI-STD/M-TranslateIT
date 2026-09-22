@@ -351,6 +351,7 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         "EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker_base.py",
         "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py",
         "EngineData/Backend/LocalWorker/WorkerRuntime/worker_runtime_common.py",
+        "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py",
         '"EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"',
         '"EngineData/Frontend/RustApp/src-tauri/capabilities/**"',
         "npm run preflight:tauri-package",
