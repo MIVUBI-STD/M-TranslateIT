@@ -130,6 +130,7 @@ async function mapApplicationSnapshotToProduct(
     workerStatus,
     inputStatus,
     resources: application.resources,
+    voiceBuildActive: application.summaries.voice.build_active,
   };
 }
 
