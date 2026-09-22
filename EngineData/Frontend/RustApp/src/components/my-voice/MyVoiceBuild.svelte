@@ -10,12 +10,10 @@
   let {
     onNotice,
     onMeetingVoiceChanged,
-    onRuntimeStateChanged,
     refreshRevision = 0,
   }: {
     onNotice: (message: string) => void;
     onMeetingVoiceChanged: (message?: string) => void | Promise<void>;
-    onRuntimeStateChanged: () => void | Promise<void>;
     refreshRevision?: number;
   } = $props();
 
@@ -75,11 +73,9 @@
   }
 
   function applyStatus(next: MyVoiceBuildStatus): void {
-    const buildFinished = build.active && !next.active;
     build = next;
     if (!next.evaluation_ready) reviewedLineIds = [];
     schedulePoll();
-    if (buildFinished) void onRuntimeStateChanged();
   }
 
   function productMessage(result: MyVoiceBuildActionResult): string {
