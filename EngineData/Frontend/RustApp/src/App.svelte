@@ -401,6 +401,7 @@
           <MyVoice
             onNotice={setNotice}
             onMeetingVoiceChanged={syncMeetingVoice}
+            onRuntimeStateChanged={() => refreshSnapshot()}
             onRecordingChange={(recording) => { myVoiceRecording = recording; }}
           />
         {:else}
