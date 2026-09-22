@@ -25,6 +25,11 @@ test("Code Health aggregate gate fails when a changed domain lacks success", () 
   assert.match(workflow, /exit 1/);
 });
 
+test("worker protocol changes run both Python and frontend contract proof", () => {
+  assert.match(workflow, /realtime_local_worker_base\.py\|EngineData\/Backend\/LocalWorker\/WorkerRuntime\/worker_io_runtime\.py/);
+  assert.match(workflow, /frontend=true\s+python=true/);
+});
+
 test("Code Health summary states skipped jobs are not proof", () => {
   assert.match(
     workflow,
