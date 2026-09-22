@@ -12,6 +12,7 @@ export type ProductIntent =
   | "start_mic_test"
   | "stop_mic_test"
   | "fix_setup"
+  | "check_readiness"
   | "ensure_runtime_ready"
   | "refresh";
 
