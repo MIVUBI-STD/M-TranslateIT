@@ -3,7 +3,6 @@ import { meetingSessionStatusFallback } from "../runtime/meetingBridgeFallback";
 import type {
   AudioDeviceListReport,
   CommandResult,
-  HelperBridgeActionResult,
   HelperBridgeWorkerResponse,
   InputPreparationStatus,
   ModelInventoryReport,
