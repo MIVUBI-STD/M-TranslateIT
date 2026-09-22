@@ -18,6 +18,10 @@ const meetingBackend = readFileSync(
   new URL("../../src-tauri/src/engine/runtime_events.rs", import.meta.url),
   "utf8",
 );
+const voiceFrontend = readFileSync(
+  new URL("../../src/app/bridge/myVoiceBuildApi.ts", import.meta.url),
+  "utf8",
+);
 
 test("application runtime event name and payload fields stay aligned", () => {
   assert.match(applicationFrontend, /translateit:\/\/application-runtime/);
@@ -36,4 +40,14 @@ test("Meeting runtime event name and lightweight payload fields stay aligned", (
     assert.match(meetingBackend, new RegExp(`\\b${field}:`));
   }
   assert.doesNotMatch(meetingBackend, /translated_text|source_text/);
+});
+
+
+test("Voice build runtime event name and payload fields stay aligned", () => {
+  assert.match(voiceFrontend, /translateit:\/\/voice-build-runtime/);
+  assert.match(meetingBackend, /translateit:\/\/voice-build-runtime/);
+  for (const field of ["revision", "reason", "generation"]) {
+    assert.match(voiceFrontend, new RegExp(`\\b${field}:`));
+    assert.match(meetingBackend, new RegExp(`\\b${field}:`));
+  }
 });
