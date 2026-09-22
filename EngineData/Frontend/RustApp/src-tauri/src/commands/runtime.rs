@@ -26,7 +26,6 @@ pub fn start_helper_bridge() -> HelperBridgeActionResult {
     helper_bridge::start_helper_bridge()
 }
 
-#[tauri::command]
 pub fn verify_required_outbound_ai_readiness() -> HelperBridgeActionResult {
     let runtime_state = latest_runtime_session_state();
     if runtime_state.has_active_session {
