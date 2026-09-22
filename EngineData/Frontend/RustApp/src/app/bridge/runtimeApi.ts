@@ -260,16 +260,6 @@ function textTranslationFallback(): TextTranslationCommandResult {
   };
 }
 
-function helperActionFallback(message: string): HelperBridgeActionResult {
-  return {
-    ok: false,
-    state: "frontend_bridge_error",
-    message,
-    generation_token: 0,
-    runtime_claim: "frontend_bridge_unavailable",
-  };
-}
-
 function helperWorkerFallback(task: string, message: string): HelperBridgeWorkerResponse {
   return {
     ok: false,
@@ -489,14 +479,6 @@ export const runtimeApi = {
       "get_virtual_mic_route_contract_status",
       undefined,
       virtualMicRouteFallback(),
-    );
-  },
-
-  async verifyRequiredOutboundAiReadiness(): Promise<HelperBridgeActionResult> {
-    return invokeOr<HelperBridgeActionResult>(
-      "verify_required_outbound_ai_readiness",
-      undefined,
-      helperActionFallback("The final local translation check failed before reaching the Tauri runtime."),
     );
   },
 
