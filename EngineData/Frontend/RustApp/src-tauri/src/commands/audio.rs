@@ -324,7 +324,6 @@ pub fn probe_output_device_candidate(device_id: Option<String>) -> AudioDevicePr
     }
 }
 
-#[tauri::command]
 pub fn get_input_status() -> InputPreparationStatus {
     let settings = engine::load_settings();
     InputPreparationStatus::inspect_input_device(settings.audio.input_device_id.as_deref())
