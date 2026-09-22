@@ -54,6 +54,7 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/validate_bridge_contract.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_application_runtime_architecture.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_frontend_reachability.mjs",
+    "EngineData/Frontend/RustApp/scripts/validate_runtime_api_usage.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_source_size_budget.mjs",
     "EngineData/Frontend/RustApp/scripts/tests/code_health_proof_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/workflow_proof_surfaces_contract.test.ts",
@@ -379,6 +380,7 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         '"validate:application-runtime"',
         '"validate:source-size"',
         '"validate:reachability"',
+        '"validate:runtime-api-usage"',
         '"validate:source-contracts"',
     ):
         if marker not in package:
