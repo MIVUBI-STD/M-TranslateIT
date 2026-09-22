@@ -10,7 +10,7 @@ mod windows_power_lifecycle {
 
     use tauri::{Runtime, WebviewWindow};
 
-    const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
+    use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
     const WM_POWERBROADCAST: u32 = 0x0218;
     const PBT_APMSUSPEND: usize = 0x0004;
     const PBT_APMRESUMECRITICAL: usize = 0x0006;
