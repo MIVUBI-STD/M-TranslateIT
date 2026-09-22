@@ -68,7 +68,7 @@ function rustStructFields(relativePath, structName) {
   const body = source(relativePath);
   const match = body.match(new RegExp(`pub struct ${structName}\\s*\\{([\\s\\S]*?)\\n\\}`, "m"));
   if (!match) throw new Error(`bridge-contract: Rust struct not found: ${relativePath}::${structName}`);
-  return new Set([...match[1].matchAll(/^\s*pub\s+([a-z_][a-z_0-9]*)\s*:/gm)].map((item) => item[1]));
+  return new Set([...match[1].matchAll(/^\s*(?:pub\s+)?([a-z_][a-z_0-9]*)\s*:/gm)].map((item) => item[1]));
 }
 
 function tsTypeBlock(relativePath, typeName) {
