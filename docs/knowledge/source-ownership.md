@@ -130,3 +130,8 @@ Command-name/response-shape parity is owned by `validate_bridge_contract.mjs`. R
 ### Local worker protocol ownership
 
 Rust↔Python worker task-name/deadline parity is guarded by `worker_task_protocol_contract.test.ts`. Python status payload ↔ Rust readiness application ↔ TypeScript capability parsing is guarded by `worker_status_protocol_contract.test.ts`. Transport implementation remains Rust-owned in `commands/helper_bridge/` and `helper_bridge_runtime.rs`; command execution remains Python-owned in `realtime_local_worker_base.py` / `worker_io_runtime.py`. No side may add or rename protocol fields/tasks without updating the cross-language contract.
+
+
+### RuntimeSettings contract ownership
+
+Rust persistence/sanitization remains owned by `src-tauri/src/engine/settings.rs`; frontend DTO/default projection remains owned by `src/app/shared/types.ts` and `src/app/shared/state.ts`. Rust↔TypeScript top-level field parity, schema version, and core defaults are guarded by `runtime_settings_contract.test.ts`.
