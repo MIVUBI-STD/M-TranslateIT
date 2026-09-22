@@ -15,7 +15,7 @@ export type ReliabilityNotice = {
   message: string;
 };
 
-type MeetingRuntimeEvent = {
+export type MeetingRuntimeEvent = {
   revision: number;
   reason: string;
   session_id: string | null;
