@@ -125,3 +125,8 @@ Historical paths never become current owners merely because an old report refere
 ### Bridge proof ownership
 
 Command-name/response-shape parity is owned by `validate_bridge_contract.mjs`. Rust-command argument-key parity is owned by `validate_tauri_command_args.mjs`. Frontend bridge wrapper reachability is owned by `validate_runtime_api_usage.mjs`. These checks are complementary: a registered command can still be waste if its frontend wrapper has no consumer, and a command name can still match while its invocation arguments drift.
+
+
+### Local worker protocol ownership
+
+Rust↔Python worker task-name/deadline parity is guarded by `worker_task_protocol_contract.test.ts`. Python status payload ↔ Rust readiness application ↔ TypeScript capability parsing is guarded by `worker_status_protocol_contract.test.ts`. Transport implementation remains Rust-owned in `commands/helper_bridge/` and `helper_bridge_runtime.rs`; command execution remains Python-owned in `realtime_local_worker_base.py` / `worker_io_runtime.py`. No side may add or rename protocol fields/tasks without updating the cross-language contract.
