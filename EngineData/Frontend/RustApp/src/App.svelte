@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { appUpdateApi } from "./app/update/appUpdateApi";
-  import { myVoiceBuildApi } from "./app/bridge/myVoiceBuildApi";
   import { runtimeApi, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
   import {
     applicationRuntimeApi,
@@ -12,6 +11,7 @@
     type ProductSetupAction,
   } from "./app/bridge/runtimeProductFacade";
   import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
+  import { startVoiceBuildRuntimeSync } from "./app/runtime/voiceBuildRuntimeSync";
   import { installNativeCloseGuard } from "./app/runtime/nativeCloseRuntime";
   import {
     createCloseController,
@@ -293,7 +293,7 @@
     let disposed = false;
     let unlistenClose: (() => void) | null = null;
     let unlistenApplicationRuntime: (() => void) | null = null;
-    let unlistenVoiceBuildRuntime: (() => void) | null = null;
+    const stopVoiceBuildRuntimeSync = startVoiceBuildRuntimeSync((message) => refreshSnapshot(message));
     const boot = async () => {
       try {
         const loadedSettings = await runtimeApi.loadSettings();
@@ -336,37 +336,17 @@
       } catch {}
     };
 
-    const installVoiceBuildRuntimeSync = async () => {
-      try {
-        const stop = await myVoiceBuildApi.subscribeRuntime((event) => {
-          if (disposed || event.revision <= 0) return;
-          const message = event.reason === "voice_build_completed"
-            ? "My Voice creation finished. Open My Voice to review it."
-            : event.reason === "voice_build_cancelled"
-              ? "My Voice creation stopped."
-              : event.reason === "voice_build_failed"
-                ? "My Voice creation couldn't finish. Open My Voice or Diagnostics."
-                : undefined;
-          void refreshSnapshot(message);
-        });
-        if (disposed) {
-          stop();
-          return;
-        }
-        unlistenVoiceBuildRuntime = stop;
-      } catch {}
-    };
+
 
     void boot();
     void installCloseGuard();
     void installApplicationRuntimeSync();
-    void installVoiceBuildRuntimeSync();
 
     return () => {
       disposed = true;
       unlistenClose?.();
       unlistenApplicationRuntime?.();
-      unlistenVoiceBuildRuntime?.();
+      stopVoiceBuildRuntimeSync();
     };
   });
 
