@@ -28,6 +28,10 @@ pub fn dispatch(intent: &str) -> IntentOutcome {
             outcome(result.ok, result.state.to_string(), result.message)
         }
         "fix_setup" => fix_setup(),
+        "check_readiness" => {
+            let readiness = runtime::verify_required_outbound_ai_readiness();
+            outcome(readiness.ok, readiness.state, readiness.message)
+        }
         "ensure_runtime_ready" => ensure_runtime_ready(),
         "refresh" => outcome(
             true,
