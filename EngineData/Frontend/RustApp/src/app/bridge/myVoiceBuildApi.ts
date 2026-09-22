@@ -8,6 +8,7 @@ export type MyVoiceEvaluationSample = {
   speaker_similarity: number;
   intelligibility_text: string;
   intelligibility_wer: number;
+  artifact_flags: string[];
 };
 
 export type MyVoiceCoverageGuidance = {
