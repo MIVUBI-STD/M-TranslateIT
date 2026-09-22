@@ -53,7 +53,7 @@ pub fn collect_problems(summaries: &ApplicationSubsystemSummaries) -> Vec<Applic
             "worker",
             if summaries.worker.state == "error" { "blocking" } else { "warning" },
             true,
-            "restart_helper",
+            "fix_setup",
             summaries.worker.message.clone(),
         ));
     }
