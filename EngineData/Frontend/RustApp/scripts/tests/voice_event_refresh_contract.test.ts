@@ -7,8 +7,8 @@ const mutations = readFileSync(
   new URL("../../src-tauri/src/commands/application_runtime/mutations.rs", import.meta.url),
   "utf8",
 );
-const build = readFileSync(
-  new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url),
+const runtimeEvents = readFileSync(
+  new URL("../../src-tauri/src/engine/runtime_events.rs", import.meta.url),
   "utf8",
 );
 
@@ -22,7 +22,7 @@ test("Voice selection and approval refresh through ApplicationRuntime events", (
   assert.doesNotMatch(body, /refreshSnapshot\(/);
 });
 
-test("background Voice build completion still requests explicit runtime reconciliation", () => {
-  assert.match(build, /if \(buildFinished\) void onRuntimeStateChanged\(\)/);
-  assert.match(app, /onRuntimeStateChanged=\{\(\) => refreshSnapshot\(\)\}/);
+test("background Voice build completion uses a global backend event", () => {
+  assert.match(runtimeEvents, /translateit:\/\/voice-build-runtime/);
+  assert.doesNotMatch(app, /onRuntimeStateChanged/);
 });
