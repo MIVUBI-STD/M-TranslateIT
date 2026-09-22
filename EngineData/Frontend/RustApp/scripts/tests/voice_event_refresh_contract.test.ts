@@ -15,6 +15,10 @@ const voiceApi = readFileSync(
   new URL("../../src/app/bridge/myVoiceBuildApi.ts", import.meta.url),
   "utf8",
 );
+const voiceSync = readFileSync(
+  new URL("../../src/app/runtime/voiceBuildRuntimeSync.ts", import.meta.url),
+  "utf8",
+);
 
 test("Voice selection and approval refresh through ApplicationRuntime events", () => {
   assert.match(mutations, /emit_after\(&app, "approve_voice_candidate"/);
@@ -30,8 +34,9 @@ test("background Voice build completion uses a global backend event", () => {
   assert.match(runtimeEvents, /translateit:\/\/voice-build-runtime/);
   assert.match(voiceApi, /subscribeRuntime/);
   assert.match(voiceApi, /translateit:\/\/voice-build-runtime/);
-  assert.match(app, /installVoiceBuildRuntimeSync/);
-  assert.match(app, /myVoiceBuildApi\.subscribeRuntime/);
-  assert.match(app, /unlistenVoiceBuildRuntime\?\.\(\)/);
+  assert.match(app, /startVoiceBuildRuntimeSync/);
+  assert.match(voiceSync, /myVoiceBuildApi\.subscribeRuntime/);
+  assert.match(voiceSync, /if \(disposed\)/);
+  assert.match(voiceSync, /unlisten\?\.\(\)/);
   assert.doesNotMatch(app, /onRuntimeStateChanged/);
 });
