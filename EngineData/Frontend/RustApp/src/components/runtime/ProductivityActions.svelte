@@ -11,6 +11,7 @@
   let {
     snapshot,
     meetingBusy,
+    voiceBuildActive,
     myVoiceRecording,
     onNavigate,
     onToggleMeeting,
@@ -18,6 +19,7 @@
   }: {
     snapshot: ProductRuntimeSnapshot;
     meetingBusy: boolean;
+    voiceBuildActive: boolean;
     myVoiceRecording: boolean;
     onNavigate: (route: AppRoute) => void;
     onToggleMeeting: () => void | Promise<void>;
@@ -102,7 +104,7 @@
     Quick Actions <kbd class="ml-1 text-[9px] opacity-65">Ctrl K</kbd>
   </button>
 
-  <UpdateAction {meetingBusy} {myVoiceRecording} {onNotice} />
+  <UpdateAction {meetingBusy} {voiceBuildActive} {myVoiceRecording} {onNotice} />
 </div>
 
 <CommandPalette bind:open={paletteOpen} {commands} />
