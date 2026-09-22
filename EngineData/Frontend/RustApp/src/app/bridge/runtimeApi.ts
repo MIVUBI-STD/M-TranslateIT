@@ -68,7 +68,14 @@ export type VirtualMicRouteContractStatus = {
   updated_unix_ms: number;
 };
 
-export type QuickTranslationCommandResult = TextTranslationCommandResult & {
+export type QuickTranslationCommandResult = {
+  ok: boolean;
+  state: string;
+  translated_text: string;
+  user_message: string;
+  blocker: string;
+  needs_review: boolean;
+  review_hints: string[];
   source_language: string;
   target_language: string;
 };
