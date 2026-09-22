@@ -7,7 +7,7 @@ export type ProductRecoveryAction = "fix-setup";
 
 export async function runProductSetupAction(action: ProductSetupAction): Promise<string> {
   if (action === "check-readiness") {
-    const result = await runtimeApi.verifyRequiredOutboundAiReadiness().catch(() => null);
+    const result = await applicationRuntimeApi.dispatchIntent("check_readiness").catch(() => null);
     return result?.ok
       ? "TranslateIT is ready."
       : "TranslateIT still needs attention. Try Check Again, then open Help if the problem continues.";
