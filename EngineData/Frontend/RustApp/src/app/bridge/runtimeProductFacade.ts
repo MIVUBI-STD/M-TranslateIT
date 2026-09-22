@@ -90,13 +90,15 @@ async function loadApprovedVoiceReady(): Promise<boolean | null> {
 async function mapApplicationSnapshotToProduct(
   initialApplication: ApplicationSnapshot,
   knownSettings?: RuntimeSettings,
+  allowRuntimeBootstrap = false,
 ): Promise<ProductRuntimeSnapshot> {
   let application = initialApplication;
   const settings = knownSettings ?? application.settings;
   if (!settings) throw new Error("TranslateIT settings are unavailable.");
 
   if (
-    settings.meeting_setup_state !== "new"
+    allowRuntimeBootstrap
+    && settings.meeting_setup_state !== "new"
     && application.summaries.worker.state === "not_started"
   ) {
     application = (await applicationRuntimeApi.dispatchIntent("ensure_runtime_ready")).snapshot;
@@ -137,6 +139,7 @@ export async function loadProductRuntimeSnapshot(
   return mapApplicationSnapshotToProduct(
     await applicationRuntimeApi.getSnapshot(),
     knownSettings,
+    true,
   );
 }
 
@@ -144,7 +147,7 @@ export async function loadProductRuntimeSnapshotFromApplication(
   application: ApplicationSnapshot,
   knownSettings?: RuntimeSettings,
 ): Promise<ProductRuntimeSnapshot> {
-  return mapApplicationSnapshotToProduct(application, knownSettings);
+  return mapApplicationSnapshotToProduct(application, knownSettings, false);
 }
 
 export async function runProductMeetingAction(
