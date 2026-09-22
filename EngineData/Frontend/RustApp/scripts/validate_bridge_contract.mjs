@@ -135,7 +135,7 @@ const contractPairs = [
   ["src-tauri/src/commands/meeting_session.rs", "MeetingCommittedTurnsSnapshot", "src/app/bridge/runtimeApi.ts", "MeetingCommittedTurnsSnapshot"],
   ["src-tauri/src/commands/meeting_session/transcript_export.rs", "MeetingTranscriptExportStatus", "src/app/bridge/runtimeApi.ts", "MeetingTranscriptExportStatus"],
   ["src-tauri/src/commands/meeting_session/transcript_export.rs", "MeetingTranscriptExportResult", "src/app/bridge/runtimeApi.ts", "MeetingTranscriptExportResult"],
-  ["src-tauri/src/commands/voice_lab_recording.rs", "GuidedTakeReview", "src/app/bridge/myVoiceApi.ts", "GuidedTakeReview"],
+  ["src-tauri/src/engine/audio/guided_take.rs", "GuidedTakeReview", "src/app/bridge/myVoiceApi.ts", "GuidedTakeReview"],
   ["src-tauri/src/commands/voice_lab_recording.rs", "GuidedLineStatus", "src/app/bridge/myVoiceApi.ts", "GuidedLineStatus"],
   ["src-tauri/src/commands/voice_lab_recording.rs", "GuidedRecordingState", "src/app/bridge/myVoiceApi.ts", "GuidedRecordingState"],
   ["src-tauri/src/commands/voice_lab_recording.rs", "GuidedRecordingActionResult", "src/app/bridge/myVoiceApi.ts", "GuidedRecordingActionResult"],
