@@ -170,6 +170,7 @@ async function mapApplicationSnapshotToProduct(
   });
 
   return {
+    applicationRevision: application.revision,
     settings,
     readiness,
     meeting,
