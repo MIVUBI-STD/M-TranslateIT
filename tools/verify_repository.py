@@ -71,6 +71,8 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/tests/runtime_event_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/worker_task_protocol_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/worker_status_protocol_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/application_unavailable_snapshot_contract.test.ts",
+    "EngineData/Frontend/RustApp/scripts/tests/worker_request_metadata_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/voice_build_runtime_sync_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/voice_event_refresh_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/helper_lifecycle_authority_contract.test.ts",
