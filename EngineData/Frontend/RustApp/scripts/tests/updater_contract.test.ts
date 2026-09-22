@@ -9,13 +9,16 @@ const appRoot = resolve(testDir, "../..");
 
 const read = (path: string) => readFileSync(join(appRoot, path), "utf8");
 
-test("updater remains one-shot and has no polling scheduler", () => {
+test("updater remains one-shot and begins from the app root", () => {
   const api = read("src/app/update/appUpdateApi.ts");
+  const app = read("src/App.svelte");
   const action = read("src/components/runtime/UpdateAction.svelte");
 
-  assert.match(api, /let startupCheckStarted = false;/);
-  assert.match(api, /if \(startupCheckStarted\) return null;/);
-  assert.match(api, /startupCheckStarted = true;/);
+  assert.match(api, /let startupCheckPromise: Promise<AppUpdateCheck \| null> \| null = null;/);
+  assert.match(api, /if \(!startupCheckPromise\)/);
+  assert.match(api, /startupCheckPromise = runCommand<AppUpdateCheck>\("check_app_update_once"\)/);
+  assert.match(api, /return startupCheckPromise;/);
+  assert.match(app, /appUpdateApi\.checkAtStartupOnce\(\)/);
   assert.match(action, /checkAtStartupOnce\(\)/);
 
   for (const source of [api, action]) {
