@@ -43,7 +43,8 @@
 
   <ProductivityActions
     {snapshot}
-    meetingBusy={snapshot.meeting.hasSession}
+    audioLocked={snapshot.resources.audio_locked}
+    audioOwnerKind={snapshot.resources.owner_kind}
     voiceBuildActive={snapshot.voiceBuildActive}
     {myVoiceRecording}
     {onNavigate}
