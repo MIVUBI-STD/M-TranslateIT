@@ -19,6 +19,31 @@ function registeredCommands() {
   return names;
 }
 
+
+function collectRustFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...collectRustFiles(path));
+    else if (entry.isFile() && entry.name.endsWith(".rs")) files.push(path);
+  }
+  return files;
+}
+
+function annotatedTauriCommands() {
+  const names = new Set();
+  const rustRoot = join(root, "src-tauri", "src");
+  for (const path of collectRustFiles(rustRoot)) {
+    const body = readFileSync(path, "utf8");
+    for (const match of body.matchAll(
+      /#\[tauri::command\]\s*\n\s*pub\s+fn\s+([a-z_][a-z_0-9]*)/g,
+    )) {
+      names.add(match[1]);
+    }
+  }
+  return names;
+}
+
 function invokedCommands() {
   const names = new Set();
   const stack = [bridgeRoot];
@@ -64,6 +89,7 @@ function sortedDifference(left, right) {
 
 const failures = [];
 const rustCommands = registeredCommands();
+const annotatedCommands = annotatedTauriCommands();
 const frontendCommands = invokedCommands();
 
 if (rustCommands.size === 0) failures.push("no registered Tauri commands found");
@@ -73,6 +99,12 @@ for (const name of sortedDifference(rustCommands, frontendCommands)) {
 }
 for (const name of sortedDifference(frontendCommands, rustCommands)) {
   failures.push(`invoked by frontend but not registered: ${name}`);
+}
+for (const name of sortedDifference(annotatedCommands, rustCommands)) {
+  failures.push(`#[tauri::command] exists but is not registered: ${name}`);
+}
+for (const name of sortedDifference(rustCommands, annotatedCommands)) {
+  failures.push(`registered command is missing #[tauri::command]: ${name}`);
 }
 
 const contractPairs = [
@@ -156,6 +188,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`[bridge-contract] ${rustCommands.size} Tauri commands are 1:1 aligned with frontend invocations.`);
+console.log(`[bridge-contract] ${rustCommands.size} Tauri commands are 1:1 aligned with frontend invocations and command annotations.`);
 console.log(`[bridge-contract] ${contractPairs.length} Rust/TypeScript response shapes are field-aligned.`);
 console.log("[bridge-contract] bridge boundaries contain no explicit any escape hatches.");
