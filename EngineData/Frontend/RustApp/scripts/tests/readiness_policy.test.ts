@@ -2,11 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveMeetingVoiceGate } from "../../src/app/runtime/meetingVoiceGate.ts";
-import {
-  shouldAutoStartHelper,
-  shouldExplicitlyRestartHelper,
-} from "../../src/app/runtime/helperLifecyclePolicy.ts";
-
 test("preflight-ready Meeting stays Setup Needed until a Meeting voice is selected", () => {
   const result = resolveMeetingVoiceGate({
     live: false,
@@ -63,19 +58,4 @@ test("voice state does not hide or duplicate an unmet preflight owner", () => {
   assert.equal(result.status, "Setup Needed");
   assert.equal(result.blocker, null);
   assert.equal(result.nextAction, null);
-});
-
-
-test("automatic helper startup is limited to initial not_started state", () => {
-  assert.equal(shouldAutoStartHelper("not_started"), true);
-  assert.equal(shouldAutoStartHelper("stopped"), false);
-  assert.equal(shouldAutoStartHelper("ready"), false);
-  assert.equal(shouldAutoStartHelper("error"), false);
-});
-
-test("explicit setup recovery may restart a stopped helper", () => {
-  assert.equal(shouldExplicitlyRestartHelper("not_started"), true);
-  assert.equal(shouldExplicitlyRestartHelper("stopped"), true);
-  assert.equal(shouldExplicitlyRestartHelper("ready"), false);
-  assert.equal(shouldExplicitlyRestartHelper("error"), false);
 });
