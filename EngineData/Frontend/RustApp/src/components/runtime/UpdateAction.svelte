@@ -4,10 +4,12 @@
 
   let {
     meetingBusy,
+    voiceBuildActive,
     myVoiceRecording,
     onNotice,
   }: {
     meetingBusy: boolean;
+    voiceBuildActive: boolean;
     myVoiceRecording: boolean;
     onNotice: (message: string) => void;
   } = $props();
@@ -39,6 +41,10 @@
       onNotice("Stop the current My Voice recording before updating TranslateIT.");
       return;
     }
+    if (voiceBuildActive) {
+      onNotice("Wait for My Voice creation to finish before updating TranslateIT.");
+      return;
+    }
 
     busy = true;
     onNotice("Preparing TranslateIT update...");
@@ -60,8 +66,14 @@
   <button
     type="button"
     class="ti-button ti-button-secondary min-h-8 shrink-0 px-3 text-[11.5px]"
-    disabled={busy || meetingBusy || myVoiceRecording}
-    title={meetingBusy ? "Stop Translation or Mic Test before updating." : update.notes ?? "A TranslateIT update is ready."}
+    disabled={busy || meetingBusy || myVoiceRecording || voiceBuildActive}
+    title={meetingBusy
+      ? "Stop Translation or Mic Test before updating."
+      : myVoiceRecording
+        ? "Stop the current My Voice recording before updating."
+        : voiceBuildActive
+          ? "Wait for My Voice creation to finish before updating."
+          : update.notes ?? "A TranslateIT update is ready."}
     onclick={() => void install()}
   >{busy ? "Updating..." : `Update ${update.version ?? ""}`}</button>
 {/if}
