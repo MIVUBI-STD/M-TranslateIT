@@ -24,6 +24,7 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
   refresh: (knownSettings?: RuntimeSettings) => Promise<ApplicationRefreshResult>;
   refreshFromApplication: (
     application: ApplicationSnapshot,
+    reason: string,
     knownSettings?: RuntimeSettings,
   ) => Promise<ApplicationRefreshResult>;
   applySettings: (settings: RuntimeSettings) => void;
@@ -81,11 +82,14 @@ export function createApplicationController(initialSettings: RuntimeSettings): {
 
     async refreshFromApplication(
       application: ApplicationSnapshot,
+      reason: string,
       knownSettings?: RuntimeSettings,
     ): Promise<ApplicationRefreshResult> {
       const requestRevision = ++state.revision;
       const next = await runtimeProductFacade.loadProductRuntimeSnapshotFromApplication(
         application,
+        state.snapshot,
+        reason,
         knownSettings,
       );
       return commitSnapshot(next, requestRevision);
