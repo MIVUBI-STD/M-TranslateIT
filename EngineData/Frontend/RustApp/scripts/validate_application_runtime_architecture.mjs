@@ -108,6 +108,16 @@ const runtimeStateSource = readFileSync(
   join(appRoot, "src-tauri", "src", "engine", "runtime_state.rs"),
   "utf8",
 );
+const appBootstrapSource = readFileSync(
+  join(appRoot, "src-tauri", "src", "app_bootstrap.rs"),
+  "utf8",
+);
+if (appBootstrapSource.includes('const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting"')) {
+  failures.push("app_bootstrap.rs must reuse the canonical runtime_state Meeting owner constant");
+}
+if (!appBootstrapSource.includes("runtime_state::APPLICATION_MEETING_OWNER_ID")) {
+  failures.push("app_bootstrap.rs power lifecycle must import the canonical Meeting owner identity");
+}
 for (const required of [
   'MIC_TEST_OWNER_ID: &str = "translateit_mic_test"',
   'VOICE_RECORDING_OWNER_ID: &str = "translateit_voice_recording"',
