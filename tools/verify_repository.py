@@ -52,6 +52,7 @@ REQUIRED_PATHS = (
     ".agents/skills/windows-audio-runtime-development/SKILL.md",
     ".agents/skills/release-packaging-development/SKILL.md",
     "EngineData/Frontend/RustApp/scripts/validate_bridge_contract.mjs",
+    "EngineData/Frontend/RustApp/scripts/validate_tauri_command_args.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_application_runtime_architecture.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_frontend_reachability.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_runtime_api_usage.mjs",
@@ -385,6 +386,7 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
     for marker in (
         "scripts/tests/*.test.ts",
         '"validate:bridge-contract"',
+        '"validate:tauri-command-args"',
         '"validate:application-runtime"',
         '"validate:source-size"',
         '"validate:reachability"',
