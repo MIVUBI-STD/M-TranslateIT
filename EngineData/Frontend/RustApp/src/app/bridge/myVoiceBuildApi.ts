@@ -1,3 +1,4 @@
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { runCommand } from "../shared/tauriBridge";
 
 export type MyVoiceEvaluationSample = {
@@ -35,6 +36,12 @@ export type MyVoiceBuildActionResult = {
   state: string;
   message: string;
   build: MyVoiceBuildStatus;
+};
+
+export type MyVoiceBuildRuntimeEvent = {
+  revision: number;
+  reason: string;
+  generation: number;
 };
 
 function unavailableStatus(): MyVoiceBuildStatus {
@@ -121,5 +128,13 @@ export const myVoiceBuildApi = {
 
   async getEvaluationAudio(lineId: number): Promise<ArrayBuffer | null> {
     return runCommand<ArrayBuffer>("get_voice_lab_evaluation_audio", { lineId });
+  },
+
+  subscribeRuntime(
+    listener: (event: MyVoiceBuildRuntimeEvent) => void,
+  ): Promise<UnlistenFn> {
+    return listen<MyVoiceBuildRuntimeEvent>("translateit://voice-build-runtime", (event) => {
+      listener(event.payload);
+    });
   },
 };
