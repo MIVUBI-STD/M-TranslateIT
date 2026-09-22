@@ -15,10 +15,12 @@
     onNotice,
     onRecordingChange,
     onMeetingVoiceChanged,
+    onRuntimeStateChanged,
   }: {
     onNotice: (message: string) => void;
     onRecordingChange: (recording: boolean) => void;
     onMeetingVoiceChanged: (message?: string) => void | Promise<void>;
+    onRuntimeStateChanged: () => void | Promise<void>;
   } = $props();
 
   let recordingState = $state<GuidedRecordingState>({ recording_line_id: null, pending_review: null, lines: [] });
