@@ -150,6 +150,7 @@ jobs:
       - run: npm run validate:reachability
       - run: npm run validate:runtime-api-usage
       - run: npm run validate:test-references
+      - run: npm run validate:test-ci-routing
       - run: npm run validate:dependency-usage
       - run: npm run validate:rust-dependency-usage
       - run: npm run validate:virtual-route
