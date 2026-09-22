@@ -87,10 +87,28 @@ async function loadApprovedVoiceReady(): Promise<boolean | null> {
   }
 }
 
+const WORKER_REFRESH_REASONS = new Set([
+  "fix_setup",
+  "check_readiness",
+  "ensure_runtime_ready",
+  "start_meeting",
+  "approve_voice_candidate",
+  "select_builtin_voice",
+]);
+
+const VOICE_REFRESH_REASONS = new Set([
+  "start_voice_build",
+  "cancel_voice_build",
+  "approve_voice_candidate",
+  "select_builtin_voice",
+]);
+
 async function mapApplicationSnapshotToProduct(
   initialApplication: ApplicationSnapshot,
   knownSettings?: RuntimeSettings,
   allowRuntimeBootstrap = false,
+  previous?: ProductRuntimeSnapshot | null,
+  reason?: string,
 ): Promise<ProductRuntimeSnapshot> {
   let application = initialApplication;
   const settings = knownSettings ?? application.settings;
@@ -105,9 +123,27 @@ async function mapApplicationSnapshotToProduct(
   }
 
   const helper = application.helper;
+  const helperIdentityChanged = Boolean(
+    previous
+      && (
+        previous.helper?.generation_token !== helper.generation_token
+        || previous.helper?.state !== helper.state
+      ),
+  );
+  const refreshWorker = !previous
+    || helperIdentityChanged
+    || WORKER_REFRESH_REASONS.has(reason ?? "");
+  const refreshVoice = !previous
+    || previous.voiceBuildActive !== application.summaries.voice.build_active
+    || VOICE_REFRESH_REASONS.has(reason ?? "");
+
   const [approvedVoiceReady, workerStatus] = await Promise.all([
-    loadApprovedVoiceReady(),
-    helper.state === "ready" ? runtimeApi.helperBridgeWorkerStatus() : Promise.resolve(null),
+    refreshVoice
+      ? loadApprovedVoiceReady()
+      : Promise.resolve(previous.readiness.approvedVoiceReady),
+    refreshWorker
+      ? (helper.state === "ready" ? runtimeApi.helperBridgeWorkerStatus() : Promise.resolve(null))
+      : Promise.resolve(previous.workerStatus),
   ]);
   const meetingSession = application.meeting;
   const inputStatus = application.input;
@@ -146,9 +182,17 @@ export async function loadProductRuntimeSnapshot(
 
 export async function loadProductRuntimeSnapshotFromApplication(
   application: ApplicationSnapshot,
+  previous: ProductRuntimeSnapshot | null,
+  reason: string,
   knownSettings?: RuntimeSettings,
 ): Promise<ProductRuntimeSnapshot> {
-  return mapApplicationSnapshotToProduct(application, knownSettings, false);
+  return mapApplicationSnapshotToProduct(
+    application,
+    knownSettings,
+    false,
+    previous,
+    reason,
+  );
 }
 
 export async function runProductMeetingAction(
