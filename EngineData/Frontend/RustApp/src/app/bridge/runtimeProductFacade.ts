@@ -123,6 +123,10 @@ async function mapApplicationSnapshotToProduct(
   reason?: string,
 ): Promise<ProductRuntimeSnapshot> {
   let application = initialApplication;
+  if (application.revision <= 0 || application.lifecycle === "unavailable") {
+    throw new Error("TranslateIT application runtime is unavailable.");
+  }
+
   const settings = knownSettings ?? application.settings;
   if (!settings) throw new Error("TranslateIT settings are unavailable.");
 
