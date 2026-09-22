@@ -9,7 +9,6 @@ use super::virtual_mic_route::{
 };
 use super::voice_lab::voice_lab_build_blocks_meeting as my_voice_build_blocks_meeting;
 
-#[tauri::command]
 pub fn start_helper_bridge() -> HelperBridgeActionResult {
     let runtime_state = latest_runtime_session_state();
     if runtime_state.has_active_session {
@@ -110,7 +109,6 @@ pub fn verify_required_outbound_ai_readiness() -> HelperBridgeActionResult {
     }
 }
 
-#[tauri::command]
 pub fn start_meeting_translation() -> MeetingSessionActionResult {
     if my_voice_build_blocks_meeting() {
         return MeetingSessionActionResult {
