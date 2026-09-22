@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { runtimeApi } from "../../app/bridge/runtimeApi";
   import {
     exportDiagnosticSupportBundle,
     getDeviceLossGuardStatus,
     getLongSessionHealthStatus,
+    getRuntimeWatchdogStatus,
+    getStartupRecoveryStatus,
     getRecentRuntimeIncidents,
     type DeviceLossGuardStatus,
     type LongSessionHealthStatus,
@@ -24,8 +25,8 @@
 
   async function refresh(): Promise<void> {
     [watchdog, recovery, devices, incidents, longSession] = await Promise.all([
-      runtimeApi.getRuntimeWatchdogStatus().catch(() => null),
-      runtimeApi.getStartupRecoveryStatus().catch(() => null),
+      getRuntimeWatchdogStatus().catch(() => null),
+      getStartupRecoveryStatus().catch(() => null),
       getDeviceLossGuardStatus().catch(() => null),
       getRecentRuntimeIncidents().catch(() => null),
       getLongSessionHealthStatus().catch(() => null),
