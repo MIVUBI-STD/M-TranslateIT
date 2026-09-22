@@ -44,6 +44,7 @@
   <ProductivityActions
     {snapshot}
     meetingBusy={snapshot.meeting.hasSession}
+    voiceBuildActive={snapshot.voiceBuildActive}
     {myVoiceRecording}
     {onNavigate}
     {onToggleMeeting}
