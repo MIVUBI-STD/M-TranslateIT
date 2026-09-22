@@ -114,6 +114,12 @@ export type ApplicationRuntimeEvent = {
   snapshot: ApplicationSnapshot;
 };
 
+type VoiceBuildRuntimeEvent = {
+  revision: number;
+  reason: string;
+  generation: number;
+};
+
 function unavailableSnapshot(): ApplicationSnapshot {
   return {
     revision: 0,
@@ -203,9 +209,26 @@ export async function dispatchProductIntent(intent: ProductIntent): Promise<Appl
 export async function subscribeApplicationRuntime(
   listener: (event: ApplicationRuntimeEvent) => void,
 ): Promise<UnlistenFn> {
-  return listen<ApplicationRuntimeEvent>("translateit://application-runtime", (event) => {
-    listener(event.payload);
-  });
+  const applicationStop = await listen<ApplicationRuntimeEvent>(
+    "translateit://application-runtime",
+    (event) => {
+      listener(event.payload);
+    },
+  );
+  const voiceBuildStop = await listen<VoiceBuildRuntimeEvent>(
+    "translateit://voice-build-runtime",
+    (event) => {
+      void getApplicationSnapshot().then((snapshot) => {
+        if (snapshot.revision <= 0 || snapshot.lifecycle === "unavailable") return;
+        listener({ reason: event.payload.reason, snapshot });
+      });
+    },
+  );
+
+  return () => {
+    applicationStop();
+    voiceBuildStop();
+  };
 }
 
 export const applicationRuntimeApi = {
