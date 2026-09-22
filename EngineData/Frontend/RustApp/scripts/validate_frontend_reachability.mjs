@@ -48,23 +48,53 @@ function importedModules(path) {
   ]) {
     for (const match of body.matchAll(pattern)) specifiers.add(match[1]);
   }
-  return [...specifiers]
-    .map((specifier) => resolveRelativeImport(path, specifier))
-    .filter(Boolean);
+
+  const resolved = [];
+  const unresolved = [];
+  for (const specifier of specifiers) {
+    const target = resolveRelativeImport(path, specifier);
+    if (target) {
+      resolved.push(target);
+      continue;
+    }
+
+    const extension = extname(specifier);
+    if (!extension || extension === ".ts" || extension === ".svelte") {
+      unresolved.push(specifier);
+    }
+  }
+  return { resolved, unresolved };
 }
 
 const entrypoint = resolve(sourceRoot, "main.ts");
 if (!moduleSet.has(entrypoint)) throw new Error("frontend-reachability: src/main.ts is missing");
 
 const reachable = new Set();
+const unresolvedImports = [];
 const queue = [entrypoint];
 while (queue.length > 0) {
   const current = queue.shift();
   if (reachable.has(current)) continue;
   reachable.add(current);
-  for (const dependency of importedModules(current)) {
+
+  const imported = importedModules(current);
+  for (const specifier of imported.unresolved) {
+    unresolvedImports.push({
+      importer: relative(appRoot, current).replaceAll("\\", "/"),
+      specifier,
+    });
+  }
+  for (const dependency of imported.resolved) {
     if (!reachable.has(dependency)) queue.push(dependency);
   }
+}
+
+if (unresolvedImports.length > 0) {
+  console.error("Frontend reachability failed; relative source imports could not be resolved:");
+  for (const { importer, specifier } of unresolvedImports) {
+    console.error(`- ${importer}: ${specifier}`);
+  }
+  process.exit(1);
 }
 
 const orphans = modules
