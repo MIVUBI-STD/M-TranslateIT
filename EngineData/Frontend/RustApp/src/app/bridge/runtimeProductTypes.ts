@@ -61,6 +61,7 @@ export type ProductRuntimeSnapshot = {
   workerStatus: HelperBridgeWorkerResponse | null;
   inputStatus: ApplicationInputStatus | null;
   resources: ResourceArbitration;
+  voiceBuildActive: boolean;
 };
 
 export type WorkerCapabilitySnapshot = {
