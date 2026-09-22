@@ -10,7 +10,8 @@
 
   let {
     snapshot,
-    meetingBusy,
+    audioLocked,
+    audioOwnerKind,
     voiceBuildActive,
     myVoiceRecording,
     onNavigate,
@@ -18,7 +19,8 @@
     onNotice,
   }: {
     snapshot: ProductRuntimeSnapshot;
-    meetingBusy: boolean;
+    audioLocked: boolean;
+    audioOwnerKind: string;
     voiceBuildActive: boolean;
     myVoiceRecording: boolean;
     onNavigate: (route: AppRoute) => void;
@@ -104,7 +106,7 @@
     Quick Actions <kbd class="ml-1 text-[9px] opacity-65">Ctrl K</kbd>
   </button>
 
-  <UpdateAction {meetingBusy} {voiceBuildActive} {myVoiceRecording} {onNotice} />
+  <UpdateAction {audioLocked} {audioOwnerKind} {voiceBuildActive} {myVoiceRecording} {onNotice} />
 </div>
 
 <CommandPalette bind:open={paletteOpen} {commands} />
