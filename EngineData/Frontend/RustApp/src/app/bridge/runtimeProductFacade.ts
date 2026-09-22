@@ -87,20 +87,32 @@ async function loadApprovedVoiceReady(): Promise<boolean | null> {
   }
 }
 
-const WORKER_REFRESH_REASONS = new Set([
+const WORKER_REUSE_SAFE_REASONS = new Set([
+  "stop_meeting",
+  "start_mic_test",
+  "stop_mic_test",
+  "select_audio_device",
+  "save_settings",
+  "apply_meeting_preset",
+  "start_voice_recording",
+  "stop_voice_recording",
+  "start_voice_build",
+  "cancel_voice_build",
+]);
+
+const VOICE_REUSE_SAFE_REASONS = new Set([
+  "start_meeting",
+  "stop_meeting",
+  "start_mic_test",
+  "stop_mic_test",
   "fix_setup",
   "check_readiness",
   "ensure_runtime_ready",
-  "start_meeting",
-  "approve_voice_candidate",
-  "select_builtin_voice",
-]);
-
-const VOICE_REFRESH_REASONS = new Set([
-  "start_voice_build",
-  "cancel_voice_build",
-  "approve_voice_candidate",
-  "select_builtin_voice",
+  "select_audio_device",
+  "save_settings",
+  "apply_meeting_preset",
+  "start_voice_recording",
+  "stop_voice_recording",
 ]);
 
 async function mapApplicationSnapshotToProduct(
@@ -132,10 +144,10 @@ async function mapApplicationSnapshotToProduct(
   );
   const refreshWorker = !previous
     || helperIdentityChanged
-    || WORKER_REFRESH_REASONS.has(reason ?? "");
+    || !WORKER_REUSE_SAFE_REASONS.has(reason ?? "");
   const refreshVoice = !previous
     || previous.voiceBuildActive !== application.summaries.voice.build_active
-    || VOICE_REFRESH_REASONS.has(reason ?? "");
+    || !VOICE_REUSE_SAFE_REASONS.has(reason ?? "");
 
   const [approvedVoiceReady, workerStatus] = await Promise.all([
     refreshVoice
