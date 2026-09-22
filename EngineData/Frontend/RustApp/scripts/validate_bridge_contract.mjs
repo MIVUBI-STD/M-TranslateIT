@@ -143,6 +143,15 @@ const contractPairs = [
   ["src-tauri/src/commands/voice_lab_build.rs", "VoiceLabBuildStatus", "src/app/bridge/myVoiceBuildApi.ts", "MyVoiceBuildStatus"],
   ["src-tauri/src/commands/voice_lab_build.rs", "VoiceLabBuildActionResult", "src/app/bridge/myVoiceBuildApi.ts", "MyVoiceBuildActionResult"],
   ["src-tauri/src/commands/voice_lab_build/evaluation.rs", "VoiceLabEvaluationSample", "src/app/bridge/myVoiceBuildApi.ts", "MyVoiceEvaluationSample"],
+  ["src-tauri/src/commands/app_update.rs", "AppUpdateCheck", "src/app/update/appUpdateApi.ts", "AppUpdateCheck"],
+  ["src-tauri/src/commands/app_update.rs", "AppUpdateInstall", "src/app/update/appUpdateApi.ts", "AppUpdateInstall"],
+  ["src-tauri/src/commands/runtime_watchdog.rs", "RuntimeWatchdogStatus", "src/app/bridge/reliabilityApi.ts", "RuntimeWatchdogStatus"],
+  ["src-tauri/src/commands/device_loss_guard.rs", "DeviceLossGuardStatus", "src/app/bridge/reliabilityApi.ts", "DeviceLossGuardStatus"],
+  ["src-tauri/src/commands/long_session_health.rs", "LongSessionHealthStatus", "src/app/bridge/reliabilityApi.ts", "LongSessionHealthStatus"],
+  ["src-tauri/src/commands/incident_log.rs", "RuntimeIncident", "src/app/bridge/reliabilityApi.ts", "RuntimeIncident"],
+  ["src-tauri/src/commands/incident_log.rs", "RuntimeIncidentSnapshot", "src/app/bridge/reliabilityApi.ts", "RuntimeIncidentSnapshot"],
+  ["src-tauri/src/commands/diagnostic_support.rs", "DiagnosticSupportBundleResult", "src/app/bridge/reliabilityApi.ts", "DiagnosticSupportBundleResult"],
+  ["src-tauri/src/commands/startup_recovery.rs", "StartupRecoveryReport", "src/app/bridge/reliabilityApi.ts", "StartupRecoveryReport"],
 ];
 
 for (const [rustFile, rustType, tsFile, tsType] of contractPairs) {
