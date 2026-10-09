@@ -119,7 +119,6 @@ pub fn load_runtime_settings() -> RuntimeSettings {
     settings
 }
 
-#[tauri::command]
 pub fn save_runtime_settings(settings: RuntimeSettings) -> CommandResult {
     let started = trace_command_start("save_runtime_settings", "saving runtime settings");
     let current = engine::load_settings();
@@ -142,7 +141,6 @@ pub fn save_runtime_settings(settings: RuntimeSettings) -> CommandResult {
     result
 }
 
-#[tauri::command]
 pub fn apply_meeting_preset(settings: RuntimeSettings) -> MeetingPresetApplyResult {
     let started = trace_command_start("apply_meeting_preset", "validating and applying Meeting preset");
     let current = engine::load_settings();
@@ -196,7 +194,6 @@ pub fn apply_meeting_preset(settings: RuntimeSettings) -> MeetingPresetApplyResu
     }
 }
 
-#[tauri::command]
 pub fn select_audio_device(kind: String, device_id: Option<String>) -> AudioDeviceSelectionResult {
     let started = trace_command_start("select_audio_device", format!("kind={kind}"));
     let current = engine::load_settings();

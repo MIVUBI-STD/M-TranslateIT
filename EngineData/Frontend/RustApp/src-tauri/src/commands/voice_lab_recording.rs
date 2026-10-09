@@ -154,7 +154,6 @@ pub fn get_voice_lab_guided_recording_state() -> GuidedRecordingState {
     current_state()
 }
 
-#[tauri::command]
 pub fn start_voice_lab_guided_take(
     line_id: u32,
     authorized_voice_confirmed: bool,
@@ -193,7 +192,6 @@ pub fn start_voice_lab_guided_take(
     result(true, "recording", "Recording started. Read the line naturally, then press Stop.")
 }
 
-#[tauri::command]
 pub fn stop_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
     if active_guided_take_line_id() != Some(line_id) {
         return result(false, "line_mismatch", "The requested line is not the guided take currently being recorded.");

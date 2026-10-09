@@ -36,7 +36,7 @@ function annotatedTauriCommands() {
   for (const path of collectRustFiles(rustRoot)) {
     const body = readFileSync(path, "utf8");
     for (const match of body.matchAll(
-      /#\[tauri::command\]\s*\n\s*pub\s+fn\s+([a-z_][a-z_0-9]*)/g,
+      /#\[tauri::command\]\s*\n\s*pub\s+(?:async\s+)?fn\s+([a-z_][a-z_0-9]*)/g,
     )) {
       names.add(match[1]);
     }

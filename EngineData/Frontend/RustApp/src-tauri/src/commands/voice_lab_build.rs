@@ -457,7 +457,6 @@ pub fn get_voice_lab_build_status() -> VoiceLabBuildStatus {
     current_status()
 }
 
-#[tauri::command]
 pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildActionResult {
     if !authorized_voice_confirmed {
         return result(false, "authorization_required", "Confirm that this is your voice, or that you have permission to create it.");
@@ -625,7 +624,6 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
     result(true, "building", "VoiceLab started creating My Voice. You can leave this page open while it works.")
 }
 
-#[tauri::command]
 pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
     let snapshot = current_voice_lab_build_snapshot();
     let Some(generation) = snapshot.generation else {
@@ -673,7 +671,6 @@ pub fn get_builtin_voice_preview_audio(voice_id: String) -> Result<tauri::ipc::R
     Ok(tauri::ipc::Response::new(bytes))
 }
 
-#[tauri::command]
 pub fn select_builtin_voice(
     voice_id: String,
     authorized_voice_confirmed: bool,
@@ -721,7 +718,6 @@ pub fn select_builtin_voice(
     }
 }
 
-#[tauri::command]
 pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuildActionResult {
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");

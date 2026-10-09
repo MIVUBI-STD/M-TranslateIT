@@ -146,7 +146,6 @@ pub fn record_runtime_incident(
     write_incidents(&path, &incidents).is_ok()
 }
 
-#[tauri::command]
 pub fn runtime_incident_count() -> usize {
     let Ok(_io_guard) = incident_io_lock().lock() else {
         return 0;
