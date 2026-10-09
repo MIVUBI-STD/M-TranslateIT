@@ -3,7 +3,7 @@ use tauri::Emitter;
 
 use super::contract::ApplicationSnapshot;
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 struct ApplicationRuntimeEvent<'a> {
     reason: &'a str,
     snapshot: &'a ApplicationSnapshot,

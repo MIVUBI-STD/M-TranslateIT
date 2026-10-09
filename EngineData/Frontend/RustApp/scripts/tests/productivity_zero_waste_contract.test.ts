@@ -12,7 +12,7 @@ const sessionReview = readFileSync(new URL("../../src/components/meeting/Meeting
 const feedbackReview = readFileSync(new URL("../../src/components/settings/TranslationFeedbackReview.svelte", import.meta.url), "utf8");
 
 test("Meeting presets apply through one Rust-owned validation transaction", () => {
-  assert.match(registry, /application_runtime::apply_product_meeting_preset/);
+  assert.match(registry, /application_runtime::mutations::apply_product_meeting_preset/);
   assert.match(runtimeApi, /"apply_product_meeting_preset"/);
   assert.match(mutations, /emit_after\(&app, "apply_meeting_preset"/);
   assert.match(panel, /runtimeApi\.applyMeetingPreset/);

@@ -51,3 +51,7 @@ test("Voice build runtime event name and payload fields stay aligned", () => {
     assert.match(meetingBackend, new RegExp(`\\b${field}:`));
   }
 });
+
+test("Tauri application event payload implements required Clone transport bound", () => {
+  assert.match(applicationBackend, /#\[derive\(Clone, Serialize\)\]/);
+});
