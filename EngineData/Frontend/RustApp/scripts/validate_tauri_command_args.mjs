@@ -40,8 +40,11 @@ function splitParams(value) {
 
 function frontendArgKeys(objectBody) {
   if (!objectBody) return [];
-  return [...objectBody.matchAll(/(?:^|,)\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::|,|$)/g)]
-    .map((match) => match[1]);
+  return splitParams(objectBody).map((part) => {
+    const match = part.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::|$)/);
+    if (!match) throw new Error(`tauri-command-args: unsupported frontend object argument ${part.trim()}`);
+    return match[1];
+  });
 }
 
 const rustCommands = new Map();
@@ -74,32 +77,14 @@ for (const path of collect(rustRoot, new Set([".rs"]))) {
 const frontendCalls = new Map();
 for (const path of collect(frontendRoot, new Set([".ts", ".svelte"]))) {
   const body = readFileSync(path, "utf8");
-  const pattern = /(?:runCommand|invoke[A-Za-z0-9_]*)(?:<[\s\S]{0,200}?>)?\(\s*"([a-z_][a-z_0-9]*)"\s*(?:,\s*\{([\s\S]{0,600}?)\})?\s*\)/g;
+  // Stop after the literal command and its optional first argument, rather
+  // than searching for a final ")" across a third-argument fallback.
+  const pattern = /(?:\brunCommand|\binvoke[A-Za-z0-9_]*)(?:<[\s\S]{0,200}?>)?\(\s*"([a-z_][a-z_0-9]*)"\s*(?:,\s*(?:undefined|\{([\s\S]{0,600}?)\}))?\s*(?=[,)])/g;
   for (const match of body.matchAll(pattern)) {
     const keys = frontendArgKeys(match[2] ?? "").sort();
     const existing = frontendCalls.get(match[1]);
     if (existing && JSON.stringify(existing.args) !== JSON.stringify(keys)) {
       throw new Error(`tauri-command-args: inconsistent frontend argument shapes for ${match[1]}`);
-    }
-    frontendCalls.set(match[1], {
-      path: relative(appRoot, path).replaceAll("\\", "/"),
-      args: keys,
-    });
-  }
-}
-
-// invokeOr<T>("registered_command", undefined | { args }, fallback) is a
-// three-argument adapter. The main direct-call pattern above intentionally
-// handles direct invocations; this second pattern validates the same canonical
-// Rust argument keys without mistaking the fallback value for command args.
-for (const path of collect(frontendRoot, new Set([".ts", ".svelte"]))) {
-  const body = readFileSync(path, "utf8");
-  const pattern = /\binvokeOr(?:<[\s\S]{0,200}?>)?\(\s*"([a-z_][a-z_0-9]*)"\s*,\s*(?:undefined|\{([\s\S]{0,600}?)\})\s*,/g;
-  for (const match of body.matchAll(pattern)) {
-    const keys = frontendArgKeys(match[2] ?? "").sort();
-    const existing = frontendCalls.get(match[1]);
-    if (existing && JSON.stringify(existing.args) !== JSON.stringify(keys)) {
-      throw new Error(`tauri-command-args: inconsistent fallback invocation shape for ${match[1]}`);
     }
     frontendCalls.set(match[1], {
       path: relative(appRoot, path).replaceAll("\\", "/"),
