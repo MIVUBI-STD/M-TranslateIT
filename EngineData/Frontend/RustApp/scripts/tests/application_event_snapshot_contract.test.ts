@@ -12,6 +12,6 @@ test("application runtime events map from the supplied snapshot without refetchi
   const start = facade.indexOf("export async function loadProductRuntimeSnapshotFromApplication");
   const body = facade.slice(start, start + 700);
   assert.doesNotMatch(body, /applicationRuntimeApi\.getSnapshot\(/);
-  assert.match(body, /mapApplicationSnapshotToProduct\(application, knownSettings, false\)/);
+  assert.match(body, /mapApplicationSnapshotToProduct\(\s*application,\s*knownSettings,\s*false,\s*previous,\s*reason,?\s*\)/);
   assert.doesNotMatch(body, /dispatchIntent\("ensure_runtime_ready"\)/);
 });

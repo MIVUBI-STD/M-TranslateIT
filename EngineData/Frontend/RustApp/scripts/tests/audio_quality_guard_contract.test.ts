@@ -19,8 +19,9 @@ test("audio quality guard exposes bounded user-facing states", () => {
   assert.match(runtimeApi, /getAudioQuality/);
 });
 
-test("meeting page polls only diagnostic status and never starts capture", () => {
-  assert.match(meeting, /getAudioQuality\(\)/);
-  assert.match(meeting, /2500/);
+test("Meeting page reads diagnostic audio status without starting capture", () => {
+  assert.match(meeting, /async function refreshAudioQuality\(\)/);
+  assert.match(meeting, /audioQuality = await runtimeApi\.getAudioQuality\(\)/);
+  assert.match(meeting, /onMount\(\(\) => \{[\s\S]*?void refreshAudioQuality\(\);/);
   assert.doesNotMatch(meeting, /startCapture\(/);
 });

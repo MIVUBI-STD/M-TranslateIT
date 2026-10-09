@@ -5,12 +5,16 @@ import test from "node:test";
 const panel = readFileSync(new URL("../../src/components/meeting/MeetingPresetPanel.svelte", import.meta.url), "utf8");
 const settings = readFileSync(new URL("../../src-tauri/src/commands/settings.rs", import.meta.url), "utf8");
 const registry = readFileSync(new URL("../../src-tauri/src/commands/registry.rs", import.meta.url), "utf8");
+const mutations = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/mutations.rs", import.meta.url), "utf8");
+const runtimeApi = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", import.meta.url), "utf8");
 const cache = readFileSync(new URL("../../src/app/runtime/textTranslationCache.ts", import.meta.url), "utf8");
 const sessionReview = readFileSync(new URL("../../src/components/meeting/MeetingSessionReview.svelte", import.meta.url), "utf8");
 const feedbackReview = readFileSync(new URL("../../src/components/settings/TranslationFeedbackReview.svelte", import.meta.url), "utf8");
 
 test("Meeting presets apply through one Rust-owned validation transaction", () => {
-  assert.match(registry, /apply_meeting_preset/);
+  assert.match(registry, /application_runtime::apply_product_meeting_preset/);
+  assert.match(runtimeApi, /"apply_product_meeting_preset"/);
+  assert.match(mutations, /emit_after\(&app, "apply_meeting_preset"/);
   assert.match(panel, /runtimeApi\.applyMeetingPreset/);
   assert.doesNotMatch(panel, /probeInputDeviceCandidate|probeOutputDeviceCandidate|saveSettings\(/);
   assert.match(settings, /pub fn apply_meeting_preset/);

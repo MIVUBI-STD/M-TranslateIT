@@ -7,7 +7,8 @@ const runtimeApi = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", im
 
 test("meeting detection remains advisory and never auto-starts translation", () => {
   assert.match(meetingPage, /detectMeetingApp/);
-  assert.match(meetingPage, /5000/);
+  assert.match(meetingPage, /if \(detectionInFlight \|\| meeting\.hasSession\) return;/);
+  assert.match(meetingPage, /onMount\(\(\) => \{[\s\S]*?void refreshMeetingDetection\(\);/);
   assert.match(meetingPage, /only start when you choose Start Translation/);
   assert.doesNotMatch(meetingPage, /detectMeetingApp\(\)[\s\S]{0,300}startMeetingTranslation/);
 });

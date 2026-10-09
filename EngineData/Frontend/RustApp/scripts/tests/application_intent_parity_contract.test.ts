@@ -20,9 +20,10 @@ function frontendIntents(): string[] {
 }
 
 function backendIntents(): string[] {
-  const dispatch = backend.match(/pub fn dispatch\(intent: &str\)[\s\S]*?match intent \{([\s\S]*?)\n\s*\}/);
-  assert.ok(dispatch, "backend intent dispatcher must exist");
-  return [...dispatch[1].matchAll(/"([a-z_0-9]+)"\s*=>/g)]
+  assert.match(backend, /pub fn dispatch\(intent: &str\)/);
+  assert.match(backend, /match intent \{/);
+  // Match Rust arms at line boundaries: stopping at the first nested } loses intents.
+  return [...backend.matchAll(/^\s*"([a-z_0-9]+)"\s*=>/gm)]
     .map((item) => item[1])
     .sort();
 }

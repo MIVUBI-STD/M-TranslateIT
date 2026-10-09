@@ -14,6 +14,14 @@ const mutations = readFileSync(
   new URL("../../src-tauri/src/commands/application_runtime/mutations.rs", import.meta.url),
   "utf8",
 );
+const voiceBuild = readFileSync(
+  new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url),
+  "utf8",
+);
+const applicationBridge = readFileSync(
+  new URL("../../src/app/bridge/applicationRuntimeApi.ts", import.meta.url),
+  "utf8",
+);
 
 function stringSetFromConst(name: string): Set<string> {
   const match = facade.match(new RegExp(`const ${name} = new Set\\(\\[([\\s\\S]*?)\\]\\);`));
@@ -25,6 +33,12 @@ function emittedReasons(): Set<string> {
   const values = new Set<string>();
   for (const match of intents.matchAll(/"([a-z_0-9]+)"\s*=>/g)) values.add(match[1]);
   for (const match of mutations.matchAll(/emit_after\(&app,\s*"([a-z_0-9]+)"/g)) values.add(match[1]);
+  // Asynchronous build events carry authored reasons through the canonical app event bridge.
+  assert.match(voiceBuild, /emit_voice_build_runtime_event\(event_reason, generation\)/);
+  assert.match(applicationBridge, /listener\(\{ reason: event\.payload\.reason, snapshot \}\)/);
+  const authoredEvent = voiceBuild.match(/let event_reason = if ready \{([\s\S]*?)\};/);
+  assert.ok(authoredEvent, "voice build terminal reasons must be source-authored");
+  for (const match of authoredEvent[1].matchAll(/"(voice_build_[a-z_]+)"/g)) values.add(match[1]);
   return values;
 }
 
