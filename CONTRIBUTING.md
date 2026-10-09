@@ -62,7 +62,7 @@ release:   release-source/artifact state
 chore:     bounded maintenance when no clearer category fits
 ```
 
-A commit is not a checkpoint, CI trigger, or proof marker.
+A commit is not a checkpoint, CI trigger, or proof marker. Material commits carry truthful `Work:`, `State:`, and `Proof:` trailers, with `Decision:`, `Unresolved:`, or `Next:` only when relevant. They preserve revision-scoped recovery evidence; `docs/knowledge/next-action.md` remains the sole active continuation owner. See `GITHUB_RULES.md` for expected-SHA fast-forward delivery.
 
 ## Pull requests
 

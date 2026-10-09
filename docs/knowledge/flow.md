@@ -111,6 +111,10 @@ Routine source work uses exact-head source/contract evidence first, without auto
 
 One scenario proves one claim. Source/static proof is never upgraded to target-Windows proof. Run only the proof that can falsify the changed claim. Broader source confidence means the relevant checks must succeed on the same exact `Local` SHA.
 
+## Session recovery and continuation
+
+For a repository-only "amati" request, pin `Local`, recover only relevant source owners and topic-specific commit trailers, compare them with newer changes, report the current proof ceiling, and STOP without edits. For authorized continuation, select the same bounded work from current source and the canonical `next-action.md`; historical commit `Next` never upgrades to current instruction. Commit trailers preserve revision-scoped rationale, not a second task-state system.
+
 ## State routing
 
 ```text

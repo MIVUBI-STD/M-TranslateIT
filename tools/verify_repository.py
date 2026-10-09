@@ -226,6 +226,13 @@ def check_development_foundation(errors: list[str]) -> None:
     if "Unified Windows developer routing" not in ownership:
         fail(errors, "source ownership must identify the developer router owner")
     github_rules = text("GITHUB_RULES.md")
+    for marker in ("Commit-based continuity and cold-start recovery", "Work:", "State:", "Proof:", "expected `Local` SHA"):
+        if marker not in github_rules:
+            fail(errors, f"GITHUB_RULES.md lost material commit continuity: {marker}")
+    if "Short-prompt and session recovery" not in agents:
+        fail(errors, "AGENTS.md must preserve source-grounded cold-start recovery")
+    if "Development preflight:" not in discipline or "Completion review:" not in discipline:
+        fail(errors, "development discipline lost mandatory preflight/completion review")
     for marker in (
         "CI result is evidence; branch protection/rulesets are enforcement.",
         "successful workflow still counts only as exact-SHA evidence",

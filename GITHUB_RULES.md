@@ -253,6 +253,25 @@ Message format:
 
 Use `feat`, `fix`, `docs`, `refactor`, `test`, `ci`, `build`, `release`, or bounded `chore`. Split only for genuinely independent outcomes, never by file, layer, tool call, or discovery order.
 
+### Commit-based continuity and cold-start recovery
+
+For every material, independently valid logical commit, retain the conventional subject and a concise **truthful** continuity trailer in its commit body:
+
+```text
+Work: <stable domain/topic>
+State: ACTIVE | BLOCKED | PAUSED | DONE
+Decision: <relevant rationale, only when material>
+Proof: <actually observed evidence + ceiling; never an invented PASS>
+Unresolved: <specific remaining unknown or risk, if any>
+Next: <one actionable step unless this bounded work unit is DONE>
+```
+
+`Work`, `State`, and `Proof` are required for material commits; the rest are conditional. `DONE` closes the bounded commit outcome, not the entire project or an unrelated feature. Do not create checkpoint commits, heartbeat updates, duplicate progress ledgers, or copy complete chat transcripts into the repository. The existing `docs/knowledge/next-action.md` remains the one owner of **current active continuation**, and Git history retains older revision-scoped evidence.
+
+Repository URL + "amati/inspect/audit" is read-only: pin the requested ref and current HEAD; load `AGENTS.md`, `GITHUB_RULES.md`, and the smallest canonical owner; review relevant `Work/State/Proof` trailers only when task recovery is necessary; reconcile them with current source and newer commits affecting that owner; report exact current facts, UNKNOWNs and one defensible next action, then STOP. Historical `Next` is a suggestion at that SHA, **not** a current command. An explicit continuation request may resume a uniquely identified, authorized bounded task; a materially ambiguous topic requires one decisive question.
+
+Before coherent multi-file delivery, prepare one complete Git tree and one commit against the pinned parent, then fast-forward the expected `Local` SHA without force and confirm the new ref. On conflict, reconcile current source rather than overwriting or inventing a recovery branch.
+
 ### Branch delivery
 
 - Routine repository work lands on `Local` only.

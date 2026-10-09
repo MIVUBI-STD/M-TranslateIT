@@ -60,6 +60,8 @@ AGENTS.md
 
 Read-only means no edit, CI trigger, continuation advance, or execution of the recorded next step.
 
+**Short-prompt and session recovery:** for a repository URL or "amati", inspect the exact `Local` ref and only the relevant current owner. Use commit `Work`, `State`, and `Proof` as revision-scoped historical evidence, then reconcile with current source and `docs/knowledge/next-action.md` only when continuity is material. An old `Next` does not authorize a new mutation. A clear "continue" retains the current bounded work; do not silently switch specialists or reconstruct missing chat details as facts.
+
 ## Work mode after context
 
 ### Bounded Maintenance

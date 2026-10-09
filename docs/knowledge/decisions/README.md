@@ -118,6 +118,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** `GITHUB_RULES.md`, `.github/workflows/`, and the repository CI verifier; GitHub settings are external administration.
 
+### D-038 — Source-grounded, commit-based work continuity
+
+**Context:** source development crosses short ChatGPT/Codex sessions, while plain chat history and a mutable active-next-action document cannot safely reconstruct every prior decision.
+
+**Decision:** material logical commits record `Work`, `State`, and actual `Proof`, with `Decision`, `Unresolved`, and `Next` only when applicable. Cold start is read-only, recovers relevant topic commits, and verifies their meaning against current canonical source before resuming. Current active continuation remains owned by `docs/knowledge/next-action.md`; Git history owns older revision-scoped evidence.
+
+**Why:** recover development accurately without extra state databases, heartbeat commits, duplicate TODO documents, or reliance on inaccessible chat context.
+
+**Tradeoffs:** commit metadata is not an executable test, automatic issue tracker, or permission to resume another lane. Legacy commits without trailers are interpreted only from their source diff and actual evidence.
+
+**Owner:** `GITHUB_RULES.md`, `AGENTS.md`, and existing continuation documentation.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

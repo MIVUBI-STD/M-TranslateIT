@@ -96,6 +96,14 @@ TARGET_WINDOWS
 
 Context is not permission and is not proof. Use actual capability plus observed evidence.
 
+## Development operating standard
+
+Before material work, translate the request into an observable goal, constraints, non-goals, known consumer and canonical owner, cheapest falsifying evidence, and STOP condition. Choose exactly one current work mode; do not promote speculative evidence to a higher proof tier. Prefer: no change → delete an unnecessary path → correct the current owner → reuse an existing capability → minimal complete addition.
+
+**Development preflight:** identify the first wrong owner, direct caller/consumer, proposed change scope, actual permission/ability to execute, and the narrow evidence capable of rejecting the result. A missing compiler or native Windows environment is an explicit proof residue, not permission to edit tests or ask the user for a local checkout by default.
+
+**Completion review:** verify no unauthorized scope expansion, new alias/duplicate authority, missing downstream consumer, stale documentation reference, unconsumed fixture/artifact, or proof overclaim. Record current evidence and the exact unverified residue. STOP on the requested bounded outcome instead of continuing adjacent refactors.
+
 ## Change discipline
 
 For non-trivial mutation:
