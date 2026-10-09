@@ -118,14 +118,6 @@ ACTIVE_GOVERNANCE = (
     "docs/knowledge/skills/skill-map.md",
 )
 
-CANONICAL_SKILLS = {
-    "development-brief",
-    "desktop-runtime-development",
-    "desktop-ui-design-development",
-    "local-ai-runtime-development",
-    "windows-audio-runtime-development",
-    "release-packaging-development",
-}
 
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 ACTION_RE = re.compile(r"(?m)^\s*uses:\s+([^@\s]+)@([^\s#]+)(?:\s+#\s*(.+))?$")
@@ -154,8 +146,30 @@ def check_structure(errors: list[str]) -> None:
         fail(errors, "missing .agents/skills")
         return
     actual = {p.name for p in skills_root.iterdir() if p.is_dir() and (p / "SKILL.md").is_file()}
-    if actual != CANONICAL_SKILLS:
-        fail(errors, f"canonical skill inventory mismatch: expected={sorted(CANONICAL_SKILLS)} actual={sorted(actual)}")
+    registry_path = ROOT / ".agents" / "skill-registry.json"
+    if registry_path.is_file():
+        try:
+            registry = json.loads(registry_path.read_text(encoding="utf-8"))
+            entries = registry["skills"]
+            expected = {entry["id"] for entry in entries}
+            if registry.get("schemaVersion") != 1 or len(expected) != len(entries):
+                fail(errors, "agent skill registry version/unique identity mismatch")
+            if actual != expected:
+                fail(errors, f"agent skill inventory mismatch: expected={sorted(expected)} actual={sorted(actual)}")
+            for entry in entries:
+                skill = entry["id"]
+                if entry.get("kind") not in ("planning", "specialist") or not isinstance(entry.get("domain"), str):
+                    fail(errors, f"agent skill registry invalid classification: {skill}")
+                    continue
+                skill_path = skills_root / skill / "SKILL.md"
+                if skill_path.is_file() and not re.search(r"(?m)^name:\s*" + re.escape(skill) + r"\s*$", skill_path.read_text(encoding="utf-8")):
+                    fail(errors, f"agent skill registry SKILL.md identity mismatch: {skill}")
+                if skill not in text("docs/knowledge/skills/skill-map.md"):
+                    fail(errors, f"agent skill missing from canonical human skill map: {skill}")
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            fail(errors, f"invalid agent skill registry: {exc}")
+    else:
+        fail(errors, "missing .agents/skill-registry.json")
 
 
 def check_compactness(errors: list[str]) -> None:
@@ -498,9 +512,34 @@ def check_decision_boundary(errors: list[str]) -> None:
         fail(errors, "decision-log compatibility pointer must mark legacy content historical")
 
 
+def check_agent_permission_policy(errors: list[str]) -> None:
+    try:
+        from repository_permissions import evaluate_permission, load_policy
+        policy = load_policy()
+        corpus = json.loads((ROOT / ".agents/evals/permission-cases.json").read_text(encoding="utf-8"))
+        if policy.get("schemaVersion") != 1 or corpus.get("schemaVersion") != 1:
+            fail(errors, "agent permission policy/corpus schemaVersion mismatch")
+        if set(policy["modes"]) != {"context-recovery", "plan", "bounded-maintenance", "standard-development", "complex-development"}:
+            fail(errors, "permission modes differ from canonical AGENTS.md modes")
+        registry = json.loads((ROOT / ".agents/skill-registry.json").read_text(encoding="utf-8"))
+        expected_scopes = {"governance"} | {item["id"] for item in registry["skills"] if item["kind"] == "specialist"}
+        if set(policy["scopes"]) != expected_scopes:
+            fail(errors, "permission scopes disagree with registered specialists")
+        cases = corpus["cases"]
+        if len({case["id"] for case in cases}) != len(cases):
+            fail(errors, "duplicate agent permission evaluation case")
+        for case in cases:
+            actual = evaluate_permission(case["request"], policy)["decision"]
+            if actual != case["expected"]:
+                fail(errors, f"agent permission case {case['id']}: expected {case['expected']}, received {actual}")
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid agent permission policy: {exc}")
+
+
 def main() -> int:
     errors: list[str] = []
     check_structure(errors)
+    check_agent_permission_policy(errors)
     check_compactness(errors)
     check_development_foundation(errors)
     check_branch_authority(errors)

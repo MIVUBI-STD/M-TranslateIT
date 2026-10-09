@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "description": "Advisory preflight for TranslateIT work modes and declared semantic scope; never replaces GitHub/Tauri/OS enforcement.",
+  "modes": {
+    "context-recovery": "read-only",
+    "plan": "read-only",
+    "bounded-maintenance": "development",
+    "standard-development": "development",
+    "complex-development": "development"
+  },
+  "approvalActions": [
+    "external-network",
+    "ci-dispatch",
+    "dependency-install",
+    "native-runtime",
+    "release-publish"
+  ],
+  "denyWritePaths": [
+    "UserData/**",
+    "**/.env",
+    "**/.env.*",
+    "*.env",
+    "*.env.*",
+    "**/*private-key*",
+    "**/*private_key*",
+    "**/secrets/**"
+  ],
+  "privateReadPaths": [
+    "UserData/**",
+    "**/.env",
+    "**/.env.*",
+    "*.env",
+    "*.env.*",
+    "**/secrets/**"
+  ],
+  "scopes": {
+    "governance": [
+      "AGENTS.md",
+      "GITHUB_RULES.md",
+      "CONTEXT.md",
+      "README.md",
+      "CONTRIBUTING.md",
+      "SECURITY.md",
+      "docs/**",
+      ".agents/**",
+      "tools/repository_*.py",
+      "tools/verify_repository.py",
+      "tools/tests/**",
+      "tools/interop-contracts.json",
+      ".github/workflows/repository-verify.yml"
+    ],
+    "desktop-runtime-development": [
+      "EngineData/Frontend/RustApp/src/app/**",
+      "EngineData/Frontend/RustApp/src-tauri/src/commands/application_runtime/**",
+      "EngineData/Frontend/RustApp/src-tauri/src/engine/runtime_state.rs",
+      "EngineData/Frontend/RustApp/scripts/validate_application_runtime_architecture.mjs"
+    ],
+    "desktop-ui-design-development": [
+      "EngineData/Frontend/RustApp/src/components/**",
+      "EngineData/Frontend/RustApp/src/pages/**",
+      "EngineData/Frontend/RustApp/src/styles/**"
+    ],
+    "local-ai-runtime-development": [
+      "EngineData/Backend/LocalWorker/WorkerRuntime/**",
+      "EngineData/Frontend/RustApp/src-tauri/src/commands/text_translation.rs",
+      "EngineData/Frontend/RustApp/src/app/bridge/productTranslationFacade.ts"
+    ],
+    "windows-audio-runtime-development": [
+      "EngineData/Frontend/RustApp/src-tauri/src/engine/audio/**",
+      "EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session/**",
+      "EngineData/Frontend/RustApp/src-tauri/src/commands/meeting_session.rs",
+      "EngineData/Frontend/RustApp/src-tauri/src/commands/virtual_mic_route.rs"
+    ],
+    "release-packaging-development": [
+      "EngineData/Frontend/RustApp/src-tauri/windows/**",
+      "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json",
+      "EngineData/Frontend/RustApp/scripts/*release*",
+      "EngineData/Frontend/RustApp/scripts/*payload*",
+      ".github/workflows/release-payload-verify.yml"
+    ]
+  }
+}

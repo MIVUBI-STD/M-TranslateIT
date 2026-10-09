@@ -16,7 +16,7 @@ on:
       - "SECURITY.md"
       - ".github/CODEOWNERS"
       - ".github/PULL_REQUEST_TEMPLATE.md"
-      - ".agents/skills/**"
+      - ".agents/**"
       - "docs/foundation/**"
       - "docs/knowledge/**"
       - "EngineData/Frontend/RustApp/package.json"
@@ -31,6 +31,8 @@ on:
       - "EngineData/Frontend/RustApp/scripts/validate_test_reference_reachability.mjs"
       - "EngineData/Frontend/RustApp/scripts/validate_source_size_budget.mjs"
       - "tools/verify_repository.py"
+      - "tools/repository_permissions.py"
+      - "tools/tests/**"
       - ".github/workflows/**"
   pull_request:
     branches:
@@ -62,6 +64,8 @@ on:
       - "EngineData/Frontend/RustApp/scripts/validate_test_reference_reachability.mjs"
       - "EngineData/Frontend/RustApp/scripts/validate_source_size_budget.mjs"
       - "tools/verify_repository.py"
+      - "tools/repository_permissions.py"
+      - "tools/tests/**"
       - ".github/workflows/**"
   workflow_dispatch:
 
@@ -88,6 +92,9 @@ jobs:
           python-version: "3.12.10"
       - name: Verify repository governance and source-validation routing
         run: python tools/verify_repository.py
+
+      - name: Exercise advisory preflight regression cases
+        run: python -m unittest discover -s tools/tests -p "test_*.py"
 
       - name: Write exact-SHA proof summary
         if: always()

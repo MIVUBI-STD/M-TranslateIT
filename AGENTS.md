@@ -106,6 +106,13 @@ recover current Local authority
 
 No silent transition from Plan to Development.
 
+## Skill registry and permission preflight
+
+- `.agents/skill-registry.json` owns the machine-readable inventory of the six existing project skills; `docs/knowledge/skills/skill-map.md` explains roles without becoming a second inventory authority.
+- For material mutation, choose the current work mode and semantic scope, then evaluate `python tools/repository_permissions.py --mode <mode> --action write --scope <scope> --path <repository-relative-path>`.
+- `allow` is an advisory preflight, **not** GitHub/Tauri/OS authorization or evidence of a correct semantic owner. `ask` requires explicit approval or a bounded re-scope; `deny` forbids the proposed action. Never use another scope just to bypass the result.
+- UserData, private meeting bodies, voice recordings, credentials, and generated runtime artifacts are not routine repository write targets. Root governance and the existing six skills retain their current authority and specialist budget.
+
 ## Specialist budget
 
 Canonical project skills are:

@@ -2,6 +2,8 @@
 
 Canonical project skill root:
 
+Machine-readable skill **identity and classification** is owned by [the registry](../../../.agents/skill-registry.json). This document remains the explanatory routing map. Permission decisions are tested using [the policy](../../../.agents/permissions/permission-policy.json) and [evaluation cases](../../../.agents/evals/permission-cases.json). These do not add project skills or new runtime owners.
+
 ```text
 .agents/skills/
 ```

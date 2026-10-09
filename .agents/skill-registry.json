@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "authority": "Existing .agents/skills/*/SKILL.md own procedures; this registry owns skill identity and classification only.",
+  "skills": [
+    {
+      "id": "development-brief",
+      "kind": "planning",
+      "domain": "cross-owner"
+    },
+    {
+      "id": "desktop-runtime-development",
+      "kind": "specialist",
+      "domain": "desktop-runtime"
+    },
+    {
+      "id": "desktop-ui-design-development",
+      "kind": "specialist",
+      "domain": "desktop-ui"
+    },
+    {
+      "id": "local-ai-runtime-development",
+      "kind": "specialist",
+      "domain": "local-ai"
+    },
+    {
+      "id": "windows-audio-runtime-development",
+      "kind": "specialist",
+      "domain": "windows-audio"
+    },
+    {
+      "id": "release-packaging-development",
+      "kind": "specialist",
+      "domain": "release"
+    }
+  ]
+}

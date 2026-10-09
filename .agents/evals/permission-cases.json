@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "audit-read",
+      "request": {
+        "mode": "context-recovery",
+        "action": "read",
+        "path": "docs/knowledge/flow.md"
+      },
+      "expected": "allow"
+    },
+    {
+      "id": "audit-no-write",
+      "request": {
+        "mode": "context-recovery",
+        "action": "write",
+        "scope": "governance",
+        "path": "docs/knowledge/flow.md"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "plan-no-write",
+      "request": {
+        "mode": "plan",
+        "action": "write",
+        "scope": "governance",
+        "path": "AGENTS.md"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "governance-write",
+      "request": {
+        "mode": "complex-development",
+        "action": "write",
+        "scope": "governance",
+        "path": ".agents/skill-registry.json"
+      },
+      "expected": "allow"
+    },
+    {
+      "id": "governance-cannot-change-runtime",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "governance",
+        "path": "EngineData/Frontend/RustApp/src/pages/Meeting.svelte"
+      },
+      "expected": "ask"
+    },
+    {
+      "id": "desktop-runtime",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "desktop-runtime-development",
+        "path": "EngineData/Frontend/RustApp/src/app/runtime/applicationController.ts"
+      },
+      "expected": "allow"
+    },
+    {
+      "id": "ui-vs-backend",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "desktop-ui-design-development",
+        "path": "EngineData/Frontend/RustApp/src-tauri/src/engine/runtime_state.rs"
+      },
+      "expected": "ask"
+    },
+    {
+      "id": "ai-worker",
+      "request": {
+        "mode": "bounded-maintenance",
+        "action": "write",
+        "scope": "local-ai-runtime-development",
+        "path": "EngineData/Backend/LocalWorker/WorkerRuntime/translation_envelope.py"
+      },
+      "expected": "allow"
+    },
+    {
+      "id": "meeting-audio",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "windows-audio-runtime-development",
+        "path": "EngineData/Frontend/RustApp/src-tauri/src/engine/audio/vad.rs"
+      },
+      "expected": "allow"
+    },
+    {
+      "id": "release-script",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "release-packaging-development",
+        "path": "EngineData/Frontend/RustApp/scripts/validate_release_payload.mjs"
+      },
+      "expected": "allow"
+    },
+    {
+      "id": "private-user-voice-protected",
+      "request": {
+        "mode": "complex-development",
+        "action": "write",
+        "scope": "release-packaging-development",
+        "path": "UserData/SavedProject/VoiceLab/user.wav"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "private-read-needs-approval",
+      "request": {
+        "mode": "bounded-maintenance",
+        "action": "read",
+        "path": "UserData/LogData/private.log"
+      },
+      "expected": "ask"
+    },
+    {
+      "id": "ci-needs-approval",
+      "request": {
+        "mode": "standard-development",
+        "action": "ci-dispatch",
+        "scope": "governance"
+      },
+      "expected": "ask"
+    },
+    {
+      "id": "publish-needs-approval",
+      "request": {
+        "mode": "complex-development",
+        "action": "release-publish",
+        "scope": "release-packaging-development"
+      },
+      "expected": "ask"
+    },
+    {
+      "id": "unknown-scope",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "other",
+        "path": "README.md"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "no-scope",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "path": "README.md"
+      },
+      "expected": "ask"
+    },
+    {
+      "id": "traversal",
+      "request": {
+        "mode": "standard-development",
+        "action": "write",
+        "scope": "governance",
+        "path": "docs/../../.env"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "unknown-mode",
+      "request": {
+        "mode": "random",
+        "action": "read",
+        "path": "README.md"
+      },
+      "expected": "deny"
+    }
+  ]
+}
