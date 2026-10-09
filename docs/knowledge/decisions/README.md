@@ -1,6 +1,17 @@
+---
+id: document.knowledge.decisions.router
+class: DOCUMENT
+domain: knowledge
+role: ROUTER
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT Decision Register
 
 Durable decisions store **why a current rule exists**. Current product law belongs in `docs/foundation/`; active status belongs in `next-action.md`; proof belongs in `current-validation.md`; historical detail belongs in Git history or `history-legacy.md`.
+
+Historical rationale is retained as [historical evidence](./history-legacy.md), not current product authority.
 
 ## Current decisions
 

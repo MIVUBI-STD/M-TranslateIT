@@ -1,3 +1,12 @@
+---
+id: document.knowledge.skills.skill-map
+class: DOCUMENT
+domain: knowledge
+role: GUIDE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT Skill Map
 
 Canonical project skill root:

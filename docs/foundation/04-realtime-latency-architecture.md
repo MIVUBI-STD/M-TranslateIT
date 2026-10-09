@@ -1,3 +1,12 @@
+---
+id: document.foundation.realtime-latency-architecture
+class: DOCUMENT
+domain: foundation
+role: ARCHITECTURE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT — Realtime Latency Architecture
 
 **Status:** Approved target architecture; implementation remains evidence-gated  

@@ -1,3 +1,12 @@
+---
+id: document.foundation.product-overview
+class: DOCUMENT
+domain: foundation
+role: DOMAIN
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT — Product Overview
 
 **Status:** Active Policy  

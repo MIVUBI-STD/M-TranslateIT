@@ -1,3 +1,12 @@
+---
+id: document.knowledge.operations.signed-updater-release
+class: DOCUMENT
+domain: knowledge
+role: DOMAIN
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Signed Updater Release
 
 This runbook owns the release-operation boundary for TranslateIT app updates. It does not replace target-Windows acceptance.

@@ -1,3 +1,12 @@
+---
+id: document.knowledge.decisions.history-legacy
+class: DOCUMENT
+domain: knowledge
+role: REFERENCE
+authority: HISTORICAL
+lifecycle: ACTIVE
+---
+
 ﻿# TranslateIT â€” Decision Log
 
 Durable choices and reasons that must survive chat/session boundaries. Exact implementation detail belongs in current source/foundation owners; active status belongs in `next-action.md`; historical run IDs and superseded proof detail remain in Git history.

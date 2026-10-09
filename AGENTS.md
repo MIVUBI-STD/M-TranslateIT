@@ -106,6 +106,10 @@ recover current Local authority
 
 No silent transition from Plan to Development.
 
+## Repository knowledge and contract access
+
+Select one document domain through `docs/README.md`, then follow stable document IDs and explicit links. `tools/repository_knowledge.py` derives a read-only Catalog/Graph and scoped section retrieval directly from canonical Markdown; an index match, reference, or historical record is not proof. For interop boundaries use `tools/interop-contracts.json` only to locate source owners and their existing validators. Do not create a second protocol/DTO truth or manually promote test presence to executed success.
+
 ## Skill registry and permission preflight
 
 - `.agents/skill-registry.json` owns the machine-readable inventory of the six existing project skills; `docs/knowledge/skills/skill-map.md` explains roles without becoming a second inventory authority.

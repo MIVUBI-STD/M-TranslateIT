@@ -1,3 +1,12 @@
+---
+id: document.knowledge.decision-log
+class: DOCUMENT
+domain: knowledge
+role: REFERENCE
+authority: REFERENCE
+lifecycle: ACTIVE
+---
+
 # Decision Log — Compatibility Pointer
 
 Current durable decisions are owned by `docs/knowledge/decisions/README.md`.

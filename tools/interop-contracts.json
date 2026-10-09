@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Cross-language boundary routing and verifier binding; canonical semantics remain in listed source owners.",
+  "contracts": [
+    {
+      "id": "application-runtime-intent-dto",
+      "domain": "desktop-runtime",
+      "owner": "EngineData/Frontend/RustApp/src-tauri/src/commands/application_runtime/intents.rs",
+      "consumers": [
+        "EngineData/Frontend/RustApp/src/app/bridge/applicationRuntimeApi.ts"
+      ],
+      "scripts": [
+        "validate:application-runtime"
+      ],
+      "tests": [
+        "EngineData/Frontend/RustApp/scripts/tests/application_intent_parity_contract.test.ts"
+      ]
+    },
+    {
+      "id": "tauri-command-bridge",
+      "domain": "desktop-runtime",
+      "owner": "EngineData/Frontend/RustApp/src-tauri/src/commands/registry.rs",
+      "consumers": [
+        "EngineData/Frontend/RustApp/src/app/bridge/runtimeApi.ts"
+      ],
+      "scripts": [
+        "validate:bridge-contract",
+        "validate:tauri-command-args"
+      ],
+      "tests": [
+        "EngineData/Frontend/RustApp/scripts/tests/runtime_settings_contract.test.ts"
+      ]
+    },
+    {
+      "id": "local-worker-wire-framing",
+      "domain": "local-ai",
+      "owner": "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py",
+      "consumers": [
+        "EngineData/Frontend/RustApp/src-tauri/src/commands/helper_bridge/transport.rs"
+      ],
+      "scripts": [
+        "test:frontend-runtime"
+      ],
+      "tests": [
+        "EngineData/Frontend/RustApp/scripts/tests/worker_task_protocol_contract.test.ts",
+        "EngineData/Backend/LocalWorker/WorkerRuntime/tests/test_worker_protocol_framing.py"
+      ]
+    },
+    {
+      "id": "meeting-runtime-events",
+      "domain": "windows-audio",
+      "owner": "EngineData/Frontend/RustApp/src-tauri/src/engine/runtime_events.rs",
+      "consumers": [
+        "EngineData/Frontend/RustApp/src/app/runtime/reliabilityMonitor.ts"
+      ],
+      "scripts": [
+        "test:frontend-runtime"
+      ],
+      "tests": [
+        "EngineData/Frontend/RustApp/scripts/tests/runtime_event_contract.test.ts"
+      ]
+    }
+  ]
+}

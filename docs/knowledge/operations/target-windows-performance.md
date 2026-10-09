@@ -1,3 +1,12 @@
+---
+id: document.knowledge.operations.target-windows-performance
+class: DOCUMENT
+domain: knowledge
+role: DOMAIN
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Target Windows Performance Acceptance
 
 Use this runbook after the exact current `Local` source checks are green. It owns one repeatable TARGET_WINDOWS baseline for performance decisions; it is not a milestone/status report.

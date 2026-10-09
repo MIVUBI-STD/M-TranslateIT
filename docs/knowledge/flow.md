@@ -1,3 +1,12 @@
+---
+id: document.knowledge.flow
+class: DOCUMENT
+domain: knowledge
+role: WORKFLOW
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT Work Flow
 
 ## Canonical flow

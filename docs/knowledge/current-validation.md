@@ -1,3 +1,12 @@
+---
+id: document.knowledge.current-validation
+class: DOCUMENT
+domain: knowledge
+role: CONTRACT
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Current Validation
 
 This file owns **proof interpretation**, not a run diary. `next-action.md` owns continuation; GitHub remains authoritative for exact run/job metadata.

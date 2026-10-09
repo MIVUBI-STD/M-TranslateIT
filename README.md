@@ -90,6 +90,8 @@ Historical development material is retained by Git history rather than exposed a
 
 ## Repository operating model
 
+Read [documentation routing](docs/README.md) first for source/owner questions. Stable document identities and explicit Markdown links power a derived, bounded catalog; `python tools/repository_knowledge.py --summary` shows its current surface. Existing runtime validators remain authoritative for their respective wire contracts.
+
 ```text
 AGENTS.md
 → execution context / work mode / semantic routing

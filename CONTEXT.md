@@ -123,6 +123,9 @@ Source presence never upgrades itself into runtime or target-Windows proof.
 
 ## Canonical navigation
 
+- Documentation root and scoped retrieval: `docs/README.md` → `tools/repository_knowledge.py`
+- Cross-language contract/verifier navigation: `tools/interop-contracts.json` (non-authoritative index to existing Rust/TypeScript/Python owners)
+
 - GitHub mechanics: `GITHUB_RULES.md`
 - Agent modes/routing: `AGENTS.md`
 - Current product law: `docs/foundation/`

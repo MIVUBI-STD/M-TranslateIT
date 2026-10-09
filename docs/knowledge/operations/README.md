@@ -1,3 +1,12 @@
+---
+id: document.knowledge.operations.router
+class: DOCUMENT
+domain: knowledge
+role: ROUTER
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Operations
 
 Retain only repeatable operator/developer procedures that are still current and have a real owner.
@@ -14,4 +23,4 @@ Do not store milestone status, per-task reports, chat handoffs, historical CI au
 
 - [`target-windows-performance.md`](target-windows-performance.md) — one TARGET_WINDOWS baseline for real Meeting latency, audio stability, CPU/RAM/GPU/VRAM pressure, Stop, and repeated-session decisions after source checks are green.
 
-- `signed-updater-release.md` → signed one-shot updater release/publication procedure and native acceptance boundary.
+- [Signed updater release](./signed-updater-release.md) → signed one-shot updater release/publication procedure and native acceptance boundary.

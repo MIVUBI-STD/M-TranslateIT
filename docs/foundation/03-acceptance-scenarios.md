@@ -1,3 +1,12 @@
+---
+id: document.foundation.acceptance-scenarios
+class: DOCUMENT
+domain: foundation
+role: CONTRACT
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT — Acceptance Scenarios
 
 This file owns **what must be verified before a claim is allowed** and the order/proof context. It does **not** store run outcomes. Current proof interpretation belongs in `docs/knowledge/current-validation.md`; private/local artifacts remain outside tracked source.

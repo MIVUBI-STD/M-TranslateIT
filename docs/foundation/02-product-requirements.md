@@ -1,3 +1,12 @@
+---
+id: document.foundation.product-requirements
+class: DOCUMENT
+domain: foundation
+role: CONTRACT
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT — Product Requirements
 
 **Status:** Active Policy  

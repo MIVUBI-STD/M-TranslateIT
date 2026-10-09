@@ -1,3 +1,12 @@
+---
+id: document.knowledge.skills.activation-matrix
+class: DOCUMENT
+domain: knowledge
+role: GUIDE
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # Skill Activation Matrix
 
 Root `AGENTS.md` owns context/mode/budget. This file answers **when one TranslateIT specialist adds semantic value**.

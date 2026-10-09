@@ -30,10 +30,21 @@ REQUIRED_PATHS = (
     ".github/workflows/quality-readiness-contract.yml",
     ".github/workflows/workerruntime-lock.yml",
     ".github/workflows/release-payload-verify.yml",
+    "docs/README.md",
+    "docs/foundation/README.md",
+    "docs/knowledge/skills/README.md",
+    "tools/repository_knowledge.py",
+    "tools/repository_contracts.py",
+    "tools/interop-contracts.json",
+    "tools/tests/test_repository_knowledge.py",
+    "tools/tests/test_repository_contracts.py",
     "docs/foundation/01-product-overview.md",
     "docs/foundation/02-product-requirements.md",
     "docs/foundation/03-acceptance-scenarios.md",
+    "docs/README.md",
+    "docs/foundation/README.md",
     "docs/knowledge/README.md",
+    "docs/knowledge/skills/README.md",
     "docs/knowledge/flow.md",
     "docs/knowledge/development-discipline.md",
     "docs/knowledge/next-action.md",
@@ -536,9 +547,23 @@ def check_agent_permission_policy(errors: list[str]) -> None:
         fail(errors, f"invalid agent permission policy: {exc}")
 
 
+def check_repository_information_architecture(errors: list[str]) -> None:
+    try:
+        from repository_knowledge import verify_knowledge
+        errors.extend(f"knowledge catalog: {issue}" for issue in verify_knowledge())
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid repository knowledge architecture: {exc}")
+    try:
+        from repository_contracts import verify_contracts
+        errors.extend(f"interop contracts: {issue}" for issue in verify_contracts())
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid cross-language contract inventory: {exc}")
+
+
 def main() -> int:
     errors: list[str] = []
     check_structure(errors)
+    check_repository_information_architecture(errors)
     check_agent_permission_policy(errors)
     check_compactness(errors)
     check_development_foundation(errors)

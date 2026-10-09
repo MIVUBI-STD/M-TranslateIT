@@ -1,3 +1,12 @@
+---
+id: document.knowledge.source-ownership
+class: DOCUMENT
+domain: knowledge
+role: CONTRACT
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT Source Ownership
 
 This file maps semantic responsibility to the current owner. It does not carry proof outcomes or historical implementation detail.
@@ -19,6 +28,8 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Active continuation | `docs/knowledge/next-action.md` |
 | Proof interpretation | `docs/knowledge/current-validation.md` |
 | Repository static governance | `tools/verify_repository.py` |
+| Document identity/graph/section lookup | `docs/**/*.md` metadata + links → `tools/repository_knowledge.py` (derived) |
+| Cross-language contract test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` (navigation, not DTO truth) |
 | Frontend source/bridge contracts | `EngineData/Frontend/RustApp/scripts/` validators |
 
 ## Desktop product/runtime

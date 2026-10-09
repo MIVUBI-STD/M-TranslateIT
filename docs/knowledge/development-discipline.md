@@ -1,3 +1,12 @@
+---
+id: document.knowledge.development-discipline
+class: DOCUMENT
+domain: knowledge
+role: CONTRACT
+authority: CANONICAL
+lifecycle: ACTIVE
+---
+
 # TranslateIT Development Discipline
 
 This file owns the minimum development flow, failure classification, ownership economy, proof vocabulary, and STOP discipline. Product behavior remains in `docs/foundation/`; source ownership remains in `source-ownership.md`.
