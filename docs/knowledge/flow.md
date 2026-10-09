@@ -85,6 +85,10 @@ STOP Condition
 
 Use `.agents/skills/development-brief/SKILL.md`, then at most one semantic specialist.
 
+## Routing evidence
+
+Six canonical skills remain unchanged. Golden routing cases validate expected modes and specialist ownership; only actual observed agent-run receipts may support a model-routing accuracy claim. A semantic specialist never overrides the active lane's permission or starts an unrelated release.
+
 ## First-wrong-owner examples
 
 ```text

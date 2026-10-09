@@ -28,6 +28,10 @@ windows-audio-runtime-development
 release-packaging-development
 ```
 
+## Evaluation and actual proof
+
+Routing expectations are retained in [agent routing cases](../../../.agents/evals/skill-routing.json) and validated by `tools/repository_agent_evals.py --check`. Actual model-level routing accuracy requires external observed agent-run receipts scored with `--score`; the presence of golden cases and synthetic tests alone is not a PASS. Permission decisions continue using the separate existing permission evaluator/corpus. Preserve the six-skill baseline and the zero/one-specialist budget.
+
 ## Roles
 
 ### development-brief

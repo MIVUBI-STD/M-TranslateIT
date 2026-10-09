@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "description": "Provider-neutral golden task-routing cases for the existing six TranslateIT skills; static verification does not execute an AI model.",
+  "routingCorpus": ".agents/evals/skill-routing.json",
+  "permissionCorpus": ".agents/evals/permission-cases.json",
+  "scorer": "tools/repository_agent_evals.py"
+}

@@ -130,6 +130,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** `GITHUB_RULES.md`, `AGENTS.md`, and existing continuation documentation.
 
+### D-039 — Evaluate existing agent routing without inventing new skills
+
+**Context:** TranslateIT already has six canonical project skills and a path/action permission corpus; a skill registry alone does not prove correct model behavior on bilingual, negative or cross-owner requests.
+
+**Decision:** retain the six current skills. Add provider-neutral routing expectations and a read-only scorer for external observed decisions, while preserving permission evaluation as a separate canonical owner. Neither synthetic scoring nor registry presence is model execution evidence.
+
+**Why:** improve misrouting detection without spawning an extra router, general-purpose agent, state database or duplicated specialist policy.
+
+**Tradeoffs:** actual routing accuracy remains unmeasured until real provider-run receipts are supplied; source/corpus verification has a lower proof ceiling.
+
+**Owner:** `AGENTS.md`, `.agents/evals/`, `tools/repository_agent_evals.py`.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

@@ -120,6 +120,10 @@ Select one document domain through `docs/README.md`, then follow stable document
 - `allow` is an advisory preflight, **not** GitHub/Tauri/OS authorization or evidence of a correct semantic owner. `ask` requires explicit approval or a bounded re-scope; `deny` forbids the proposed action. Never use another scope just to bypass the result.
 - UserData, private meeting bodies, voice recordings, credentials, and generated runtime artifacts are not routine repository write targets. Root governance and the existing six skills retain their current authority and specialist budget.
 
+## Agent routing evaluation
+
+The **existing** skill inventory remains frozen at six. `.agents/evals/skill-routing.json` owns bilingual positive/negative/ambiguous task-routing expectations, while `tools/repository_agent_evals.py` validates their identifiers and optionally scores **actual external agent-run receipts**. A valid corpus or synthetic scorer test is not proof that an AI agent routed real tasks correctly. The `.agents/evals/permission-cases.json` corpus continues to own action/path permission examples; do not duplicate it in the routing corpus or create a seventh generic specialist.
+
 ## Specialist budget
 
 Canonical project skills are:

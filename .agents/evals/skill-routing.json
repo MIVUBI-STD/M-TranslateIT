@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "observe-repo-id",
+      "prompt": "Amati repository Local ini, baca rules dan commit terkait, laporkan saja tanpa edit.",
+      "expectedMode": "context-recovery",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "desktop-runtime-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false
+    },
+    {
+      "id": "observe-worker-en",
+      "prompt": "Inspect the Python worker status and report evidence only; do not change files.",
+      "expectedMode": "context-recovery",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false
+    },
+    {
+      "id": "observe-ci-id",
+      "prompt": "Cek kenapa Code Health merah, belum boleh patch.",
+      "expectedMode": "context-recovery",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "desktop-runtime-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false
+    },
+    {
+      "id": "plan-new-provider",
+      "prompt": "Rencanakan keputusan menambah penyedia cloud translation; jangan implementasi sebelum product law disepakati.",
+      "expectedMode": "plan",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false
+    },
+    {
+      "id": "plan-branch-id",
+      "prompt": "Evaluasi penggantian lifecycle branch GitHub, cukup beri opsi dan risiko.",
+      "expectedMode": "plan",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "release-packaging-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false
+    },
+    {
+      "id": "gov-ci-id",
+      "prompt": "Ubah seluruh workflow verifikasi ke manual-only sesuai aturan repo, tidak perlu ubah aplikasi.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "release-packaging-development"
+      ],
+      "expectedScope": "governance",
+      "requiresBrief": false
+    },
+    {
+      "id": "gov-typo-id",
+      "prompt": "Perbaiki typo tunggal pada GITHUB_RULES tanpa memodifikasi lainnya.",
+      "expectedMode": "bounded-maintenance",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "desktop-ui-design-development"
+      ],
+      "expectedScope": "governance",
+      "requiresBrief": false
+    },
+    {
+      "id": "ui-layout-en",
+      "prompt": "Improve the Svelte settings page spacing and accessible focus states without altering runtime behavior.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "desktop-ui-design-development",
+      "forbiddenSpecialists": [
+        "desktop-runtime-development"
+      ],
+      "expectedScope": "desktop-ui-design-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "ui-overlay-id",
+      "prompt": "Rapikan visual overlay subtitle agar tetap terbaca, tanpa ubah jalur audio.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "desktop-ui-design-development",
+      "forbiddenSpecialists": [
+        "windows-audio-runtime-development"
+      ],
+      "expectedScope": "desktop-ui-design-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "desktop-status-id",
+      "prompt": "UI menampilkan Ready padahal canonical ApplicationRuntime snapshot unavailable; perbaiki mapping saja.",
+      "expectedMode": "bounded-maintenance",
+      "expectedSpecialist": "desktop-runtime-development",
+      "forbiddenSpecialists": [
+        "desktop-ui-design-development"
+      ],
+      "expectedScope": "desktop-runtime-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "desktop-bridge-en",
+      "prompt": "Refactor the Tauri application snapshot bridge while preserving Rust ownership and public DTOs.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "desktop-runtime-development",
+      "forbiddenSpecialists": [
+        "release-packaging-development"
+      ],
+      "expectedScope": "desktop-runtime-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "ai-translation-id",
+      "prompt": "Perbaiki normalisasi output MiLMMT yang menghasilkan sentence terpotong setelah ASR final.",
+      "expectedMode": "bounded-maintenance",
+      "expectedSpecialist": "local-ai-runtime-development",
+      "forbiddenSpecialists": [
+        "windows-audio-runtime-development"
+      ],
+      "expectedScope": "local-ai-runtime-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "ai-context-en",
+      "prompt": "Adjust the bounded ID to EN translation context to use exactly the last three committed pairs.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "local-ai-runtime-development",
+      "forbiddenSpecialists": [
+        "desktop-ui-design-development"
+      ],
+      "expectedScope": "local-ai-runtime-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "audio-device-id",
+      "prompt": "Perbaiki detection mic fisik Windows yang gagal saat unplug/replug dan pastikan explicit device choice.",
+      "expectedMode": "bounded-maintenance",
+      "expectedSpecialist": "windows-audio-runtime-development",
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": "windows-audio-runtime-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "audio-vad-en",
+      "prompt": "Improve Session Listening VAD finalization, without changing translation model semantics.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "windows-audio-runtime-development",
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": "windows-audio-runtime-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "release-missing-id",
+      "prompt": "Installer offline tidak menyertakan file runtime Python yang dibutuhkan, perbaiki packaging.",
+      "expectedMode": "bounded-maintenance",
+      "expectedSpecialist": "release-packaging-development",
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": "release-packaging-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "release-setup-en",
+      "prompt": "Improve signed offline Setup + payload integrity checks; do not change UI or Meeting runtime.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "release-packaging-development",
+      "forbiddenSpecialists": [
+        "desktop-ui-design-development"
+      ],
+      "expectedScope": "release-packaging-development",
+      "requiresBrief": false
+    },
+    {
+      "id": "ambiguous-cross-owner-id",
+      "prompt": "Meeting berhenti setelah suara sintesis; penyebab Rust, Python, dan device belum jelas. Diagnosa arsitektur cross owner dulu.",
+      "expectedMode": "complex-development",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "desktop-ui-design-development"
+      ],
+      "expectedScope": "governance",
+      "requiresBrief": true
+    },
+    {
+      "id": "ambiguous-architecture-en",
+      "prompt": "Design a cross-language revision for application lifecycle ownership with unresolved safety acceptance criteria.",
+      "expectedMode": "complex-development",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "release-packaging-development"
+      ],
+      "expectedScope": "governance",
+      "requiresBrief": true
+    },
+    {
+      "id": "ambiguous-voice-en",
+      "prompt": "Redesign My Voice training and selected-voice handoff across worker and Rust; first resolve approvals and ownership.",
+      "expectedMode": "complex-development",
+      "expectedSpecialist": "local-ai-runtime-development",
+      "forbiddenSpecialists": [
+        "desktop-ui-design-development"
+      ],
+      "expectedScope": "local-ai-runtime-development",
+      "requiresBrief": true
+    }
+  ]
+}

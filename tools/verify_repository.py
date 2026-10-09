@@ -56,6 +56,10 @@ REQUIRED_PATHS = (
     "docs/knowledge/operations/README.md",
     "docs/knowledge/skills/activation-matrix.md",
     "docs/knowledge/skills/skill-map.md",
+    ".agents/evals/manifest.json",
+    ".agents/evals/skill-routing.json",
+    "tools/repository_agent_evals.py",
+    "tools/tests/test_repository_agent_evals.py",
     ".agents/skills/development-brief/SKILL.md",
     ".agents/skills/desktop-runtime-development/SKILL.md",
     ".agents/skills/desktop-ui-design-development/SKILL.md",
@@ -559,6 +563,14 @@ def check_agent_permission_policy(errors: list[str]) -> None:
         fail(errors, f"invalid agent permission policy: {exc}")
 
 
+def check_agent_skill_evaluations(errors: list[str]) -> None:
+    try:
+        from repository_agent_evals import validate_agent_evals
+        errors.extend(f"skill routing: {issue}" for issue in validate_agent_evals())
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid agent routing evaluations: {exc}")
+
+
 def check_repository_information_architecture(errors: list[str]) -> None:
     try:
         from repository_knowledge import verify_knowledge
@@ -577,6 +589,7 @@ def main() -> int:
     check_structure(errors)
     check_repository_information_architecture(errors)
     check_agent_permission_policy(errors)
+    check_agent_skill_evaluations(errors)
     check_compactness(errors)
     check_development_foundation(errors)
     check_branch_authority(errors)
