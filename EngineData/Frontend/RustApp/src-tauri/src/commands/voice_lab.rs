@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use crate::engine::paths::ProjectPaths;
-use crate::engine::runtime_state::latest_runtime_session_state;
+use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 
 mod storage;
 
@@ -14,7 +14,6 @@ use storage::{
     canonical_take_file_name, validate_guided_dataset_manifest, write_json,
 };
 
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 pub(super) const VOICE_LAB_SCHEMA_VERSION: u32 = 1;
 pub(super) const VOICE_ACTOR_ENGINE: &str = "gpt-sovits-v2proplus";
 pub(super) const VOICE_ACTOR_ENGINE_REVISION: &str = "d523079fc05d9a8028d6085bffe4a2757c32abb6";

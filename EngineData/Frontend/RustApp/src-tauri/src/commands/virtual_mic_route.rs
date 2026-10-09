@@ -5,12 +5,11 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use crate::engine::paths::ProjectPaths;
-use crate::engine::runtime_state::latest_runtime_session_state;
+use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 
 use super::audio::{list_audio_devices, AudioDeviceSummary};
 use super::helper_bridge_runtime::unix_ms;
 
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VirtualMicRouteContractStatus {

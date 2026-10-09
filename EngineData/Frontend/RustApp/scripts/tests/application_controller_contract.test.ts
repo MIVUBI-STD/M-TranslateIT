@@ -35,3 +35,27 @@ test("controller owns setup state transitions", () => {
   assert.match(controller, /setupRequired/);
   assert.equal(app.includes("let setupRequired = $state"), false);
 });
+
+const architectureVerifier = readFileSync(new URL("../validate_application_runtime_architecture.mjs", import.meta.url), "utf8");
+const rustApplicationContract = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/contract.rs", import.meta.url), "utf8");
+const rustApplicationLifecycle = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/lifecycle.rs", import.meta.url), "utf8");
+const productRuntimeFacade = readFileSync(new URL("../../src/app/bridge/runtimeProductFacade.ts", import.meta.url), "utf8");
+
+test("ApplicationRuntime source boundaries reject UI dependencies without matching status strings", () => {
+  assert.match(rustApplicationLifecycle, /frontend_bridge_error/);
+  assert.match(architectureVerifier, /frontend::/);
+  assert.doesNotMatch(architectureVerifier, /WindowBuilder\|@tauri\|frontend\|svelte/);
+});
+
+test("WorkerSummary is validated within its own type, not unrelated audio readiness", () => {
+  assert.match(rustApplicationContract, /pub struct WorkerSummary/);
+  assert.match(rustApplicationContract, /pub process_ready: bool/);
+  assert.match(rustApplicationContract, /pub struct AudioSummary/);
+  assert.match(rustApplicationContract, /pub ready: bool/);
+  assert.match(architectureVerifier, /const workerSummaryFields/);
+});
+
+test("read-only worker diagnostics are not mistaken for lifecycle mutation", () => {
+  assert.match(productRuntimeFacade, /runtimeApi\.helperBridgeWorkerStatus\(\)/);
+  assert.doesNotMatch(architectureVerifier, /"runtimeApi\.helperBridgeWorkerStatus\("/);
+});

@@ -3,9 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use crate::engine::paths::ProjectPaths;
-use crate::engine::runtime_state::latest_runtime_session_state;
+use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 const BUILTIN_VOICE_IDS: &[&str] = &["MaleVoice", "FemaleVoice"];
 const BUILTIN_GPT_WEIGHT: &str = "GPTSoVITS/Source/GPT_SoVITS/pretrained_models/s1v3.ckpt";
 const BUILTIN_SOVITS_WEIGHT: &str =

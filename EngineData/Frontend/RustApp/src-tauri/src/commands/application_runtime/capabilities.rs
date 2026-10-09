@@ -31,6 +31,7 @@ pub fn resolve_capabilities(
 #[cfg(test)]
 mod tests {
     use super::resolve_capabilities;
+    use crate::engine::runtime_state::{APPLICATION_MEETING_OWNER_ID, MIC_TEST_OWNER_ID};
     use crate::commands::application_runtime::contract::{
         ApplicationSubsystemSummaries, AudioSummary, MeetingSummary, ResourceArbitration,
         VoiceSummary, WorkerSummary,
@@ -75,7 +76,7 @@ mod tests {
             &ResourceArbitration {
                 audio_locked: true,
                 microphone_available: false,
-                active_owner: Some("translateit_mic_test".to_string()),
+                active_owner: Some(MIC_TEST_OWNER_ID.to_string()),
                 owner_kind: "mic_test".to_string(),
                 blocker: "resource:audio_owned_by:translateit_mic_test".to_string(),
             },
@@ -91,7 +92,7 @@ mod tests {
             &ResourceArbitration {
                 audio_locked: true,
                 microphone_available: false,
-                active_owner: Some("translateit_application_meeting".to_string()),
+                active_owner: Some(APPLICATION_MEETING_OWNER_ID.to_string()),
                 owner_kind: "meeting".to_string(),
                 blocker: "resource:audio_owned_by:translateit_application_meeting".to_string(),
             },

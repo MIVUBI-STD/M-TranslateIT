@@ -222,7 +222,7 @@ mod tests {
         MeetingIncomingRuntimeStatus, MeetingOutboundRuntimeStatus, MeetingSessionPreflightStatus,
         MeetingSessionStatus,
     };
-    use crate::engine::runtime_state::MIC_TEST_OWNER_ID;
+    use crate::engine::runtime_state::{APPLICATION_MEETING_OWNER_ID, MIC_TEST_OWNER_ID};
 
     fn live_status(stage: &str, updated: u128) -> MeetingSessionStatus {
         MeetingSessionStatus {
@@ -234,7 +234,7 @@ mod tests {
             started_unix_ms: Some(1),
             active_age_ms: Some(1),
             capture_active: true,
-            owner_id: Some("translateit_application_meeting".to_string()),
+            owner_id: Some(APPLICATION_MEETING_OWNER_ID.to_string()),
             blocker: String::new(),
             note: String::new(),
             preflight: MeetingSessionPreflightStatus {

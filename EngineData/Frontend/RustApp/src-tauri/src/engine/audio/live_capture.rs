@@ -16,9 +16,8 @@ use super::live_audio_buffer::{
     reset_live_audio_buffer,
 };
 use crate::engine::runtime_settings::load_settings;
-use crate::engine::runtime_state::RuntimeSessionStateReport;
+use crate::engine::runtime_state::{RuntimeSessionStateReport, APPLICATION_MEETING_OWNER_ID};
 
-const APPLICATION_MEETING_CAPTURE_OWNER_ID: &str = "translateit_application_meeting";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LiveCaptureStatusReport {
@@ -118,7 +117,7 @@ pub fn start_live_capture_runtime(
     let thread_errors = Arc::clone(&callback_errors);
     let capture_session_id = session.session_id.clone();
     let capture_generation = session.generation;
-    let finalized_outbound_enabled = session.owner_id == APPLICATION_MEETING_CAPTURE_OWNER_ID;
+    let finalized_outbound_enabled = session.owner_id == APPLICATION_MEETING_OWNER_ID;
     let capture_thread = thread::spawn(move || {
         if let Err(error) = run_capture_thread(
             thread_frames,

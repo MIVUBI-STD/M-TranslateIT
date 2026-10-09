@@ -2,13 +2,12 @@ use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::engine::runtime_state::{
-    latest_runtime_session_state, runtime_generation_is_authoritative,
+    latest_runtime_session_state, runtime_generation_is_authoritative, APPLICATION_MEETING_OWNER_ID,
 };
 
 use super::super::helper_bridge_runtime::HelperTaskPriority;
 use super::clean_helper_text;
 
-const APPLICATION_MEETING_OWNER_ID: &str = "translateit_application_meeting";
 
 static MEETING_OUTBOUND_PIPELINE_GENERATION: AtomicU64 = AtomicU64::new(0);
 

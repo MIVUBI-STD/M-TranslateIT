@@ -33,7 +33,7 @@ for (const path of files) {
   if (/serde_json::(?:Value|json)/.test(body)) {
     failures.push(`${name}: application runtime must use typed contracts, not serde_json::Value/json`);
   }
-  if (/tauri::WebviewWindow|WindowBuilder|@tauri|frontend|svelte/i.test(body) && name !== "events.rs") {
+  if (/tauri::WebviewWindow|WindowBuilder|@tauri|frontend::|src\/app\/|svelte/i.test(body) && name !== "events.rs") {
     failures.push(`${name}: application runtime kernel must not own UI/window concerns`);
   }
 }
@@ -78,7 +78,6 @@ const facadeSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtime
 for (const forbidden of [
   "runtimeApi.startHelperBridge(",
   "runtimeApi.getHelperBridgeStatus(",
-  "runtimeApi.helperBridgeWorkerStatus(",
   "runtimeApi.getMeetingSessionStatus(",
 ]) {
   if (facadeSource.includes(forbidden)) {
@@ -173,11 +172,16 @@ for (const overclaim of [
     failures.push(`frontend cheap ApplicationSnapshot contract must not restore unproven field: ${overclaim}`);
   }
 }
-if (applicationContractSource.includes("pub ready: bool")) {
-  failures.push("WorkerSummary must name process readiness explicitly as process_ready");
-}
-if (!applicationContractSource.includes("pub process_ready: bool")) {
-  failures.push("WorkerSummary missing explicit process_ready field");
+const workerSummaryFields = applicationContractSource.match(/pub struct WorkerSummary\s*\{([^}]*)\}/)?.[1];
+if (!workerSummaryFields) {
+  failures.push("WorkerSummary canonical Rust struct is missing");
+} else {
+  if (/\bpub\s+ready:\s*bool\b/.test(workerSummaryFields)) {
+    failures.push("WorkerSummary must name process readiness explicitly as process_ready");
+  }
+  if (!/\bpub\s+process_ready:\s*bool\b/.test(workerSummaryFields)) {
+    failures.push("WorkerSummary missing explicit process_ready field");
+  }
 }
 
 const runtimeApiSource = readFileSync(join(appRoot, "src", "app", "bridge", "runtimeApi.ts"), "utf8");
