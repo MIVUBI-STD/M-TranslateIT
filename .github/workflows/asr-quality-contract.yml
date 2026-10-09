@@ -2,22 +2,6 @@ name: ASR Quality Contract
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "tools/asr_quality/**"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/model_manifest.json"
-      - ".github/workflows/asr-quality-contract.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "tools/asr_quality/**"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/model_manifest.json"
-      - ".github/workflows/asr-quality-contract.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

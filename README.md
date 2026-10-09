@@ -132,6 +132,10 @@ PIN
 → STOP
 ```
 
+## GitHub Actions policy
+
+Verification and release-source checks are manual (`workflow_dispatch`), not triggered by routine push or pull request. The project's sole source authority is `Local`. Manual dispatch requires GitHub's default-branch setting to point to `Local`; that repository setting must be confirmed separately from source and must not be simulated by copying workflows to `main`. Source/static work can finish without CI; an executed PASS is claimed only with matching evidence. Release publication remains explicitly authorized.
+
 ## Branch model
 
 **Local-only.**

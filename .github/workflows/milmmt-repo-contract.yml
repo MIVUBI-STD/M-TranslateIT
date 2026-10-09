@@ -2,24 +2,6 @@ name: MiLMMT Repository Contract
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/**"
-      - "EngineData/Backend/RuntimeAssets/Translation/**"
-      - "tools/translation_quality/**"
-      - "docs/foundation/**"
-      - ".github/workflows/milmmt-repo-contract.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/**"
-      - "EngineData/Backend/RuntimeAssets/Translation/**"
-      - "tools/translation_quality/**"
-      - "docs/foundation/**"
-      - ".github/workflows/milmmt-repo-contract.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

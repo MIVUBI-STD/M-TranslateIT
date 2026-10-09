@@ -2,24 +2,6 @@ name: TTS Quality Contract
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "tools/tts_quality/**"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"
-      - "EngineData/Frontend/RustApp/src-tauri/src/commands/voice_lab_build/evaluation.rs"
-      - ".github/workflows/tts-quality-contract.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "tools/tts_quality/**"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"
-      - "EngineData/Frontend/RustApp/src-tauri/src/commands/voice_lab_build/evaluation.rs"
-      - ".github/workflows/tts-quality-contract.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

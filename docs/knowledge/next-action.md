@@ -33,10 +33,11 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Obtain matching hosted proof for the exact current `Local` SHA when GitHub Actions execution is available.
+Align the GitHub repository **default branch** with `Local` through an authorized administration action, then confirm that one `workflow_dispatch` verification can actually be started against `Local`. This is separate from source changes; until then, manual CI availability is unverified. After that, repair the already-reported Rust compiler and ApplicationRuntime architecture baseline with narrowly scoped evidence.
 
 Proof infrastructure is ready:
 
+- All eight workflows are manual-only; ordinary commits do not trigger CI.
 - Code Health manual dispatch = full-domain Frontend + Rust + Python proof with aggregate gate.
 - Repository/quality/lock workflows write exact-SHA summaries.
 - Manual R3 Release Contract requires controlled Windows payload proof.

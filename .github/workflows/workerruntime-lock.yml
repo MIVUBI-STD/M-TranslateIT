@@ -2,20 +2,6 @@ name: WorkerRuntime Lock Consistency
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
-      - ".github/workflows/workerruntime-lock.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
-      - ".github/workflows/workerruntime-lock.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -134,6 +134,7 @@ LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 ACTION_RE = re.compile(r"(?m)^\s*uses:\s+([^@\s]+)@([^\s#]+)(?:\s+#\s*(.+))?$")
 SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 MAIN_BRANCH_LINE_RE = re.compile(r"(?m)^\s*-\s+main\s*$")
+AUTO_WORKFLOW_EVENT_RE = re.compile(r"(?m)^  (?:push|pull_request|pull_request_target|schedule|workflow_run|release|create|delete|merge_group|issue_comment):\s*$")
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -346,13 +347,17 @@ def check_workflows(errors: list[str]) -> None:
             fail(errors, f"{path.name} must have bounded job timeout")
         if MAIN_BRANCH_LINE_RE.search(value):
             fail(errors, f"{path.name} must not target main under the Local-only model")
+        if "on:\n  workflow_dispatch:\n" not in value:
+            fail(errors, f"{path.name} must have a manual workflow_dispatch trigger")
+        if AUTO_WORKFLOW_EVENT_RE.search(value):
+            fail(errors, f"{path.name} must be manual-only (no push/PR/schedule/release trigger)")
         for forbidden in ("contents: write", "pull-requests: write", "git push", "pull_request_target"):
             if forbidden in value:
                 fail(errors, f"{path.name} contains forbidden verification behavior: {forbidden}")
 
     repository = text(".github/workflows/repository-verify.yml")
-    if "- Local" not in repository or "python tools/verify_repository.py" not in repository:
-        fail(errors, "Repository Verify must target Local and run tools/verify_repository.py")
+    if "workflow_dispatch:" not in repository or "python tools/verify_repository.py" not in repository:
+        fail(errors, "Repository Verify must use manual dispatch and run tools/verify_repository.py")
 
 
 def check_ci_efficiency_contract(errors: list[str]) -> None:

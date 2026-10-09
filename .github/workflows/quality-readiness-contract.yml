@@ -2,24 +2,6 @@ name: Quality Readiness Contract
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "tools/quality_readiness/**"
-      - "tools/translation_quality/**"
-      - "tools/asr_quality/**"
-      - "tools/tts_quality/**"
-      - ".github/workflows/quality-readiness-contract.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "tools/quality_readiness/**"
-      - "tools/translation_quality/**"
-      - "tools/asr_quality/**"
-      - "tools/tts_quality/**"
-      - ".github/workflows/quality-readiness-contract.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

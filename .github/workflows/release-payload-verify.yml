@@ -2,56 +2,6 @@ name: R3 Release Contract
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Frontend/RustApp/scripts/build_r3_external_payload.py"
-      - "EngineData/Frontend/RustApp/scripts/build_release.ps1"
-      - "EngineData/Frontend/RustApp/scripts/generate_third_party_notices.mjs"
-      - "EngineData/Frontend/RustApp/scripts/optimize_release_payload.py"
-      - "EngineData/Frontend/RustApp/scripts/stage_release_inputs.ps1"
-      - "EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1"
-      - "EngineData/Frontend/RustApp/scripts/stage_release_license_material.py"
-      - "EngineData/Frontend/RustApp/scripts/validate_release_model_revisions.mjs"
-      - "EngineData/Frontend/RustApp/scripts/validate_release_payload.mjs"
-      - "EngineData/Frontend/RustApp/scripts/validate_release_package_contract.mjs"
-      - "EngineData/Frontend/RustApp/scripts/validate_tauri_package_preflight.mjs"
-      - "EngineData/Frontend/RustApp/package.json"
-      - "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"
-      - "EngineData/Frontend/RustApp/src-tauri/windows/**"
-      - "EngineData/Backend/RuntimeAssets/AudioProvider/VBCABLE/**"
-      - "EngineData/Backend/RuntimeAssets/Voice/BuiltInVoices/**"
-      - "EngineData/Backend/RuntimeAssets/README.md"
-      - "EngineData/Backend/LocalWorker/README.md"
-      - "tools/translation_quality/validate_canonical_milmmt_repo.py"
-      - "tools/quality_readiness/**"
-      - ".github/workflows/release-payload-verify.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Frontend/RustApp/scripts/build_r3_external_payload.py"
-      - "EngineData/Frontend/RustApp/scripts/build_release.ps1"
-      - "EngineData/Frontend/RustApp/scripts/generate_third_party_notices.mjs"
-      - "EngineData/Frontend/RustApp/scripts/optimize_release_payload.py"
-      - "EngineData/Frontend/RustApp/scripts/stage_release_inputs.ps1"
-      - "EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1"
-      - "EngineData/Frontend/RustApp/scripts/stage_release_license_material.py"
-      - "EngineData/Frontend/RustApp/scripts/validate_release_model_revisions.mjs"
-      - "EngineData/Frontend/RustApp/scripts/validate_release_payload.mjs"
-      - "EngineData/Frontend/RustApp/scripts/validate_release_package_contract.mjs"
-      - "EngineData/Frontend/RustApp/scripts/validate_tauri_package_preflight.mjs"
-      - "EngineData/Frontend/RustApp/package.json"
-      - "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"
-      - "EngineData/Frontend/RustApp/src-tauri/windows/**"
-      - "EngineData/Backend/RuntimeAssets/AudioProvider/VBCABLE/**"
-      - "EngineData/Backend/RuntimeAssets/Voice/BuiltInVoices/**"
-      - "EngineData/Backend/RuntimeAssets/README.md"
-      - "EngineData/Backend/LocalWorker/README.md"
-      - "tools/translation_quality/validate_canonical_milmmt_repo.py"
-      - "tools/quality_readiness/**"
-      - ".github/workflows/release-payload-verify.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

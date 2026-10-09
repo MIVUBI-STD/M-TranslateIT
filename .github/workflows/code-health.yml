@@ -2,44 +2,6 @@ name: Code Health
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Frontend/RustApp/src/**"
-      - "EngineData/Frontend/RustApp/src-tauri/src/**"
-      - "EngineData/Frontend/RustApp/scripts/**"
-      - "EngineData/Frontend/RustApp/package.json"
-      - "EngineData/Frontend/RustApp/package-lock.json"
-      - "EngineData/Frontend/RustApp/tsconfig.json"
-      - "EngineData/Frontend/RustApp/src-tauri/Cargo.toml"
-      - "EngineData/Frontend/RustApp/src-tauri/Cargo.lock"
-      - "EngineData/Frontend/RustApp/src-tauri/capabilities/**"
-      - "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"
-      - "EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/**/*.py"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
-      - ".github/workflows/code-health.yml"
-  pull_request:
-    branches:
-      - Local
-    paths:
-      - "EngineData/Frontend/RustApp/src/**"
-      - "EngineData/Frontend/RustApp/src-tauri/src/**"
-      - "EngineData/Frontend/RustApp/scripts/**"
-      - "EngineData/Frontend/RustApp/package.json"
-      - "EngineData/Frontend/RustApp/package-lock.json"
-      - "EngineData/Frontend/RustApp/tsconfig.json"
-      - "EngineData/Frontend/RustApp/src-tauri/Cargo.toml"
-      - "EngineData/Frontend/RustApp/src-tauri/Cargo.lock"
-      - "EngineData/Frontend/RustApp/src-tauri/capabilities/**"
-      - "EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json"
-      - "EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/**/*.py"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/pyproject.toml"
-      - "EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock"
-      - ".github/workflows/code-health.yml"
 
 permissions:
   contents: read

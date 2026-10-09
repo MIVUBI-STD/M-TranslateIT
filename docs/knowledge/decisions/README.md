@@ -106,6 +106,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Follow-up owner:** `meeting_session.rs` for lifecycle/handoff, `engine/audio/meeting_output.rs` for playback/output ownership, `helper_bridge.rs` for proof identity/rebinding, and the canonical WorkerRuntime voice owner only if fragment delivery becomes evidence-justified.
 
+### D-037 — Manual-only CI with Local as repository authority
+
+**Context:** automatic push/PR verification repeatedly interrupted GitHub-first source development, while the GitHub default branch remained `main` although the source authority is `Local`.
+
+**Decision:** all existing verification/release-source workflows use `workflow_dispatch` only. Source/static acceptance uses proportional evidence; stronger hosted verification is explicitly invoked only when materially necessary. Keep the eight established workflow owners and existing security/release contracts. Set GitHub's default branch to `Local` through a separately authorized administration operation so manual dispatch is usable without treating `main` as development authority.
+
+**Why:** prevent CI queues and repeated runs from becoming a completion prerequisite. Avoid duplicate workflows, trigger-only commits, and parallel branch authority.
+
+**Tradeoffs:** verification no longer runs automatically on each change; exact-SHA executed CI and native Windows acceptance are required only for claims that inherently need them. Until the default-branch setting is aligned and a manual run is observed, manual dispatch availability is not proven.
+
+**Owner:** `GITHUB_RULES.md`, `.github/workflows/`, and the repository CI verifier; GitHub settings are external administration.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

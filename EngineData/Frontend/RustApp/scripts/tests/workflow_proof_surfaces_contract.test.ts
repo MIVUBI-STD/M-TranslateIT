@@ -51,3 +51,19 @@ test("Code Health retains aggregate exact-SHA proof semantics", () => {
   assert.match(source, /Exact SHA proof summary/);
   assert.match(source, /Enforce matching changed-domain proof/);
 });
+
+const verificationWorkflows = [
+  ...singleJobProofWorkflows,
+  "code-health.yml",
+  "release-payload-verify.yml",
+];
+
+test("all GitHub Actions workflows are manual-only; no push/PR/scheduled verification", () => {
+  for (const name of verificationWorkflows) {
+    const source = workflow(name);
+    const trigger = source.match(/^on:\n([\s\S]*?)(?=^(?:permissions|concurrency):)/m)?.[1];
+    assert.ok(trigger, `${name}: event block must be explicit`);
+    assert.match(trigger, /^  workflow_dispatch:/m, name);
+    assert.doesNotMatch(trigger, /^  (?:push|pull_request|pull_request_target|schedule|workflow_run|release|create|delete|merge_group|issue_comment):/m, name);
+  }
+});

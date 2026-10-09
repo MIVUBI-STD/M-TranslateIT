@@ -7,6 +7,7 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 **Local-only repository model:** `Local` is the sole active repository authority for development, governance, CI, proof, continuation, and release-source validation.
 
 - Material GitHub work follows root `GITHUB_RULES.md`.
+- GitHub Actions verification is **manual-only**, on demand and not a prerequisite for ordinary source-verifiable REMOTE_GITHUB work. Use the smallest decisive evidence; do not trigger CI for progress ceremony. Default-branch administration and genuine Windows/device proof remain separate capabilities.
 - Do not fall back to `main` or another branch for current source, proof, or continuation.
 - Do not create alternate development branches as part of the normal method.
 - Historical branches/reports are recovery evidence only and are not current task or product authority.

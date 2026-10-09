@@ -33,6 +33,9 @@ Use the Bounded, Standard, or Complex contract from `AGENTS.md`. Complex/ambiguo
 
 ## Before committing
 
+Verification workflows are `workflow_dispatch` only. A source/static change does not require an automatic or ceremonial CI run. Prefer the smallest meaningful local/source check; manual GitHub Actions provide optional stronger execution proof when the exact claim demands it. Ensure GitHub's default branch is aligned with the authoritative `Local` branch before relying on manual dispatch.
+
+
 Run the cheapest relevant proof.
 
 Repository/governance:

@@ -106,6 +106,9 @@ claim needs real mic/GPU/installer evidence
 
 ## Proof rule
 
+Routine source work uses exact-head source/contract evidence first, without automatic CI. Manual `workflow_dispatch` is reserved for stronger executable/integration/release evidence when necessary, after GitHub default-branch administration is aligned with `Local`.
+
+
 One scenario proves one claim. Source/static proof is never upgraded to target-Windows proof. Run only the proof that can falsify the changed claim. Broader source confidence means the relevant checks must succeed on the same exact `Local` SHA.
 
 ## State routing

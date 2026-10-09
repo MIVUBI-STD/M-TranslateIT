@@ -241,7 +241,7 @@ prepare complete logical change
 → review intended state
 → one categorized logical commit on Local
 → one Local ref update
-→ relevant CI
+→ manual/targeted verification only when stronger evidence is materially required
 → STOP or hand off named residue
 ```
 
@@ -264,7 +264,7 @@ Use `feat`, `fix`, `docs`, `refactor`, `test`, `ci`, `build`, `release`, or boun
 
 - Run the cheapest check that can falsify the changed claim.
 - Targeted checks are default during iteration.
-- Repository/governance changes use `Repository Verify` on `Local`.
+- Repository/governance changes use exact-head source/static review by default; `Repository Verify` is manual, optional executed proof when required.
 - Frontend/Rust/Python/runtime/release checks run only when their owned surface changed.
 - Only completed successful verification is PASS. Queued/running/cancelled/skipped/neutral/superseded is not PASS.
 - On failure, inspect the exact failing job/step and relevant error before editing.
@@ -357,7 +357,10 @@ Branch/tag deletion, PR merge/close, release publication/deletion, repository se
 - CI result is evidence; branch protection/rulesets are enforcement. Never infer one from the other.
 - If `Local` is unprotected or has no required-check ruleset, a successful workflow still counts only as exact-SHA evidence, not as proof that GitHub prevented unchecked writes.
 - Workflows are verification/deployment/artifact infrastructure, not a source editor or remote shell.
-- Automatic triggers target `Local` only under the current model.
+- **Manual-only verification**: all eight `.github/workflows/*.yml` workflows use `workflow_dispatch` only. No `push`, `pull_request`, `schedule`, `workflow_run`, or automatic tag/release verification triggers. Do not run or wait for CI merely to close a source-verifiable outcome.
+- **Availability boundary:** GitHub manual workflow dispatch requires the workflow to exist on the repository default branch. The current authoritative `Local` branch must be configured as the GitHub **default branch** for manual workflows to be usable without involving `main`. This is an explicit GitHub administration setting, not a source edit; do not modify `main`, forge workflows, or claim dispatch works until the setting and an actual run are verified.
+- Manual CI is optional evidence, not automatic enforcement of `Local` or evidence that the branch is protected. Dependency/security and release checks remain available as manual verification; publishing/deploying needs separate approval.
+- Workflow definitions retain least-privilege permissions, immutable action pins, controlled release behavior, and exact-SHA result identity.
 - Verification workflows are read-only by default and never commit/push back.
 - Use least-privilege permissions.
 - Pin third-party Actions to immutable 40-character commit SHAs and annotate the intended release.

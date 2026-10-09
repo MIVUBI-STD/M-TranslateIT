@@ -46,7 +46,7 @@ Repository Verify
 → governance / Local-only routing / repository contracts
 
 Code Health
-→ push / pull_request / workflow_dispatch
+→ manual workflow_dispatch only; no automatic push/pull_request/scheduled runs
 → manual dispatch = full-domain Frontend + Rust + Python proof
 → frontend: typecheck, build, runtime tests, bridge/source-size/reachability/dependency/package contracts
 → Rust: compiler/dead-code, Clippy, unit tests on Linux + hosted Windows
@@ -73,7 +73,7 @@ R3 Release Contract
 → manual dispatch explicitly requires controlled Windows payload proof
 ```
 
-Path-targeted skipped jobs are not evidence for unrelated domains.
+Manually scoped or skipped jobs are not evidence for unrelated domains. Manual dispatch requires the GitHub default branch to be `Local`, or actual availability remains unproven. GitHub repository settings are external to this file and are not inferred from `Local` source.
 
 ## Proof Boundaries
 
