@@ -68,6 +68,10 @@ test("voice deep-refresh policy covers every emitted ApplicationRuntime reason",
     "cancel_voice_build",
     "approve_voice_candidate",
     "select_builtin_voice",
+    // Emitted terminal build events must refresh voice readiness, not reuse stale proof.
+    "voice_build_completed",
+    "voice_build_cancelled",
+    "voice_build_failed",
   ]);
 
   assert.deepEqual(
