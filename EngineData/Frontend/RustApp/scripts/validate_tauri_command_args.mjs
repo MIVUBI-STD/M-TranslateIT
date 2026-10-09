@@ -88,6 +88,26 @@ for (const path of collect(frontendRoot, new Set([".ts", ".svelte"]))) {
   }
 }
 
+// invokeOr<T>("registered_command", undefined | { args }, fallback) is a
+// three-argument adapter. The main direct-call pattern above intentionally
+// handles direct invocations; this second pattern validates the same canonical
+// Rust argument keys without mistaking the fallback value for command args.
+for (const path of collect(frontendRoot, new Set([".ts", ".svelte"]))) {
+  const body = readFileSync(path, "utf8");
+  const pattern = /\binvokeOr(?:<[\s\S]{0,200}?>)?\(\s*"([a-z_][a-z_0-9]*)"\s*,\s*(?:undefined|\{([\s\S]{0,600}?)\})\s*,/g;
+  for (const match of body.matchAll(pattern)) {
+    const keys = frontendArgKeys(match[2] ?? "").sort();
+    const existing = frontendCalls.get(match[1]);
+    if (existing && JSON.stringify(existing.args) !== JSON.stringify(keys)) {
+      throw new Error(`tauri-command-args: inconsistent fallback invocation shape for ${match[1]}`);
+    }
+    frontendCalls.set(match[1], {
+      path: relative(appRoot, path).replaceAll("\\", "/"),
+      args: keys,
+    });
+  }
+}
+
 const registry = readFileSync(resolve(rustRoot, "commands", "registry.rs"), "utf8");
 const registered = new Set(
   [...registry.matchAll(/crate::(?:commands|engine)::[a-z_0-9:]+::([a-z_][a-z_0-9]*)/g)]
