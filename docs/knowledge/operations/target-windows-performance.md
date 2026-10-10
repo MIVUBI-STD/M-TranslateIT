@@ -109,6 +109,8 @@ Confirm:
 
 - capture frames continue arriving;
 - natural pauses produce finalized utterances;
+- include a few natural one- or two-word replies alongside ordinary sentences, without assuming speaking duration from the number of words;
+- on any lost reply, distinguish a VAD non-finalization, a finalized frame rejected by the writer, and a successfully written WAV with an empty or failed ASR result. Record the existing blocker and stage, not the private audio or spoken content;
 - no repeated callback error appears;
 - `overflow_dropped_utterance_count` and `evicted_pending_utterance_count` stay at zero under normal speaking pace;
 - the exact Meeting Microphone route remains ready and selectable by the meeting application.
@@ -146,6 +148,8 @@ Also record:
 - whether the meeting application actually receives the translated voice.
 
 The official user-relevant latency metric remains `outbound_latency_ms`; stage timing exists to identify its owner.
+
+**Short-utterance admission decision (same B2/C1 session, not another test cycle):** the producer's VAD duration gate and the downstream WAV writer's frame-duration gate are independent today. The producer computes accepted speech duration separately from the retained frame (which can contain pre-roll and trailing silence). If a natural brief reply is lost, use the existing `finalized_utterance_writer:segment_too_short` blocker to identify an already-finalized utterance vetoed at the writer, rather than mislabeling it a VAD miss. If WAV admission succeeds but no transcript emerges, assign the issue to ASR instead. Record any unavailable per-stage evidence as `UNKNOWN`; do not infer model quality or fabricate sample timing. Preserve the current thresholds until a matching baseline distinguishes deliberate short-audio rejection from unintended speech loss.
 
 ### 5. Hardware pressure
 

@@ -39,10 +39,12 @@ This file owns **what must be verified before a claim is allowed** and the order
 | ID | Claim | Minimum context | Pass criteria |
 |---|---|---|---|
 | B1 | Physical microphone discovery/probe | TARGET_WINDOWS | selected/default intent is truthful and real capture frames are observed |
-| B2 | Session Listening finalization | TARGET_WINDOWS | natural speech produces finalized utterances continuously until Stop |
+| B2 | Session Listening finalization | TARGET_WINDOWS | natural speech produces finalized utterances continuously until Stop; brief accepted speech is traced through the finalized-audio writer rather than treated as a VAD-only success |
 | B3 | VAD/drop observability | TARGET_WINDOWS | bounded drop/overflow conditions remain observable rather than silent |
 | B4 | Device mutation during session | TARGET_WINDOWS | conflicting selection/setup mutation is rejected/deferred while owned |
 | B5 | Meeting route truth | TARGET_WINDOWS | matched route is detected/configured; discovery is not mislabeled as meeting delivery proof |
+
+For B2, distinguish **VAD never finalized** from **VAD finalized but the WAV writer returned `finalized_utterance_writer:segment_too_short`**, and from **WAV admitted but ASR returned an empty transcript**. These are different owner boundaries. Brief natural speech must be included in the single integrated native session, but no VAD threshold or writer safety limit is changed merely because a synthetic fixture or an unmeasured duration appears to conflict.
 
 ## Group C — Meeting end-to-end
 
