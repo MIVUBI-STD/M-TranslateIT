@@ -11,7 +11,11 @@ MODEL_REVISION = "4fc480b6c58dec29c159dcdf9fde0f6d5c354995"
 MODEL_DIRNAME = "xiaomi-research--MiLMMT-46-1B-v1.0"
 REVISION_MARKER = ".translateit_model_revision"
 INPUT_CONTEXT_LIMIT = 2048
-STANDALONE_SOURCE_TOKEN_LIMIT = 1792
+# Standalone Text plans count source tokens before MiLMMT adds its prompt.
+# Keep adjacent sentences together only inside a conservative budget below
+# the 256-token generation ceiling (including target-language expansion).
+# Successful EOS, not this estimate, still determines output completeness.
+STANDALONE_SOURCE_TOKEN_LIMIT = 96
 MAX_NEW_TOKENS = 256
 MISSING_BLOCKER = "model:milmmt_46_1b_missing"
 BASE_MISSING_BLOCKER = "model:translation_model_missing"

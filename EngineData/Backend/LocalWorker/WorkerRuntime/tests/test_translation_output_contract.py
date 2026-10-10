@@ -36,7 +36,7 @@ def success_result(text: str) -> dict:
     }
 
 
-def install_fake_standalone_runtime(worker, monkeypatch) -> None:
+def install_fake_standalone_runtime(worker, monkeypatch, input_token_limit: int = 1024) -> None:
     fake_model_path = Path("fake-translation-model")
     monkeypatch.setattr(
         worker.runtime,
@@ -52,7 +52,7 @@ def install_fake_standalone_runtime(worker, monkeypatch) -> None:
     monkeypatch.setattr(
         worker.runtime,
         "translation_input_token_limit",
-        lambda _tokenizer, _model: 1024,
+        lambda _tokenizer, _model: input_token_limit,
     )
 
 
@@ -96,11 +96,42 @@ def test_direct_translation_accepts_output_at_character_limit(monkeypatch) -> No
     assert result["finished_with_eos"] is True
 
 
-def test_standalone_rejects_ok_chunk_without_complete_eos_and_discards_partial_output(
+def test_standalone_packs_adjacent_short_sentences_in_one_canonical_request(
     monkeypatch,
 ) -> None:
     worker = load_worker_module()
     install_fake_standalone_runtime(worker, monkeypatch)
+    requests = []
+
+    def fake_translate(payload):
+        requests.append(dict(payload))
+        return success_result("Translated together.")
+
+    set_original_translate(worker, monkeypatch, fake_translate)
+    result = worker.runtime.HANDLERS["translate"](
+        {
+            "text": "First sentence. Second sentence.",
+            "source_language": "id",
+            "target_language": "en",
+            "request_kind": "standalone_text",
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["chunk_count"] == 1
+    assert result["paragraph_count"] == 1
+    assert result["translated_text"] == "Translated together."
+    assert len(requests) == 1
+    assert requests[0]["text"] == "First sentence. Second sentence."
+    assert requests[0]["request_kind"] == "standalone_text_chunk"
+    assert "context_pairs" not in requests[0]
+
+
+def test_standalone_rejects_ok_chunk_without_complete_eos_and_discards_partial_output(
+    monkeypatch,
+) -> None:
+    worker = load_worker_module()
+    install_fake_standalone_runtime(worker, monkeypatch, input_token_limit=2)
     calls = 0
 
     def fake_translate(_payload):
@@ -137,7 +168,7 @@ def test_standalone_preserves_explicit_chunk_failure_and_discards_partial_output
     monkeypatch,
 ) -> None:
     worker = load_worker_module()
-    install_fake_standalone_runtime(worker, monkeypatch)
+    install_fake_standalone_runtime(worker, monkeypatch, input_token_limit=2)
     calls = 0
 
     def fake_translate(_payload):
@@ -177,7 +208,7 @@ def test_standalone_preserves_explicit_chunk_failure_and_discards_partial_output
 
 def test_standalone_reassembly_is_fail_closed_above_total_output_limit(monkeypatch) -> None:
     worker = load_worker_module()
-    install_fake_standalone_runtime(worker, monkeypatch)
+    install_fake_standalone_runtime(worker, monkeypatch, input_token_limit=2)
     per_chunk = (worker.MAX_TRANSLATION_OUTPUT_CHARS // 2) + 1
     calls = 0
 
@@ -209,7 +240,7 @@ def test_standalone_reassembly_is_fail_closed_above_total_output_limit(monkeypat
 
 def test_standalone_aggregates_chunk_translation_telemetry(monkeypatch) -> None:
     worker = load_worker_module()
-    install_fake_standalone_runtime(worker, monkeypatch)
+    install_fake_standalone_runtime(worker, monkeypatch, input_token_limit=2)
     calls = 0
 
     def fake_translate(_payload):

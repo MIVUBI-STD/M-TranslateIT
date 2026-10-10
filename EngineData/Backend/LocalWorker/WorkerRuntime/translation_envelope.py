@@ -219,10 +219,10 @@ def _pack_parts(parts: list[str], tokenizer: Any, max_input_tokens: int) -> list
 
 
 def split_paragraph(paragraph: str, tokenizer: Any, max_input_tokens: int) -> list[str]:
-    chunks: list[str] = []
-    for unit in semantic_sentence_units(paragraph):
-        chunks.extend(_pack_parts([unit], tokenizer, max_input_tokens))
-    return chunks
+    # Preserve neighboring sentence context within a bounded inference request.
+    # _pack_parts already splits an oversized sentence by words and rejects an
+    # individual word that cannot fit; do not force a request per sentence.
+    return _pack_parts(semantic_sentence_units(paragraph), tokenizer, max_input_tokens)
 
 
 def standalone_plan(source: str, tokenizer: Any, max_input_tokens: int) -> list[list[str]]:

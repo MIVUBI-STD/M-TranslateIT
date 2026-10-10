@@ -45,18 +45,15 @@ def test_semantic_units_preserve_abbreviation_version_url_ip_and_decimal() -> No
     ]
 
 
-def test_standalone_plan_always_uses_semantic_units_and_preserves_paragraphs() -> None:
+def test_standalone_plan_packs_short_sentences_and_preserves_paragraphs() -> None:
     envelope = load_envelope_module()
     source = (
         "I did not approve 1800 dollars, not 2100 dollars. Can you send the corrected file?"
         "\n\nThe Clockwork project is ready. Younes will review it tomorrow."
     )
     assert envelope.standalone_plan(source, CountingTokenizer(), 1024) == [
-        [
-            "I did not approve 1800 dollars, not 2100 dollars.",
-            "Can you send the corrected file?",
-        ],
-        ["The Clockwork project is ready.", "Younes will review it tomorrow."],
+        ["I did not approve 1800 dollars, not 2100 dollars. Can you send the corrected file?"],
+        ["The Clockwork project is ready. Younes will review it tomorrow."],
     ]
 
 
