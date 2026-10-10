@@ -1,5 +1,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { runCommand } from "../shared/tauriBridge";
+import { meetingSessionStatusFallback } from "../runtime/meetingBridgeFallback";
+import { defaultSettings } from "../shared/state";
 import type {
   HelperBridgeStatus,
   RuntimeSettings,
@@ -125,9 +127,31 @@ function unavailableSnapshot(): ApplicationSnapshot {
     revision: 0,
     lifecycle: "unavailable",
     active_owner: null,
-    settings: {} as RuntimeSettings,
-    meeting: {} as MeetingSessionStatus,
-    helper: {} as HelperBridgeStatus,
+    // These are safe placeholders, never evidence of a saved user configuration.
+    settings: defaultSettings(),
+    // The bridge has not proven that a prior Meeting session is idle.
+    // Reuse the existing fail-closed, fully shaped Meeting status contract.
+    meeting: meetingSessionStatusFallback("Application runtime is unavailable."),
+    // Fail closed: no helper readiness or owned process is implied.
+    helper: {
+      state: "frontend_bridge_error",
+      message: "Application runtime is unavailable.",
+      cuda_ready: false,
+      provider_ready: false,
+      functional_outbound_ready: false,
+      functional_outbound_verified_unix_ms: null,
+      degraded_mode: false,
+      active_task: null,
+      active_request_id: null,
+      active_meeting_generation: null,
+      active_meeting_session_id: null,
+      active_meeting_lane: null,
+      generation_token: 0,
+      last_error: "frontend_bridge_unavailable",
+      stderr_log_path: null,
+      updated_unix_ms: Date.now(),
+      runtime_claim: "frontend_bridge_unavailable",
+    },
     input: {
       ready: false,
       prepared: false,

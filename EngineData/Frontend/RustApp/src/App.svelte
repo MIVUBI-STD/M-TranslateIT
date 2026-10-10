@@ -180,11 +180,13 @@
     setNotice(action === "start" ? "Starting translation..." : "Stopping translation...");
     try {
       const result = await runtimeProductFacade.runProductMeetingAction(action);
-      const resultNotice = result.ok
-        ? action === "start" ? "Translation is live." : "Translation stopped."
-        : action === "start"
-          ? "Translation couldn't start. Check the setup items and try again."
-          : "Translation couldn't stop. Try again.";
+      const resultNotice = !result.ok && result.state === "frontend_bridge_error"
+        ? "Meeting status is unknown. Reconnect and retry."
+        : result.ok
+          ? action === "start" ? "Translation is live." : "Translation stopped."
+          : action === "start"
+            ? "Translation couldn't start. Check the setup items and try again."
+            : "Translation couldn't stop. Try again.";
       applyMeetingStatus(result.status, resultNotice);
       if (!result.status.has_session || action === "start") {
         meetingViewState = meetingLiveController.reset();

@@ -26,7 +26,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
 
-Next: inspect remaining Rust↔Svelte IPC argument/result contracts on `Local`; repair only reproduced mismatches. No cloud execution or interim PC tests. `main` remains final-only.
+Next: audit Rust↔Python worker request/response framing and failure handling on `Local`; repair only proven mismatches. No cloud execution or interim PC tests. `main` remains final-only.
 
 Verification definitions exist on `Local` but hosted execution is deliberately inactive:
 
