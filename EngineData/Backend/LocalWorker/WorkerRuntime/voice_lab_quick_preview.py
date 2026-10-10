@@ -11,6 +11,7 @@ import gc
 import json
 import os
 import sys
+import wave
 from pathlib import Path
 
 from voice_lab_gpt_sovits import (
@@ -49,6 +50,24 @@ def validate_preview_inputs(
     return target
 
 
+def validate_preview_wav(path: Path, expected_rate: int) -> None:
+    """Verify the generated PCM WAV before exposing it to the UI."""
+    try:
+        with wave.open(str(path), "rb") as wav:
+            frames = wav.getnframes()
+            rate = wav.getframerate()
+            if (wav.getnchannels() != 1 or wav.getsampwidth() != 2
+                    or rate != expected_rate or not 16_000 <= rate <= 48_000
+                    or not rate // 10 <= frames <= rate * 30):
+                raise VoiceLabProviderError("preview_audio_invalid")
+            if len(wav.readframes(frames)) != frames * 2:
+                raise VoiceLabProviderError("preview_audio_invalid")
+    except VoiceLabProviderError:
+        raise
+    except (OSError, EOFError, ValueError, wave.Error) as exc:
+        raise VoiceLabProviderError("preview_audio_invalid") from exc
+
+
 def preview_once(
     source_root: Path,
     reference_wav: Path,
@@ -60,8 +79,7 @@ def preview_once(
     try:
         runtime = prepare_pretrained_voice_preview(source_root, reference_wav, reference_text)
         result = synthesize_pretrained_voice_preview(runtime, PREVIEW_TEXT, target)
-        if not target.is_file() or target.stat().st_size <= 44:
-            raise VoiceLabProviderError("preview_audio_invalid")
+        validate_preview_wav(target, int(result["sample_rate"]))
         return {
             "ok": True,
             "stage": "quick_voice_preview",

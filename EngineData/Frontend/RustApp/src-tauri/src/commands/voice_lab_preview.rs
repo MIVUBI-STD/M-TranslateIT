@@ -104,6 +104,12 @@ fn generate_once() -> QuickVoicePreviewResult {
             }
             thread::sleep(Duration::from_millis(100));
         }
+        // A child can exit successfully after Stop was requested; success must
+        // still belong to the current, non-cancelled VoiceLab generation.
+        let authority = current_voice_lab_build_snapshot();
+        if authority.generation != Some(generation) || authority.cancel_requested || Instant::now() >= deadline {
+            return Err("preview_cancelled_or_timed_out".into());
+        }
         let info = fs::metadata(&file).map_err(|_| "preview_audio_missing")?;
         if !info.is_file() || info.len() <= 44 || info.len() > MAX_PREVIEW_WAV_BYTES {
             return Err("preview_audio_invalid".into());

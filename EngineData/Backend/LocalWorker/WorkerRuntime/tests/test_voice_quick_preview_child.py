@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import wave
 from pathlib import Path
 
 import pytest
@@ -42,7 +43,11 @@ def test_preview_output_is_single_named_file_not_approved_actor(tmp_path: Path, 
     def synthesize(runtime, text, output_path):
         assert runtime["preview_only"] is True
         assert text == preview.PREVIEW_TEXT
-        output_path.write_bytes(b"RIFF" + b"\0" * 64)
+        with wave.open(str(output_path), "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(32000)
+            wav.writeframes(b"\x01\x00" * 3200)
         created.append(output_path)
         return {"sample_rate": 32000}
 
@@ -84,5 +89,20 @@ def test_failed_generation_leaves_no_partial_preview(tmp_path: Path, monkeypatch
 
     monkeypatch.setattr(preview, "synthesize_pretrained_voice_preview", fail)
     with pytest.raises(RuntimeError, match="generation failure"):
+        preview.preview_once(source, reference, output, "Hello")
+    assert not (output / preview.OUTPUT_FILE).exists()
+
+
+def test_invalid_generated_wav_is_removed(tmp_path: Path, monkeypatch):
+    preview = module()
+    source, reference, output = setup_paths(tmp_path)
+    monkeypatch.setattr(preview, "prepare_pretrained_voice_preview", lambda *_: {"preview_only": True})
+
+    def invalid(_runtime, _text, target):
+        target.write_bytes(b"RIFF" + b"\0" * 100)
+        return {"sample_rate": 32000}
+
+    monkeypatch.setattr(preview, "synthesize_pretrained_voice_preview", invalid)
+    with pytest.raises(preview.VoiceLabProviderError, match="preview_audio_invalid"):
         preview.preview_once(source, reference, output, "Hello")
     assert not (output / preview.OUTPUT_FILE).exists()

@@ -59,3 +59,12 @@ test("Quick Preview remains training-only in the visible My Voice UI", () => {
   const block = ui.slice(start, end);
   assert.doesNotMatch(block, /onMeetingVoiceChanged|approve\(|selectBuiltin|dispatchProductIntent/);
 });
+
+
+test("preview success rechecks cancellation after child exit", () => {
+  const exit = preview.indexOf("Ok(Some(status))");
+  const finalCheck = preview.lastIndexOf("let authority = current_voice_lab_build_snapshot();");
+  const output = preview.indexOf("let info = fs::metadata(&file)");
+  assert.ok(exit >= 0 && finalCheck > exit && output > finalCheck);
+  assert.match(preview.slice(finalCheck, output), /authority\.cancel_requested/);
+});

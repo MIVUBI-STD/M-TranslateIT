@@ -26,7 +26,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
 
-Next: Quick Voice Preview Rust, Python and My Voice UI are source-wired with separate preview controls, exclusive resource ownership and no Meeting selection. Audit edge cases, audio-quality guard and source packaging before integrated native acceptance. NO cloud execution/CI or incremental PC tests; `main` remains final-only.
+Next: Quick Voice Preview remains source-wired, not runtime-accepted. Generated preview WAV now has PCM framing/duration/rate checks before exposure and the Rust owner rechecks cancellation after child exit. Source tests were authored but NOT EXECUTED. Audit remaining preview reference selection and packaging edges, then integrated native acceptance. NO cloud execution/CI or incremental PC tests; `main` remains final-only.
 
 Eight GitHub Actions workflow definitions remain **inactive** under the no-cloud policy. Their Code Health, repository/quality/lock and Windows release gates describe future local acceptance requirements, not current executable PASS. If source review finds a concrete regression, repair only its canonical owner.
 
