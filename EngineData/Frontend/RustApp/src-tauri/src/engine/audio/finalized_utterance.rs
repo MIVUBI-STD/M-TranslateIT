@@ -4,7 +4,7 @@ use std::sync::{Condvar, Mutex, OnceLock};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use super::evidence::AudioEvidenceReport;
-use super::vad::{evaluate_vad_gate, runtime_vad_profile, RuntimeVadProfile};
+use super::vad::{evaluate_vad_gate, runtime_vad_profile, RuntimeVadProfile, VadGateResult};
 use super::{duration_ms, AudioFrame, TARGET_CHANNELS, TARGET_SAMPLE_RATE_HZ};
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
@@ -364,9 +364,7 @@ fn observe_finalized_mono_samples(
     // Vec for every callback chunk.
     let evidence = AudioEvidenceReport::from_samples(samples);
     let gate = evaluate_vad_gate(evidence.clone(), &state.profile.gate);
-    let speech_like = gate.accepted;
-
-    let queued = ingest_observation(state, samples, &evidence, speech_like);
+    let queued = ingest_observation(state, samples, &evidence, &gate);
     if queued {
         sync.ready.notify_one();
     }
@@ -434,8 +432,9 @@ fn ingest_observation(
     state: &mut FinalizedProducerState,
     samples: &[f32],
     evidence: &AudioEvidenceReport,
-    speech_like: bool,
+    gate: &VadGateResult,
 ) -> bool {
+    let speech_like = gate.accepted;
     if !state.in_utterance {
         if speech_like {
             state.in_utterance = true;
@@ -467,6 +466,15 @@ fn ingest_observation(
 
     if speech_like {
         state.speech_samples = state.speech_samples.saturating_add(samples.len());
+        state.trailing_silence_samples = 0;
+        return false;
+    }
+
+    // Clipping is a quality rejection, not evidence of silence. A distorted
+    // burst inside speech must not end the utterance prematurely; preserve
+    // the bounded samples for the unchanged final whole-utterance quality gate.
+    // Clipping alone still cannot start a new utterance or count as speech.
+    if gate.reason == "rejected_clipping" {
         state.trailing_silence_samples = 0;
         return false;
     }
@@ -812,6 +820,69 @@ mod tests {
         assert_eq!(stereo.len(), 2);
         assert!((stereo[0] - 0.5).abs() < 0.0001);
         assert!((stereo[1] + 0.5).abs() < 0.0001);
+    }
+
+    #[test]
+    fn clipped_burst_during_active_speech_does_not_become_a_silence_boundary() {
+        // Pure producer state: no global Meeting generation or audio device needed.
+        let mut state = FinalizedProducerState {
+            session_id: "clipping-boundary".to_string(),
+            generation: None,
+            lane: LANE_INCOMING,
+            sample_rate_hz: 16_000,
+            profile: runtime_vad_profile(),
+            pre_roll: VecDeque::new(),
+            in_utterance: false,
+            current_samples: Vec::new(),
+            speech_samples: 0,
+            trailing_silence_samples: 0,
+            overflowed: false,
+            next_utterance_id: 1,
+            pending: VecDeque::new(),
+        };
+        let clear_speech = vec![0.12_f32; 16_000 / 4];
+        let mut clipped_burst = clear_speech.clone();
+        for sample in clipped_burst.iter_mut().step_by(20) {
+            *sample = 1.0;
+        }
+        let clear_evidence = AudioEvidenceReport::from_samples(&clear_speech);
+        let clear_gate = evaluate_vad_gate(clear_evidence.clone(), &state.profile.gate);
+        assert!(clear_gate.accepted);
+        assert!(!ingest_observation(
+            &mut state,
+            &clear_speech,
+            &clear_evidence,
+            &clear_gate,
+        ));
+        assert!(state.in_utterance);
+
+        let clipped_evidence = AudioEvidenceReport::from_samples(&clipped_burst);
+        let clipped_gate = evaluate_vad_gate(clipped_evidence.clone(), &state.profile.gate);
+        assert_eq!(clipped_gate.reason, "rejected_clipping");
+        // 250 ms exceeds the current adaptive silence interval, but it is
+        // distorted speech-like energy, not a natural end-of-speech pause.
+        assert!(!ingest_observation(
+            &mut state,
+            &clipped_burst,
+            &clipped_evidence,
+            &clipped_gate,
+        ));
+        assert!(state.in_utterance);
+        assert_eq!(state.trailing_silence_samples, 0);
+        assert_eq!(state.speech_samples, clear_speech.len());
+
+        assert!(!ingest_observation(
+            &mut state,
+            &clear_speech,
+            &clear_evidence,
+            &clear_gate,
+        ));
+        assert_eq!(state.speech_samples, clear_speech.len() * 2);
+        assert_eq!(
+            state.current_samples.len(),
+            clear_speech.len() * 2 + clipped_burst.len()
+        );
+        assert!(state.pending.is_empty());
     }
 
     fn silence_of(rate: u32, ms: u32) -> Vec<f32> {
