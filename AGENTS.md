@@ -130,7 +130,7 @@ For an ambiguous change across Rust, TypeScript, Python or release boundaries, `
 
 ## Agent routing evaluation
 
-The **existing** skill inventory remains frozen at six. `.agents/evals/skill-routing.json` owns bilingual positive/negative/ambiguous task-routing expectations, while `tools/repository_agent_evals.py` validates their identifiers and optionally scores **actual external agent-run receipts**. A valid corpus or synthetic scorer test is not proof that an AI agent routed real tasks correctly. The `.agents/evals/permission-cases.json` corpus continues to own action/path permission examples; do not duplicate it in the routing corpus or create a seventh generic specialist.
+The **existing** skill inventory remains frozen at six. `.agents/evals/skill-routing.json` owns bilingual positive/negative/ambiguous task-routing expectations, and `.agents/evals/skill-procedure.json` references them for procedure cases. `tools/repository_agent_evals.py` validates both and scores only externally supplied receipts; `tools/repository_skill_admission.py` statically rejects unsafe Skill packages. A valid corpus or synthetic scorer test is not proof that an AI agent routed real tasks correctly. The `.agents/evals/permission-cases.json` corpus continues to own action/path permission examples; do not duplicate it in the routing corpus or create a seventh generic specialist.
 
 ## Specialist budget
 

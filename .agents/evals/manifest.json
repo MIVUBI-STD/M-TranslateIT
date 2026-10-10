@@ -3,5 +3,8 @@
   "description": "Provider-neutral golden task-routing cases for the existing six TranslateIT skills; static verification does not execute an AI model.",
   "routingCorpus": ".agents/evals/skill-routing.json",
   "permissionCorpus": ".agents/evals/permission-cases.json",
-  "scorer": "tools/repository_agent_evals.py"
+  "scorer": "tools/repository_agent_evals.py",
+  "procedureCorpus": ".agents/evals/skill-procedure.json",
+  "procedureScorer": "tools/repository_agent_evals.py",
+  "note": "Golden corpora and static supply-chain admission do not run agents; procedure receipts from external runs establish only declared milestone consistency, not model-level proof."
 }

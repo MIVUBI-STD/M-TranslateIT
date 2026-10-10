@@ -166,6 +166,16 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** `tools/repository_verification.py` executes selected checks. `tools/repository_impact.py` remains the read-only plan owner; `GITHUB_RULES.md` owns policy and CI boundaries.
 
+### D-042 — Data-only Skill admission and evidence-gated procedure evaluation
+
+**Context:** the six existing TranslateIT Skills had routing expectations but lacked nested package safety checks, distinct procedure collision/pressure cases, and externally scored procedure receipts.
+
+**Decision:** keep Skill identity/classification in `.agents/skill-registry.json`, procedures in each existing `SKILL.md`, routing expectations in the current evaluation corpus, and permission authority in the current policy. Add `tools/repository_skill_admission.py` as a static data-only supply-chain gate. Extend the existing `tools/repository_agent_evals.py` with linked procedure cases and external receipt-consistency scoring; add no seventh skill or execution framework.
+
+**Tradeoffs:** static scans cannot exclude all prompt injection or prove model obedience. User approval, release authority, actual target evidence and external network/code execution remain separate gates; receipts cannot be promoted to behavior proof.
+
+**Owner:** existing Skill/registry/permission owners, `.agents/evals/skill-procedure.json`, and the two canonical repository verification helpers.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

@@ -118,6 +118,12 @@ For a cross-domain defect, do not silently change the active scope. A `DEVELOPME
 
 Six canonical skills remain unchanged. Golden routing cases validate expected modes and specialist ownership; only actual observed agent-run receipts may support a model-routing accuracy claim. A semantic specialist never overrides the active lane's permission or starts an unrelated release.
 
+## Skill procedure and supply-chain evidence
+
+`tools/repository_skill_admission.py --check` treats committed `.agents/skills/` assets as untrusted **data**: registered package names, metadata, nested references, file types, symlinks, size, and direct command/instruction overrides are checked without executing their contents. Admission does not certify every possible prompt injection or authorize imported execution.
+
+`.agents/evals/skill-routing.json` owns route expectations; `.agents/evals/skill-procedure.json` adds positive, collision, pressure and handoff procedure scenarios linked to those routes. `python tools/repository_agent_evals.py --check` validates these source fixtures. `--score` and `--score-procedures` accept **external agent-run receipts**, never invoke a provider. Their scores check receipt consistency only; a synthetic test passing does not prove a model followed the instruction, that a handoff was authorized, or that target Windows execution succeeded.
+
 ## Derived dependency intelligence
 
 `python tools/repository_impact.py --changed <repository-relative-file> [...]` can identify known import consumers and cross-language contract regressions before source modification or targeted validation. `tools/repository_dependencies.py` parses current TypeScript/Svelte relative imports, Rust module/use relationships, and local Python AST imports into an **ephemeral** reverse graph; no second knowledge/owner registry or generated graph file exists.

@@ -52,6 +52,15 @@ Prioritize task/state hierarchy before decoration. Reject generic AI gradients/g
 
 Material states should cover only states that can actually occur: default, focus, active/selected, checking/loading, ready/success, degraded/setup-needed/error, disabled/unavailable.
 
+## Procedure
+
+1. Ground the current page, user task and real interaction states in Svelte source.
+2. Reuse existing semantic tokens, component patterns and accessibility boundaries before adding UI structure.
+3. Separate visual styling and state presentation from navigation, readiness and backend ownership.
+4. Change only the owning UI surfaces; inspect responsive, focus, disabled, degraded and reduced-motion cases as relevant.
+5. Use rendered evidence at the required window sizes for visual claims; static CSS inspection is not visual acceptance.
+6. Stop after the scoped visual acceptance. If runtime truth is wrong, document evidence for a separate desktop-runtime handoff instead of rewriting it here.
+
 ## Proof
 
 Static proof can establish style ownership/tokens/markup. Claims such as visual match, responsive composition, motion feel or rendered accessibility require rendered evidence at relevant dimensions/context.

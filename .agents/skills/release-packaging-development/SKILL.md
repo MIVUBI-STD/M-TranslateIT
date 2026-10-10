@@ -38,6 +38,16 @@ Normal users do not manually install Python, run pip, download core models, extr
 - Built-in LibriSpeech/OpenSLR references are CC-BY-4.0 material; release provenance/attribution must preserve exact source/utterance/hash/license metadata. Do not call them public domain.
 - Provider notice presence does not itself prove redistribution rights.
 
+## Procedure
+
+1. Establish the exact source revision, authorized release goal and immutable package inputs.
+2. Identify the first wrong staging, signing, installer, attribution, asset or installed-path owner.
+3. Preserve one packaged Python/AI/audio architecture; never add dev-path or missing-model runtime fallbacks.
+4. Inspect third-party rights and model/voice/provider provenance before copying release assets.
+5. Validate source/payload contracts and bounded artifact evidence using existing package entrypoints.
+6. Separate artifact compilation, installation and clean-machine/native Windows evidence; report unavailable layers.
+7. Treat signing, credentials, publication and promotion to main as separate approval gates; never infer them from source PASS.
+
 ## Proof hierarchy
 
 ```text

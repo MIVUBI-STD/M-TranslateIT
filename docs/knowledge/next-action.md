@@ -33,7 +33,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Next: review agent/skill supply-chain admission and procedure evaluation (Batch 4). Affected execution is opt-in and not run on this SHA. Rust/frontend compilation and target-Windows acceptance remain unverified. `main` stays final-only; GitHub CI remains manual and unavailable/unproven from the default branch.
+Next: build zero-waste benchmark and conformance review (Batch 5) without inventing model-run proof. Skill security and procedure corpora are source-gated; execution remains unverified. Rust/frontend and native Windows acceptance are pending. `main` stays final-only and GitHub CI manual.
 
 Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
 

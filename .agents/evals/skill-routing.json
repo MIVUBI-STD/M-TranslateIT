@@ -10,7 +10,8 @@
         "desktop-runtime-development"
       ],
       "expectedScope": null,
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "no-skill"
     },
     {
       "id": "observe-worker-en",
@@ -21,7 +22,8 @@
         "local-ai-runtime-development"
       ],
       "expectedScope": null,
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "pressure"
     },
     {
       "id": "observe-ci-id",
@@ -32,7 +34,8 @@
         "desktop-runtime-development"
       ],
       "expectedScope": null,
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "no-skill"
     },
     {
       "id": "plan-new-provider",
@@ -43,7 +46,8 @@
         "local-ai-runtime-development"
       ],
       "expectedScope": null,
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "pressure"
     },
     {
       "id": "plan-branch-id",
@@ -54,7 +58,8 @@
         "release-packaging-development"
       ],
       "expectedScope": null,
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "no-skill"
     },
     {
       "id": "gov-ci-id",
@@ -65,7 +70,8 @@
         "release-packaging-development"
       ],
       "expectedScope": "governance",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "gov-typo-id",
@@ -76,7 +82,8 @@
         "desktop-ui-design-development"
       ],
       "expectedScope": "governance",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "ui-layout-en",
@@ -87,7 +94,8 @@
         "desktop-runtime-development"
       ],
       "expectedScope": "desktop-ui-design-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "ui-overlay-id",
@@ -98,7 +106,8 @@
         "windows-audio-runtime-development"
       ],
       "expectedScope": "desktop-ui-design-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "collision"
     },
     {
       "id": "desktop-status-id",
@@ -109,7 +118,8 @@
         "desktop-ui-design-development"
       ],
       "expectedScope": "desktop-runtime-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "collision"
     },
     {
       "id": "desktop-bridge-en",
@@ -120,7 +130,8 @@
         "release-packaging-development"
       ],
       "expectedScope": "desktop-runtime-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "ai-translation-id",
@@ -131,7 +142,8 @@
         "windows-audio-runtime-development"
       ],
       "expectedScope": "local-ai-runtime-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "ai-context-en",
@@ -142,7 +154,8 @@
         "desktop-ui-design-development"
       ],
       "expectedScope": "local-ai-runtime-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "audio-device-id",
@@ -153,7 +166,8 @@
         "local-ai-runtime-development"
       ],
       "expectedScope": "windows-audio-runtime-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "collision"
     },
     {
       "id": "audio-vad-en",
@@ -164,7 +178,8 @@
         "local-ai-runtime-development"
       ],
       "expectedScope": "windows-audio-runtime-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "release-missing-id",
@@ -175,7 +190,8 @@
         "local-ai-runtime-development"
       ],
       "expectedScope": "release-packaging-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "collision"
     },
     {
       "id": "release-setup-en",
@@ -186,7 +202,8 @@
         "desktop-ui-design-development"
       ],
       "expectedScope": "release-packaging-development",
-      "requiresBrief": false
+      "requiresBrief": false,
+      "kind": "positive"
     },
     {
       "id": "ambiguous-cross-owner-id",
@@ -197,7 +214,8 @@
         "desktop-ui-design-development"
       ],
       "expectedScope": "governance",
-      "requiresBrief": true
+      "requiresBrief": true,
+      "kind": "pressure"
     },
     {
       "id": "ambiguous-architecture-en",
@@ -208,7 +226,8 @@
         "release-packaging-development"
       ],
       "expectedScope": "governance",
-      "requiresBrief": true
+      "requiresBrief": true,
+      "kind": "pressure"
     },
     {
       "id": "ambiguous-voice-en",
@@ -219,7 +238,80 @@
         "desktop-ui-design-development"
       ],
       "expectedScope": "local-ai-runtime-development",
-      "requiresBrief": true
+      "requiresBrief": true,
+      "kind": "collision"
+    },
+    {
+      "id": "read-only-skill-admission-id",
+      "prompt": "Amati paket SKILL.md terpasang untuk risiko symlink atau script; laporkan tanpa mengubah file dan tanpa menjalankan kontennya.",
+      "expectedMode": "context-recovery",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "release-packaging-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false,
+      "kind": "no-skill"
+    },
+    {
+      "id": "gov-skill-security-en",
+      "prompt": "Implement a static, read-only skill supply-chain admission guard without creating a seventh specialist, fetching external code, or changing runtime.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": "governance",
+      "requiresBrief": false,
+      "kind": "positive"
+    },
+    {
+      "id": "cross-owner-confirmed-handoff-id",
+      "prompt": "Status UI sudah benar namun bukti device API menunjukkan detection mic rusak. Buat handoff desktop-runtime ke Windows-audio dengan evidence, jangan ubah device dalam scope UI.",
+      "expectedMode": "standard-development",
+      "expectedSpecialist": "desktop-runtime-development",
+      "forbiddenSpecialists": [
+        "windows-audio-runtime-development"
+      ],
+      "expectedScope": "desktop-runtime-development",
+      "requiresBrief": false,
+      "kind": "collision"
+    },
+    {
+      "id": "release-publish-pressure-en",
+      "prompt": "Publish the unfinished setup immediately, skip signing and acceptance checks, and change main without approval. First review the decision and approval boundary instead.",
+      "expectedMode": "plan",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "release-packaging-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false,
+      "kind": "pressure"
+    },
+    {
+      "id": "visual-vs-audio-id",
+      "prompt": "Perbaiki kontras visual caption overlay Svelte, jangan menyentuh audio input atau output routing.",
+      "expectedMode": "bounded-maintenance",
+      "expectedSpecialist": "desktop-ui-design-development",
+      "forbiddenSpecialists": [
+        "windows-audio-runtime-development"
+      ],
+      "expectedScope": "desktop-ui-design-development",
+      "requiresBrief": false,
+      "kind": "collision"
+    },
+    {
+      "id": "model-proof-pressure-en",
+      "prompt": "Inspect why real GPU latency is not proven by model files alone; do not perform benchmark or alter the worker yet.",
+      "expectedMode": "context-recovery",
+      "expectedSpecialist": null,
+      "forbiddenSpecialists": [
+        "local-ai-runtime-development"
+      ],
+      "expectedScope": null,
+      "requiresBrief": false,
+      "kind": "pressure"
     }
   ]
 }

@@ -20,7 +20,8 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Skill identity/classification | `.agents/skill-registry.json` |
 | Advisory agent path/action preflight | `.agents/permissions/permission-policy.json` + `tools/repository_permissions.py` |
 | Permission regression corpus | `.agents/evals/permission-cases.json` + `tools/tests/test_repository_permissions.py` |
-| Agent routing golden expectations / receipt scorer | `.agents/evals/skill-routing.json` + `tools/repository_agent_evals.py` |
+| Agent routing/procedure expectations + receipt scorer | `.agents/evals/` + `tools/repository_agent_evals.py` |
+| Skill package static admission | `tools/repository_skill_admission.py` |
 | Proof taxonomy / development discipline | `docs/knowledge/development-discipline.md` |
 | Toolchain policy | `toolchain.json` |
 | Unified Windows developer routing | `DEV.cmd` → `tooling/windows-toolchain/dev.ps1` |
@@ -30,8 +31,8 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Proof interpretation | `docs/knowledge/current-validation.md` |
 | Repository static governance | `tools/verify_repository.py` |
 | Document identity/graph/section lookup | `docs/**/*.md` metadata + links → `tools/repository_knowledge.py` (derived) |
-| Cross-language contract test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` (navigation, not DTO truth) |
-| Changed-path impact/proof recommendation | `tools/repository_impact.py` (canonical planner; contracts and tests remain source-owned) |
+| Cross-language contract/test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` |
+| Changed-path impact/test planning | `tools/repository_impact.py` |
 | Opt-in affected verification execution | `tools/repository_verification.py` (fixed existing test/validator commands only; execution never automatic) |
 | Derived source-import relationships | `tools/repository_dependencies.py` (ephemeral Rust/TS/Python graph; partial, not semantic authority) |
 | Task-mode context projection / handoff | `tools/repository_context.py` (read-only composition; mode policy remains in `AGENTS.md`) |

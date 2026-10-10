@@ -50,6 +50,16 @@ Meeting Sound
 - Raw audio remains temporary by default.
 - Lifecycle must release handles cleanly and reject stale/duplicate output.
 
+## Procedure
+
+1. Ground the user's current capture/route symptom in real device and Meeting lifecycle evidence.
+2. Identify the physical input, VAD/finalization, shared-resource, selected virtual route or output-delivery owner.
+3. Preserve explicit device selection, one capture owner, generation-bound playback and no speaker/raw-mic fallback.
+4. Make the smallest owning change; inspect disconnect/reconnect, cancellation, cleanup and stale output boundaries.
+5. Check source contracts and any available targeted integration fixture for the changed audio path.
+6. Reserve real mic, device, VB-CABLE, meeting-app reception and output timing acceptance for TARGET_WINDOWS.
+7. If another domain is actually responsible, propose an evidence-bounded handoff; never silently switch specialists.
+
 ## Proof
 
 Static proof can establish lifecycle wiring and failure mapping. Real microphone capture, VAD behavior, device routing, virtual endpoint operation and meeting-application delivery require `TARGET_WINDOWS` evidence when claimed.

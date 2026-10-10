@@ -39,6 +39,8 @@ Subject to matching proof, current source establishes:
 - bounded productivity contracts: Quick Translate, temporary last-session review, Meeting presets, terminology maintenance, in-memory Text cache, and opt-in translation feedback;
 - application-level coordination source contracts: typed ApplicationRuntime snapshot/intent/mutation boundaries, distinct Meeting/Mic Test/My Voice owners, event-first Meeting reconciliation with slow fallback, centralized shutdown, modular frontend controllers, split facades/state policies, and guarded compatibility surfaces.
 
+Static Skill admission and procedure-case validation are repository-source checks only. `--score-procedures` validates the consistency of externally supplied agent receipts; it does not observe or verify agent decisions itself. Unrun checks remain unverified.
+
 ## Verification surfaces
 
 ```text

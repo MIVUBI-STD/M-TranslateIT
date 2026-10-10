@@ -63,6 +63,16 @@ Physical mic/VAD/device routing; Meeting output endpoint; desktop navigation/rea
 
 Use `uv`, Ruff, pytest, benchmark/profiling tools or type checking only when they directly improve the current canonical runtime's reproducibility/correctness/proof. Tool adoption is not a reason to create another project skill or packaged end-user dependency.
 
+## Procedure
+
+1. Pin current canonical worker and expected ASR/translation/TTS or My Voice product contract.
+2. Identify the first incorrect worker/provider/request owner and trace the exact caller and output envelope.
+3. Preserve outbound last-three-committed-pairs context, context-free incoming, one translation pipeline and selected-voice authority.
+4. Repair the smallest correct worker/provider owner; never create silent cloud/alternate-engine fallbacks.
+5. Check relevant unit/protocol fixtures, model identity and affected frontend/Rust consumers without widening unrelated layers.
+6. Distinguish source contract, model-load, CUDA/CPU performance and perceptual voice/translation quality proof.
+7. Report unavailable model/device proof as residue, then STOP; a source change is not inference-quality acceptance.
+
 ## Proof
 
 GitHub/static proof can establish wiring/contracts/model identity. Actual model load, CUDA behavior, translation quality, generated speech quality, speaker similarity and practical latency require matching runtime/hardware evidence.

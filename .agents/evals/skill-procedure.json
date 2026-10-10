@@ -1,0 +1,312 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Procedure expectations for existing skills, linked by routingCaseId; no automatic execution or claim of observed agent quality.",
+  "cases": [
+    {
+      "id": "brief-cross-owner",
+      "routingCaseId": "ambiguous-cross-owner-id",
+      "skill": "development-brief",
+      "kind": "positive",
+      "requiredMilestones": [
+        "identify-first-owner",
+        "record-evidence-ceiling",
+        "bound-current-partition"
+      ],
+      "forbiddenActions": [
+        "write-before-diagnosis",
+        "activate-multiple-specialists"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "brief-high-impact",
+      "routingCaseId": "ambiguous-architecture-en",
+      "skill": "development-brief",
+      "kind": "pressure",
+      "requiredMilestones": [
+        "separate-requirement-method",
+        "identify-source-authority",
+        "name-unresolved-decision"
+      ],
+      "forbiddenActions": [
+        "assume-user-approval",
+        "premature-implementation"
+      ],
+      "expectedDisposition": "REQUEST_DECISION",
+      "handoffTarget": null
+    },
+    {
+      "id": "desktop-readiness",
+      "routingCaseId": "desktop-status-id",
+      "skill": "desktop-runtime-development",
+      "kind": "positive",
+      "requiredMilestones": [
+        "read-canonical-snapshot",
+        "locate-presentation-mapping",
+        "check-affected-consumers"
+      ],
+      "forbiddenActions": [
+        "invent-process-readiness",
+        "rewrite-python-worker"
+      ],
+      "expectedDisposition": "BOUNDED_WORK",
+      "handoffTarget": null
+    },
+    {
+      "id": "desktop-bridge",
+      "routingCaseId": "desktop-bridge-en",
+      "skill": "desktop-runtime-development",
+      "kind": "collision",
+      "requiredMilestones": [
+        "identify-tauri-command-owner",
+        "compare-rust-typescript-contract",
+        "preserve-ipc-boundary"
+      ],
+      "forbiddenActions": [
+        "duplicate-runtime-state",
+        "replace-bridge-with-generic-manager"
+      ],
+      "expectedDisposition": "BOUNDED_WORK",
+      "handoffTarget": null
+    },
+    {
+      "id": "desktop-audio-handoff",
+      "routingCaseId": "cross-owner-confirmed-handoff-id",
+      "skill": "desktop-runtime-development",
+      "kind": "collision",
+      "requiredMilestones": [
+        "confirm-ui-mapping-correct",
+        "ground-device-failure-evidence",
+        "prepare-bounded-handoff"
+      ],
+      "forbiddenActions": [
+        "silently-change-audio-owner",
+        "auto-activate-target-skill"
+      ],
+      "expectedDisposition": "PROPOSE_HANDOFF",
+      "handoffTarget": "windows-audio-runtime-development"
+    },
+    {
+      "id": "ui-settings",
+      "routingCaseId": "ui-layout-en",
+      "skill": "desktop-ui-design-development",
+      "kind": "positive",
+      "requiredMilestones": [
+        "inspect-existing-visual-tokens",
+        "retain-real-interaction-states",
+        "record-rendered-proof-residue"
+      ],
+      "forbiddenActions": [
+        "edit-audio-runtime",
+        "claim-visual-pass-from-css"
+      ],
+      "expectedDisposition": "BOUNDED_WORK",
+      "handoffTarget": null
+    },
+    {
+      "id": "ui-overlay",
+      "routingCaseId": "ui-overlay-id",
+      "skill": "desktop-ui-design-development",
+      "kind": "collision",
+      "requiredMilestones": [
+        "preserve-overlay-readability",
+        "exclude-audio-output-domain",
+        "identify-rendered-acceptance"
+      ],
+      "forbiddenActions": [
+        "mutate-device-selection",
+        "claim-live-visual-pass"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "ai-translation",
+      "routingCaseId": "ai-translation-id",
+      "skill": "local-ai-runtime-development",
+      "kind": "positive",
+      "requiredMilestones": [
+        "identify-canonical-worker",
+        "trace-translation-envelope",
+        "protect-no-truncation-contract"
+      ],
+      "forbiddenActions": [
+        "add-cloud-fallback",
+        "rewrite-vad-device-owner"
+      ],
+      "expectedDisposition": "BOUNDED_WORK",
+      "handoffTarget": null
+    },
+    {
+      "id": "ai-outbound-context",
+      "routingCaseId": "ai-context-en",
+      "skill": "local-ai-runtime-development",
+      "kind": "pressure",
+      "requiredMilestones": [
+        "bind-three-committed-pairs",
+        "exclude-incoming-history",
+        "identify-inference-proof"
+      ],
+      "forbiddenActions": [
+        "reuse-session-context-for-incoming",
+        "claim-inference-proof-from-source"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "ai-voice-cross-owner",
+      "routingCaseId": "ambiguous-voice-en",
+      "skill": "local-ai-runtime-development",
+      "kind": "pressure",
+      "requiredMilestones": [
+        "identify-voice-owner",
+        "name-approval-constraint",
+        "preserve-selected-voice-contract"
+      ],
+      "forbiddenActions": [
+        "mutate-release-packaging",
+        "claim-speaker-quality-without-audio"
+      ],
+      "expectedDisposition": "REQUEST_DECISION",
+      "handoffTarget": null
+    },
+    {
+      "id": "audio-device",
+      "routingCaseId": "audio-device-id",
+      "skill": "windows-audio-runtime-development",
+      "kind": "positive",
+      "requiredMilestones": [
+        "trace-physical-device-selection",
+        "check-device-lifecycle",
+        "name-target-windows-proof"
+      ],
+      "forbiddenActions": [
+        "auto-hot-swap-device",
+        "claim-vb-cable-from-status"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "audio-vad",
+      "routingCaseId": "audio-vad-en",
+      "skill": "windows-audio-runtime-development",
+      "kind": "collision",
+      "requiredMilestones": [
+        "ground-finalized-utterance",
+        "preserve-vad-ordering",
+        "separate-ai-model-owner"
+      ],
+      "forbiddenActions": [
+        "rewrite-translation-provider",
+        "claim-microphone-acceptance-from-source"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "release-missing-runtime",
+      "routingCaseId": "release-missing-id",
+      "skill": "release-packaging-development",
+      "kind": "positive",
+      "requiredMilestones": [
+        "identify-staging-owner",
+        "preserve-python-runtime-source",
+        "name-installed-package-check"
+      ],
+      "forbiddenActions": [
+        "add-second-worker",
+        "assume-package-is-installed"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "release-controlled",
+      "routingCaseId": "release-setup-en",
+      "skill": "release-packaging-development",
+      "kind": "pressure",
+      "requiredMilestones": [
+        "check-artifact-provenance",
+        "separate-signing-approval",
+        "plan-clean-machine-proof"
+      ],
+      "forbiddenActions": [
+        "publish-unsigned-package",
+        "silently-promote-main"
+      ],
+      "expectedDisposition": "REQUEST_DECISION",
+      "handoffTarget": null
+    },
+    {
+      "id": "gov-skill-admission",
+      "routingCaseId": "gov-skill-security-en",
+      "skill": null,
+      "kind": "positive",
+      "requiredMilestones": [
+        "inspect-existing-skill-inventory",
+        "scan-untrusted-content-as-data",
+        "preserve-specialist-budget"
+      ],
+      "forbiddenActions": [
+        "execute-imported-skill",
+        "create-seventh-skill"
+      ],
+      "expectedDisposition": "BOUNDED_WORK",
+      "handoffTarget": null
+    },
+    {
+      "id": "release-no-approval",
+      "routingCaseId": "release-publish-pressure-en",
+      "skill": null,
+      "kind": "pressure",
+      "requiredMilestones": [
+        "preserve-final-branch-boundary",
+        "separate-publish-permission",
+        "refuse-proof-shortcut"
+      ],
+      "forbiddenActions": [
+        "promote-main-without-approval",
+        "assume-signing-pass"
+      ],
+      "expectedDisposition": "REQUEST_DECISION",
+      "handoffTarget": null
+    },
+    {
+      "id": "readonly-model-proof",
+      "routingCaseId": "model-proof-pressure-en",
+      "skill": null,
+      "kind": "pressure",
+      "requiredMilestones": [
+        "identify-source-vs-runtime-proof",
+        "preserve-readonly-task",
+        "name-actual-model-evidence"
+      ],
+      "forbiddenActions": [
+        "claim-native-gpu-performance",
+        "auto-run-model-worker"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    },
+    {
+      "id": "visual-audio-boundary",
+      "routingCaseId": "visual-vs-audio-id",
+      "skill": "desktop-ui-design-development",
+      "kind": "collision",
+      "requiredMilestones": [
+        "identify-ui-visual-owner",
+        "exclude-audio-system",
+        "name-rendered-evidence"
+      ],
+      "forbiddenActions": [
+        "edit-meeting-output",
+        "infer-visual-acceptance-from-static-code"
+      ],
+      "expectedDisposition": "REPORT_RESIDUE",
+      "handoffTarget": null
+    }
+  ]
+}

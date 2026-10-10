@@ -32,6 +32,12 @@ release-packaging-development
 
 Routing expectations are retained in [agent routing cases](../../../.agents/evals/skill-routing.json) and validated by `tools/repository_agent_evals.py --check`. Actual model-level routing accuracy requires external observed agent-run receipts scored with `--score`; the presence of golden cases and synthetic tests alone is not a PASS. Permission decisions continue using the separate existing permission evaluator/corpus. Preserve the six-skill baseline and the zero/one-specialist budget.
 
+## Skill admission and procedure evaluation
+
+Current `.agents/skills/` packages are repository-owned **instructions/data**, not executable plugins. Validate package identity, safe file types, nested references, non-executable permissions, symlinks, bounded sizes and unsafe command/priority-override patterns through `python tools/repository_skill_admission.py --check`. Do not import arbitrary Skill scripts or execute downloaded references; legitimate future code dependencies require explicit security and provenance review. This is a static gate, not proof against all prompt injection.
+
+Procedure expectations live in [skill procedure cases](../../../.agents/evals/skill-procedure.json), linked by existing routing-case IDs. They do not replace the procedures owned by each SKILL.md. `python tools/repository_agent_evals.py --check` validates routing and procedure structures; `--score-procedures <observed-agent-runs.json>` checks externally provided disposition, owner, milestones, forbidden actions, handoff and evidence references. It cannot independently verify the underlying agent behavior. Synthetic scorer-unit tests are never external-model accuracy evidence.
+
 ## Roles
 
 ### development-brief
