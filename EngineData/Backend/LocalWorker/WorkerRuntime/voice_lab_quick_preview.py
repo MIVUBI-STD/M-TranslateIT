@@ -16,11 +16,11 @@ from pathlib import Path
 
 from voice_lab_gpt_sovits import (
     VoiceLabProviderError,
-    wav_duration_ms,
     prepare_pretrained_voice_preview,
     synthesize_pretrained_voice_preview,
 )
-from voice_lab_gpt_sovits_build import select_reference
+from voice_lab_build import BuildError, validate_take_signal
+from voice_lab_gpt_sovits_build import select_reference, synthesis_artifact_flags
 
 PREVIEW_TEXT = "Good morning, everyone. Thank you for joining this meeting."
 OUTPUT_FILE = "quick_voice_preview.wav"
@@ -62,8 +62,13 @@ def validate_preview_wav(path: Path, expected_rate: int) -> None:
                     or rate != expected_rate or not 16_000 <= rate <= 48_000
                     or not rate // 10 <= frames <= rate * 30):
                 raise VoiceLabProviderError("preview_audio_invalid")
-            if len(wav.readframes(frames)) != frames * 2:
+            audio = wav.readframes(frames)
+            if len(audio) != frames * 2:
                 raise VoiceLabProviderError("preview_audio_invalid")
+        import numpy as np
+
+        if synthesis_artifact_flags(np.frombuffer(audio, dtype="<i2"), rate):
+            raise VoiceLabProviderError("preview_audio_artifacts")
     except VoiceLabProviderError:
         raise
     except (OSError, EOFError, ValueError, wave.Error) as exc:
@@ -71,39 +76,45 @@ def validate_preview_wav(path: Path, expected_rate: int) -> None:
 
 
 def choose_reference(candidates: list[str]) -> tuple[Path, str]:
-    """Use the same signal-first reference ranking as full My Voice training."""
+    """Reuse full-training signal admission and reference ranking."""
+    # The product has 128 fixed guided lines; refuse unbounded child payloads.
+    if not 1 <= len(candidates) <= 128:
+        raise VoiceLabProviderError("preview_reference_candidate_invalid")
     takes = []
+    seen_ids: set[int] = set()
     for serialized in candidates:
         try:
             item = json.loads(serialized)
             line_id = item["line_id"]
             exact_text = item["exact_text"]
             path_value = item["wav_path"]
-            if (type(line_id) is not int or line_id <= 0
+            if (type(line_id) is not int or line_id <= 0 or line_id in seen_ids
                     or not isinstance(exact_text, str) or not exact_text.strip()
                     or len(exact_text) > MAX_REFERENCE_TEXT_CHARS
                     or not isinstance(path_value, str) or not path_value):
                 raise ValueError("invalid candidate fields")
             path = Path(path_value)
-            if path.is_symlink() or not path.is_file():
-                raise ValueError("invalid candidate file")
-            try:
-                duration_ms = wav_duration_ms(path)
-            except VoiceLabProviderError:
-                # A previously accepted WAV may have become corrupt; try other takes.
-                continue
-            takes.append({
-                "line_id": line_id,
-                "exact_text": exact_text.strip(),
-                "wav_path": path,
-                "duration_ms": duration_ms,
-            })
-        except (TypeError, ValueError, KeyError, json.JSONDecodeError, OSError) as exc:
+            if path.is_symlink():
+                raise ValueError("reference symlink not allowed")
+        except (TypeError, ValueError, KeyError, OSError) as exc:
             raise VoiceLabProviderError("preview_reference_candidate_invalid") from exc
+        seen_ids.add(line_id)
+        # A once-accepted take can disappear or become unusable. Other accepted
+        # takes should still be considered; unknown metadata remains fail-closed.
+        if not path.is_file():
+            continue
+        try:
+            metrics = validate_take_signal(path)
+        except BuildError:
+            continue
+        takes.append({
+            "line_id": line_id,
+            "exact_text": exact_text.strip(),
+            "wav_path": path,
+            "duration_ms": int(metrics["duration_ms"]),
+        })
     if not takes:
         raise VoiceLabProviderError("preview_reference_unusable")
-    if len({take["line_id"] for take in takes}) != len(takes):
-        raise VoiceLabProviderError("preview_reference_candidate_invalid")
     selected = select_reference(takes)
     return Path(selected["wav_path"]), str(selected["exact_text"])
 

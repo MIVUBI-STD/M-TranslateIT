@@ -29,13 +29,12 @@ Goal: improve voice resemblance, intelligibility, naturalness, and reliability u
 Evidence from current Local source:
 - Guided take checks already validate WAV signal quality and known transcripts. Full training reference selection ranks eligible 3–10 second takes by clipping, silence, DC offset, duration proximity and line ID.
 - Training creates bounded GPT/SoVITS checkpoint candidates; held-out synthesis is evaluated with artifact flags, intelligibility WER and speaker similarity. Candidate selection prioritizes clean audio and intelligibility before similarity, followed by user listening and approval.
-- Quick Preview now passes accepted candidate identities from Rust to the Python child, where existing training select_reference owns signal-first ranking. Corrupt accepted WAVs are now excluded before canonical ranking while malformed candidate metadata fails closed; source tests NOT EXECUTED and acoustic improvement unproven.
+- Quick Preview passes accepted candidates from Rust to Python and reuses existing full-training take signal admission plus reference ranking. Missing/corrupt/unusable WAVs are skipped; malformed/duplicate/unbounded metadata fails closed; existing evaluation artifact flags reject silent/clipped/dropout preview output. Source regression tests authored NOT EXECUTED; acoustic improvement unproven.
 - Quick Preview source, cancellation guard, WAV validation and release entrypoint check are written. Native model output, build, and audio quality are NOT EXECUTED.
 
 Next decisions in order:
-1. Compare training and preview reference selection against actual user quality requirements. Reuse existing metrics and owners; consider changing ranking only after a concrete quality defect is established.
-2. Review dataset preparation and candidate evaluation for demonstrated correctness gaps. Do not tune epochs or similarity cutoffs without comparative evidence.
-3. Prepare reproducible listening and inference comparison across the same held-out English sentences, including speaker identity, pronunciation, artifact rate and stability. No new engine or separate score database.
-4. Complete existing source/package contracts and enter one grouped Windows build/install/GPU/audio/Meeting acceptance only when integrated test-ready. Never run hosted CI/cloud inference or require incremental user-PC testing.
+1. Complete one bounded review of the Rust-to-Python preview CLI payload size and process cancellation under the 128-line recording corpus; change transport only if source evidence establishes a real limit.
+2. Prepare a fixed held-out voice listening/inference comparison covering intelligibility, speaker identity, artifacts and stability; do not alter GPT-SoVITS epochs or add an evaluator without comparative evidence.
+3. Assess the integrated test-ready gate and group Windows build/install/GPU/audio/Meeting acceptance. No hosted CI/cloud inference or incremental user-PC tests.
 
 No benchmark improvement, native inference, installer validation, or runtime PASS is claimed. Branch Local remains development-only; main is reserved for expressly approved final results.
