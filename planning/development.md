@@ -22,6 +22,15 @@ Preserve:
 
 Do not add features or broad architecture work without a concrete defect or explicit product decision.
 
+## Active Translation & ASR Quality Continuation
+
+Goal: improve quality truth using the existing Faster Whisper and MiLMMT pipeline rather than installing new models. The repository now carries three bounded improvements:
+- The canonical ASR worker rejects transcripts longer than the existing text bound rather than silently emitting a truncated fragment to the Meeting translation/TTS pipeline.
+- The existing ASR evaluator now exposes deterministic JiWER-style word substitution, deletion and insertion diagnostics plus word-weighted corpus WER. These are offline evaluation signals, not a second recognition engine or evidence of native ASR quality.
+- The existing translation evaluator now localizes failures by declared invariant type and risk tag (XCOMET-inspired, not COMET model inference). Both evaluators avoid embedded-digit and embedded-negation false positives while preserving current intentionally stem-based Indonesian/decimal cues. Regression fixtures and runbook guidance are added without changing the pinned models or shipping new dependencies.
+
+Proof remains REMOTE_GITHUB static source review only; executable regression suites, GPU, real microphone, translation quality and Windows Meeting acceptance are NOT EXECUTED. Do not introduce neural metrics, external dataset copies or VAD swaps without a measured baseline. The existing combined target-Windows runbook remains the sole execution gate.
+
 ## Active My Voice Quality Plan
 
 Goal: improve voice resemblance, intelligibility, naturalness, and reliability using only existing GPT-SoVITS V2ProPlus. Voicebox is a research inspiration, not an approved second engine or proof of measured improvement. Product requirements PR-110 through PR-119 remain authoritative.

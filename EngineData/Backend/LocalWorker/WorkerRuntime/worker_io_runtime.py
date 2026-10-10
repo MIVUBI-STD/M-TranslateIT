@@ -163,10 +163,22 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
             word_timestamps=False,
             hotwords=hotwords or None,
         )
-        text = common.compact_runtime_text(
-            " ".join(segment.text.strip() for segment in segments),
-            common.MAX_TRANSCRIPT_TEXT_CHARS,
+        # A partial ASR transcript must never be treated as complete Meeting
+        # speech; compact without truncating, then fail closed above the bound.
+        text = " ".join(
+            " ".join(segment.text.strip() for segment in segments)
+            .replace("\x00", "")
+            .split()
         )
+        if len(text) > common.MAX_TRANSCRIPT_TEXT_CHARS:
+            return {
+                "ok": False,
+                "stage": "transcribe",
+                "transcript_text": "",
+                "blocker": "asr:transcript_too_large",
+                "max_chars": common.MAX_TRANSCRIPT_TEXT_CHARS,
+                "elapsed_ms": common.now_ms() - started,
+            }
         return {
             "ok": bool(text),
             "stage": "transcribe",

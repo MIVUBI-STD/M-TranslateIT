@@ -104,18 +104,56 @@ def load_corpus(path: Path) -> dict:
     return data
 
 
+_POLARITY_TERMS = {
+    "not", "no", "never", "cannot", "can't", "won't", "don't",
+    "didn't", "doesn't", "isn't", "aren't", "tidak", "bukan", "jangan", "belum", "tak",
+}
+
+
+def declared_cue_present(normalized_text: str, cue: str) -> bool:
+    """Avoid false critical passes; preserve deliberate substring stem checks."""
+    needle = normalize(cue)
+    if not needle:
+        return False
+    offset = 0
+    while (index := normalized_text.find(needle, offset)) >= 0:
+        end = index + len(needle)
+        left = normalized_text[index - 1] if index else ""
+        right = normalized_text[end] if end < len(normalized_text) else ""
+        embedded_number = (
+            (needle[0].isdecimal() and left.isdecimal())
+            or (needle[-1].isdecimal() and right.isdecimal())
+        )
+        embedded_polarity = needle in _POLARITY_TERMS and (
+            (left and (left.isalnum() or left == "_"))
+            or (right and (right.isalnum() or right == "_"))
+        )
+        if not embedded_number and not embedded_polarity:
+            return True
+        offset = index + 1
+    return False
+
+
 def invariant_result(case: dict, translated: str) -> dict:
     norm = normalize(translated)
-    missing_literals = [item for item in case["preserve"] if normalize(item) not in norm]
+    missing_literals = [item for item in case["preserve"] if not declared_cue_present(norm, item)]
     missing_concepts = [
         group for group in case["required_any"]
-        if not any(normalize(option) in norm for option in group)
+        if not any(declared_cue_present(norm, option) for option in group)
     ]
-    forbidden_hits = [item for item in case["forbidden"] if normalize(item) in norm]
+    forbidden_hits = [item for item in case["forbidden"] if declared_cue_present(norm, item)]
     return {
         "missing_literals": missing_literals,
         "missing_concepts": missing_concepts,
         "forbidden_hits": forbidden_hits,
+        "critical_issue_types": [
+            name for name, present in (
+                ("literal_omission", bool(missing_literals)),
+                ("meaning_cue_omission", bool(missing_concepts)),
+                ("forbidden_meaning", bool(forbidden_hits)),
+            )
+            if present
+        ],
         "critical_pass": not missing_literals and not missing_concepts and not forbidden_hits,
     }
 
@@ -289,11 +327,14 @@ def compare_reports(
     critical_regressions = []
     critical_recoveries = []
     score_deltas = {}
+    regressions_by_risk_tag: dict[str, list[str]] = defaultdict(list)
     for case_id in sorted(baseline_cases):
         base_row = baseline_cases[case_id]
         cand_row = candidate_cases[case_id]
         if base_row["critical_pass"] and not cand_row["critical_pass"]:
             critical_regressions.append(case_id)
+            for tag in cand_row["risk_tags"]:
+                regressions_by_risk_tag[tag].append(case_id)
         elif not base_row["critical_pass"] and cand_row["critical_pass"]:
             critical_recoveries.append(case_id)
         score_deltas[case_id] = round(
@@ -347,6 +388,7 @@ def compare_reports(
         "candidate_critical_failures": candidate["critical_failures"],
         "critical_regressions": critical_regressions,
         "critical_recoveries": critical_recoveries,
+        "critical_regressions_by_risk_tag": dict(sorted(regressions_by_risk_tag.items())),
         "mean_char_ngram_f1_delta": round(
             candidate["mean_char_ngram_f1"] - baseline["mean_char_ngram_f1"],
             4,

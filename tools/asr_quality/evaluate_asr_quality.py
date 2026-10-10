@@ -42,6 +42,38 @@ def char_error_rate(reference: str, hypothesis: str) -> float:
     return error_rate(list(normalize(reference).replace(" ", "")), list(normalize(hypothesis).replace(" ", "")))
 
 
+def word_edit_operations(reference: str, hypothesis: str) -> dict[str, int]:
+    """Deterministic JiWER-style error breakdown; no additional evaluator engine."""
+    expected = normalize(reference).split()
+    actual = normalize(hypothesis).split()
+    # (distance, substitutions, deletions, insertions).
+    previous = [(j, 0, 0, j) for j in range(len(actual) + 1)]
+    for i, source_word in enumerate(expected, start=1):
+        current = [(i, 0, i, 0)]
+        for j, output_word in enumerate(actual, start=1):
+            diagonal = previous[j - 1]
+            match_or_substitute = (
+                diagonal
+                if source_word == output_word
+                else (diagonal[0] + 1, diagonal[1] + 1, diagonal[2], diagonal[3])
+            )
+            delete = (previous[j][0] + 1, previous[j][1], previous[j][2] + 1, previous[j][3])
+            insert = (current[j - 1][0] + 1, current[j - 1][1], current[j - 1][2], current[j - 1][3] + 1)
+            current.append(
+                min(
+                    enumerate((match_or_substitute, delete, insert)),
+                    key=lambda choice: (choice[1][0], choice[0]),
+                )[1]
+            )
+        previous = current
+    _, substitutions, deletions, insertions = previous[-1]
+    return {
+        "substitutions": substitutions,
+        "deletions": deletions,
+        "insertions": insertions,
+    }
+
+
 def corpus_fingerprint(corpus: dict) -> str:
     canonical = json.dumps(
         corpus,
@@ -77,12 +109,42 @@ def load_corpus(path: Path) -> dict:
     return data
 
 
+_POLARITY_TERMS = {
+    "not", "no", "never", "cannot", "can't", "won't", "don't",
+    "didn't", "doesn't", "isn't", "aren't", "tidak", "bukan", "jangan", "belum", "tak",
+}
+
+
+def declared_cue_present(normalized_text: str, cue: str) -> bool:
+    """Retain intentional Indonesian stems, reject embedded digits and negation."""
+    needle = normalize(cue)
+    if not needle:
+        return False
+    offset = 0
+    while (index := normalized_text.find(needle, offset)) >= 0:
+        end = index + len(needle)
+        left = normalized_text[index - 1] if index else ""
+        right = normalized_text[end] if end < len(normalized_text) else ""
+        embedded_number = (
+            (needle[0].isdecimal() and left.isdecimal())
+            or (needle[-1].isdecimal() and right.isdecimal())
+        )
+        embedded_polarity = needle in _POLARITY_TERMS and (
+            (left and (left.isalnum() or left == "_"))
+            or (right and (right.isalnum() or right == "_"))
+        )
+        if not embedded_number and not embedded_polarity:
+            return True
+        offset = index + 1
+    return False
+
+
 def invariant_result(case: dict, transcript: str) -> dict:
     norm = normalize(transcript)
-    missing_literals = [item for item in case["preserve"] if normalize(item) not in norm]
+    missing_literals = [item for item in case["preserve"] if not declared_cue_present(norm, item)]
     missing_concepts = [
         group for group in case["required_any"]
-        if not any(normalize(option) in norm for option in group)
+        if not any(declared_cue_present(norm, option) for option in group)
     ]
     return {
         "missing_literals": missing_literals,
@@ -154,8 +216,14 @@ def evaluate(
     grouped_cer: dict[str, list[float]] = defaultdict(list)
     grouped_critical: dict[str, list[bool]] = defaultdict(list)
     critical_failures = 0
+    edit_totals = {"substitutions": 0, "deletions": 0, "insertions": 0}
+    reference_word_count = 0
     for case in corpus["cases"]:
         transcript = results.get(case["id"], "")
+        operations = word_edit_operations(case["reference"], transcript)
+        reference_word_count += len(normalize(case["reference"]).split())
+        for operation, count in operations.items():
+            edit_totals[operation] += count
         wer = word_error_rate(case["reference"], transcript)
         cer = char_error_rate(case["reference"], transcript)
         inv = invariant_result(case, transcript)
@@ -171,6 +239,7 @@ def evaluate(
             "recording_profile": case["recording_profile"],
             "wer": round(wer, 4),
             "cer": round(cer, 4),
+            "word_edit_operations": operations,
             **inv,
         })
     count = len(rows)
@@ -191,6 +260,9 @@ def evaluate(
         "critical_failures": critical_failures,
         "critical_pass_rate": round((count - critical_failures) / count, 4) if count else 0.0,
         "mean_wer": round(sum(row["wer"] for row in rows) / count, 4) if count else 0.0,
+        "corpus_wer": round(sum(edit_totals.values()) / reference_word_count, 4) if reference_word_count else 0.0,
+        "total_word_edit_operations": edit_totals,
+        "reference_word_count": reference_word_count,
         "mean_cer": round(sum(row["cer"] for row in rows) / count, 4) if count else 0.0,
         "group_wer": {key: round(sum(values) / len(values), 4) for key, values in sorted(grouped_wer.items())},
         "group_cer": {
@@ -274,6 +346,11 @@ def compare_reports(
         "critical_regressions": critical_regressions,
         "critical_recoveries": critical_recoveries,
         "mean_wer_delta": round(candidate["mean_wer"] - baseline["mean_wer"], 4),
+        "corpus_wer_delta": round(candidate["corpus_wer"] - baseline["corpus_wer"], 4),
+        "word_edit_operation_deltas": {
+            key: candidate["total_word_edit_operations"][key] - baseline["total_word_edit_operations"][key]
+            for key in ("substitutions", "deletions", "insertions")
+        },
         "mean_cer_delta": round(candidate["mean_cer"] - baseline["mean_cer"], 4),
         "group_critical_pass_rate_deltas": group_critical_pass_rate_deltas,
         "promotion_provenance_complete": provenance_complete,

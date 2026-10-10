@@ -49,6 +49,23 @@ def main() -> int:
 
     assert evaluator.word_error_rate("saya tidak setuju", "saya setuju") > 0
     assert evaluator.char_error_rate("lima belas", "lima puluh") > 0
+    assert evaluator.word_edit_operations("saya tidak setuju", "saya setuju") == {
+        "substitutions": 0, "deletions": 1, "insertions": 0
+    }
+    assert evaluator.word_edit_operations("saya setuju", "saya benar setuju") == {
+        "substitutions": 0, "deletions": 0, "insertions": 1
+    }
+    assert evaluator.word_edit_operations("lima belas", "lima puluh") == {
+        "substitutions": 1, "deletions": 0, "insertions": 0
+    }
+    assert evaluator.declared_cue_present("tahun 2021", "21") is False
+    assert evaluator.declared_cue_present("tahun 21", "21") is True
+    assert evaluator.declared_cue_present("notebook", "not") is False
+    assert evaluator.declared_cue_present("not ready", "not") is True
+    assert evaluator.declared_cue_present("jadwalnya sudah", "jadwal") is True
+    assert report["total_word_edit_operations"] == {
+        "substitutions": 0, "deletions": 0, "insertions": 0
+    }
 
     bad = dict(perfect)
     bad["asr-negation-001"] = "Saya setuju dengan perubahan itu."
@@ -56,6 +73,7 @@ def main() -> int:
     target = next(case for case in failed["cases"] if case["case_id"] == "asr-negation-001")
     assert target["critical_pass"] is False
     assert target["missing_concepts"]
+    assert target["word_edit_operations"]["deletions"] >= 1
 
     candidate = dict(perfect)
     candidate["asr-negation-001"] = "Saya setuju dengan perubahan itu."
@@ -69,6 +87,7 @@ def main() -> int:
         candidate_source_identity="candidate-sha",
     )
     assert comparison["critical_regressions"] == ["asr-negation-001"]
+    assert comparison["word_edit_operation_deltas"]["deletions"] >= 1
     assert comparison["group_critical_pass_rate_deltas"]["negation"] < 0
     assert comparison["promotion_provenance_complete"] is True
     assert comparison["promotion_safe_on_declared_critical_invariants"] is False

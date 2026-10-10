@@ -76,6 +76,15 @@ def main() -> int:
     target = next(case for case in failed["cases"] if case["case_id"] == "id-en-negation-001")
     assert target["critical_pass"] is False
     assert target["forbidden_hits"]
+    assert target["critical_issue_types"] == ["meaning_cue_omission", "forbidden_meaning"] or target["critical_issue_types"] == ["forbidden_meaning"]
+    assert evaluator.declared_cue_present("tahun 2021", "21") is False
+    assert evaluator.declared_cue_present("tahun 21 september", "21") is True
+    assert evaluator.declared_cue_present("notebook", "not") is False
+    assert evaluator.declared_cue_present("not ready", "not") is True
+    assert evaluator.declared_cue_present("tombolnya besar", "tombol") is True
+    numeric_case = {"preserve": ["21"], "required_any": [["not"]], "forbidden": []}
+    assert evaluator.invariant_result(numeric_case, "2021 notebook")["critical_pass"] is False
+    assert evaluator.invariant_result(numeric_case, "21 not ready")["critical_pass"] is True
 
     candidate = dict(perfect)
     candidate["id-en-negation-001"] = "I will attend the meeting tomorrow."
@@ -90,6 +99,7 @@ def main() -> int:
     )
     assert comparison["complete_result_sets"] is True
     assert comparison["critical_regressions"] == ["id-en-negation-001"]
+    assert comparison["critical_regressions_by_risk_tag"]["negation"] == ["id-en-negation-001"]
     assert comparison["critical_recoveries"] == []
     assert comparison["group_critical_pass_rate_deltas"]["negation"] < 0
     assert comparison["risk_tag_critical_pass_rate_deltas"]["negation"] < 0

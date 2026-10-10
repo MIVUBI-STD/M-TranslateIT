@@ -46,6 +46,28 @@ def test_asr_passes_bounded_hotwords_to_faster_whisper(tmp_path: Path, monkeypat
     assert captured["hotwords"] == "MIVUBI mi vu bi Vredeburg"
 
 
+def test_asr_refuses_truncated_transcript_before_translation(tmp_path: Path, monkeypatch) -> None:
+    worker = load_worker_module()
+    audio = tmp_path / "speech.wav"
+    audio.write_bytes(b"RIFF" + b"0" * 64)
+
+    class FakeModel:
+        def transcribe(self, _path, **_kwargs):
+            long_text = "kata " * (worker.io_runtime.common.MAX_TRANSCRIPT_TEXT_CHARS // 4 + 3)
+            return [types.SimpleNamespace(text=long_text)], types.SimpleNamespace(
+                language="id", language_probability=1.0
+            )
+
+    monkeypatch.setattr(
+        worker.io_runtime.common, "resolve_worker_path", lambda *_args, **_kwargs: audio
+    )
+    monkeypatch.setattr(worker.io_runtime, "get_asr_runtime", lambda _payload=None: FakeModel())
+    result = worker.handle_transcribe({"audio_path": str(audio)})
+    assert result["ok"] is False
+    assert result["blocker"] == "asr:transcript_too_large"
+    assert result["transcript_text"] == ""
+
+
 def test_asr_omits_empty_hotwords(tmp_path: Path, monkeypatch) -> None:
     worker = load_worker_module()
     audio = tmp_path / "speech.wav"

@@ -26,12 +26,17 @@ It does **not** contain fabricated audio or claim that faster-whisper is accurat
 
 The evaluator reports:
 
-- word error rate (WER);
+- word error rate (WER), both per-utterance mean and word-weighted corpus WER;
+- word-level substitution, deletion and insertion counts (JiWER-style edit analysis using the existing evaluator, without an additional engine);
 - character error rate (CER);
 - critical literal/concept preservation;
 - grouped WER/CER by linguistic category and recording profile;
 - grouped critical-invariant pass rates;
 - baseline-vs-candidate critical regression/recovery deltas.
+
+Deletion spikes may indicate dropped/shortened speech; insertion spikes may indicate spurious output. These are diagnostic clues, not causal proof. The worker now fails explicitly on overlong finalized ASR text instead of silently truncating text passed to translation. All of this still requires executed audio evidence.
+
+External benchmark direction: [Common Voice dataset metadata](https://github.com/common-voice/cv-dataset) can guide a separately licensed Indonesian read-speech fixture set; do not put downloaded voice clips or private recordings in Git or treat read speech as representative of spontaneous meetings. Retain exact dataset release, transcript and audio identity in the native benchmark receipts. This is a source-preparation direction, not an imported or executed corpus.
 
 WER/CER are useful regression metrics, not a standalone user-quality verdict. A transcript can have a moderate WER yet still contain a critical reversal such as losing the word "tidak", so critical invariants are evaluated separately.
 

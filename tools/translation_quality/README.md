@@ -33,7 +33,7 @@ Each case contains one or more references plus narrow invariants:
 - `required_any` — semantic cue groups where at least one form must appear;
 - `forbidden` — high-confidence meaning reversals or unsafe phrases.
 
-These checks are intentionally narrow. They do not replace human review.
+These checks are intentionally narrow. They do not replace human review. Numeric fragments and negation cues now reject embeddings in larger digit/word tokens, while deliberate substring stems (including Indonesian affixes and numeric decimals) remain supported by the current corpus. Reports classify declared failures as literal omission, meaning-cue omission or forbidden meaning; comparisons map critical regressions back to existing risk tags. This follows the error-localization principle of [XCOMET](https://github.com/Unbabel/COMET), but does **not** run COMET or infer its neural severity scores.
 
 The current regression corpus contains 180 targeted cases, with a separate 40-case held-out benchmark. Do not hand-maintain these counts in downstream status files; use the `stats` command below when exact coverage matters. Growth is intentionally risk-driven rather than random: additions cover meeting phrasing, informal/workplace Indonesian, code-switching, quantities, technical literals, modality, conditionals, quantifier scope, corrections/disfluency, ordering and comparisons.
 
