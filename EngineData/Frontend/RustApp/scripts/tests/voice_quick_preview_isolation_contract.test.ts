@@ -68,3 +68,12 @@ test("preview success rechecks cancellation after child exit", () => {
   assert.ok(exit >= 0 && finalCheck > exit && output > finalCheck);
   assert.match(preview.slice(finalCheck, output), /authority\.cancel_requested/);
 });
+
+
+test("reference selection is deterministic and rejects symlinks", () => {
+  assert.match(preview, /symlink_metadata\(&take\.path\)/);
+  assert.match(preview, /meta\.file_type\(\)\.is_symlink\(\)/);
+  assert.match(preview, /min_by_key\(\|\(distance, line_id, _\)\|/);
+  assert.match(preview, /TARGET_REFERENCE_BYTES/);
+  assert.match(preview, /Python remains the final WAV and signal-quality authority/);
+});

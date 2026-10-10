@@ -42,12 +42,20 @@ fn generate_once() -> QuickVoicePreviewResult {
         return outcome(false, "recording_active", "Finish recording before creating a preview.");
     }
     let accepted = accepted_guided_recordings();
-    let selected = accepted.into_iter().find(|take| {
-        fs::metadata(&take.path).map(|meta| {
-            let bytes = meta.len();
-            bytes >= MIN_REFERENCE_MS * 64 && bytes <= MAX_REFERENCE_MS * 64 + 44
-        }).unwrap_or(false)
-    });
+    // Accepted takes are canonical 32 kHz mono PCM16. Rank eligible takes
+    // closest to the existing five-second reference target, then line ID.
+    // Python remains the final WAV and signal-quality authority.
+    const TARGET_REFERENCE_BYTES: u64 = 5_000 * 64 + 44;
+    let selected = accepted.into_iter().filter_map(|take| {
+        let meta = fs::symlink_metadata(&take.path).ok()?;
+        if !meta.file_type().is_file() || meta.file_type().is_symlink() { return None; }
+        let bytes = meta.len();
+        if !(MIN_REFERENCE_MS * 64 + 44..=MAX_REFERENCE_MS * 64 + 44).contains(&bytes) {
+            return None;
+        }
+        Some((bytes.abs_diff(TARGET_REFERENCE_BYTES), take.line_id, take))
+    }).min_by_key(|(distance, line_id, _)| (*distance, *line_id))
+      .map(|(_, _, take)| take);
     let Some(reference) = selected else {
         return outcome(false, "reference_required", "Accept one clear 3–10 second recording first.");
     };
