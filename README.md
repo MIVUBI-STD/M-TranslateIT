@@ -134,18 +134,18 @@ PIN
 
 ## GitHub Actions policy
 
-Verification and release-source checks are manual (`workflow_dispatch`), not triggered by routine push or pull request. The project's sole source authority is `Local`. Manual dispatch requires GitHub's default-branch setting to point to `Local`; that repository setting must be confirmed separately from source and must not be simulated by copying workflows to `main`. Source/static work can finish without CI; an executed PASS is claimed only with matching evidence. Release publication remains explicitly authorized.
+Verification and release-source checks are manual (`workflow_dispatch`), not triggered by routine push or pull request. `Local` owns active development, while the GitHub default branch `main` is reserved for finalized, explicitly approved results. Manual workflows stored only on `Local` may not yet be dispatchable through GitHub Actions because GitHub requires workflow registration on the default branch. Do not change the default branch or copy unfinished workflow/source content to `main` to bypass this limitation. Source/static work can finish with truthful evidence boundaries; executed PASS requires a matching run. Release publication and promotion remain separate explicit decisions.
 
 ## Branch model
 
-**Local-only.**
+**Local-only development; `main` reserved for final results.**
 
 ```text
-Local
-→ sole active development/source/governance/CI/proof authority
+Local  = current development, source, governance, validation and continuation
+main   = GitHub default branch; accepted final/release result only
 ```
 
-Routine work lands directly on `Local` as one logical delivery. Do not create promotion branches, task branches, or alternate development branches as part of the normal method. A different branch lifecycle requires a new explicit user decision.
+Routine work lands directly on `Local` as one logical delivery. Do not create task/promotion branches or promote work to `main` until acceptance and explicit user authorization. The GitHub default branch does not determine which branch owns in-progress development.
 
 ## Development entrypoints
 

@@ -2,7 +2,7 @@
 
 Canonical repository operating rules for AI/ChatGPT. Root and nearest `AGENTS.md` files may narrow domain behavior, but they must not weaken safety, integrity, proof, efficiency, security, GitHub-first execution, transfer, or STOP boundaries.
 
-**Local-only repository model:** `Local` is the sole active repository authority. Development, governance, CI, proof, continuation, and release-source validation are performed against `Local`. `main` is outside the current development lifecycle: do not use it as a fallback source, working branch, PR base, promotion target, CI target, or proof source unless the user explicitly changes this policy.
+**Local-only development model:** `Local` is the sole active development/source authority. GitHub default branch remains `main`, which is reserved for finalized, explicitly approved results—not unfinished development. Development, governance, source verification, continuation, and pre-release validation are performed against `Local`. Promotion to `main` requires explicit user approval after acceptance; do not copy, merge, edit, or use `main` as a fallback/PR base/CI proof source during routine work.
 
 ## Core flow
 
@@ -380,7 +380,7 @@ Branch/tag deletion, PR merge/close, release publication/deletion, repository se
 - If `Local` is unprotected or has no required-check ruleset, a successful workflow still counts only as exact-SHA evidence, not as proof that GitHub prevented unchecked writes.
 - Workflows are verification/deployment/artifact infrastructure, not a source editor or remote shell.
 - **Manual-only verification**: all eight `.github/workflows/*.yml` workflows use `workflow_dispatch` only. No `push`, `pull_request`, `schedule`, `workflow_run`, or automatic tag/release verification triggers. Do not run or wait for CI merely to close a source-verifiable outcome.
-- **Availability boundary:** GitHub manual workflow dispatch requires the workflow to exist on the repository default branch. The current authoritative `Local` branch must be configured as the GitHub **default branch** for manual workflows to be usable without involving `main`. This is an explicit GitHub administration setting, not a source edit; do not modify `main`, forge workflows, or claim dispatch works until the setting and an actual run are verified.
+- **Availability boundary:** GitHub `workflow_dispatch` requires the workflow definition on the default branch. The GitHub default branch remains `main` by design, while the eight manual verification workflow definitions currently live only on `Local`; therefore normal manual dispatch for those workflows is not currently established. Do **not** change the default branch, copy unfinished workflows to `main`, create temporary trigger/branches, or treat missing CI as a reason to promote unaccepted source. Use the cheapest available source/local executable proof and report missing hosted CI honestly. Once an explicitly authorized final release makes the required workflow definitions available on the default branch, a manual run may select the `Local` ref, subject to real availability and separate permissions.
 - Manual CI is optional evidence, not automatic enforcement of `Local` or evidence that the branch is protected. Dependency/security and release checks remain available as manual verification; publishing/deploying needs separate approval.
 - Workflow definitions retain least-privilege permissions, immutable action pins, controlled release behavior, and exact-SHA result identity.
 - Verification workflows are read-only by default and never commit/push back.

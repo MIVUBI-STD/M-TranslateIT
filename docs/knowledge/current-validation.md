@@ -15,7 +15,7 @@ This file owns **proof interpretation**, not a run diary. `next-action.md` owns 
 
 Repository: `MIVUBI-STD/M-TranslateIT`
 
-**Local-only source authority:** `Local` is the sole active branch for development, governance, CI, proof, continuation, and release-source validation.
+**Local-only development/source authority:** `Local` owns active development, governance, source proof, continuation, and release-source validation. The GitHub default branch `main` is reserved for accepted final releases; do not use its status or older workflows as current `Local` proof.
 
 one SHA does not prove another SHA. Later documentation-only commits do not upgrade runtime/source proof.
 
@@ -73,7 +73,7 @@ R3 Release Contract
 → manual dispatch explicitly requires controlled Windows payload proof
 ```
 
-Manually scoped or skipped jobs are not evidence for unrelated domains. Manual dispatch requires the GitHub default branch to be `Local`, or actual availability remains unproven. GitHub repository settings are external to this file and are not inferred from `Local` source.
+Manually scoped or skipped jobs are not evidence for unrelated domains. GitHub requires a workflow to exist on the default branch to enable `workflow_dispatch`; currently the default remains `main`, and the manual-only workflows on `Local` are not established as dispatchable. This is a **missing hosted-proof capability**, not an instruction to change default branch or prematurely promote unfinished source. Execute available source/local checks independently and record their actual evidence ceiling.
 
 ## Proof Boundaries
 

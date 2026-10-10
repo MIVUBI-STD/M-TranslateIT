@@ -11,7 +11,7 @@ lifecycle: ACTIVE
 
 ## Current Status
 
-`Local` is the sole active source, development, governance, CI, proof, continuation, and release-source authority.
+`Local` owns active development, source, governance, verification planning, continuation, and release-source validation. The GitHub default branch `main` remains reserved for a finalized, separately approved result; it is not a target for unfinished changes.
 
 Remote source work is source-complete for the current scope: bounded productivity features, crash-safe reliability/watchdog paths, one canonical local AI pipeline, one-shot signed updater, generation-bound Meeting playback, typed ApplicationRuntime coordination, distinct Meeting/Mic Test/My Voice resource owners, event-first Meeting reconciliation, modular frontend controllers, split product facades/state policies, and closed superseded mutation entrypoints.
 
@@ -33,9 +33,9 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Align the GitHub repository **default branch** with `Local` through an authorized administration action, then confirm that one `workflow_dispatch` verification can actually be started against `Local`. This is separate from source changes; until then, manual CI availability is unverified. After that, repair the already-reported Rust compiler and ApplicationRuntime architecture baseline with narrowly scoped evidence.
+Verify current `Local` source using available targeted checks; reconcile genuine Rust/ApplicationRuntime failures against current evidence. GitHub manual workflows exist only on `Local` while `main` remains default, so dispatch remains unavailable/unproven. Keep `main` untouched until final acceptance and explicit approval.
 
-Proof infrastructure is ready:
+Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
 
 - All eight workflows are manual-only; ordinary commits do not trigger CI.
 - Code Health manual dispatch = full-domain Frontend + Rust + Python proof with aggregate gate.

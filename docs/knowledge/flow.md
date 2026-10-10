@@ -31,7 +31,7 @@ User request
 
 ## Local-only repository model
 
-`Local` is the sole active repository authority. Current source, governance, CI, continuation, and release-source validation remain on `Local`. Other branches are not part of the normal work flow.
+`Local` is the sole active **development** authority: source, governance, verification planning, continuation and release-source validation remain on `Local`. `main` stays the GitHub default/final-result branch; it is not a source, fallback, or write target during unfinished work. Any final promotion requires explicit user approval and suitable acceptance evidence.
 
 ## Execution contexts
 
@@ -110,7 +110,7 @@ claim needs real mic/GPU/installer evidence
 
 ## Proof rule
 
-Routine source work uses exact-head source/contract evidence first, without automatic CI. Manual `workflow_dispatch` is reserved for stronger executable/integration/release evidence when necessary, after GitHub default-branch administration is aligned with `Local`.
+Routine source work uses exact-head source/contract evidence first, without automatic CI. Manual `workflow_dispatch` is reserved for stronger executable/integration/release evidence when genuinely available. The default branch remains `main`; Local-only workflow definitions cannot be assumed dispatchable until GitHub's default-branch registration requirement is satisfied through a separately authorized final/release process. Do not move unfinished source to `main` to create proof.
 
 
 One scenario proves one claim. Source/static proof is never upgraded to target-Windows proof. Run only the proof that can falsify the changed claim. Broader source confidence means the relevant checks must succeed on the same exact `Local` SHA.

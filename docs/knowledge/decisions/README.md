@@ -110,11 +110,11 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Context:** automatic push/PR verification repeatedly interrupted GitHub-first source development, while the GitHub default branch remained `main` although the source authority is `Local`.
 
-**Decision:** all existing verification/release-source workflows use `workflow_dispatch` only. Source/static acceptance uses proportional evidence; stronger hosted verification is explicitly invoked only when materially necessary. Keep the eight established workflow owners and existing security/release contracts. Set GitHub's default branch to `Local` through a separately authorized administration operation so manual dispatch is usable without treating `main` as development authority.
+**Decision (corrected by the user's explicit branch-lifecycle clarification):** all existing verification/release-source workflows use `workflow_dispatch` only; source/static acceptance uses proportional evidence and hosted checks are optional when available. `Local` owns active development; GitHub's default branch remains `main` and is reserved for finalized, approved results. Do not change the default branch, copy unfinished workflow files to `main`, or promote unaccepted source merely to enable manual dispatch. Retain the eight existing verification owners and security/release contracts.
 
 **Why:** prevent CI queues and repeated runs from becoming a completion prerequisite. Avoid duplicate workflows, trigger-only commits, and parallel branch authority.
 
-**Tradeoffs:** verification no longer runs automatically on each change; exact-SHA executed CI and native Windows acceptance are required only for claims that inherently need them. Until the default-branch setting is aligned and a manual run is observed, manual dispatch availability is not proven.
+**Tradeoffs:** verification no longer runs automatically on each change. Because the workflow files currently exist only on `Local`, normal GitHub manual dispatch may remain unavailable until an authorized final/release process establishes them on the default branch. Exact-SHA executed CI and native Windows acceptance are still required for claims that inherently need those proof levels; unavailable checks must be reported as missing, never fabricated.
 
 **Owner:** `GITHUB_RULES.md`, `.github/workflows/`, and the repository CI verifier; GitHub settings are external administration.
 
