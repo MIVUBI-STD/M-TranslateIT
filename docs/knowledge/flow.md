@@ -37,7 +37,7 @@ User request
 
 ```text
 REMOTE_GITHUB
-→ source/static/CI-verifiable work
+→ GitHub source/version control and static review only; no hosted compute
 
 LOCAL_CODE
 → exact Local checkout + development toolchain/filesystem
@@ -46,7 +46,7 @@ TARGET_WINDOWS
 → installed TranslateIT + real GPU/audio/device/meeting environment
 ```
 
-Never transfer an entire task because one residue requires a higher context. Finish independent GitHub-valid source/test/harness/provenance work first and preserve only the intrinsic proof residue. For ChatGPT-owned work, this is a **no user-PC handoff**: complete available GitHub/cloud work, mark unavailable tests unexecuted, and defer a single grouped native test to the integrated test-ready candidate gate defined by `GITHUB_RULES.md` and `docs/knowledge/operations/target-windows-performance.md`.
+Never transfer an entire task because one check requires execution. Complete GitHub source/contract review, record missing build/model/device evidence as `UNKNOWN / NOT EXECUTED`, and preserve the **no user-PC handoff** for incremental changes. No cloud or hosted runner. The single grouped local build/package/native stage is owned by `GITHUB_RULES.md` and `docs/knowledge/operations/target-windows-performance.md`.
 
 ## Modes
 

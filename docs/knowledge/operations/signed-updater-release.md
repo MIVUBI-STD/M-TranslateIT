@@ -112,6 +112,6 @@ Before calling updater delivery production-proven, verify on an installed Window
 
 ## Proof boundary
 
-REMOTE_GITHUB can prove source contracts, signing requirements, artifact-generation configuration, and CI correctness.
+GitHub source review can establish source contracts, signing requirements and artifact-generation configuration only; hosted CI is inactive. Actual signed artifacts and updater installation need corresponding local execution evidence.
 
 Only TARGET_WINDOWS / NATIVE_ACCEPTANCE can prove an installed old version discovers, verifies, installs, and survives a real signed update.

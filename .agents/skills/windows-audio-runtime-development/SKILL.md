@@ -62,6 +62,6 @@ Meeting Sound
 
 ## Proof
 
-Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+Root `GITHUB_RULES.md` limits GitHub to **source/version control only**: no cloud compute, hosted CI, remote build, or cloud inference. Keep build/model/device proof `UNKNOWN / NOT EXECUTED` until the grouped local build-and-native acceptance phase; never request per-commit tests on the user's PC.
 
 Static proof can establish lifecycle wiring and failure mapping. Real microphone capture, VAD behavior, device routing, virtual endpoint operation and meeting-application delivery require `TARGET_WINDOWS` evidence when claimed.

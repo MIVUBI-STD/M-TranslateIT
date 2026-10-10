@@ -53,6 +53,6 @@ AI inference/model behavior; physical capture/VAD/device routing; installer/pack
 
 ## Proof
 
-Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+Root `GITHUB_RULES.md` limits GitHub to **source/version control only**: no cloud compute, hosted CI, remote build, or cloud inference. Keep build/model/device proof `UNKNOWN / NOT EXECUTED` until the grouped local build-and-native acceptance phase; never request per-commit tests on the user's PC.
 
 Static/GitHub proof can establish wiring/ownership/state mapping. Compile/type/build claims require actual tooling. Native Tauri interaction and rendered behavior require corresponding local/target evidence when material.

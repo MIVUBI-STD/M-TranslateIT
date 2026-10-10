@@ -11,7 +11,7 @@ lifecycle: ACTIVE
 
 This file owns the minimum development flow, failure classification, ownership economy, proof vocabulary, and STOP discipline. Product behavior remains in `docs/foundation/`; source ownership remains in `source-ownership.md`.
 
-ChatGPT-owned source work is GitHub/cloud-only. Do not require the user's PC, checkout, dependency installation, `DEV.cmd`, private voice/meeting files, or device tests to close a GitHub-provable change. Separate unavailable `LOCAL_CODE` / `TARGET_WINDOWS` claims as `UNKNOWN / NOT EXECUTED`; native acceptance remains subject to actual observed proof.
+GitHub `Local` is the **source repository**, not a cloud execution platform. No cloud AI, hosted CI, remote build or runner is used. Do not require PC/toolchain/device tests to close a source-only change. Build/model/device claims remain `UNKNOWN / NOT EXECUTED` until one coordinated local integration phase.
 
 ## Minimum flow
 
@@ -84,7 +84,7 @@ Examples:
 - exact changed desktop/worker path exercised → `LIVE_RUNTIME`
 - physical microphone, GPU, VB-CABLE, meeting-app reception, or measured target latency → `NATIVE_ACCEPTANCE`
 
-Execution location does not automatically upgrade proof type. Hosted Windows remains hosted execution unless the exact native acceptance condition was exercised.
+Execution location does not automatically upgrade proof type. Hosted execution is outside the current no-cloud policy.
 
 ## Capability / context
 
@@ -122,9 +122,9 @@ Context selection is explicit and bounded: `tools/repository_context.py` may pro
 
 ## Test readiness and native escalation
 
-- **Every source change:** inspect its canonical owner and affected consumers; use available ChatGPT/GitHub/cloud checks that can falsify the change. Separate observed PASS from unexecuted/unknown proof. A missing runner is not a reason to request user-PC commands or another CI branch.
-- **Before proposing a Windows test:** require an **integrated test-ready candidate**, not one newly implemented feature. Reconcile the current intended Meeting, Text, My Voice and Settings flows with source/integration contracts; eliminate known blocking regressions; gather feasible exact-revision execution proof and controlled installable package inputs. Unknown critical build/integration results block a ready-to-test claim; they do not invalidate completed independent source work.
-- **One coordinated native acceptance:** follow the candidate admission and scoped runbook at `docs/knowledge/operations/target-windows-performance.md`. Reserve physical microphone, GPU, device routing, meeting-app delivery, installation, and clean-machine outcomes for that planned stage. Until executed they remain `UNKNOWN / NOT EXECUTED`, never source PASS. Do not demand per-commit tests, ad hoc screenshots, or repeated installs from the user.
+- **Every source change:** inspect its canonical owner and consumers on GitHub; perform source/static review only. Do not dispatch hosted CI or add a cloud runner. Source inspection is not executable PASS.
+- **Before proposing a Windows test:** require a **source-integrated candidate**, not one new feature. Reconcile Meeting, Text, My Voice, Settings and lifecycle contracts; resolve known static blockers; prepare locked toolchain, controlled assets and packaging instructions. Unexecuted compilation is explicitly scheduled for the integrated local build stage, not falsely marked PASS.
+- **One coordinated local acceptance:** follow `docs/knowledge/operations/target-windows-performance.md`. Build/package first, stop on failure, then install and assess microphone, GPU, meeting-app and clean-machine behavior. Until each step runs it remains `UNKNOWN / NOT EXECUTED`. Do not demand per-commit testing.
 
 This is a proof-escalation policy, not a new tracker or automatic release authorization. Existing product acceptance contracts, verification scripts, and release gates keep their owners.
 

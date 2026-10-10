@@ -120,13 +120,13 @@
       "expected": "ask"
     },
     {
-      "id": "ci-needs-approval",
+      "id": "ci-hosted-dispatch-denied",
       "request": {
         "mode": "standard-development",
         "action": "ci-dispatch",
         "scope": "governance"
       },
-      "expected": "ask"
+      "expected": "deny"
     },
     {
       "id": "publish-needs-approval",
@@ -192,6 +192,24 @@
         "action": "write",
         "scope": "governance",
         "path": "planning/development.md"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "hosted-compute-denied",
+      "request": {
+        "mode": "complex-development",
+        "action": "hosted-compute",
+        "scope": "governance"
+      },
+      "expected": "deny"
+    },
+    {
+      "id": "cloud-inference-denied",
+      "request": {
+        "mode": "complex-development",
+        "action": "cloud-inference",
+        "scope": "governance"
       },
       "expected": "deny"
     }

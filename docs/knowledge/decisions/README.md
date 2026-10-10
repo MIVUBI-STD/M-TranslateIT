@@ -110,11 +110,11 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Context:** automatic push/PR verification repeatedly interrupted GitHub-first source development, while the GitHub default branch remained `main` although the source authority is `Local`.
 
-**Decision (corrected by the user's explicit branch-lifecycle clarification):** all existing verification/release-source workflows use `workflow_dispatch` only; source/static acceptance uses proportional evidence and hosted checks are optional when available. `Local` owns active development; GitHub's default branch remains `main` and is reserved for finalized, approved results. Do not change the default branch, copy unfinished workflow files to `main`, or promote unaccepted source merely to enable manual dispatch. Retain the eight existing verification owners and security/release contracts.
+**Decision (current, subject to D-046):** all eight workflow definitions remain `workflow_dispatch` only, but **hosted CI is inactive and not used**. `Local` owns development; GitHub default `main` is final-only. Do not change default branch, copy unfinished files, create trigger branches or run hosted execution. Keep workflow definitions as historical/source contracts only.
 
 **Why:** prevent CI queues and repeated runs from becoming a completion prerequisite. Avoid duplicate workflows, trigger-only commits, and parallel branch authority.
 
-**Tradeoffs:** verification no longer runs automatically on each change. Because the workflow files currently exist only on `Local`, normal GitHub manual dispatch may remain unavailable until an authorized final/release process establishes them on the default branch. Exact-SHA executed CI and native Windows acceptance are still required for claims that inherently need those proof levels; unavailable checks must be reported as missing, never fabricated.
+**Tradeoffs:** no automatic or manual hosted CI is performed. The absence of an executable result remains UNKNOWN; source-only checks never prove compilation or installed behavior. A later single local build/package/native acceptance phase supplies those higher proof levels.
 
 **Owner:** `GITHUB_RULES.md`, `.github/workflows/`, and the repository CI verifier; GitHub settings are external administration.
 
@@ -176,11 +176,11 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** existing Skill/registry/permission owners, `.agents/evals/skill-procedure.json`, and the two canonical repository verification helpers.
 
-### D-043 — ChatGPT/cloud development and bundled Windows acceptance
+### D-043 — GitHub source work and bundled Windows acceptance (execution superseded by D-046)
 
 **Context:** TranslateIT is eventually installed on a Windows PC, but incremental development and proof of source changes do not require the user's device.
 
-**Decision:** perform ChatGPT-owned source and feasible integration work through GitHub/cloud on `Local`. Never make user-PC checkout, toolchain installation, manual per-change tests or artifact uploads a routine handoff. Keep genuinely native-only claims `UNKNOWN / NOT EXECUTED` until an integrated test-ready candidate has reviewed product coverage, resolved known blockers, matching feasible source/integration proof, controlled installable inputs, and one grouped acceptance plan. Actual device, audio, GPU, meeting-app and clean-install outcomes remain native acceptance, not source PASS.
+**Decision (updated by D-046):** perform ChatGPT-owned source review and repository edits through GitHub `Local` only, without hosted/cloud compute. Never make per-change PC testing, tool installation or artifact upload a routine handoff. Keep genuinely native-only claims `UNKNOWN / NOT EXECUTED` until an integrated test-ready candidate has reviewed product coverage, resolved known blockers, matching feasible source/integration proof, controlled installable inputs, and one grouped acceptance plan. Actual device, audio, GPU, meeting-app and clean-install outcomes remain native acceptance, not source PASS.
 
 **Tradeoffs:** no invented test success or premature "ready to test" while critical execution evidence is missing; inability to run one proof does not block independent source-verifiable work. Final Windows acceptance is still required before accepting the finished product.
 
@@ -207,6 +207,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 **Tradeoffs:** a synthetic/declarative replay cannot prove that ChatGPT selected a skill correctly on a real task, obeyed a procedure, improved token/runtime cost, or exercised a Windows meeting. Actual external model-run receipts, executable regression suites and native acceptance remain independent proof requirements.
 
 **Owners:** [Zero-Waste Execution](../../system/zero-waste-execution.md), `tools/repository_benchmark.py`, `tools/tests/test_repository_benchmark.py` and the existing independent evaluation/impact owners.
+
+### D-046 — No-cloud execution; GitHub is source control only
+
+**Context:** The user explicitly ruled out cloud usage for TranslateIT. Earlier repository-policy wording incorrectly implied hosted test runners and cloud computing, even though the product is a Windows-local AI application.
+
+**Decision:** GitHub `Local` is used only for source/version management, review and commit history. The product's ASR, translation, TTS and My Voice inference run in its installed local runtime; no cloud AI service, hosted build runner or GitHub Actions dispatch is part of the current workflow. Keep existing workflow definitions manual-only but **inactive**. Advisory permission preflight denies `ci-dispatch`, `hosted-compute` and `cloud-inference`. A new explicit user decision is needed to change this policy.
+
+**Acceptance:** source changes may receive only honest GitHub source/static evidence. No user-PC build or device test per commit. After complete source integration, resolve known source blockers and prepare locked inputs; then carry out one coordinated **local build → package → install → native acceptance** phase. Before its build step actually succeeds, call the result a source-integrated candidate, not an installable/release-ready artifact.
+
+**Tradeoffs:** without cloud and before the local integrated phase, compiler, dependency, performance, model and installed-app PASS are unavailable. Do not fabricate executable evidence or block unrelated source improvements. GitHub publication/updater release remains a separate explicitly approved action, not cloud inference.
+
+**Owners:** `GITHUB_RULES.md` (repository policy), `AGENTS.md` (routing), `.agents/permissions/permission-policy.json` (advisory action denial), `docs/knowledge/current-validation.md` (proof), and `docs/knowledge/operations/target-windows-performance.md` (grouped local admission).
 
 ## Recording policy
 

@@ -40,17 +40,17 @@ Before material work, know repository, exact `Local` HEAD, scope, writability, a
 Classify by actual capability:
 
 ```text
-REMOTE_GITHUB  = repository/GitHub + CI evidence
+REMOTE_GITHUB  = GitHub repository source/history only; no hosted execution
 LOCAL_CODE     = exact checkout + development toolchain/filesystem execution
 TARGET_WINDOWS = LOCAL_CODE + installed TranslateIT + real Windows GPU/audio/device/meeting environment
 ```
 
 A label is intent, not proof.
 
-- `REMOTE_GITHUB` may implement source/static/CI-verifiable work.
+- `REMOTE_GITHUB` may implement source changes and source/static review only.
 - `LOCAL_CODE` additionally owns local generators, dependency/toolchain execution, filesystem-sensitive builds and tests.
 - `TARGET_WINDOWS` is required for physical microphone, actual GPU practicality, VB-CABLE/device behavior, installed-runtime, meeting-app delivery, end-to-end latency, speaker-quality, and clean-machine claims.
-- Hosted Windows CI proves only what that runner executed; it is not automatically `TARGET_WINDOWS`.
+- Hosted CI is not used; old run logs are historical evidence, never a current PASS.
 
 ### GitHub-first execution partition
 
@@ -61,7 +61,7 @@ GitHub-verifiable
 → exact-source diagnosis/design
 → source implementation that needs no unavailable generated/native output
 → regression/static/integration contracts
-→ CI routing + security/provenance
+→ inspect existing CI definitions + security/provenance; never dispatch
 → deterministic harness/evidence preparation
 
 higher-context residue
@@ -80,19 +80,19 @@ Rules:
 
 ### ChatGPT no-user-PC invariant
 
-For ChatGPT-owned TranslateIT source work, `Local` is a remote GitHub branch, not a folder or toolchain on the user's computer. **ChatGPT + GitHub/cloud-only** is the normal repository development and continuity route. Never ask the user to clone/download source, install Rust/Node/Python, execute `DEV.cmd` or tests, supply local paths/files or meeting/audio content, or operate Windows/GPU/microphone/meeting apps as a prerequisite or workaround for GitHub-verifiable work.
+For ChatGPT-owned TranslateIT work, `Local` is the **GitHub source/version-control branch only**, not an application execution platform or a user-PC folder. **No cloud computing, cloud inference, hosted CI or hosted builds.** Use GitHub to read, edit and version source. Never ask the user to clone/download source, install tools, run incremental tests, supply private audio/data or operate Windows/GPU/meeting apps as a workaround for repository tooling limitations.
 
-Complete independently provable `REMOTE_GITHUB` changes and commit truthful revision-scoped evidence. When authorized cloud execution cannot perform a claim that genuinely needs `LOCAL_CODE` or `TARGET_WINDOWS`, record only that claim as `UNKNOWN / NOT EXECUTED`; do not assign a user-PC to-do. Windows audio/GPU/device quality, packaging and installed acceptance still require actual matching execution evidence before those claims can PASS. Developer-initiated local work remains optional and independent of ChatGPT source completion.
+Complete GitHub-source-verifiable changes and record their exact revision-scoped evidence. Checks requiring a compiler, package toolchain, running models or devices remain `UNKNOWN / NOT EXECUTED`; do not invent PASS or assign incremental user-PC tasks. Local AI/audio/GPU and installed-package acceptance require actual execution later. Developer-initiated local work is optional, never a prerequisite to repository changes.
 
 ### Integrated test-ready candidate gate
 
-**Never ask the user to run** incremental npm/Python/Cargo/`DEV.cmd` tests, clone or upload source, reinstall the app for each change, or conduct repeated physical Windows audio/GPU/meeting checks to compensate for an unavailable ChatGPT/cloud runner. Source, contracts, fixtures, integration, and available cloud execution stay owned by ChatGPT; missing critical execution evidence is an explicit blocker, not fabricated PASS.
+**Never ask the user to run** incremental npm/Python/Cargo/`DEV.cmd` tests, clone or upload source, or reinstall for every change. GitHub owns source review and edits, **not program execution**. Missing compiler, model or device results are explicitly unexecuted, not fabricated PASS.
 
-Invite a **single coordinated `TARGET_WINDOWS` acceptance** only when the intended Meeting/Text/My Voice/Settings product scope is integrated, known source/integration/packaging blockers are resolved, feasible exact-SHA GitHub/cloud checks have actual evidence, and controlled installable inputs plus a bounded test plan exist. If those admission criteria are not met, continue independent remote work and retain precise `UNKNOWN / NOT EXECUTED` residue. Actual Windows microphone, GPU, virtual route, meeting-app reception, latency, installed runtime and clean-machine behavior still require native evidence before final product acceptance. Admission details belong only to `docs/knowledge/operations/target-windows-performance.md`; no second status or release registry is created.
+Enter one coordinated **local build → package → install → `TARGET_WINDOWS` acceptance phase** only when Meeting/Text/My Voice/Settings source is integrated, known source-contract blockers are resolved, locked build/package inputs are prepared and an explicit bounded test plan exists. An installable artifact is **not** claimed until the local build/package step actually succeeds. If source admission fails, continue GitHub repository work; if execution cannot yet run, retain `UNKNOWN / NOT EXECUTED`. Actual device/GPU/audio/meeting/install results require local observation. One owner for the gate: `docs/knowledge/operations/target-windows-performance.md`; no extra status ledger.
 
 ### Source acceptance
 
-For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. Manual Code Health still requires full frontend/Rust/Python source proof when explicitly dispatched. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.
+For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. The existing Code Health definition describes full frontend/Rust/Python checks but is **not dispatched** under current policy. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.
 
 
 Normal development uses the smallest owning verifier on the exact `Local` SHA under discussion.
@@ -160,7 +160,7 @@ REMOTE_GITHUB
 → exact state: direct GitHub fetch on Local
 → one bounded UTF-8 edit: Contents API on Local
 → coherent multi-file UTF-8 change: atomic Git delivery to Local
-→ CI diagnosis: run → failing job/step → relevant log
+→ historical CI diagnosis only: old run → failing step → evidence (no new dispatch)
 
 LOCAL_CODE
 → canonical generator / dependency lock / filesystem-heavy mutation
@@ -386,14 +386,14 @@ PRs and alternate branch flows are not part of the current Local-only method. If
 
 Branch/tag deletion, PR merge/close, release publication/deletion, repository settings/rules changes, and history-altering operations require explicit authority and exact current targets.
 
-## GitHub Actions and hosted proof
+## GitHub Actions definitions (hosted execution inactive)
 
 - CI result is evidence; branch protection/rulesets are enforcement. Never infer one from the other.
 - If `Local` is unprotected or has no required-check ruleset, a successful workflow still counts only as exact-SHA evidence, not as proof that GitHub prevented unchecked writes.
 - Workflows are verification/deployment/artifact infrastructure, not a source editor or remote shell.
 - **Manual-only verification**: all eight `.github/workflows/*.yml` workflows use `workflow_dispatch` only. No `push`, `pull_request`, `schedule`, `workflow_run`, or automatic tag/release verification triggers. Do not run or wait for CI merely to close a source-verifiable outcome.
-- **Availability boundary:** GitHub `workflow_dispatch` requires the workflow definition on the default branch. The GitHub default branch remains `main` by design, while the eight manual verification workflow definitions currently live only on `Local`; therefore normal manual dispatch for those workflows is not currently established. Do **not** change the default branch, copy unfinished workflows to `main`, create temporary trigger/branches, or treat missing CI as a reason to promote unaccepted source. Use the cheapest available source/local executable proof and report missing hosted CI honestly. Once an explicitly authorized final release makes the required workflow definitions available on the default branch, a manual run may select the `Local` ref, subject to real availability and separate permissions.
-- Manual CI is optional evidence, not automatic enforcement of `Local` or evidence that the branch is protected. Dependency/security and release checks remain available as manual verification; publishing/deploying needs separate approval.
+- **Inactive by policy:** no GitHub Actions dispatch, hosted build, remote runner or fallback to other cloud infrastructure. Workflows remain versioned templates with `workflow_dispatch` only, not executed services. GitHub default branch stays `main`; never change it, create trigger branches or promote unfinished code merely to enable hosted tests. Changing this no-cloud policy requires a new explicit user decision.
+- A workflow file, check name or historical run is not current executable proof or branch protection. No hosted/manual CI is in use. Local build/package tests remain part of the later controlled integration phase; publishing remains separately authorized.
 - Workflow definitions retain least-privilege permissions, immutable action pins, controlled release behavior, and exact-SHA result identity.
 - Verification workflows are read-only by default and never commit/push back.
 - Use least-privilege permissions.

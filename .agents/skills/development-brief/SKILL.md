@@ -52,7 +52,7 @@ This is an internal execution contract, not a new tracked plan file.
 3. If a high-impact product/privacy/release/architecture choice remains unresolved, return to Plan instead of inventing it.
 4. Identify the semantic owner and direct caller/contract.
 5. Define 2–5 falsifiable acceptance criteria.
-6. Partition what `REMOTE_GITHUB` can finish from genuine `LOCAL_CODE` / `TARGET_WINDOWS` residue.
+6. Limit `REMOTE_GITHUB` to source and static review. Cloud/hosted execution is prohibited; group local build and `TARGET_WINDOWS` evidence after source integration.
 7. Select zero or one project specialist.
 8. Implement the minimum complete owner change.
 9. Run the cheapest proof that can falsify each changed claim.
@@ -83,6 +83,6 @@ Framework/library helpers are technical tools, not additional TranslateIT specia
 
 ## Completion
 
-Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+Root `GITHUB_RULES.md` limits GitHub to **source/version control only**: no cloud compute, hosted CI, remote build, or cloud inference. Keep build/model/device proof `UNKNOWN / NOT EXECUTED` until the grouped local build-and-native acceptance phase; never request per-commit tests on the user's PC.
 
 If implementation is complete but required higher-context proof is unavailable, report that residue precisely instead of claiming completion above the proof ceiling. Update only changed canonical state owners and use exactly one next step when work remains.

@@ -10,7 +10,6 @@
   },
   "approvalActions": [
     "external-network",
-    "ci-dispatch",
     "dependency-install",
     "native-runtime",
     "release-publish"
@@ -81,5 +80,10 @@
       "EngineData/Frontend/RustApp/scripts/*payload*",
       ".github/workflows/release-payload-verify.yml"
     ]
-  }
+  },
+  "denyActions": [
+    "ci-dispatch",
+    "hosted-compute",
+    "cloud-inference"
+  ]
 }

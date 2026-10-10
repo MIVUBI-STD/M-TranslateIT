@@ -37,7 +37,7 @@ This is a composition of **existing** owners, not a second repository orchestrat
 | Opt-in selected check execution | `tools/repository_verification.py` | requires an actual authorized clean checkout, exact SHA and tools |
 | Work recovery | Git commit trailers + `planning/development.md` | no duplicated live status/cache |
 
-Do not invent a general-purpose cache, automatic CI, source manager or seventh skill to match another repository. No local PC test handoff; an installed Windows acceptance happens only for an integrated test-ready candidate.
+Do not invent a general-purpose cache, automatic CI, hosted cloud execution, source manager or seventh skill. GitHub is source/version control only; no incremental user-PC tests. Build and native acceptance are grouped once a source-integrated candidate is ready.
 
 ## Batch 5 measurement and conformance
 

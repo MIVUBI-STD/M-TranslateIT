@@ -90,7 +90,7 @@ Historical development material is retained by Git history rather than exposed a
 
 ## Start here and file ownership
 
-For ChatGPT repository work use `Local` on GitHub/cloud: `AGENTS.md` → `GITHUB_RULES.md` → [Documentation](docs/README.md) → exact canonical owner → bounded verification → STOP. A local PC checkout is not a prerequisite, and real Windows acceptance waits for an integrated test-ready candidate.
+For ChatGPT source work use GitHub branch `Local`: `AGENTS.md` → `GITHUB_RULES.md` → [Documentation](docs/README.md) → canonical owner → source review → STOP. **No cloud compute, cloud AI, hosted CI or hosted builds.** Local Windows build and acceptance are one later integrated phase, not incremental PC tasks.
 
 | Root path | Single responsibility | Detail |
 |---|---|---|
@@ -155,7 +155,7 @@ PIN
 
 ## GitHub Actions policy
 
-Verification and release-source checks are manual (`workflow_dispatch`), not triggered by routine push or pull request. `Local` owns active development, while the GitHub default branch `main` is reserved for finalized, explicitly approved results. Manual workflows stored only on `Local` may not yet be dispatchable through GitHub Actions because GitHub requires workflow registration on the default branch. Do not change the default branch or copy unfinished workflow/source content to `main` to bypass this limitation. Source/static work can finish with truthful evidence boundaries; executed PASS requires a matching run. Release publication and promotion remain separate explicit decisions.
+Eight GitHub Actions workflow definitions are retained as **manual-only, inactive templates**. Under the no-cloud decision, do not dispatch them or depend on hosted execution. `Local` owns development; default `main` is final-only and unchanged. Source review can close source-only work; compiler, package, AI model and device checks remain `NOT EXECUTED` until the planned integrated local build/test phase. Publication and promotion remain separate approvals.
 
 ## Branch model
 
@@ -183,7 +183,7 @@ DEV.cmd package
 
 `DEV.cmd` is an optional developer convenience, not a step ChatGPT assigns to the user's PC during development. Existing npm/Cargo/uv/release owners remain authoritative; it does not create a second build system. Supported toolchain policy is recorded in `toolchain.json`.
 
-Direct subsystem commands remain valid for targeted work. Use only proof required by the changed claim; hosted/static proof does not become native Windows acceptance.
+Direct subsystem commands belong to an explicitly available local execution environment; GitHub source review alone never proves a build or Windows acceptance.
 
 ## Release boundary
 

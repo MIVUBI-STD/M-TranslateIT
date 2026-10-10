@@ -276,7 +276,7 @@ def check_development_foundation(errors: list[str]) -> None:
             fail(errors, f"GITHUB_RULES.md lost material commit continuity: {marker}")
     if "Short-prompt and session recovery" not in agents:
         fail(errors, "AGENTS.md must preserve source-grounded cold-start recovery")
-    if "## ChatGPT source boundary" not in agents or "GitHub/cloud-only" not in agents:
+    if "## ChatGPT source boundary" not in agents or "source/version control only" not in agents:
         fail(errors, "AGENTS.md lost ChatGPT remote-only source routing")
     if "### ChatGPT no-user-PC invariant" not in github_rules or "user-PC to-do" not in github_rules:
         fail(errors, "GITHUB_RULES.md must preserve no-user-PC proof boundary")
@@ -603,23 +603,23 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
     """
     required = {
         "AGENTS.md": ("## ChatGPT source boundary", "ChatGPT Project Instructions",
-                      "not the user's PC", "integrated test-ready candidate"),
+                      "source/version control only", "UNKNOWN / NOT EXECUTED"),
         "GITHUB_RULES.md": ("### ChatGPT no-user-PC invariant", "Never ask the user to run",
-                            "not a user-PC handoff", "Integrated test-ready candidate gate"),
+                            "No cloud computing", "Integrated test-ready candidate gate"),
         "README.md": ("optional developer convenience", "not a step ChatGPT assigns"),
         "CONTRIBUTING.md": ("## ChatGPT repository route", "single planned stage"),
         "docs/knowledge/development-discipline.md": ("Test readiness and native escalation",
-                                                      "Do not demand per-commit tests"),
-        "docs/knowledge/flow.md": ("no user-PC handoff", "integrated test-ready candidate"),
+                                                      "Do not demand per-commit testing"),
+        "docs/knowledge/flow.md": ("no user-PC handoff", "single grouped local build/package/native stage"),
         "planning/development.md": ("No per-change tests on the user's PC",
                                          "integrated test-ready candidate"),
-        "docs/knowledge/current-validation.md": ("not an incremental user-PC testing request",
+        "docs/knowledge/current-validation.md": ("not an incremental user-PC request",
                                                  "UNKNOWN / NOT EXECUTED"),
         "docs/knowledge/operations/target-windows-performance.md": ("## Candidate admission",
-                                                                    "integrated test-ready candidate",
-                                                                    "one coordinated test phase"),
-        "docs/knowledge/decisions/README.md": ("D-043 — ChatGPT/cloud development",
-                                               "bundled Windows acceptance"),
+                                                                    "Build/package candidate",
+                                                                    "No hosted fallback"),
+        "docs/knowledge/decisions/README.md": ("D-046 — No-cloud execution",
+                                               "GitHub is source control only"),
     }
     for rel, markers in required.items():
         contents = text(rel)
@@ -627,12 +627,42 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
             if marker not in contents:
                 fail(errors, f"{rel} lost remote/candidate contract: {marker}")
 
+    for rel in (
+        "AGENTS.md", "GITHUB_RULES.md", "README.md", "CONTRIBUTING.md",
+        "planning/development.md", "docs/knowledge/flow.md",
+        "docs/knowledge/development-discipline.md",
+        "docs/knowledge/current-validation.md",
+        "docs/knowledge/operations/target-windows-performance.md",
+    ):
+        contents = text(rel)
+        for stale in ("GitHub/cloud-only", "ChatGPT/cloud-only", "GitHub/cloud",
+                      "available cloud execution", "hosted checks are optional"):
+            if stale in contents:
+                fail(errors, f"{rel} still implies cloud development: {stale}")
+
+    try:
+        policy = json.loads(text(".agents/permissions/permission-policy.json"))
+        if set(policy.get("denyActions", [])) != {
+            "ci-dispatch", "hosted-compute", "cloud-inference"
+        } or set(policy["approvalActions"]) & set(policy.get("denyActions", [])):
+            fail(errors, "no-cloud permission actions must be denied, not approval-gated")
+        from repository_permissions import evaluate_permission
+        for action in ("ci-dispatch", "hosted-compute", "cloud-inference"):
+            decision = evaluate_permission(
+                {"mode": "standard-development", "scope": "governance", "action": action},
+                policy,
+            )["decision"]
+            if decision != "deny":
+                fail(errors, f"no-cloud policy must reject {action}: {decision}")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        fail(errors, f"invalid no-cloud permission policy: {exc}")
+
     try:
         skills = json.loads(text(".agents/skill-registry.json"))["skills"]
         for entry in skills:
             rel = f".agents/skills/{entry['id']}/SKILL.md"
             contents = text(rel)
-            if "GITHUB_RULES.md" not in contents or "integrated test-ready candidate" not in contents:
+            if "GITHUB_RULES.md" not in contents or "no cloud compute" not in contents:
                 fail(errors, f"{rel} lacks the inherited root candidate/no-PC boundary")
 
         cases = json.loads(text(".agents/evals/skill-procedure.json"))["cases"]

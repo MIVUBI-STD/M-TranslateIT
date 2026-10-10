@@ -29,6 +29,14 @@ class PermissionTests(unittest.TestCase):
             "deny",
         )
 
+    def test_hosted_execution_is_denied_even_in_development_mode(self):
+        for action in ("ci-dispatch", "hosted-compute", "cloud-inference"):
+            with self.subTest(action=action):
+                outcome = evaluate_permission(
+                    {"mode": "complex-development", "action": action, "scope": "governance"}
+                )
+                self.assertEqual(outcome["decision"], "deny")
+
     def test_work_mode_cannot_escalate_with_scope(self):
         self.assertEqual(
             evaluate_permission({"mode": "plan", "action": "ci-dispatch", "scope": "governance"})["decision"],

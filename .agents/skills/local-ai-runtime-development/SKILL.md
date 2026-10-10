@@ -51,7 +51,7 @@ Physical mic/VAD/device routing; Meeting output endpoint; desktop navigation/rea
 
 - One canonical pipeline; do not retain a normal fallback engine/router to hide integration failure.
 - CPU fallback handles named capability absence only; broad exception fallback is prohibited.
-- Cloud fallback is never automatic.
+- Cloud inference and any cloud fallback are prohibited; local model/provider execution only.
 - Source/model presence does not prove model load/output quality/performance.
 - Translation must be complete or explicitly fail; no silent truncation.
 - Context metadata must reach the actual outbound inference request before contextual translation is claimed.
@@ -75,6 +75,6 @@ Use `uv`, Ruff, pytest, benchmark/profiling tools or type checking only when the
 
 ## Proof
 
-Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+Root `GITHUB_RULES.md` limits GitHub to **source/version control only**: no cloud compute, hosted CI, remote build, or cloud inference. Keep build/model/device proof `UNKNOWN / NOT EXECUTED` until the grouped local build-and-native acceptance phase; never request per-commit tests on the user's PC.
 
 GitHub/static proof can establish wiring/contracts/model identity. Actual model load, CUDA behavior, translation quality, generated speech quality, speaker similarity and practical latency require matching runtime/hardware evidence.

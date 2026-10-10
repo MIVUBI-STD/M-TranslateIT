@@ -16,7 +16,7 @@ Routine work is performed directly on `Local`. Do not create task branches, prom
 
 ## ChatGPT repository route
 
-ChatGPT uses `Local` on GitHub/cloud for source-verifiable development; user-PC setup, toolchain installs, local checkout and native Windows/audio testing are not prerequisites for a remote code/docs change. Higher-context proof is reported `UNKNOWN / NOT EXECUTED` until genuinely observed, without an automatic user-PC handoff. Human local development remains optional; see `GITHUB_RULES.md`.
+ChatGPT uses GitHub branch `Local` for repository source/version management **only**. No cloud compute, cloud inference, hosted builds or CI dispatch. User-PC checkout, tool installation and per-change Windows/audio tests are not prerequisites for source edits; executable results remain `UNKNOWN / NOT EXECUTED` until a later integrated local phase. See `GITHUB_RULES.md`.
 
 ## Development method
 
@@ -37,7 +37,7 @@ Use the Bounded, Standard, or Complex contract from `AGENTS.md`. Complex/ambiguo
 
 ## Before committing
 
-Verification workflows are `workflow_dispatch` only. A source/static change does not require an automatic or ceremonial CI run. Prefer exact-source checks and available ChatGPT/cloud execution; manual GitHub Actions provide optional stronger evidence when required. Do not ask the user to run incremental tests or use their PC as a substitute for unavailable cloud tooling. Do not change the GitHub default branch from `main`: it is reserved for finalized results. Manual dispatch of workflows present only on `Local` is not yet guaranteed; use available source/local checks and report any missing CI proof rather than promoting unfinished files.
+Workflow definitions remain manual-only but inactive under no-cloud policy. Prefer exact-source inspection and never dispatch hosted GitHub Actions. Do not ask the user to run incremental tests; defer actual compiler/package/device checks to the integrated local acceptance phase. Do not change the GitHub default branch from `main`: it is reserved for finalized results. Manual dispatch of workflows present only on `Local` is not yet guaranteed; use available source/local checks and report any missing CI proof rather than promoting unfinished files.
 
 
 Run the cheapest relevant proof.

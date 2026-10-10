@@ -1,4 +1,4 @@
-"""Regression checks for TranslateIT ChatGPT/cloud-only development policy."""
+"""Regression checks for TranslateIT GitHub source-only/no-cloud policy."""
 
 from __future__ import annotations
 
@@ -13,11 +13,39 @@ sys.path.insert(0, str(TOOLS))
 import verify_repository
 
 
-class CloudOnlyGovernanceTests(unittest.TestCase):
+class GitHubSourceOnlyGovernanceTests(unittest.TestCase):
     def test_current_candidate_and_skill_contracts(self):
         errors: list[str] = []
         verify_repository.check_chatgpt_execution_policy(errors)
         self.assertEqual(errors, [])
+
+    def test_positive_cloud_development_language_is_rejected(self):
+        read = verify_repository.text
+
+        def incorrect(path: str) -> str:
+            content = read(path)
+            if path == "README.md":
+                return content + "\nUse GitHub/cloud to run application tests.\n"
+            return content
+
+        errors: list[str] = []
+        with patch.object(verify_repository, "text", side_effect=incorrect):
+            verify_repository.check_chatgpt_execution_policy(errors)
+        self.assertTrue(any("implies cloud development" in issue for issue in errors))
+
+    def test_hosted_execution_permission_regression_is_rejected(self):
+        read = verify_repository.text
+
+        def incorrect(path: str) -> str:
+            content = read(path)
+            if path == ".agents/permissions/permission-policy.json":
+                return content.replace('"ci-dispatch",', "", 1)
+            return content
+
+        errors: list[str] = []
+        with patch.object(verify_repository, "text", side_effect=incorrect):
+            verify_repository.check_chatgpt_execution_policy(errors)
+        self.assertTrue(any("no-cloud permission actions" in issue for issue in errors))
 
     def test_removing_no_user_pc_rule_is_rejected(self):
         real_text = verify_repository.text

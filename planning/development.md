@@ -26,17 +26,17 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
 
-Next: close the highest-priority source/integration proof gap through GitHub/cloud, then define the next evidence-grounded product change. `main` remains final-only and CI manual.
+Next: resolve source/integration gaps by GitHub source inspection only. No cloud execution or hosted CI; prepare one integrated local build-and-test candidate after source readiness. `main` stays final-only.
 
-Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
+Verification definitions exist on `Local` but hosted execution is deliberately inactive:
 
-- All eight workflows are manual-only; ordinary commits do not trigger CI.
+- Eight manual-only workflows remain dormant; no hosted dispatch.
 - Code Health manual dispatch = full-domain Frontend + Rust + Python proof with aggregate gate.
 - Repository/quality/lock workflows write exact-SHA summaries.
 - Manual R3 Release Contract requires controlled Windows payload proof.
 
 If CI reports a concrete regression, repair only that regression.
 
-Only after matching source/integration/package proof, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: plan one grouped `TARGET_WINDOWS` pass for installed-product, device, meeting, latency and clean-machine acceptance. Missing critical executable proof blocks candidate readiness; do not assign it to the user.
+After static source/integration review and locked package-input preparation, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: a single grouped local build/package/install + `TARGET_WINDOWS` pass will establish executable proof. Until actually run, build/native results remain unknown.
 
 Source/hosted CI proof must not be reported as native-device acceptance.

@@ -110,7 +110,7 @@ Release-source validation runs from current `Local`. Normal users do not install
 
 ```text
 REMOTE_GITHUB
-→ source/static/CI contracts on Local
+→ GitHub source/version history and static inspection only; no hosted compute
 
 LOCAL_CODE
 → exact Local checkout/toolchain/build/generator/filesystem proof
@@ -119,7 +119,7 @@ TARGET_WINDOWS
 → installed app + real GPU/audio/devices/VB-CABLE/meeting/latency/clean-machine proof
 ```
 
-Source presence never upgrades itself into runtime or target-Windows proof. ChatGPT develops against remote GitHub `Local`; the user's Windows PC is the final integrated-candidate acceptance environment, not an incremental source-testing prerequisite.
+Source presence never upgrades itself into compiler/runtime proof. ChatGPT manages source on GitHub `Local` without cloud execution; the Windows PC is reserved for one integrated build/package/acceptance stage, not per-change testing.
 
 ## Canonical navigation
 

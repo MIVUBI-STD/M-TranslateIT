@@ -1,6 +1,6 @@
 # TranslateIT Agent Skills
 
-This is a navigation entry, not an agent, work-state registry or second set of instructions. Root [AGENTS.md](../AGENTS.md) selects one work mode and [GITHUB_RULES.md](../GITHUB_RULES.md) governs GitHub/cloud-only execution, atomic commits, proof and STOP.
+This is a navigation entry, not an agent, work-state registry or second set of instructions. Root [AGENTS.md](../AGENTS.md) selects one work mode and [GITHUB_RULES.md](../GITHUB_RULES.md) governs GitHub source-only work (no hosted/cloud execution), atomic commits, proof and STOP.
 
 ## Existing six skills
 

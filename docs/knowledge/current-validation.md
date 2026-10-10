@@ -23,7 +23,7 @@ one SHA does not prove another SHA. Later documentation-only commits do not upgr
 
 Use the latest completed matching verifier for the exact `Local` SHA and changed domain. Ancestor proof applies only to unchanged domains. Queued/running/skipped/cancelled/unrelated jobs are not PASS.
 
-Do not preserve mutable “latest PASS” SHA snapshots here; read GitHub Actions for exact run/job identity.
+Do not preserve mutable “latest PASS” snapshots here. Historic GitHub Actions runs are not proof of the current `Local` commit.
 
 ## Current Source Claims
 
@@ -43,45 +43,31 @@ Static Skill admission and procedure-case validation are repository-source check
 
 ## Verification surfaces
 
+Current policy: **GitHub source management only; no cloud/hosted execution**. The eight existing manual-only GitHub Actions definitions are retained as inactive source files and must not be dispatched. A workflow definition, historical status or queued job is not a current executable PASS.
+
 ```text
-Repository Verify
-→ governance / Local-only routing / repository contracts
+GitHub Local
+→ canonical source ownership, stable docs, bridge contracts, dependency/lock inspection
+→ static review and bounded candidate proof planning only
 
-Code Health
-→ manual workflow_dispatch only; no automatic push/pull_request/scheduled runs
-→ manual dispatch = full-domain Frontend + Rust + Python proof
-→ frontend: typecheck, build, runtime tests, bridge/source-size/reachability/dependency/package contracts
-→ Rust: compiler/dead-code, Clippy, unit tests on Linux + hosted Windows
-→ Python: compile, Ruff/static/format, pytest on Linux + hosted Windows
-→ exact-SHA aggregate summary; skipped domains are non-evidence
+Repository Verify / Code Health / MiLMMT / ASR / TTS / Quality Readiness /
+WorkerRuntime Lock / R3 Release
+→ existing workflow definitions, not active runners
+→ their results are NOT EXECUTED for current Local until actually observed
 
-MiLMMT Repository Contract
-→ canonical translation repository contract + exact-SHA summary
-
-ASR Quality Contract
-→ ASR corpus/evaluator/runtime contract + exact-SHA summary
-
-TTS Quality Contract
-→ TTS/My Voice corpus/evaluator/held-out contract + exact-SHA summary
-
-Quality Readiness Contract
-→ cross-domain Translation + ASR + TTS aggregation + exact-SHA summary
-
-WorkerRuntime Lock Consistency
-→ Python dependency-lock integrity + exact-SHA summary
-
-R3 Release Contract
-→ release-source contract
-→ manual dispatch explicitly requires controlled Windows payload proof
+Single integrated local build/acceptance phase (only after source candidate admission)
+→ npm/frontend checks and build, Cargo/Rust checks, Python worker tests
+→ controlled package creation, install, native microphone/GPU/meeting evaluation
+→ each claim requires an exact revision and actual measured output
 ```
 
-Manually scoped or skipped jobs are not evidence for unrelated domains. GitHub requires a workflow to exist on the default branch to enable `workflow_dispatch`; currently the default remains `main`, and the manual-only workflows on `Local` are not established as dispatchable. This is a **missing hosted-proof capability**, not an instruction to change default branch or prematurely promote unfinished source. Execute available source/local checks independently and record their actual evidence ceiling.
+There is no hosted CI fallback or required default-branch change. Source inspection is sufficient only for source claims; executable status stays unknown until the integrated local phase. Missing proof does not authorize fabricated CI, extra branches or repeated user-PC tests.
 
 ## Proof Boundaries
 
 ### REMOTE_GITHUB
 
-Can prove source ownership, contracts, hosted execution, bounded recovery behavior, and matching CI tests.
+Can establish source ownership, source-defined contracts, bounded history and static consistency only. No hosted execution is authorized.
 
 It does **not** prove physical Windows microphone/device behavior, real CUDA throughput, installed-package behavior, meeting-app reception, audio fidelity, or practical latency.
 
@@ -91,7 +77,7 @@ Can additionally prove the exact checkout/toolchain/filesystem/build that actual
 
 ## Target Windows
 
-Native acceptance is not an incremental user-PC testing request. Its claims remain `UNKNOWN / NOT EXECUTED` until a bounded, integrated test-ready candidate has passed the entry criteria in `docs/knowledge/operations/target-windows-performance.md` and the actual target checks have run. Source/CI completion alone is not admission.
+Native acceptance is not an incremental user-PC request. Build/package and native claims remain `UNKNOWN / NOT EXECUTED` until a source-integrated candidate reaches the grouped local build/install/test phase in `docs/knowledge/operations/target-windows-performance.md` and the relevant steps actually succeed.
 
 ### TARGET_WINDOWS / NATIVE_ACCEPTANCE
 

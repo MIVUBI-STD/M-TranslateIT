@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Target Windows Performance Acceptance
 
-Use this runbook only for an **integrated test-ready candidate**, after feasible exact-revision source/integration/package checks have been reviewed. It owns the coordinated TARGET_WINDOWS acceptance baseline, not a milestone/status report or recurring request to test every change on the user's PC.
+Use this runbook once a **source-integrated candidate** has passed GitHub source/contract review and its locked build/package inputs are prepared. It groups the first actual local build, package, install and TARGET_WINDOWS acceptance into one planned phase, not per-change PC testing.
 
 ## Purpose
 
@@ -32,11 +32,11 @@ The baseline must distinguish speech-boundary delay, CPU/audio preparation, AI s
 This is a **read-only admission review**, not proof of native behavior or release approval. Require all of the following before inviting a single planned Windows acceptance session:
 
 1. **Integrated scope:** the intended Meeting (outbound and optional incoming), Text, selected built-in/My Voice behavior, Settings, and application lifecycle paths are implemented and reconciled against `docs/foundation/03-acceptance-scenarios.md`. Do not call an isolated feature or partial source patch an install-ready product.
-2. **Source/integration proof:** resolve known blocking failures and review relevant exact-`Local`-SHA source contracts and executable cloud/hosted checks where available. List genuinely unavailable critical build/integration checks as blockers instead of marking them PASS or assigning them to the user's PC.
-3. **Installable candidate:** controlled Setup/payload inputs, locks, model/voice assets, notices, signing requirements, and package source ownership are accounted for under the existing release procedure. Do not claim an installer exists or works without matching artifact evidence; publishing/promoting is separately authorized.
-4. **One bounded acceptance plan:** pin the candidate revision, enumerate native-only questions, required test environment, safe diagnostic capture and STOP criteria. Run the physical device/Meeting/latency sequence below and the existing product/package acceptance scenarios as one coordinated test phase, not many incremental local test requests.
+2. **Source/integration admission:** resolve known static/source-contract blockers on one pinned `Local` SHA. Cloud builds/CI are not used. Record compiler and live integration checks as `NOT EXECUTED` before the grouped local build stage; do not mislabel them as PASS.
+3. **Build/package candidate:** prepare controlled Setup/payload sources, dependency locks, model/voice assets, notices and signing requirements. A working installer is **not** yet claimed. At the start of the integrated local session build/package once; only continue to installation after that step succeeds. Publishing/promoting remains separately authorized.
+4. **One bounded plan:** pin source SHA and record the local toolchain/build commands, package inputs, native-only questions, safe diagnostics and STOP criteria. Run compiler/build checks first; on failure STOP and report source evidence. Only after build/package PASS proceed to device/Meeting/latency and existing acceptance scenarios.
 
-If any gate is not met, remain in GitHub/cloud development and record the exact unresolved proof at its current owner. `NATIVE_ACCEPTANCE` stays `UNKNOWN / NOT EXECUTED` until the actual Windows tests finish. The final installed product still requires this real-device stage.
+If source admission is not met, continue GitHub repository work and keep execution `UNKNOWN / NOT EXECUTED`. No hosted fallback and no repeated local requests. Actual Windows build/package/device acceptance is required before declaring a finished application.
 
 ## Preconditions
 

@@ -53,6 +53,8 @@ def evaluate_permission(
         return {"decision": "allow", "reason": "read-only source inspection"}
     if mode_kind == "read-only":
         return {"decision": "deny", "reason": "inspection/planning modes cannot mutate or execute"}
+    if action in rule.get("denyActions", []):
+        return {"decision": "deny", "reason": "no-cloud policy forbids hosted or remote inference execution"}
     if action in rule["approvalActions"]:
         return {"decision": "ask", "reason": "privileged action requires explicit authorization"}
     if action == "run-tests":

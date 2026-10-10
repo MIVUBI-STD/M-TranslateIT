@@ -21,6 +21,6 @@ Do not store milestone status, per-task reports, chat handoffs, historical CI au
 
 ## Current runbooks
 
-- [`target-windows-performance.md`](target-windows-performance.md) — one TARGET_WINDOWS baseline for real Meeting latency, audio stability, CPU/RAM/GPU/VRAM pressure, Stop, and repeated-session decisions after source checks are green.
+- [`target-windows-performance.md`](target-windows-performance.md) — one TARGET_WINDOWS baseline for real Meeting latency, audio stability, CPU/RAM/GPU/VRAM pressure, Stop, and repeated-session decisions after static source admission, followed by one integrated local build/package stage.
 
 - [Signed updater release](./signed-updater-release.md) → signed one-shot updater release/publication procedure and native acceptance boundary.
