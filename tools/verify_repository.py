@@ -42,6 +42,7 @@ REQUIRED_PATHS = (
     "tools/repository_context.py",
     "tools/repository_benchmark.py",
     "tools/tests/test_repository_benchmark.py",
+    "EngineData/Frontend/RustApp/scripts/tests/rust_msrv_contract.test.ts",
     "tools/tests/test_repository_context.py",
     "tools/tests/test_repository_governance.py",
     "tools/tests/test_repository_information_architecture.py",
@@ -254,7 +255,7 @@ def check_development_foundation(errors: list[str]) -> None:
     for marker in ("No change required?", "first wrong owner", "smallest complete change"):
         if marker not in discipline:
             fail(errors, f"development discipline missing minimum-flow marker: {marker}")
-    for marker in ('"major": 22', '"version": "3.12.10"', '"minimum": "1.77"', '"minimum": "0.12.0"'):
+    for marker in ('"major": 22', '"version": "3.12.10"', '"minimum": "1.88.0"', '"minimum": "0.12.0"'):
         if marker not in toolchain:
             fail(errors, f"toolchain.json missing repository-derived policy: {marker}")
     for marker in ('"doctor"', '"setup"', '"check"', '"build"', '"test"', '"package"'):
@@ -262,6 +263,11 @@ def check_development_foundation(errors: list[str]) -> None:
             fail(errors, f"developer router missing command: {marker}")
     if "doctorMustNotInstallOrRepairAutomatically" not in toolchain or "No installation or repair was performed." not in dev:
         fail(errors, "developer doctor must remain observation-only")
+    rust_manifest = text("EngineData/Frontend/RustApp/src-tauri/Cargo.toml")
+    if 'rust-version = "1.88.0"' not in rust_manifest:
+        fail(errors, "Rust source manifest must not understate the reviewed Cargo.lock MSRV floor")
+    if "minimumRust" not in dev or "installedRust -lt" not in dev:
+        fail(errors, "optional Windows doctor must check the declared Rust minimum")
     if "Unified Windows developer routing" not in ownership:
         fail(errors, "source ownership must identify the developer router owner")
     github_rules = text("GITHUB_RULES.md")

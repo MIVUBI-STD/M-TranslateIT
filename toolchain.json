@@ -18,10 +18,10 @@
     "lockfile": "EngineData/Frontend/RustApp/package-lock.json"
   },
   "rust": {
-    "minimum": "1.77",
+    "minimum": "1.88.0",
     "source": "EngineData/Frontend/RustApp/src-tauri/Cargo.toml",
     "lockfile": "EngineData/Frontend/RustApp/src-tauri/Cargo.lock",
-    "pinPolicy": "minimum compiler is source-authoritative; exact installed compiler is not currently pinned"
+    "pinPolicy": "minimum compiler follows Cargo.toml and reviewed Cargo.lock MSRV facts; full dependency closure needs executed Cargo proof"
   },
   "python": {
     "version": "3.12.10",

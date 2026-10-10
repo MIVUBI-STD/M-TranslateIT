@@ -57,9 +57,20 @@ function Invoke-Doctor {
         throw "Python 3.12.10 required; found $pythonVersion"
     }
 
+    $policyPath = Join-Path $Root "toolchain.json"
+    $minimumRust = [Version]::Parse([string](Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json).rust.minimum)
+    $rustMatch = [regex]::Match($rustVersion, '^rustc\s+(\d+\.\d+\.\d+)(?:\s|$)')
+    if (-not $rustMatch.Success) {
+        throw "Could not read rustc semantic version: $rustVersion"
+    }
+    $installedRust = [Version]::Parse($rustMatch.Groups[1].Value)
+    if ($installedRust -lt $minimumRust) {
+        throw "Rust $minimumRust or newer required by the locked dependency baseline; found $rustVersion"
+    }
+
     Write-Host "Node:   $nodeVersion"
     Write-Host "Python: $pythonVersion"
-    Write-Host "Rust:   $rustVersion (Cargo.toml minimum 1.77)"
+    Write-Host "Rust:   $rustVersion (minimum $minimumRust)"
     Write-Host "uv:     $uvVersion (pyproject minimum 0.12.0)"
     Write-Host "Doctor passed. No installation or repair was performed."
 }
