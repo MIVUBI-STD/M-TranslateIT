@@ -91,6 +91,7 @@ struct BuildChildStatusFile {
 #[derive(Debug, Clone, Serialize)]
 pub struct VoiceLabBuildStatus {
     pub active: bool,
+    pub preview_active: bool,
     pub generation: Option<u64>,
     pub phase: String,
     pub message: String,
@@ -373,6 +374,7 @@ fn current_status() -> VoiceLabBuildStatus {
 
     VoiceLabBuildStatus {
         active: snapshot.active,
+        preview_active: super::voice_lab_preview::quick_voice_preview_active(),
         generation: snapshot.generation,
         phase: snapshot.phase,
         message,

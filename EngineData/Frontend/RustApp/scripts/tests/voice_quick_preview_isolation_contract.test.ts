@@ -5,6 +5,8 @@ import test from "node:test";
 const preview = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_preview.rs", import.meta.url), "utf8");
 const registry = readFileSync(new URL("../../src-tauri/src/commands/registry.rs", import.meta.url), "utf8");
 const bridge = readFileSync(new URL("../../src/app/bridge/myVoiceBuildApi.ts", import.meta.url), "utf8");
+const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+const status = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
 const actor = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
 
 test("quick preview is an isolated one-WAV child with existing VoiceLab authority", () => {
@@ -39,4 +41,21 @@ test("typed Quick Preview bridge exposes only generation, cancellation and readi
   }
   assert.match(bridge, /QuickVoicePreviewResult/);
   assert.doesNotMatch(preview, /get_meeting_session_status|start_meeting_translation/);
+});
+
+test("Quick Preview remains training-only in the visible My Voice UI", () => {
+  assert.match(ui, /Quick Voice Preview · Training only/);
+  assert.match(ui, /Generate Quick Preview/);
+  assert.match(ui, /Listen to Preview/);
+  assert.match(ui, /Stop Preview/);
+  assert.match(ui, /myVoiceBuildApi\.generateQuickPreview\(\)/);
+  assert.match(ui, /myVoiceBuildApi\.cancelQuickPreview\(\)/);
+  assert.match(ui, /myVoiceBuildApi\.getQuickPreviewAudio\(\)/);
+  assert.match(ui, /quickPreviewBusy \|\| build\.preview_active/);
+  assert.match(status, /preview_active: super::voice_lab_preview::quick_voice_preview_active\(\)/);
+  assert.match(preview, /pub fn quick_voice_preview_active\(\) -> bool/);
+  const start = ui.indexOf("async function generateQuickPreview()");
+  const end = ui.indexOf("async function startBuild()", start);
+  const block = ui.slice(start, end);
+  assert.doesNotMatch(block, /onMeetingVoiceChanged|approve\(|selectBuiltin|dispatchProductIntent/);
 });

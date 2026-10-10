@@ -25,6 +25,7 @@ export type MyVoiceCoverageGuidance = {
 
 export type MyVoiceBuildStatus = {
   active: boolean;
+  preview_active: boolean;
   generation: number | null;
   phase: string;
   message: string;
@@ -54,6 +55,7 @@ export type MyVoiceBuildRuntimeEvent = {
 function unavailableStatus(): MyVoiceBuildStatus {
   return {
     active: false,
+    preview_active: false,
     generation: null,
     phase: "unavailable",
     message: "My Voice build status is unavailable.",

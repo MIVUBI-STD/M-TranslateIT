@@ -120,6 +120,11 @@ fn generate_once() -> QuickVoicePreviewResult {
     }
 }
 
+pub fn quick_voice_preview_active() -> bool {
+    let generation = ACTIVE_PREVIEW_GENERATION.load(Ordering::Acquire);
+    generation != 0 && current_voice_lab_build_snapshot().generation == Some(generation)
+}
+
 #[tauri::command]
 pub async fn generate_voice_lab_quick_preview() -> QuickVoicePreviewResult {
     match tauri::async_runtime::spawn_blocking(generate_once).await {

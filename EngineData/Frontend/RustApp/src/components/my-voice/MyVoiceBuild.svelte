@@ -19,6 +19,7 @@
 
   let build = $state<MyVoiceBuildStatus>({
     active: false,
+    preview_active: false,
     generation: null,
     phase: "checking",
     message: "Checking My Voice recordings...",
@@ -32,6 +33,10 @@
     approved_voice_ready: false,
   });
   let authorized = $state(false);
+  let previewAuthorized = $state(false);
+  let quickPreviewBusy = $state(false);
+  let quickPreviewReady = $state(false);
+  let quickPreviewPlaying = $state(false);
   let busy = $state(false);
   let playingLineId = $state<number | null>(null);
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -61,6 +66,7 @@
     audio?.pause();
     audio = null;
     playingLineId = null;
+    quickPreviewPlaying = false;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     audioUrl = null;
   }
@@ -170,8 +176,58 @@
     applyStatus(await myVoiceBuildApi.getStatus());
   }
 
+  async function generateQuickPreview(): Promise<void> {
+    if (busy || quickPreviewBusy || build.active || !previewAuthorized || build.accepted_take_count === 0) return;
+    stopAudio();
+    quickPreviewReady = false;
+    quickPreviewBusy = true;
+    try {
+      const result = await myVoiceBuildApi.generateQuickPreview();
+      quickPreviewReady = result.ok && result.state === "preview_ready";
+      onNotice(result.message);
+    } catch {
+      onNotice("Quick Preview could not be generated.");
+    } finally {
+      quickPreviewBusy = false;
+      await refresh();
+    }
+  }
+
+  async function cancelQuickPreview(): Promise<void> {
+    if (!quickPreviewBusy && !build.preview_active) return;
+    const result = await myVoiceBuildApi.cancelQuickPreview();
+    onNotice(result.message);
+    await refresh();
+  }
+
+  async function playQuickPreview(): Promise<void> {
+    if (busy || quickPreviewBusy || !quickPreviewReady || quickPreviewPlaying) return;
+    const bytes = await myVoiceBuildApi.getQuickPreviewAudio();
+    if (!bytes) {
+      quickPreviewReady = false;
+      onNotice("Quick Preview audio is unavailable.");
+      return;
+    }
+    stopAudio();
+    audioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+    audio = new Audio(audioUrl);
+    quickPreviewPlaying = true;
+    audio.onended = stopAudio;
+    audio.onerror = () => {
+      stopAudio();
+      onNotice("Quick Preview could not be played.");
+    };
+    try {
+      await audio.play();
+    } catch {
+      stopAudio();
+      onNotice("Quick Preview could not be played.");
+    }
+  }
+
   async function startBuild(): Promise<void> {
-    if (busy || !build.can_build || !authorized) return;
+    if (busy || quickPreviewBusy || !build.can_build || !authorized) return;
+    quickPreviewReady = false;
     stopAudio();
     reviewedLineIds = [];
     busy = true;
@@ -183,7 +239,7 @@
   }
 
   async function cancelBuild(): Promise<void> {
-    if (busy || !build.active) return;
+    if (busy || quickPreviewBusy || !build.active) return;
     busy = true;
     try {
       applyResult(await myVoiceBuildApi.cancel());
@@ -247,7 +303,7 @@
   });
 </script>
 
-<section class="ti-panel p-6" aria-busy={build.active || busy}>
+<section class="ti-panel p-6" aria-busy={build.active || busy || quickPreviewBusy}>
   <div class="flex items-start justify-between gap-5">
     <div>
       <span class="ti-kicker">My Voice</span>
@@ -278,7 +334,15 @@
     </div>
   </div>
 
-  {#if build.active}
+  {#if quickPreviewBusy || build.preview_active}
+    <div class="mt-5" role="status">
+      <strong class="text-sm font-semibold">Creating Quick Preview</strong>
+      <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">Using GPT-SoVITS locally. This preview cannot be used in Meeting.</p>
+      <button type="button" class="ti-button ti-button-secondary mt-3" onclick={() => void cancelQuickPreview()}>
+        <Square size={14} /><span>Stop Preview</span>
+      </button>
+    </div>
+  {:else if build.active}
     <div class="mt-5 border-l-2 border-[var(--ti-border-strong)] pl-4" role="status" aria-live="polite" aria-atomic="true">
       <strong class="text-sm font-semibold">{activeTitle()}</strong>
       <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{activeDetail()}</p>
@@ -322,5 +386,22 @@
     {/if}
   {/if}
 
-  <p class="mb-0 mt-5 text-xs leading-5 text-[var(--ti-text-soft)]">My Voice is saved only after you listen to the previews and approve it.</p>
+  <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
+    <strong class="text-sm font-semibold">Quick Voice Preview · Training only</strong>
+    <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Try a short accepted recording with GPT-SoVITS before full training. This temporary sample is never available for Meeting or approval.</p>
+    <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
+      <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={previewAuthorized} />
+      I own this voice or have permission to create a preview.
+    </label>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button type="button" class="ti-button ti-button-secondary"
+        disabled={!previewAuthorized || busy || quickPreviewBusy || build.active || build.preview_active || build.accepted_take_count === 0}
+        onclick={() => void generateQuickPreview()}>Generate Quick Preview</button>
+      {#if quickPreviewReady}
+        <button type="button" class="ti-button ti-button-secondary" disabled={quickPreviewBusy || quickPreviewPlaying}
+          onclick={() => void playQuickPreview()}><Play size={14} />{quickPreviewPlaying ? "Playing..." : "Listen to Preview"}</button>
+      {/if}
+    </div>
+  </div>
+  <p class="mb-0 mt-5 text-xs leading-5 text-[var(--ti-text-soft)]">Only a trained, evaluated and explicitly approved My Voice can be selected for Meeting. Quick Preview is not an output voice.</p>
 </section>
