@@ -13,6 +13,7 @@ const targetPath = join(tauriRoot, "target");
 const frontendDistPath = join(appRoot, "dist", "index.html");
 const isWindows = process.platform === "win32";
 const cleanTarget = process.env.TRANSLATEIT_CLEAN_RUST_TARGET === "1";
+const expectedSha = String(process.env.TRANSLATEIT_EXPECTED_SHA ?? "").trim().toLowerCase();
 mkdirSync(reportDir, { recursive: true });
 
 const logPath = resolve(reportDir, "local-tauri-cargo-check.log");
@@ -98,14 +99,36 @@ if (!existsSync(manifestPath)) {
   fail(`Missing Tauri Cargo manifest: ${manifestPath}`);
 }
 
+// Exact source identity and tracked cleanliness are required for meaningful
+// integrated candidate proof. An expected SHA is mandatory at the integrated
+// acceptance gate; a developer's standalone source check may omit it.
+const gitResult = (args) => spawnSync("git", ["-C", repoRoot, ...args], {
+  cwd: appRoot, shell: false, encoding: "utf8",
+});
+const source = gitResult(["rev-parse", "HEAD"]);
+const sourceSha = String(source.stdout ?? "").trim().toLowerCase();
+if (source.error || source.status !== 0 || !/^[0-9a-f]{40}$/.test(sourceSha)) {
+  fail("Cannot establish an exact Git source SHA for the local compile check.");
+}
+if (expectedSha && (!/^[0-9a-f]{40}$/.test(expectedSha) || sourceSha !== expectedSha)) {
+  fail(`Source SHA mismatch. Expected ${expectedSha}, found ${sourceSha}.`);
+}
+const trackedStatus = gitResult(["status", "--porcelain", "--untracked-files=no"]);
+if (trackedStatus.error || trackedStatus.status !== 0 || String(trackedStatus.stdout ?? "").trim()) {
+  fail("Local compile proof requires a clean tracked source checkout.");
+}
+console.log(`${color.cyan}[local-tauri-compile] Exact source SHA: ${sourceSha}${color.reset}`);
+
 console.log(`${color.cyan}[local-tauri-compile] This is a manual local proof command. It is intentionally separate from source-only validation.${color.reset}`);
 console.log(`${color.cyan}[local-tauri-compile] Checking Rust toolchain...${color.reset}`);
 run("rustc version", "rustc", ["--version"]);
 run("cargo version", "cargo", ["--version"]);
 
+// Never trust an old dist/index.html from a different source revision.
+console.log(`${color.cyan}[local-tauri-compile] Rebuilding frontend for the exact source SHA...${color.reset}`);
+run("frontend build", "npm", ["run", "build:frontend"]);
 if (!existsSync(frontendDistPath)) {
-  console.log(`${color.yellow}[local-tauri-compile] Frontend dist is missing. Building frontend first...${color.reset}`);
-  run("frontend build", "npm", ["run", "build:frontend"]);
+  fail("Frontend build returned success but did not produce dist/index.html.");
 }
 
 if (cleanTarget && existsSync(targetPath)) {
@@ -116,5 +139,5 @@ if (cleanTarget && existsSync(targetPath)) {
 }
 
 console.log(`${color.cyan}[local-tauri-compile] Running cargo check for Tauri Rust source...${color.reset}`);
-runCaptured("cargo check", "cargo", ["check", `--manifest-path=${manifestPath}`]);
+runCaptured("cargo check", "cargo", ["check", "--locked", `--manifest-path=${manifestPath}`]);
 console.log(`${color.green}[local-tauri-compile] Tauri Rust source compile check passed.${color.reset}`);

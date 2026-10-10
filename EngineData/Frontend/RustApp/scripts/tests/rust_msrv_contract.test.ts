@@ -7,6 +7,7 @@ const root = new URL("../../", import.meta.url);
 const manifest = readFileSync(new URL("src-tauri/Cargo.toml", root), "utf8");
 const lock = readFileSync(new URL("src-tauri/Cargo.lock", root), "utf8");
 const policy = JSON.parse(readFileSync(new URL("../../../toolchain.json", root), "utf8"));
+const compile = readFileSync(new URL("../run_local_tauri_compile_check.mjs", import.meta.url), "utf8");
 
 test("reviewed locked dependency MSRV is aligned with Cargo and toolchain", () => {
   assert.deepEqual(evaluateRustMsrv(manifest, policy, lock), []);
@@ -48,4 +49,14 @@ test("future Tauri minor cannot silently retain the old MSRV", () => {
   );
   assert.notEqual(future, lock);
   assert.match(evaluateRustMsrv(manifest, policy, future).join("\n"), /Tauri 2\.12\+/);
+});
+
+test("integrated Cargo source check uses exact SHA, fresh frontend and locked deps", () => {
+  assert.match(compile, /TRANSLATEIT_EXPECTED_SHA/);
+  assert.match(compile, /gitResult\(\["rev-parse", "HEAD"\]\)/);
+  assert.match(compile, /gitResult\(\["status", "--porcelain", "--untracked-files=no"\]\)/);
+  assert.match(compile, /sourceSha !== expectedSha/);
+  assert.match(compile, /run\("frontend build", "npm", \["run", "build:frontend"\]\)/);
+  assert.doesNotMatch(compile, /if \(!existsSync\(frontendDistPath\)\)\s*\{[\s\S]*?run\("frontend build"/);
+  assert.match(compile, /\["check", "--locked", `--manifest-path=\$\{manifestPath\}`\]/);
 });

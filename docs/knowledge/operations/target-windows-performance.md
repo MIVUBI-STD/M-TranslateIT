@@ -11,7 +11,9 @@ lifecycle: ACTIVE
 
 Use this runbook once a **source-integrated candidate** has passed GitHub source/contract review and its locked build/package inputs are prepared.
 
-The existing Settings → Diagnostics → Check Again action refreshes the worker/Meeting snapshot **and** the Runtime Health evidence panel on explicit user action; it is not a new monitoring daemon. Meeting performance reports the largest measured stage only after actual first playback timing exists; this is a candidate for investigation, not a proven root cause. The redacted support bundle includes numeric stage timings but no per-utterance timestamps, audio, transcripts, speaker references or session IDs. Collect the exact source SHA alongside any exported evidence. An unverified status must not be interpreted as Healthy/Clean. It groups the first actual local build, package, install and TARGET_WINDOWS acceptance into one planned phase, not per-change PC testing.
+The existing Settings → Diagnostics → Check Again action refreshes the worker/Meeting snapshot **and** the Runtime Health evidence panel on explicit user action; it is not a new monitoring daemon. Meeting performance reports the largest measured stage only after actual first playback timing exists; this is a candidate for investigation, not a proven root cause. The redacted support bundle includes numeric stage timings but no per-utterance timestamps, audio, transcripts, speaker references or session IDs. Collect the exact source SHA alongside any exported evidence. An unverified status must not be interpreted as Healthy/Clean.
+
+This runbook groups the first actual local build, package, install and TARGET_WINDOWS acceptance into **one planned phase**, never per-change PC testing.
 
 ## Purpose
 
@@ -39,6 +41,19 @@ This is a **read-only admission review**, not proof of native behavior or releas
 4. **One bounded plan:** pin source SHA and record the local toolchain/build commands, package inputs, native-only questions, safe diagnostics and STOP criteria. Run compiler/build checks first; on failure STOP and report source evidence. Only after build/package PASS proceed to device/Meeting/latency and existing acceptance scenarios.
 
 If source admission is not met, continue GitHub repository work and keep execution `UNKNOWN / NOT EXECUTED`. No hosted fallback and no repeated local requests. Actual Windows build/package/device acceptance is required before declaring a finished application.
+
+## One integrated candidate execution sequence
+
+This is an **execution plan**, not a request to use the user's PC now. Keep it in the existing runbook; do not create a separate release harness or hosted job. Follow `docs/foundation/03-acceptance-scenarios.md` as the sole scenario authority.
+
+1. **Pin one immutable candidate.** Record the 40-character `Local` SHA and require a clean tracked checkout. Set `TRANSLATEIT_EXPECTED_SHA` to that externally pinned SHA **before** invoking the canonical local Tauri compile check; do not derive the expected value from whatever happens to be checked out. Record the Node 22 / Rust 1.88+ / Python 3.12.10 / uv 0.12+ toolchain identities and confirm `package-lock.json`, `Cargo.lock`, and `uv.lock` are unchanged. On mismatch, STOP.
+2. **Source-level admission first.** From `EngineData/Frontend/RustApp`, use `npm ci`, `npm run validate:source-contracts`, `npm run typecheck`, and `npm run test:frontend-runtime` against that same SHA. Using the locked Python worker environment, run its existing pytest suite and the existing translation, ASR, and TTS quality evaluator self-tests; verify no corpus/model identity substitution or generated tracked-file edits. Source tests do not constitute model-quality or device proof. On first failure, STOP.
+3. **One consistent Rust/frontend build.** Run `npm run check:tauri-rust-local` with the pinned `TRANSLATEIT_EXPECTED_SHA`. Its existing helper must compile a fresh frontend rather than accept a stale `dist`, check a clean Git source identity, and use `cargo check --locked`. Record executable result; STOP if either language fails.
+4. **Model and product proof before distribution.** On the same installed/staged canonical model revisions, exercise A1/A3/A4/A5/A6/A7 plus D1/D2/D3/D4: Text in both directions, incomplete/over-length responses, natural/formal terminology, Quick Translate and alternate wording, persisted settings, and redacted Diagnostics. Capture matched real ASR and MiLMMT outputs for the existing quality evaluators. Never label an unexecuted or fixture-only quality check as an acoustic/linguistic PASS.
+5. **Controlled Setup + Payload only when admitted.** The existing `scripts/build_release.ps1` requires actual `-QualityReadinessEvidence`, a staged private Python/voice/model/driver payload, and updater signing credentials. This is a **hard release gate**, not optional decoration. Do not create fake quality receipts, bypass signing, use another release script or claim an installer if those inputs are missing. Build the existing exact-SHA offline R3 pair only after prerequisites pass; publishing remains separately authorized. STOP on missing provenance, license, artifact hash, driver prerequisite, or signature.
+6. **One installed Windows acceptance session.** Only with the built artifact and actual target device, carry out B1–B5 and C0–C5 with outbound built-in voice first, then optional incoming and A9 My Voice as scope requires. Include D5/E3–E6, device conflict/Stop/restart behavior, the recorded stage timings and hardware pressure below. STOP at the first reproducible blocker; report its owning stage and preserve prior working behavior instead of adjusting multiple engines.
+
+Pass is **revision-scoped**: source, model, quality receipt, Setup/payload hashes, installed runtime and native measurements must refer to the same admitted candidate. A passing source check is not a passing installed application. This plan adds no normal user-PC testing steps to the ChatGPT/GitHub development loop.
 
 ## Preconditions
 
