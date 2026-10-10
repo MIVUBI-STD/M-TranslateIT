@@ -32,5 +32,12 @@ test("application runtime subscription folds Voice build completion into canonic
 });
 
 test("partial combined subscription installation cleans up the first listener", () => {
-  assert.match(api, /catch \(error\) \{\s*applicationStop\(\);\s*throw error;/);
+  assert.match(api, /catch \(error\) \{\s*disposed = true;\s*applicationStop\(\);\s*throw error;/);
+});
+
+test("combined runtime subscription suppresses callbacks after unsubscribe", () => {
+  assert.match(api, /let disposed = false;/);
+  assert.match(api, /listen<ApplicationRuntimeEvent>[\s\S]*?if \(!disposed\) listener\(event\.payload\)/);
+  assert.match(api, /getApplicationSnapshot\(\)\.then\(\(snapshot\) => \{\s*if \(disposed\) return;/);
+  assert.match(api, /return \(\) => \{\s*disposed = true;\s*applicationStop\(\);\s*voiceBuildStop\(\);/);
 });

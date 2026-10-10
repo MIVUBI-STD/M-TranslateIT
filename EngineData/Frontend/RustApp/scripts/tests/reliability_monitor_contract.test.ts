@@ -61,3 +61,15 @@ test("long-session health is advisory and change-deduplicated", () => {
   assert.match(monitor, /lastLongSessionState/);
   assert.doesNotMatch(monitor, /clearDeferred|cleanup.*temp|replay|restart/i);
 });
+
+test("completed reliability reads cannot notify after Meeting monitor disposal", () => {
+  assert.match(
+    monitor,
+    /const notice = await readLiveReliabilityNotice\(\);\s*\/\/[^\n]*\n\s*if \(disposed\) return;/,
+  );
+  assert.match(
+    monitor,
+    /const health = await getLongSessionHealthStatus\(\);\s*\/\/[^\n]*\n\s*if \(disposed\) return;/,
+  );
+  assert.match(monitor, /return \(\) => \{\s*disposed = true;\s*window.clearInterval\(timer\);/);
+});

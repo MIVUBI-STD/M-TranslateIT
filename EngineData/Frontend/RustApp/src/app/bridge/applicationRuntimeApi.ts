@@ -209,10 +209,11 @@ export async function dispatchProductIntent(intent: ProductIntent): Promise<Appl
 export async function subscribeApplicationRuntime(
   listener: (event: ApplicationRuntimeEvent) => void,
 ): Promise<UnlistenFn> {
+  let disposed = false;
   const applicationStop = await listen<ApplicationRuntimeEvent>(
     "translateit://application-runtime",
     (event) => {
-      listener(event.payload);
+      if (!disposed) listener(event.payload);
     },
   );
   let voiceBuildStop: UnlistenFn;
@@ -221,17 +222,20 @@ export async function subscribeApplicationRuntime(
       "translateit://voice-build-runtime",
       (event) => {
         void getApplicationSnapshot().then((snapshot) => {
+          if (disposed) return;
           if (snapshot.revision <= 0 || snapshot.lifecycle === "unavailable") return;
           listener({ reason: event.payload.reason, snapshot });
         });
       },
     );
   } catch (error) {
+    disposed = true;
     applicationStop();
     throw error;
   }
 
   return () => {
+    disposed = true;
     applicationStop();
     voiceBuildStop();
   };

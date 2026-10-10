@@ -49,6 +49,8 @@ function startMeetingReliabilityMonitor(
     inFlight = true;
     try {
       const notice = await readLiveReliabilityNotice();
+      // Stop may have disposed this monitor while the IPC read was pending.
+      if (disposed) return;
       if (!notice) {
         lastKey = "";
         return;
@@ -72,6 +74,8 @@ function startMeetingReliabilityMonitor(
     longSessionInFlight = true;
     try {
       const health = await getLongSessionHealthStatus();
+      // Do not surface an old session's warning after monitor teardown.
+      if (disposed) return;
       if (!health.healthy && health.warning_count > 0) {
         const key = [
           health.outbound_overflow_dropped,
