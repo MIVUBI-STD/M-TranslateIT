@@ -80,3 +80,11 @@ test("reference ranking belongs to the Python training selector", () => {
   assert.match(preview, /"line_id": take.line_id/);
   assert.doesNotMatch(preview, /TARGET_REFERENCE_BYTES|min_by_key/);
 });
+
+test("preview readiness is invalidated when accepted recording revision or training changes", () => {
+  assert.match(ui, /let seenRefreshRevision = refreshRevision/);
+  assert.match(ui, /if \(revision !== seenRefreshRevision\)/);
+  assert.match(ui, /seenRefreshRevision = revision;\s*quickPreviewReady = false;\s*stopAudio\(\)/);
+  assert.match(ui, /if \(next.active && !next.preview_active\)/);
+  assert.match(ui, /quickPreviewReady = false;\s*stopAudio\(\)/);
+});

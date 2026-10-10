@@ -179,6 +179,18 @@ Run at least five normal Start → speak → Stop cycles in the same app process
 
 A repeated-session issue is actionable only when its owner is visible: Start preflight, helper restart/cold load, audio-route opening, capture opening, or cleanup.
 
+### 9. A9 — My Voice quality and approval (integrated, optional to first built-in baseline)
+
+Run this only on a controlled installed Windows candidate when My Voice is in the acceptance scope. Keep the physical speaker, microphone, input format, environment and exact `Local` SHA recorded. Use authorized guided English recordings only. Quick Preview is a pretrained **early listening aid**, not a trained actor or Meeting voice.
+
+1. **Reference and Quick Preview:** accept at least one usable 3–10 second guided take; generate and listen to one temporary preview. Confirm stop/cancel during preparation, rejection of unusable takes, no unexpected Meeting selection, and no leftover partial WAV after failure. If it cannot synthesize or clean up safely, STOP A9; do not claim preview quality PASS from a button or file alone.
+2. **Trained-actor cycle:** collect the existing minimum accepted speech and required recording coverage, build the bounded GPT-SoVITS candidates, and inspect the selected candidate's existing eight held-out outputs (IDs 1001–1008). Confirm no gross `artifact_flags`, review intelligibility transcripts/WER and speaker-similarity evidence, and **listen to all eight** before deciding whether to approve.
+3. **Perceptual review:** for those same eight English phrases, note pronunciation of names, dates, numbers and negation; voice identity; clipping, dropout, unexpected silence; and stability across short and long utterances. Record explicit `acceptable / needs work` judgments with concrete observations, not a fabricated numerical quality threshold or model-confidence claim.
+4. **Controlled comparison:** compare two trained candidates, builds, or versions **only when their output sentences, source-speaker identity, and recorded conditions are comparable**. The one-sentence pretrained Quick Preview and eight held-out trained samples differ in text, so they are not a valid direct before/after quality score. When there is no matching earlier audio/evidence, record `no comparative baseline` and do not claim a Voicebox-inspired acoustic improvement.
+5. **Meeting and persistence:** explicitly approve only after the user's listening review; confirm the selected My Voice works through the actual Meeting Microphone, survives app restart, and is still selected. A failed/rejected new build must not replace the previously approved Meeting voice. Check Stop and resource conflicts between Meeting and training.
+
+Existing Rust evaluation and Python candidate evidence are the measurement owners; do not add a second benchmark database, export private recordings to GitHub, or ship a new evaluation model. Retain detailed private samples/evidence only in the controlled acceptance environment; record only non-sensitive observations and outcome. If A9 fails, report the first reproducible owner (recording, Quick Preview, dataset, training, selection, approval or Meeting playback) and STOP further voice optimization until diagnosed.
+
 ## Decision rules after the baseline
 
 Use the measured owner instead of applying speculative architecture changes:

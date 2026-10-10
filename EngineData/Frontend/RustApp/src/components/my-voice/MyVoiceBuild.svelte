@@ -39,6 +39,7 @@
   let quickPreviewPlaying = $state(false);
   let busy = $state(false);
   let playingLineId = $state<number | null>(null);
+  let seenRefreshRevision = refreshRevision;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
@@ -81,6 +82,11 @@
   function applyStatus(next: MyVoiceBuildStatus): void {
     build = next;
     if (!next.evaluation_ready) reviewedLineIds = [];
+    // Another training lifecycle supersedes an earlier temporary preview.
+    if (next.active && !next.preview_active) {
+      quickPreviewReady = false;
+      stopAudio();
+    }
     schedulePoll();
   }
 
@@ -291,7 +297,14 @@
   }
 
   $effect(() => {
-    refreshRevision;
+    const revision = refreshRevision;
+    // Parent advances this revision after accepting a new guided recording.
+    // Never present the old reference's WAV as a preview of the new takes.
+    if (revision !== seenRefreshRevision) {
+      seenRefreshRevision = revision;
+      quickPreviewReady = false;
+      stopAudio();
+    }
     void refresh();
   });
 
