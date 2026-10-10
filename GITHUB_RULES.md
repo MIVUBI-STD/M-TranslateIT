@@ -80,7 +80,7 @@ Rules:
 
 ### Source acceptance
 
-For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. Manual Code Health still requires full frontend/Rust/Python source proof when explicitly dispatched.
+For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. Manual Code Health still requires full frontend/Rust/Python source proof when explicitly dispatched. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.
 
 
 Normal development uses the smallest owning verifier on the exact `Local` SHA under discussion.

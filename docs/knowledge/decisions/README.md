@@ -154,6 +154,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** `tools/repository_dependencies.py` parses source; `tools/repository_impact.py` owns affected verification planning.
 
+### D-041 — Explicit affected execution with exact-SHA source evidence
+
+**Context:** the source-dependency graph and existing cross-language impact planner recommend affected tests, but prior work only inspected source and could not run matching executable regression evidence in GitHub-only contexts.
+
+**Decision:** add one opt-in, bounded affected-check executor `tools/repository_verification.py`. Select existing canonical Node validators, repository Python tests, targeted TypeScript/pytest regressions and optional offline Cargo checks without arbitrary shell commands or new CI triggers. Execute only against a clean, exact-SHA `Local` checkout when the user explicitly requests `--execute`.
+
+**Why:** reduce redundant full-suite execution while preserving a truthful source-test proof boundary, permission preflight, and fail-fast diagnosis.
+
+**Tradeoffs:** targeted PASS is not a complete transitive dependency, native Windows, installer, or release PASS. Missing tools, partial import edges, omitted tests and altered worktrees keep the overall result incomplete. Offline flags do not sandbox repository-authored test code; actual execution still requires informed operator authorization.
+
+**Owner:** `tools/repository_verification.py` executes selected checks. `tools/repository_impact.py` remains the read-only plan owner; `GITHUB_RULES.md` owns policy and CI boundaries.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

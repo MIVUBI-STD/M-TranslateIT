@@ -124,6 +124,14 @@ Six canonical skills remain unchanged. Golden routing cases validate expected mo
 
 Only explicit source edges are derived. Dynamic imports, macro expansions, service IPC protocols, type/value semantics, and runtime behavior are outside this partial graph. Registered Rust↔TypeScript↔Python interop boundaries retain their canonical `tools/interop-contracts.json` owners and verifiers. Unknown imports, unindexed sources or uncertain closure require review or broader proof, never silent test omission. Each run is `PLANNING_ONLY_NOT_EXECUTED`; it cannot start tests, CI, release, or update `main`.
 
+## Opt-in affected verification
+
+`python tools/repository_verification.py --mode standard-development --scope desktop-runtime-development --changed EngineData/Frontend/RustApp/src/app/bridge/applicationRuntimeApi.ts` prints the recommended checks **without executing anything**. The planner uses the existing `repository_impact.py`, `repository_permissions.py`, `package.json` and canonical test files, not a new workflow or test registry.
+
+To execute the selected source checks on a real, clean `Local` checkout, the operator must explicitly add `--execute --expected-sha <exact-40-character-Local-HEAD>`. The tool verifies branch, SHA and worktree both before and after checking, passes fixed command arguments without a shell, does not install dependencies, and stops on the first failure/unavailable tool. Missing Node, pytest, Cargo or local source dependencies remain proof residues. Tests are repository-owned programs and are **not sandboxed** by this runner; review and authorize execution in the current host context first.
+
+The default Rust check is an existing cheap manifest/contract validator, **not** `cargo check`. `--include-offline-rust` additionally selects `cargo check --locked --offline` only by explicit choice. Dependency-graph closure is partial even when checks succeed. A `SELECTED_CHECKS_PASS_PARTIAL_PROOF` outcome is **not** full acceptance; the CLI uses a nonzero exit when review is still required. No CI or release workflow is dispatched by this tool.
+
 ## First-wrong-owner examples
 
 ```text

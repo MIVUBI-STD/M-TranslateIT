@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Current Validation
 
-This file owns **proof interpretation**, not a run diary. `next-action.md` owns continuation; GitHub remains authoritative for exact run/job metadata.
+This file owns **proof interpretation**, not a run diary. Opt-in `tools/repository_verification.py` receipts may prove only the selected commands actually completed on the exact clean `Local` SHA. `SELECTED_CHECKS_PASS_PARTIAL_PROOF` leaves unknown dependency closure and other tests unverified; it is never release/native acceptance. `next-action.md` owns continuation; GitHub remains authoritative for exact run/job metadata.
 
 ## Source Authority
 

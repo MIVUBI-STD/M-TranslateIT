@@ -41,6 +41,8 @@ REQUIRED_PATHS = (
     "tools/tests/test_repository_dependencies.py",
     "tools/repository_context.py",
     "tools/tests/test_repository_context.py",
+    "tools/repository_verification.py",
+    "tools/tests/test_repository_verification.py",
     "tools/interop-contracts.json",
     "tools/tests/test_repository_knowledge.py",
     "tools/tests/test_repository_contracts.py",
@@ -610,6 +612,11 @@ def check_repository_information_architecture(errors: list[str]) -> None:
         errors.extend(f"agent context flow: {issue}" for issue in verify_context())
     except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
         fail(errors, f"invalid agent context projection: {exc}")
+    try:
+        from repository_verification import verify_verification
+        errors.extend(f"affected verification: {issue}" for issue in verify_verification())
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid bounded affected verification: {exc}")
 
 
 def main() -> int:

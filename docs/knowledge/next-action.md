@@ -33,7 +33,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Next: implement safe, opt-in affected execution (Batch 3) using the derived partial source graph; do not invent verification results. Rust/frontend compilation and target-Windows acceptance remain unverified. `main` stays final-only; GitHub CI is manual and not currently dispatchable from the default branch.
+Next: review agent/skill supply-chain admission and procedure evaluation (Batch 4). Affected execution is opt-in and not run on this SHA. Rust/frontend compilation and target-Windows acceptance remain unverified. `main` stays final-only; GitHub CI remains manual and unavailable/unproven from the default branch.
 
 Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
 
