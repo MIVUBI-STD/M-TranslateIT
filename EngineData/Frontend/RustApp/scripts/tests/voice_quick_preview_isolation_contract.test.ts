@@ -137,9 +137,9 @@ test("Setup packages both My Voice children and their shared canonical training 
 test("trained voice approval requires audible review and affirmative human quality confirmation", () => {
   assert.match(ui, /qualityConfirmed = \$state\(false\)/);
   assert.match(ui, /!evaluationReviewComplete \|\| !qualityConfirmed/);
-  assert.match(ui, /myVoiceBuildApi\.approve\(reviewedLineIds, qualityConfirmed\)/);
-  assert.match(bridge, /reviewedLineIds,\s*qualityConfirmed,/);
-  assert.match(mutations, /approve_voice_lab_candidate\(reviewed_line_ids, quality_confirmed\)/);
+  assert.match(ui, /myVoiceBuildApi\.approve\(reviewedLineIds, qualityConfirmed, build\.evaluation_review_id\)/);
+  assert.match(bridge, /reviewedLineIds,\s*qualityConfirmed,\s*reviewId,/);
+  assert.match(mutations, /approve_voice_lab_candidate\(reviewed_line_ids, quality_confirmed, review_id\)/);
   assert.match(actor, /if !evaluation_review_complete\(&evaluation, &reviewed_line_ids\)/);
   assert.match(actor, /if !quality_confirmed\s*\{\s*return result\(\s*false,\s*"evaluation_quality_confirmation_required"/);
   assert.ok(actor.indexOf("if !quality_confirmed") < actor.indexOf("match promote_voice_actor_candidate"));
@@ -152,4 +152,13 @@ test("guided-take signal reasons provide actionable recording guidance without a
     assert.ok(recordingUi.includes("voice_lab:take_signal_unusable:" + reason), reason);
   }
   assert.match(recordingUi, /recordingQualityGuidance\(recordingState\.pending_review\.quality_blocker\)/);
+});
+
+test("My Voice listening and approval require the same synthesized review identity", () => {
+  assert.match(status, /evaluation_review_id: evaluation\.as_ref\(\)\.map\(/);
+  assert.match(ui, /build\.evaluation_review_id !== next\.evaluation_review_id/);
+  assert.match(ui, /myVoiceBuildApi\.getEvaluationAudio\(lineId, reviewId\)/);
+  assert.match(bridge, /get_voice_lab_evaluation_audio", \{ lineId, reviewId \}/);
+  assert.match(actor, /if review_id != evaluation\.review_id/);
+  assert.match(actor, /if review_id != manifest\.review_id/);
 });

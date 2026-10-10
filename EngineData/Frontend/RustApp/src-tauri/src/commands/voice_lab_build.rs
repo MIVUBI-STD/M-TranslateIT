@@ -32,9 +32,9 @@ mod phase;
 pub use evaluation::VoiceLabEvaluationSample;
 use phase::reconcile_phase;
 use evaluation::{
-    candidate_selection_matches_actor_json, evaluation_dir, evaluation_manifest,
-    evaluation_review_complete, frozen_dataset_matches_current, held_out_contract,
-    EvaluationManifest, MAX_EVALUATION_WAV_BYTES,
+    evaluation_dir, evaluation_review_complete, held_out_contract,
+    reviewable_evaluation as reviewable_evaluation_for_takes, EvaluationManifest,
+    MAX_EVALUATION_WAV_BYTES,
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
@@ -104,6 +104,7 @@ pub struct VoiceLabBuildStatus {
     pub missing_coverage: Option<VoiceLabCoverageGuidance>,
     pub can_build: bool,
     pub evaluation_ready: bool,
+    pub evaluation_review_id: Option<String>,
     pub evaluation_samples: Vec<VoiceLabEvaluationSample>,
     pub approved_voice_ready: bool,
 }
@@ -170,17 +171,7 @@ fn clear_previous_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), St
 }
 
 fn reviewable_evaluation(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifest> {
-    let evaluation = evaluation_manifest(paths)?;
-    if !frozen_dataset_matches_current(
-        &paths.takes_dir,
-        &paths.build_dataset_dir,
-        &accepted_contract().0,
-    ) {
-        return None;
-    }
-    let actor_bytes = fs::read(paths.candidate_actor_dir.join("actor.json")).ok()?;
-    let actor_json = serde_json::from_slice::<serde_json::Value>(&actor_bytes).ok()?;
-    candidate_selection_matches_actor_json(&evaluation, &actor_json).then_some(evaluation)
+    reviewable_evaluation_for_takes(paths, &accepted_contract().0)
 }
 
 fn clear_build_terminal_message() {
@@ -382,6 +373,7 @@ fn current_status() -> VoiceLabBuildStatus {
             && missing_coverage.is_none()
             && reference_take_ready,
         evaluation_ready: evaluation.is_some(),
+        evaluation_review_id: evaluation.as_ref().map(|value| value.review_id.clone()),
         evaluation_samples: evaluation.map(|value| value.samples).unwrap_or_default(),
         approved_voice_ready: approved_ready,
     }
@@ -713,6 +705,7 @@ pub fn select_builtin_voice(
 pub fn approve_voice_lab_candidate(
     reviewed_line_ids: Vec<u32>,
     quality_confirmed: bool,
+    review_id: String,
 ) -> VoiceLabBuildActionResult {
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
@@ -735,6 +728,9 @@ pub fn approve_voice_lab_candidate(
             "My Voice review files no longer match the candidate that would be saved. Create My Voice again.",
         );
     };
+    if review_id != evaluation.review_id {
+        return result(false, "evaluation_candidate_mismatch", "The voice changed. Listen to the current previews before approving.");
+    }
     if !evaluation_review_complete(&evaluation, &reviewed_line_ids) {
         return result(
             false,
@@ -769,10 +765,16 @@ pub fn approve_voice_lab_candidate(
 }
 
 #[tauri::command]
-pub fn get_voice_lab_evaluation_audio(line_id: u32) -> Result<tauri::ipc::Response, String> {
+pub fn get_voice_lab_evaluation_audio(
+    line_id: u32,
+    review_id: String,
+) -> Result<tauri::ipc::Response, String> {
     let paths = storage();
     let manifest = reviewable_evaluation(&paths)
         .ok_or_else(|| "voice_lab:evaluation_unavailable".to_string())?;
+    if review_id != manifest.review_id {
+        return Err("voice_lab:evaluation_review_changed".to_string());
+    }
     let sample = manifest
         .samples
         .into_iter()

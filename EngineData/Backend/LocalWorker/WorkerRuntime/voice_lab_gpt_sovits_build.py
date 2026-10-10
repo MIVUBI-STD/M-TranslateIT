@@ -760,7 +760,22 @@ def build_candidate(
     )
 
     selection_method = "held_out_artifacts_then_mean_wer_then_max_wer_then_similarity_tiebreak"
+    # Review identity uses the actual selected WAV hashes; held-out line IDs and
+    # checkpoint labels are reused across builds and cannot identify audio.
+    review_fingerprint = {
+        "engine_revision": ENGINE_REVISION,
+        "selection_method": selection_method,
+        "candidate_id": str(selected["candidate_id"]),
+        "audio": [
+            [int(sample["line_id"]), str(sample["sha256"])]
+            for sample in selected["samples"]
+        ],
+    }
+    review_id = hashlib.sha256(
+        json.dumps(review_fingerprint, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     evaluation_payload = {
+        "review_id": review_id,
         "schema_version": 1,
         "engine": ENGINE,
         "engine_revision": ENGINE_REVISION,

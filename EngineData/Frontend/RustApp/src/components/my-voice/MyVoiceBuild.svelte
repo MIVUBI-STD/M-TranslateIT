@@ -29,6 +29,7 @@
     missing_coverage: null,
     can_build: false,
     evaluation_ready: false,
+    evaluation_review_id: null,
     evaluation_samples: [],
     approved_voice_ready: false,
   });
@@ -81,6 +82,11 @@
   }
 
   function applyStatus(next: MyVoiceBuildStatus): void {
+    if (build.evaluation_review_id !== next.evaluation_review_id) {
+      reviewedLineIds = [];
+      qualityConfirmed = false;
+      stopAudio();
+    }
     build = next;
     if (!next.evaluation_ready) {
       reviewedLineIds = [];
@@ -259,11 +265,11 @@
   }
 
   async function approve(): Promise<void> {
-    if (busy || build.active || !build.evaluation_ready || !evaluationReviewComplete || !qualityConfirmed) return;
+    if (busy || build.active || !build.evaluation_ready || !build.evaluation_review_id || !evaluationReviewComplete || !qualityConfirmed) return;
     stopAudio();
     busy = true;
     try {
-      const result = await myVoiceBuildApi.approve(reviewedLineIds, qualityConfirmed);
+      const result = await myVoiceBuildApi.approve(reviewedLineIds, qualityConfirmed, build.evaluation_review_id);
       applyResult(result);
       if (result.ok && result.state === "approved") {
         await onMeetingVoiceChanged(productMessage(result));
@@ -275,7 +281,10 @@
 
   async function playEvaluation(lineId: number): Promise<void> {
     if (busy || playingLineId !== null) return;
-    const bytes = await myVoiceBuildApi.getEvaluationAudio(lineId);
+    const reviewId = build.evaluation_review_id;
+    if (!reviewId) return;
+    const bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId);
+    if (reviewId !== build.evaluation_review_id) return;
     if (!bytes) {
       onNotice("This My Voice preview is unavailable.");
       return;

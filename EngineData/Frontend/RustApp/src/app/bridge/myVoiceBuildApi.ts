@@ -35,6 +35,7 @@ export type MyVoiceBuildStatus = {
   missing_coverage: MyVoiceCoverageGuidance | null;
   can_build: boolean;
   evaluation_ready: boolean;
+  evaluation_review_id: string | null;
   evaluation_samples: MyVoiceEvaluationSample[];
   approved_voice_ready: boolean;
 };
@@ -65,6 +66,7 @@ function unavailableStatus(): MyVoiceBuildStatus {
     missing_coverage: null,
     can_build: false,
     evaluation_ready: false,
+    evaluation_review_id: null,
     evaluation_samples: [],
     approved_voice_ready: false,
   };
@@ -114,10 +116,11 @@ export const myVoiceBuildApi = {
       : unavailableAction("My Voice could not confirm that creation stopped.");
   },
 
-  async approve(reviewedLineIds: number[], qualityConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
+  async approve(reviewedLineIds: number[], qualityConfirmed: boolean, reviewId: string): Promise<MyVoiceBuildActionResult> {
     const action = await runCommand<MyVoiceBuildActionResult>("approve_product_voice_candidate", {
       reviewedLineIds,
       qualityConfirmed,
+      reviewId,
     });
     return action
       ? normalizeAction(action)
@@ -151,8 +154,8 @@ export const myVoiceBuildApi = {
     return action ? normalizeAction(action) : unavailableAction("My Voice could not switch to that built-in voice.");
   },
 
-  async getEvaluationAudio(lineId: number): Promise<ArrayBuffer | null> {
-    return runCommand<ArrayBuffer>("get_voice_lab_evaluation_audio", { lineId });
+  async getEvaluationAudio(lineId: number, reviewId: string): Promise<ArrayBuffer | null> {
+    return runCommand<ArrayBuffer>("get_voice_lab_evaluation_audio", { lineId, reviewId });
   },
 
   subscribeRuntime(

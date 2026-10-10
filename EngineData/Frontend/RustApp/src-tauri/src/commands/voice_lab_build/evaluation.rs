@@ -43,6 +43,7 @@ pub(super) struct EvaluationManifest {
     engine_revision: String,
     pub(super) selection_method: String,
     pub(super) selected_candidate_id: String,
+    pub(super) review_id: String,
     pub(super) samples: Vec<VoiceLabEvaluationSample>,
 }
 
@@ -140,6 +141,8 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
         || manifest.engine_revision != VOICE_ACTOR_ENGINE_REVISION
         || manifest.selection_method != EVALUATION_SELECTION_METHOD
         || manifest.selected_candidate_id.trim().is_empty()
+        || manifest.review_id.len() != 64
+        || !manifest.review_id.bytes().all(|byte| byte.is_ascii_hexdigit())
         || manifest.samples.len() != HELD_OUT_LINES.len()
     {
         return None;
@@ -184,6 +187,21 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
     Some(manifest)
 }
 
+
+pub(super) fn reviewable_evaluation(
+    paths: &VoiceLabStoragePaths,
+    current_takes: &[GuidedTakeContract],
+) -> Option<EvaluationManifest> {
+    let evaluation = evaluation_manifest(paths)?;
+    let actor_bytes = fs::read(paths.candidate_actor_dir.join("actor.json")).ok()?;
+    let actor_json = serde_json::from_slice::<serde_json::Value>(&actor_bytes).ok()?;
+    if !candidate_selection_matches_actor_json(&evaluation, &actor_json)
+        || !frozen_dataset_matches_current(&paths.takes_dir, &paths.build_dataset_dir, current_takes)
+    {
+        return None;
+    }
+    Some(evaluation)
+}
 
 pub(super) fn candidate_selection_matches_actor_json(
     manifest: &EvaluationManifest,
@@ -231,6 +249,7 @@ mod tests {
             engine_revision: VOICE_ACTOR_ENGINE_REVISION.to_string(),
             selection_method: EVALUATION_SELECTION_METHOD.to_string(),
             selected_candidate_id: "s8-g15".to_string(),
+            review_id: "a".repeat(64),
             samples: HELD_OUT_LINES
                 .iter()
                 .map(|(line_id, text)| VoiceLabEvaluationSample {
@@ -298,6 +317,13 @@ mod tests {
         fs::remove_file(takes_dir.join(filename)).expect("remove accepted audio");
         assert!(!frozen_dataset_matches_current(&takes_dir, &dataset_dir, &[take]));
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+    #[test]
+    fn review_identity_is_specific_and_well_formed() {
+        let manifest = manifest();
+        assert_eq!(manifest.review_id.len(), 64);
+        assert_ne!(manifest.review_id, "b".repeat(64));
     }
 
     #[test]
