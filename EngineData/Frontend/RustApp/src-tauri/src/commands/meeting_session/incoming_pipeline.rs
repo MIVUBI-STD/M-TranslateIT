@@ -73,7 +73,7 @@ fn process_incoming_wav_with_direction(
             "audio_path": audio_path,
             "language": source_language,
             "beam_size": 1,
-            "vad_filter": true,
+            "vad_filter": super::FINALIZED_MEETING_ASR_WORKER_VAD,
             "hotwords": asr_hotwords,
             "meeting_session_id": session_id,
             "meeting_lane": "incoming",

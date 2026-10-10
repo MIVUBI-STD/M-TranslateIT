@@ -144,7 +144,7 @@ pub(super) fn process_outbound_wav(
             "audio_path": audio_path,
             "language": "id",
             "beam_size": 1,
-            "vad_filter": true,
+            "vad_filter": super::FINALIZED_MEETING_ASR_WORKER_VAD,
             "hotwords": asr_hotwords,
             "meeting_session_id": session_id,
             "meeting_lane": "you",

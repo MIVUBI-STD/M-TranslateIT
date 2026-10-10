@@ -8,6 +8,11 @@ use crate::engine::runtime_state::{
 
 use super::helper_bridge::HelperBridgeWorkerResponse;
 
+// Rust finalization owns the Meeting speech boundary. Avoid a second
+// Silero VAD pass that may trim an already accepted, bounded utterance.
+// Worker ASR requests outside the finalized Meeting lanes retain their own VAD policy.
+const FINALIZED_MEETING_ASR_WORKER_VAD: bool = false;
+
 mod committed_turns;
 mod consumer_runtime;
 mod incoming_activation;
