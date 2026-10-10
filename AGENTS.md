@@ -109,6 +109,12 @@ recover current Local authority
 
 No silent transition from Plan to Development.
 
+## Agent execution and bounded context
+
+`AGENTS.md` remains the canonical work-mode and specialist policy. Classify the user's task explicitly as `INSPECT | PLAN | DIAGNOSE | DEVELOP | REPAIR | VALIDATE | RELEASE` and select the existing work mode before consulting any helper. For ambiguous ownership or a genuine cross-language task, `python tools/repository_context.py --mode <mode> --intent "<goal>" [--scope <registered-scope>] [--owner <exact-file>] [--write <proposed-path>]` produces a **read-only** projection of `REQUIRED / CONDITIONAL / EXCLUDED` context, optional permission preflight, and optional impact/retrieval evidence. Never treat this planner as a natural-language router, autonomous approval, executor, new agent, or source of product semantics.
+
+Known bounded owners go directly to their exact source. Invoke context projection only if it can change a material decision; do not load all specialists or use a full-repo scan by default. `INSPECT/PLAN` remain read-only. An explicit `--activate-specialist` may select at most one existing domain skill for development; complex work additionally includes `development-brief`. Cross-scope symptoms require an evidence-bounded handoff and STOP, not automatic lane switching. Stable procedure is in `docs/knowledge/flow.md`.
+
 ## Repository knowledge and contract access
 
 Select one document domain through `docs/README.md`, then follow stable document IDs and explicit links. `tools/repository_knowledge.py` derives a read-only Catalog/Graph and scoped section retrieval directly from canonical Markdown; an index match, reference, or historical record is not proof. For interop boundaries use `tools/interop-contracts.json` only to locate source owners and their existing validators. Do not create a second protocol/DTO truth or manually promote test presence to executed success.

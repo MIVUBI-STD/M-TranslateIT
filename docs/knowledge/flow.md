@@ -85,6 +85,35 @@ STOP Condition
 
 Use `.agents/skills/development-brief/SKILL.md`, then at most one semantic specialist.
 
+## Task class, context projection, and handoff
+
+Work mode remains owned by `AGENTS.md`. Classify a task, then use the minimum canonical owner:
+
+```text
+context-recovery → INSPECT | DIAGNOSE (read-only)
+plan             → PLAN (read-only)
+bounded          → REPAIR | DEVELOP | VALIDATE
+standard         → DEVELOP | REPAIR | VALIDATE | RELEASE
+complex          → DEVELOP | REPAIR | VALIDATE | RELEASE; development-brief required
+```
+
+`RELEASE` is an explicit request requiring separate authorization; context selection never publishes, dispatches CI, changes branches, or approves a release. Scope is the existing governance or registered domain-specialist boundary, not a new task database.
+
+Use `python tools/repository_context.py --mode <mode> --intent "<goal>" --scope <scope> --owner <exact-file>` **only** when owner, permission, context budget, or cross-language impact is materially uncertain. The projection composes `repository_permissions.py`, `repository_knowledge.py`, and `repository_impact.py`; it never duplicates their authority or infers mode/specialist from keywords. Add `--write <path>` for advisory write preflight, `--changed <path>` for optional conservative affected evidence, `--resume` only for actual continuity, or `--knowledge-query "<terms>" --knowledge-domain foundation|knowledge` for explicitly scoped *ranking*, not truth. The output is not executable proof.
+
+```text
+REQUIRED     current root GitHub/agent rules + the exact selected owner
+             development discipline when developing
+             development-brief only for complex mode
+             the one specialist only when explicitly selected and useful
+CONDITIONAL  CONTEXT.md, continuation, selected product law, other specific
+             owner/validator only when it changes the next decision
+EXCLUDED     all other specialists, sibling docs domains, broad source/history
+             and target Windows acceptance unless intrinsically relevant
+```
+
+For a cross-domain defect, do not silently change the active scope. A `DEVELOPMENT_HANDOFF` must name `source_scope`, distinct registered `target_scope`, `observed`, `expected`, `minimum_evidence`, and `resume_stage`; the resulting packet is **PROPOSED_NOT_ACTIVATED**. Finish or STOP the originating bounded task before a new authorized scope begins. Historical test/commit evidence cannot replace current source truth.
+
 ## Routing evidence
 
 Six canonical skills remain unchanged. Golden routing cases validate expected modes and specialist ownership; only actual observed agent-run receipts may support a model-routing accuracy claim. A semantic specialist never overrides the active lane's permission or starts an unrelated release.

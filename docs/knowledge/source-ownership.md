@@ -32,6 +32,7 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Document identity/graph/section lookup | `docs/**/*.md` metadata + links → `tools/repository_knowledge.py` (derived) |
 | Cross-language contract test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` (navigation, not DTO truth) |
 | Changed-path affected-proof recommendation | `tools/repository_impact.py` (derived from existing contracts + literal regression links; not dependency authority) |
+| Task-mode context projection / handoff | `tools/repository_context.py` (read-only composition; mode policy remains in `AGENTS.md`) |
 | Frontend source/bridge contracts | `EngineData/Frontend/RustApp/scripts/` validators |
 
 ## Desktop product/runtime

@@ -33,6 +33,12 @@ Framework documentation, autofixers, testing/profiling tools and external resear
 | Physical mic/capture/VAD/Windows devices/Meeting route/delivery | `windows-audio-runtime-development` |
 | Installer/private Python/runtime assets/models/audio-provider delivery | `release-packaging-development` |
 
+## Activation and scope isolation
+
+An assigned semantic scope is not automatic permission to load its Skill. A known bounded owner may be handled directly. Load a single specialist only when its reusable procedure materially changes the decision; `complex-development` additionally needs the existing `development-brief`. Do not preload sibling specialist Skills, and never create a generic manager/agent/router just to select existing ones.
+
+Cross-domain diagnosis stays with the originating scope until evidence establishes a distinct target. A handoff carries observed vs expected, minimum reproduction/evidence, named target scope and resume stage. Handoff output is advisory: it never switches active specialist, authorizes target mutation or converts an UNKNOWN into an asserted product bug. Current context projection is read-only in `tools/repository_context.py` and source/boundary meaning remains in root `AGENTS.md` and the canonical domain owner.
+
 ## Current product terminology
 
 Specialists must use current product law:

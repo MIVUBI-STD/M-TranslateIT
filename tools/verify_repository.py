@@ -37,6 +37,8 @@ REQUIRED_PATHS = (
     "tools/repository_contracts.py",
     "tools/repository_impact.py",
     "tools/tests/test_repository_impact.py",
+    "tools/repository_context.py",
+    "tools/tests/test_repository_context.py",
     "tools/interop-contracts.json",
     "tools/tests/test_repository_knowledge.py",
     "tools/tests/test_repository_contracts.py",
@@ -601,6 +603,11 @@ def check_repository_information_architecture(errors: list[str]) -> None:
         errors.extend(f"affected-proof planning: {issue}" for issue in verify_impact())
     except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
         fail(errors, f"invalid affected-proof planner: {exc}")
+    try:
+        from repository_context import verify_context
+        errors.extend(f"agent context flow: {issue}" for issue in verify_context())
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid agent context projection: {exc}")
 
 
 def main() -> int:

@@ -33,7 +33,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Verify current `Local` source using available targeted checks; reconcile genuine Rust/ApplicationRuntime failures against current evidence. GitHub manual workflows exist only on `Local` while `main` remains default, so dispatch remains unavailable/unproven. Keep `main` untouched until final acceptance and explicit approval.
+Next: scoped source-dependency and affected execution (Batch 2), using the read-only context projection. Rust/ApplicationRuntime compiler and target-Windows acceptance remain unverified. `main` stays final-only; manual CI is opt-in and not currently dispatchable from the default branch.
 
 Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
 

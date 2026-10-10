@@ -116,7 +116,7 @@ For non-trivial mutation:
 6. update only canonical owners whose state changed;
 7. stop after acceptance.
 
-Prefer targeted checks during iteration. Do not run broad verification repeatedly for reassurance. When changed-source dependencies cross Rust/TypeScript/Python owners, the optional `tools/repository_impact.py --changed <path>` provides conservative candidate tests and full-manual-CI choices; `CONSERVATIVE` or unknown edges require broader proof or explicit review, never an unjustified skip.
+Context selection is explicit and bounded: `tools/repository_context.py` may project minimal owner/skill/doc dependencies but is not a second agent router, approval or executable proof. A proposed handoff never activates another scope. Prefer targeted checks during iteration. Do not run broad verification repeatedly for reassurance. When changed-source dependencies cross Rust/TypeScript/Python owners, the optional `tools/repository_impact.py --changed <path>` provides conservative candidate tests and full-manual-CI choices; `CONSERVATIVE` or unknown edges require broader proof or explicit review, never an unjustified skip.
 
 ## Performance work
 
