@@ -92,30 +92,42 @@ fn generate_once() -> QuickVoicePreviewResult {
             .current_dir(worker_root())
             .stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null());
         let mut child = command.spawn().map_err(|_| "preview_process_unavailable")?;
-        let input_sent = child.stdin.take().map(|mut stdin| stdin.write_all(&payload).is_ok())
-            .unwrap_or(false);
-        if !input_sent {
+        let Some(mut stdin) = child.stdin.take() else {
             let _ = child.kill();
             let _ = child.wait();
             return Err("preview_input_unavailable".into());
-        }
+        };
+        // Writing a full set of references may block until Python starts reading.
+        // Keep cancellation and the 180-second deadline active during this write.
         let deadline = Instant::now() + TIMEOUT;
-        loop {
+        let writer = thread::spawn(move || stdin.write_all(&payload).is_ok());
+        let execution: Result<(), String> = loop {
             match child.try_wait() {
                 Ok(Some(status)) => {
-                    if !status.success() { return Err("preview_generation_failed".into()); }
-                    break;
+                    if !status.success() { break Err("preview_generation_failed".into()); }
+                    break Ok(());
                 }
                 Ok(None) => (),
-                Err(_) => { let _ = child.kill(); let _ = child.wait(); return Err("preview_wait_failed".into()); }
+                Err(_) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break Err("preview_wait_failed".into());
+                }
             }
             let authority = current_voice_lab_build_snapshot();
             if authority.generation != Some(generation) || authority.cancel_requested || Instant::now() >= deadline {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err("preview_cancelled_or_timed_out".into());
+                break Err("preview_cancelled_or_timed_out".into());
             }
             thread::sleep(Duration::from_millis(100));
+        };
+        // Child exit/termination closes its pipe; always reap the writer before
+        // releasing VoiceLab authority, without detaching a background writer.
+        let input_sent = writer.join().unwrap_or(false);
+        execution?;
+        if !input_sent {
+            return Err("preview_input_unavailable".into());
         }
         // A child can exit successfully after Stop was requested; success must
         // still belong to the current, non-cancelled VoiceLab generation.
@@ -129,8 +141,8 @@ fn generate_once() -> QuickVoicePreviewResult {
         }
         Ok(())
     })();
-    ACTIVE_PREVIEW_GENERATION.store(0, Ordering::Release);
     let _ = fail_voice_lab_build(generation); // release resource; NEVER complete/approve a trained actor
+    ACTIVE_PREVIEW_GENERATION.store(0, Ordering::Release);
     if let Err(blocker) = result {
         let _ = fs::remove_file(preview_dir().join(PREVIEW_WAV));
         outcome(false, &blocker, "Quick Preview did not complete. Meeting voice was unchanged.")

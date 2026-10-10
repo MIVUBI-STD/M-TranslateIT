@@ -293,6 +293,11 @@ fn child_status(paths: &VoiceLabStoragePaths) -> Option<BuildChildStatusFile> {
 }
 
 fn reconcile_phase(paths: &VoiceLabStoragePaths) {
+    // The preview borrows the VoiceLab resource but is not a trained build.
+    // Its phase must never be changed by a previous build's status.json.
+    if super::voice_lab_preview::quick_voice_preview_active() {
+        return;
+    }
     let snapshot = current_voice_lab_build_snapshot();
     let Some(generation) = snapshot.generation else {
         return;
@@ -327,7 +332,8 @@ fn current_status() -> VoiceLabBuildStatus {
     let (takes, duration_ms, reference_take_ready) = accepted_contract();
     let missing_coverage = missing_training_coverage_group(&takes);
     let evaluation = reviewable_evaluation(&paths);
-    let child = child_status(&paths);
+    let preview_active = super::voice_lab_preview::quick_voice_preview_active();
+    let child = if preview_active { None } else { child_status(&paths) };
     let approved_ready = approved_voice_actor_ready(&paths);
     let terminal_message = process_store()
         .0
@@ -335,7 +341,11 @@ fn current_status() -> VoiceLabBuildStatus {
         .ok()
         .map(|state| state.terminal_message.clone())
         .unwrap_or_default();
-    let message = if snapshot.active {
+    let message = if preview_active && snapshot.phase == "cancelling" {
+        "Stopping Quick Preview safely.".to_string()
+    } else if preview_active {
+        "Creating Quick Preview locally.".to_string()
+    } else if snapshot.active {
         child.as_ref().map(|status| status.message.clone()).unwrap_or_else(|| {
             match snapshot.phase.as_str() {
                 "preparing" => "Preparing VoiceLab training data.".to_string(),
@@ -374,7 +384,7 @@ fn current_status() -> VoiceLabBuildStatus {
 
     VoiceLabBuildStatus {
         active: snapshot.active,
-        preview_active: super::voice_lab_preview::quick_voice_preview_active(),
+        preview_active,
         generation: snapshot.generation,
         phase: snapshot.phase,
         message,

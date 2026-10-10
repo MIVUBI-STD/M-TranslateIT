@@ -76,6 +76,8 @@ test("reference ranking belongs to the Python training selector", () => {
   assert.match(preview, /MAX_REFERENCE_PAYLOAD_BYTES/);
   assert.match(preview, /Stdio::piped\(\)/);
   assert.match(preview, /stdin\.write_all\(&payload\)/);
+  assert.match(preview, /let writer = thread::spawn/);
+  assert.match(preview, /writer\.join\(\)/);
   assert.doesNotMatch(preview, /command\.arg\("--reference-candidate"\)/);
   assert.match(preview, /"line_id": take.line_id/);
   assert.doesNotMatch(preview, /TARGET_REFERENCE_BYTES|min_by_key/);
@@ -87,4 +89,29 @@ test("preview readiness is invalidated when accepted recording revision or train
   assert.match(ui, /seenRefreshRevision = revision;\s*quickPreviewReady = false;\s*stopAudio\(\)/);
   assert.match(ui, /if \(next.active && !next.preview_active\)/);
   assert.match(ui, /quickPreviewReady = false;\s*stopAudio\(\)/);
+});
+
+test("preview phase cannot be reconciled from stale trained-build status", () => {
+  const start = status.indexOf("fn reconcile_phase(");
+  const end = status.indexOf("fn current_status(", start);
+  assert.ok(start >= 0 && end > start);
+  assert.match(
+    status.slice(start, end),
+    /if super::voice_lab_preview::quick_voice_preview_active\(\) \{\s*return;/,
+  );
+  assert.match(status, /let child = if preview_active \{ None \} else \{ child_status\(&paths\) \}/);
+  assert.match(status, /"Creating Quick Preview locally\."/);
+  assert.match(status, /"Stopping Quick Preview safely\."/);
+});
+
+test("preview cancellation and timeout remain effective while input is written", () => {
+  const writer = preview.indexOf("let writer = thread::spawn");
+  const deadline = preview.indexOf("let deadline = Instant::now() + TIMEOUT");
+  const monitor = preview.indexOf("let execution: Result<(), String> = loop");
+  const join = preview.indexOf("writer.join()");
+  assert.ok(deadline >= 0 && deadline < writer && writer < monitor && monitor < join);
+  assert.match(preview.slice(monitor, join), /authority\.cancel_requested/);
+  assert.match(preview.slice(monitor, join), /Instant::now\(\) >= deadline/);
+  assert.match(preview.slice(monitor, join), /child\.kill\(\)/);
+  assert.match(preview, /fail_voice_lab_build\(generation\)[\s\S]*ACTIVE_PREVIEW_GENERATION\.store\(0, Ordering::Release\)/);
 });
