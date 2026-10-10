@@ -86,6 +86,8 @@ const expectedResources = {
   "../../../Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py": "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py",
   "../../../Backend/LocalWorker/WorkerRuntime/translation_envelope.py": "EngineData/Backend/LocalWorker/WorkerRuntime/translation_envelope.py",
   "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_build.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_build.py",
+  "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py",
+  "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_quick_preview.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_quick_preview.py",
   "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py",
   "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_upstream_stage.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_upstream_stage.py",
   "../../../Backend/LocalWorker/WorkerRuntime/model_manifest.json": "EngineData/Backend/LocalWorker/WorkerRuntime/model_manifest.json",

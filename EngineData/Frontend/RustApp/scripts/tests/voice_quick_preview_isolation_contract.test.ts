@@ -8,6 +8,11 @@ const bridge = readFileSync(new URL("../../src/app/bridge/myVoiceBuildApi.ts", i
 const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
 const status = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
 const phase = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build/phase.rs", import.meta.url), "utf8");
+const releaseConfig = JSON.parse(readFileSync(new URL("../../src-tauri/tauri.release.conf.json", import.meta.url), "utf8"));
+const releaseContract = readFileSync(new URL("../validate_release_package_contract.mjs", import.meta.url), "utf8");
+const releasePayload = readFileSync(new URL("../validate_release_payload.mjs", import.meta.url), "utf8");
+const previewChild = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntime/voice_lab_quick_preview.py", import.meta.url), "utf8");
+const buildChild = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntime/voice_lab_build.py", import.meta.url), "utf8");
 const actor = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
 
 test("quick preview is an isolated one-WAV child with existing VoiceLab authority", () => {
@@ -112,4 +117,16 @@ test("preview cancellation and timeout remain effective while input is written",
   assert.match(preview.slice(monitor, join), /Instant::now\(\) >= deadline/);
   assert.match(preview.slice(monitor, join), /child\.kill\(\)/);
   assert.match(preview, /fail_voice_lab_build\(generation\)[\s\S]*ACTIVE_PREVIEW_GENERATION\.store\(0, Ordering::Release\)/);
+});
+
+test("Setup packages both My Voice children and their shared canonical training module", () => {
+  for (const name of ["voice_lab_quick_preview.py", "voice_lab_gpt_sovits_build.py"]) {
+    const from = `../../../Backend/LocalWorker/WorkerRuntime/${name}`;
+    const to = `EngineData/Backend/LocalWorker/WorkerRuntime/${name}`;
+    assert.equal(releaseConfig.bundle.resources[from], to, `missing packaged WorkerRuntime module: ${name}`);
+    assert.ok(releaseContract.includes(JSON.stringify(from)), `release contract must pin: ${name}`);
+    assert.ok(releasePayload.includes(JSON.stringify(name)), `payload validator must require: ${name}`);
+  }
+  assert.match(previewChild, /from voice_lab_gpt_sovits_build import select_reference/);
+  assert.match(buildChild, /from voice_lab_gpt_sovits_build import build_candidate/);
 });

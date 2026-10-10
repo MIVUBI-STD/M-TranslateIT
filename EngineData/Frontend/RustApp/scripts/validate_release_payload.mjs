@@ -157,6 +157,7 @@ for (const file of [
   "worker_io_runtime.py",
   "translation_envelope.py",
   "voice_lab_build.py",
+  "voice_lab_gpt_sovits_build.py",
   "voice_lab_gpt_sovits.py",
   "voice_lab_quick_preview.py",
   "voice_lab_upstream_stage.py",
