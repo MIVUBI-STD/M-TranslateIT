@@ -417,6 +417,41 @@ pub fn read_worker_response<R: BufRead>(stdout: &mut R) -> Result<Value, String>
         .map_err(|error| format!("worker:invalid_json_response:{error}"))
 }
 
+pub fn validate_worker_response_contract(
+    task: &str,
+    request_id: &str,
+    response: &Value,
+) -> Result<(), String> {
+    let object = response
+        .as_object()
+        .ok_or_else(|| "worker:response_must_be_object".to_string())?;
+    if object.get("request_id").and_then(Value::as_str) != Some(request_id) {
+        return Err("worker:response_request_id_mismatch".to_string());
+    }
+    let ok = object
+        .get("ok")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| "worker:response_ok_must_be_bool".to_string())?;
+    let stage = object
+        .get("stage")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "worker:response_stage_missing".to_string())?;
+    let expected = if task == "status" {
+        "local_realtime_worker_preflight"
+    } else {
+        task
+    };
+    // Worker failures may have a generic protocol/handler stage; a status
+    // deadline may report the requested command rather than its preflight stage.
+    let generic_failure = !ok && matches!(stage, "worker_request" | "worker_error");
+    let failed_status_deadline = !ok && task == "status" && stage == "status";
+    if stage != expected && !generic_failure && !failed_status_deadline {
+        return Err("worker:response_stage_mismatch".to_string());
+    }
+    Ok(())
+}
+
 pub fn read_worker_response_direct_with_deadline(
     mut stdout: BufReader<ChildStdout>,
     deadline_ms: u128,

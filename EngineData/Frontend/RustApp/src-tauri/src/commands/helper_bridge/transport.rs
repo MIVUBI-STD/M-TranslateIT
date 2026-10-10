@@ -17,7 +17,8 @@ use super::{
 };
 use super::super::helper_bridge_runtime::{
     acquire_helper_task_permit, apply_worker_response, clear_active_request,
-    read_worker_response_direct_with_deadline, runtime, runtime_claim, stop_child, unix_ms,
+    read_worker_response_direct_with_deadline, validate_worker_response_contract,
+    runtime, runtime_claim, stop_child, unix_ms,
     worker_response_deadline_for_priority, write_worker_request_with_deadline,
     HelperBridgeActionResult, HelperBridgeRuntime, HelperTaskPriority,
 };
@@ -322,7 +323,11 @@ fn send_worker_task_inner(task: &str, mut payload: Value) -> HelperBridgeWorkerR
     let (mut worker_response, stdout) = match read_worker_response_direct_with_deadline(
         stdout,
         response_deadline_ms,
-    ) {
+    )
+    .and_then(|(response, stdout)| {
+        validate_worker_response_contract(task, &request_id, &response)?;
+        Ok((response, stdout))
+    }) {
         Ok(value) => value,
         Err(error) => {
             let response = match runtime().lock() {

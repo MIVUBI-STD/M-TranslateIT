@@ -317,8 +317,12 @@ def _bounded_protocol_response(payload):
     return result
 
 
-def _respond_protocol(payload) -> None:
+def _respond_protocol(payload, request_id: str | None = None) -> None:
     response = _bounded_protocol_response(payload)
+    # Optional for standalone probes; required for Rust-managed requests.
+    # Echo only the host-supplied identity, overriding a handler's field.
+    if request_id is not None:
+        response["request_id"] = request_id
     sys.stdout.write(json.dumps(response, ensure_ascii=False, allow_nan=False) + "\n")
     sys.stdout.flush()
 
@@ -367,6 +371,20 @@ def main() -> int:
             )
             continue
         assert request is not None
+        request_id = request.get("request_id")
+        if request_id is not None and (
+            not isinstance(request_id, str)
+            or not request_id
+            or len(request_id) > 128
+            or not request_id.isascii()
+            or not all(char.isalnum() or char in "-_" for char in request_id)
+        ):
+            _respond_protocol({
+                "ok": False,
+                "stage": "worker_request",
+                "blocker": "worker:invalid_request_id",
+            })
+            continue
 
         command = runtime.safe_command_name(request.get("command", "status"))
         if runtime.request_deadline_expired(request):
@@ -379,7 +397,8 @@ def main() -> int:
                         "The request reached the worker after its host deadline "
                         "and was not executed."
                     ),
-                }
+                },
+                request_id,
             )
             continue
         handler = runtime.HANDLERS.get(command)
@@ -389,13 +408,14 @@ def main() -> int:
                     "ok": False,
                     "stage": command or "unknown",
                     "blocker": "worker:unknown_command",
-                }
+                },
+                request_id,
             )
             continue
         try:
-            _respond_protocol(handler(request))
+            _respond_protocol(handler(request), request_id)
         except Exception as exc:
-            _respond_protocol(_handler_failure(exc))
+            _respond_protocol(_handler_failure(exc), request_id)
     return 0
 
 

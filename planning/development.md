@@ -26,7 +26,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
 
-Next: audit worker response stage/request identity and retry/cancellation boundaries on `Local`; fix only proven mismatches. No cloud execution or interim PC tests; `main` remains final-only.
+Next: audit offline model/voice asset manifest and native installer input ownership on `Local`; fix only proven mismatches. No cloud execution or interim PC tests; `main` remains final-only.
 
 Eight GitHub Actions workflow definitions remain **inactive** under the no-cloud policy. Their Code Health, repository/quality/lock and Windows release gates describe future local acceptance requirements, not current executable PASS. If source review finds a concrete regression, repair only its canonical owner.
 

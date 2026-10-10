@@ -120,3 +120,48 @@ def test_protocol_rejects_oversized_line_before_handler_dispatch(monkeypatch) ->
     assert payload["stage"] == "worker_request"
     assert payload["blocker"] == "worker:request_too_large"
     assert payload["max_bytes"] == worker.MAX_WORKER_REQUEST_BYTES
+
+def test_protocol_echoes_host_request_id_on_success_and_failure(monkeypatch) -> None:
+    worker = load_worker_module()
+    for outcome in (
+        {"ok": True, "stage": "ping", "request_id": "handler-forged"},
+        {"ok": False, "stage": "ping", "blocker": "worker:test"},
+    ):
+        monkeypatch.setitem(worker.runtime.HANDLERS, "ping", lambda _request: outcome)
+        monkeypatch.setattr(
+            worker.sys, "stdin",
+            io.StringIO('{"command":"ping","request_id":"helper-42"}\n'),
+        )
+        captured = io.StringIO()
+        monkeypatch.setattr(worker.sys, "stdout", captured)
+        assert worker.main() == 0
+        response = json.loads(captured.getvalue().strip())
+        assert response["request_id"] == "helper-42"
+        assert response["ok"] == outcome["ok"]
+
+
+def test_protocol_rejects_invalid_request_id_before_dispatch(monkeypatch) -> None:
+    worker = load_worker_module()
+    monkeypatch.setitem(
+        worker.runtime.HANDLERS, "ping",
+        lambda _request: (_ for _ in ()).throw(AssertionError("must not dispatch")),
+    )
+    monkeypatch.setattr(
+        worker.sys, "stdin",
+        io.StringIO('{"command":"ping","request_id":"invalid/identity"}\n'),
+    )
+    captured = io.StringIO()
+    monkeypatch.setattr(worker.sys, "stdout", captured)
+    assert worker.main() == 0
+    assert json.loads(captured.getvalue().strip()) == {
+        "ok": False, "stage": "worker_request",
+        "blocker": "worker:invalid_request_id",
+    }
+
+
+def test_protocol_keeps_missing_request_id_compatible_with_handshake() -> None:
+    response = run_worker_line('{"command":"ping"}\n')
+    assert response["ok"] is True
+    assert response["stage"] == "ping"
+    assert "request_id" not in response
+

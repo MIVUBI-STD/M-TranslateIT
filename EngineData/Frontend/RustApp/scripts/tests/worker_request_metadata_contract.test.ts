@@ -21,6 +21,14 @@ const worker = readFileSync(
   ),
   "utf8",
 );
+const workerEntry = readFileSync(
+  new URL("../../../../Backend/LocalWorker/WorkerRuntime/realtime_local_worker.py", import.meta.url),
+  "utf8",
+);
+const startup = readFileSync(
+  new URL("../../src-tauri/src/commands/helper_bridge.rs", import.meta.url),
+  "utf8",
+);
 const common = readFileSync(
   new URL(
     "../../../../Backend/LocalWorker/WorkerRuntime/worker_runtime_common.py",
@@ -54,4 +62,23 @@ test("Meeting scheduling metadata remains host-authoritative", () => {
   ]) {
     assert.match(policy, new RegExp(field));
   }
+});
+
+test("Python echoes host IDs and Rust validates reply identity and stage before applying response", () => {
+  assert.ok(workerEntry.includes("def _respond_protocol(payload, request_id: str | None = None)"));
+  assert.ok(workerEntry.includes('response["request_id"] = request_id'));
+  assert.ok(workerEntry.includes("_respond_protocol(handler(request), request_id)"));
+  assert.ok(runtime.includes("pub fn validate_worker_response_contract("));
+  assert.ok(runtime.includes("worker:response_request_id_mismatch"));
+  assert.ok(runtime.includes("worker:response_stage_mismatch"));
+  const checkedAt = transport.indexOf("validate_worker_response_contract(task, &request_id, &response)");
+  const stateAppliedAt = transport.indexOf("apply_worker_response(&mut runtime, &worker_response)");
+  assert.ok(checkedAt >= 0 && stateAppliedAt > checkedAt);
+});
+
+test("startup ping and status identify the requested worker response", () => {
+  assert.ok(startup.includes('"command": "ping", "request_id": STARTUP_PING_REQUEST_ID'));
+  assert.ok(startup.includes('"command": "status", "request_id": STARTUP_STATUS_REQUEST_ID'));
+  assert.ok(startup.includes('"ping", STARTUP_PING_REQUEST_ID, &ping'));
+  assert.ok(startup.includes('"status", STARTUP_STATUS_REQUEST_ID, &value'));
 });

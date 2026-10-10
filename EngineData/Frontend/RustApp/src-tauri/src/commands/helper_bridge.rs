@@ -15,7 +15,8 @@ use super::bridge_paths::{
 use super::helper_bridge_runtime::{
     action_result, apply_worker_status, read_worker_response_direct_with_deadline, runtime,
     set_blocked, spawn_stderr_logger, status_from_runtime, stop_child, unix_ms,
-    worker_response_deadline_ms, write_worker_request_with_deadline, HelperBridgeActionResult,
+    worker_response_deadline_ms, write_worker_request_with_deadline,
+    validate_worker_response_contract, HelperBridgeActionResult,
     HelperBridgeStatus,
 };
 
@@ -32,6 +33,9 @@ use functional_readiness::{
 };
 pub use functional_readiness::required_outbound_voice_actor_token;
 use request_policy::clear_any_meeting_outbound_pipeline;
+
+const STARTUP_PING_REQUEST_ID: &str = "helper-startup-ping";
+const STARTUP_STATUS_REQUEST_ID: &str = "helper-startup-status";
 
 const REQUIRED_OUTBOUND_FUNCTIONAL_VOICE_OUTPUT: &str =
     "UserData/CacheData/helper_functional_readiness/required_outbound_myvoice.wav";
@@ -299,7 +303,7 @@ fn start_helper_bridge_internal(clear_outbound_pipeline: bool) -> HelperBridgeAc
             let ping_deadline_ms = worker_response_deadline_ms("ping");
             if let Err(error) = write_worker_request_with_deadline(
                 &mut stdin,
-                &json!({ "command": "ping" }),
+                &json!({ "command": "ping", "request_id": STARTUP_PING_REQUEST_ID }),
                 ping_deadline_ms,
             ) {
                 stop_child(&mut runtime);
@@ -323,6 +327,16 @@ fn start_helper_bridge_internal(clear_outbound_pipeline: bool) -> HelperBridgeAc
                         );
                     }
                 };
+            if let Err(error) = validate_worker_response_contract(
+                "ping", STARTUP_PING_REQUEST_ID, &ping,
+            ) {
+                stop_child(&mut runtime);
+                return set_blocked(
+                    &mut runtime,
+                    &format!("Helper startup ping response violated protocol: {error}"),
+                    "helper_bridge:ping_response_invalid",
+                );
+            }
             if ping.get("ok").and_then(Value::as_bool) != Some(true) {
                 stop_child(&mut runtime);
                 return set_blocked(
@@ -335,13 +349,23 @@ fn start_helper_bridge_internal(clear_outbound_pipeline: bool) -> HelperBridgeAc
             let status_deadline_ms = worker_response_deadline_ms("status");
             let status = if write_worker_request_with_deadline(
                 &mut stdin,
-                &json!({ "command": "status" }),
+                &json!({ "command": "status", "request_id": STARTUP_STATUS_REQUEST_ID }),
                 status_deadline_ms,
             )
             .is_ok()
             {
                 match read_worker_response_direct_with_deadline(stdout, status_deadline_ms) {
                     Ok((value, next_stdout)) => {
+                        if let Err(error) = validate_worker_response_contract(
+                            "status", STARTUP_STATUS_REQUEST_ID, &value,
+                        ) {
+                            stop_child(&mut runtime);
+                            return set_blocked(
+                                &mut runtime,
+                                &format!("Helper startup status response violated protocol: {error}"),
+                                "helper_bridge:status_response_invalid",
+                            );
+                        }
                         stdout = next_stdout;
                         Some(value)
                     }

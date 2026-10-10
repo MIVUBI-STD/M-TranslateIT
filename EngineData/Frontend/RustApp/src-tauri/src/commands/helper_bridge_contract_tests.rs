@@ -9,7 +9,8 @@ use super::helper_bridge::{
     cancel_helper_bridge_meeting_session, send_helper_worker_task, HelperBridgeWorkerResponse,
 };
 use super::helper_bridge_runtime::{
-    clear_active_request, runtime, set_blocked, stop_child, HelperBridgeRuntime,
+    clear_active_request, runtime, set_blocked, stop_child, validate_worker_response_contract,
+    HelperBridgeRuntime,
 };
 
 fn reset_bridge_runtime() {
@@ -258,4 +259,69 @@ fn blocked_bridge_state_clears_all_active_request_metadata() {
     assert!(bridge.active_meeting_session_id.is_none());
     assert!(bridge.active_meeting_lane.is_none());
     assert_eq!(bridge.last_error.as_deref(), Some("helper_bridge:test_blocked"));
+}
+
+#[test]
+fn worker_response_identity_and_stage_match_the_requested_task() {
+    assert!(validate_worker_response_contract(
+        "ping",
+        "helper-17",
+        &json!({"ok": true, "stage": "ping", "request_id": "helper-17"}),
+    ).is_ok());
+    assert!(validate_worker_response_contract(
+        "status",
+        "helper-18",
+        &json!({"ok": true, "stage": "local_realtime_worker_preflight", "request_id": "helper-18"}),
+    ).is_ok());
+    assert!(validate_worker_response_contract(
+        "translate",
+        "helper-19",
+        &json!({"ok": false, "stage": "worker_error", "request_id": "helper-19"}),
+    ).is_ok());
+    assert!(validate_worker_response_contract(
+        "status",
+        "helper-20",
+        &json!({"ok": false, "stage": "status", "request_id": "helper-20"}),
+    ).is_ok());
+}
+
+#[test]
+fn worker_response_mismatched_identity_and_stage_fail_closed() {
+    for response in [
+        json!({"ok": true, "stage": "ping"}),
+        json!({"ok": true, "stage": "ping", "request_id": "helper-old"}),
+    ] {
+        assert_eq!(
+            validate_worker_response_contract("ping", "helper-current", &response),
+            Err("worker:response_request_id_mismatch".to_string()),
+        );
+    }
+    assert_eq!(
+        validate_worker_response_contract(
+            "ping", "helper-current",
+            &json!({"ok": true, "stage": "translate", "request_id": "helper-current"}),
+        ),
+        Err("worker:response_stage_mismatch".to_string()),
+    );
+    assert_eq!(
+        validate_worker_response_contract(
+            "ping", "helper-current",
+            &json!({"ok": true, "stage": "worker_error", "request_id": "helper-current"}),
+        ),
+        Err("worker:response_stage_mismatch".to_string()),
+    );
+    assert_eq!(
+        validate_worker_response_contract(
+            "ping", "helper-current",
+            &json!({"stage": "ping", "request_id": "helper-current"}),
+        ),
+        Err("worker:response_ok_must_be_bool".to_string()),
+    );
+    assert_eq!(
+        validate_worker_response_contract(
+            "ping", "helper-current",
+            &json!(["not", "an", "object"]),
+        ),
+        Err("worker:response_must_be_object".to_string()),
+    );
 }
