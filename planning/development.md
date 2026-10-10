@@ -26,16 +26,9 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
 
-Next: audit Rust↔Python worker request/response framing and failure handling on `Local`; repair only proven mismatches. No cloud execution or interim PC tests. `main` remains final-only.
+Next: audit worker response stage/request identity and retry/cancellation boundaries on `Local`; fix only proven mismatches. No cloud execution or interim PC tests; `main` remains final-only.
 
-Verification definitions exist on `Local` but hosted execution is deliberately inactive:
-
-- Eight manual-only workflows remain dormant; no hosted dispatch.
-- Code Health manual dispatch = full-domain Frontend + Rust + Python proof with aggregate gate.
-- Repository/quality/lock workflows write exact-SHA summaries.
-- Manual R3 Release Contract requires controlled Windows payload proof.
-
-If CI reports a concrete regression, repair only that regression.
+Eight GitHub Actions workflow definitions remain **inactive** under the no-cloud policy. Their Code Health, repository/quality/lock and Windows release gates describe future local acceptance requirements, not current executable PASS. If source review finds a concrete regression, repair only its canonical owner.
 
 After static source/integration review and locked package-input preparation, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: a single grouped local build/package/install + `TARGET_WINDOWS` pass will establish executable proof. Until actually run, build/native results remain unknown.
 

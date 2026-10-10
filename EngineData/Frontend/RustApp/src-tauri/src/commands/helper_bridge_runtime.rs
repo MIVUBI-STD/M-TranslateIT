@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -26,6 +26,9 @@ pub const WORKER_INFERENCE_RESPONSE_DEADLINE_MS: u128 = 90_000;
 pub const STANDALONE_TRANSLATION_DEADLINE_MS: u128 = 180_000;
 pub const WORKER_SYNTHESIS_RESPONSE_DEADLINE_MS: u128 = 45_000;
 pub const WORKER_FALLBACK_RESPONSE_DEADLINE_MS: u128 = WORKER_STATUS_RESPONSE_DEADLINE_MS;
+// The JSON wire protocol transports text/status and file paths, never inline WAV bytes.
+// A bounded response frame prevents an unexpected worker stdout line from growing memory.
+pub const MAX_WORKER_RESPONSE_BYTES: u64 = 1_000_000;
 
 pub fn worker_response_deadline_ms(task: &str) -> u128 {
     match task {
@@ -393,15 +396,24 @@ pub fn write_worker_request_with_deadline(
     stdin.flush().map_err(|error| error.to_string())
 }
 
-pub fn read_worker_response(stdout: &mut BufReader<ChildStdout>) -> Result<Value, String> {
-    let mut line = String::new();
+pub fn read_worker_response<R: BufRead>(stdout: &mut R) -> Result<Value, String> {
+    let mut line = Vec::new();
+    // Read at most one byte beyond the cap so oversized frames are rejected
+    // without allocating the rest of an untrusted or broken stdout stream.
     let size = stdout
-        .read_line(&mut line)
+        .take(MAX_WORKER_RESPONSE_BYTES + 1)
+        .read_until(b'\n', &mut line)
         .map_err(|error| format!("worker:read_failed:{error}"))?;
     if size == 0 {
         return Err("worker:stdout_closed".to_string());
     }
-    serde_json::from_str::<Value>(&line)
+    if size as u64 > MAX_WORKER_RESPONSE_BYTES {
+        return Err("worker:response_too_large".to_string());
+    }
+    if line.last() != Some(&b'\n') {
+        return Err("worker:response_not_newline_terminated".to_string());
+    }
+    serde_json::from_slice::<Value>(&line)
         .map_err(|error| format!("worker:invalid_json_response:{error}"))
 }
 
@@ -437,6 +449,52 @@ pub fn stop_child(runtime: &mut HelperBridgeRuntime) {
     }
     if let Some(logger) = runtime.stderr_logger.take() {
         let _ = logger.join();
+    }
+}
+
+#[cfg(test)]
+mod response_framing_tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn normal_json_line_keeps_existing_response_parsing() {
+        let frame = b"{\"ok\":true,\"stage\":\"ping\"}\n".to_vec();
+        let mut reader = BufReader::new(Cursor::new(frame));
+        let value = read_worker_response(&mut reader).expect("valid JSON response");
+        assert_eq!(value["ok"], json!(true));
+        assert_eq!(value["stage"], json!("ping"));
+    }
+
+    #[test]
+    fn stdout_closed_and_missing_newline_remain_explicit_failures() {
+        let mut empty = BufReader::new(Cursor::new(Vec::<u8>::new()));
+        assert_eq!(read_worker_response(&mut empty).unwrap_err(), "worker:stdout_closed");
+
+        let mut incomplete = BufReader::new(Cursor::new(b"{\"ok\":true}".to_vec()));
+        assert_eq!(
+            read_worker_response(&mut incomplete).unwrap_err(),
+            "worker:response_not_newline_terminated"
+        );
+    }
+
+    #[test]
+    fn oversized_stdout_frame_is_rejected_before_json_parse() {
+        let mut oversized = vec![b'x'; MAX_WORKER_RESPONSE_BYTES as usize];
+        oversized.push(b'\n');
+        let mut reader = BufReader::new(Cursor::new(oversized));
+        assert_eq!(
+            read_worker_response(&mut reader).unwrap_err(),
+            "worker:response_too_large"
+        );
+    }
+
+    #[test]
+    fn malformed_bounded_json_keeps_explicit_error_contract() {
+        let mut reader = BufReader::new(Cursor::new(b"{not-json}\n".to_vec()));
+        assert!(read_worker_response(&mut reader)
+            .unwrap_err()
+            .starts_with("worker:invalid_json_response:"));
     }
 }
 

@@ -54,3 +54,19 @@ test("canonical worker protocol contains the required realtime task set", () => 
 test("unknown Rust worker tasks remain bounded by a fallback deadline", () => {
   assert.match(rust, /_ => WORKER_FALLBACK_RESPONSE_DEADLINE_MS/);
 });
+
+test("Rust stdout JSON framing is capped and requires a newline before accepting data", () => {
+  const reader = rust.slice(
+    rust.indexOf("pub fn read_worker_response<R: BufRead>"),
+    rust.indexOf("pub fn read_worker_response_direct_with_deadline"),
+  );
+  assert.ok(reader.length > 0);
+  assert.match(rust, /MAX_WORKER_RESPONSE_BYTES: u64 = 1_000_000/);
+  assert.match(reader, /\.take\(MAX_WORKER_RESPONSE_BYTES \+ 1\)/);
+  assert.match(reader, /\.read_until\(b'\\n', &mut line\)/);
+  assert.match(reader, /size as u64 > MAX_WORKER_RESPONSE_BYTES/);
+  assert.match(reader, /worker:response_too_large/);
+  assert.match(reader, /worker:response_not_newline_terminated/);
+  assert.doesNotMatch(reader, /\.read_line\(/);
+  assert.match(rust, /mod response_framing_tests/);
+});
