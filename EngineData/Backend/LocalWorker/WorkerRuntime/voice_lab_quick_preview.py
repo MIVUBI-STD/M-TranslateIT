@@ -16,9 +16,11 @@ from pathlib import Path
 
 from voice_lab_gpt_sovits import (
     VoiceLabProviderError,
+    wav_duration_ms,
     prepare_pretrained_voice_preview,
     synthesize_pretrained_voice_preview,
 )
+from voice_lab_gpt_sovits_build import select_reference
 
 PREVIEW_TEXT = "Good morning, everyone. Thank you for joining this meeting."
 OUTPUT_FILE = "quick_voice_preview.wav"
@@ -68,6 +70,37 @@ def validate_preview_wav(path: Path, expected_rate: int) -> None:
         raise VoiceLabProviderError("preview_audio_invalid") from exc
 
 
+def choose_reference(candidates: list[str]) -> tuple[Path, str]:
+    """Use the same signal-first reference ranking as full My Voice training."""
+    takes = []
+    for serialized in candidates:
+        try:
+            item = json.loads(serialized)
+            line_id = item["line_id"]
+            exact_text = item["exact_text"]
+            path_value = item["wav_path"]
+            if (type(line_id) is not int or line_id <= 0
+                    or not isinstance(exact_text, str) or not exact_text.strip()
+                    or len(exact_text) > MAX_REFERENCE_TEXT_CHARS
+                    or not isinstance(path_value, str) or not path_value):
+                raise ValueError("invalid candidate fields")
+            path = Path(path_value)
+            if path.is_symlink() or not path.is_file():
+                raise ValueError("invalid candidate file")
+            takes.append({
+                "line_id": line_id,
+                "exact_text": exact_text.strip(),
+                "wav_path": path,
+                "duration_ms": wav_duration_ms(path),
+            })
+        except (TypeError, ValueError, KeyError, json.JSONDecodeError, OSError) as exc:
+            raise VoiceLabProviderError("preview_reference_candidate_invalid") from exc
+    if not takes or len({take["line_id"] for take in takes}) != len(takes):
+        raise VoiceLabProviderError("preview_reference_candidate_invalid")
+    selected = select_reference(takes)
+    return Path(selected["wav_path"]), str(selected["exact_text"])
+
+
 def preview_once(
     source_root: Path,
     reference_wav: Path,
@@ -99,13 +132,13 @@ def preview_once(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
-    parser.add_argument("--reference-wav", required=True, type=Path)
-    parser.add_argument("--reference-text", required=True)
+    parser.add_argument("--reference-candidate", action="append", required=True)
     parser.add_argument("--output-dir", required=True, type=Path)
     args = parser.parse_args(argv)
     try:
+        reference_wav, reference_text = choose_reference(args.reference_candidate)
         response = preview_once(
-            args.source_root, args.reference_wav, args.output_dir, args.reference_text
+            args.source_root, reference_wav, args.output_dir, reference_text
         )
     except Exception as exc:
         response = {

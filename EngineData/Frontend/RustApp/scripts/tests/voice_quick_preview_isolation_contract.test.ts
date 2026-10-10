@@ -70,10 +70,9 @@ test("preview success rechecks cancellation after child exit", () => {
 });
 
 
-test("reference selection is deterministic and rejects symlinks", () => {
-  assert.match(preview, /symlink_metadata\(&take\.path\)/);
-  assert.match(preview, /meta\.file_type\(\)\.is_symlink\(\)/);
-  assert.match(preview, /min_by_key\(\|\(distance, line_id, _\)\|/);
-  assert.match(preview, /TARGET_REFERENCE_BYTES/);
-  assert.match(preview, /Python remains the final WAV and signal-quality authority/);
+test("reference ranking belongs to the Python training selector", () => {
+  assert.match(preview, /accepted_guided_recordings\(\)/);
+  assert.match(preview, /--reference-candidate/);
+  assert.match(preview, /"line_id": take.line_id/);
+  assert.doesNotMatch(preview, /TARGET_REFERENCE_BYTES|min_by_key/);
 });

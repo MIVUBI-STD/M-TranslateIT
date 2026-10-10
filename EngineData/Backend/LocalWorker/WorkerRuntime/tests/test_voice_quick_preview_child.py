@@ -106,3 +106,30 @@ def test_invalid_generated_wav_is_removed(tmp_path: Path, monkeypatch):
     with pytest.raises(preview.VoiceLabProviderError, match="preview_audio_invalid"):
         preview.preview_once(source, reference, output, "Hello")
     assert not (output / preview.OUTPUT_FILE).exists()
+
+def test_preview_uses_training_reference_selector(tmp_path: Path, monkeypatch):
+    preview = module()
+    _, reference, _ = setup_paths(tmp_path)
+    second = tmp_path / "take2.wav"
+    second.write_bytes(b"second")
+    candidates = [
+        '{"line_id": 1, "exact_text": "One", "wav_path": "' + str(reference).replace("\\", "\\\\") + '"}',
+        '{"line_id": 2, "exact_text": "Two", "wav_path": "' + str(second).replace("\\", "\\\\") + '"}',
+    ]
+    monkeypatch.setattr(preview, "wav_duration_ms", lambda _: 5000)
+    observed = []
+
+    def select(takes):
+        observed.append(takes)
+        return takes[1]
+
+    monkeypatch.setattr(preview, "select_reference", select)
+    path, exact_text = preview.choose_reference(candidates)
+    assert (path, exact_text) == (second, "Two")
+    assert [take["line_id"] for take in observed[0]] == [1, 2]
+
+
+def test_preview_rejects_invalid_reference_candidate(tmp_path: Path):
+    preview = module()
+    with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_candidate_invalid"):
+        preview.choose_reference(['{"line_id": 1, "exact_text": "One", "wav_path": "missing.wav"}'])

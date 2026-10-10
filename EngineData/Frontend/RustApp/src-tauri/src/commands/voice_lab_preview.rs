@@ -12,7 +12,7 @@ use crate::engine::paths::ProjectPaths;
 use super::bridge_paths::{resolve_worker_python_command, worker_root};
 use super::voice_lab::{
     begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
-    request_voice_lab_build_cancel, VoiceLabStoragePaths, MIN_REFERENCE_MS, MAX_REFERENCE_MS,
+    request_voice_lab_build_cancel, VoiceLabStoragePaths,
 };
 use super::voice_lab_recording::{accepted_guided_recordings, voice_lab_recording_active};
 
@@ -42,23 +42,9 @@ fn generate_once() -> QuickVoicePreviewResult {
         return outcome(false, "recording_active", "Finish recording before creating a preview.");
     }
     let accepted = accepted_guided_recordings();
-    // Accepted takes are canonical 32 kHz mono PCM16. Rank eligible takes
-    // closest to the existing five-second reference target, then line ID.
-    // Python remains the final WAV and signal-quality authority.
-    const TARGET_REFERENCE_BYTES: u64 = 5_000 * 64 + 44;
-    let selected = accepted.into_iter().filter_map(|take| {
-        let meta = fs::symlink_metadata(&take.path).ok()?;
-        if !meta.file_type().is_file() || meta.file_type().is_symlink() { return None; }
-        let bytes = meta.len();
-        if !(MIN_REFERENCE_MS * 64 + 44..=MAX_REFERENCE_MS * 64 + 44).contains(&bytes) {
-            return None;
-        }
-        Some((bytes.abs_diff(TARGET_REFERENCE_BYTES), take.line_id, take))
-    }).min_by_key(|(distance, line_id, _)| (*distance, *line_id))
-      .map(|(_, _, take)| take);
-    let Some(reference) = selected else {
+    if accepted.is_empty() {
         return outcome(false, "reference_required", "Accept one clear 3–10 second recording first.");
-    };
+    }
     let Some(python) = resolve_worker_python_command() else {
         return outcome(false, "python_unavailable", "The local voice runtime is not installed.");
     };
@@ -88,10 +74,15 @@ fn generate_once() -> QuickVoicePreviewResult {
         let mut command = Command::new(python.program);
         command.args(python.bootstrap_args);
         command.arg(script).arg("--source-root").arg(source)
-            .arg("--reference-wav").arg(&reference.path)
-            .arg("--reference-text").arg(reference.text)
-            .arg("--output-dir").arg(&destination)
-            .current_dir(worker_root())
+            .arg("--output-dir").arg(&destination);
+        // Pass accepted take identities; the Python training selector alone ranks quality.
+        for take in &accepted {
+            let candidate = serde_json::json!({
+                "line_id": take.line_id, "exact_text": take.text, "wav_path": take.path,
+            });
+            command.arg("--reference-candidate").arg(candidate.to_string());
+        }
+        command.current_dir(worker_root())
             .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
         let mut child = command.spawn().map_err(|_| "preview_process_unavailable")?;
         let deadline = Instant::now() + TIMEOUT;
