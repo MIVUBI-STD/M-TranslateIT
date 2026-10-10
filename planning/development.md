@@ -29,7 +29,7 @@ Goal: improve voice resemblance, intelligibility, naturalness, and reliability u
 Evidence from current Local source:
 - Guided take checks already validate WAV signal quality and known transcripts. Full training reference selection ranks eligible 3–10 second takes by clipping, silence, DC offset, duration proximity and line ID.
 - Training creates bounded GPT/SoVITS checkpoint candidates; held-out synthesis is evaluated with artifact flags, intelligibility WER and speaker similarity. Candidate selection prioritizes clean audio and intelligibility before similarity, followed by user listening and approval.
-- Quick Preview now passes accepted candidate identities from Rust to the Python child, where existing training select_reference owns signal-first ranking. The new source and regression tests are NOT EXECUTED; acoustic improvement is unproven.
+- Quick Preview now passes accepted candidate identities from Rust to the Python child, where existing training select_reference owns signal-first ranking. Corrupt accepted WAVs are now excluded before canonical ranking while malformed candidate metadata fails closed; source tests NOT EXECUTED and acoustic improvement unproven.
 - Quick Preview source, cancellation guard, WAV validation and release entrypoint check are written. Native model output, build, and audio quality are NOT EXECUTED.
 
 Next decisions in order:

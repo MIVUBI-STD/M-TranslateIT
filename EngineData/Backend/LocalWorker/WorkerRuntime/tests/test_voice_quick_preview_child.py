@@ -133,3 +133,25 @@ def test_preview_rejects_invalid_reference_candidate(tmp_path: Path):
     preview = module()
     with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_candidate_invalid"):
         preview.choose_reference(['{"line_id": 1, "exact_text": "One", "wav_path": "missing.wav"}'])
+
+
+def test_corrupt_accepted_wav_does_not_hide_valid_reference(tmp_path: Path, monkeypatch):
+    import json
+    preview = module()
+    bad = tmp_path / "bad.wav"
+    bad.write_bytes(b"broken wav")
+    good = tmp_path / "good.wav"
+    good.write_bytes(b"valid fixture")
+    candidates = [json.dumps({"line_id": i, "exact_text": text, "wav_path": str(path)})
+                  for i, text, path in [(1, "Bad", bad), (2, "Good", good)]]
+
+    def duration(path):
+        if path == bad:
+            raise preview.VoiceLabProviderError("invalid_take:bad.wav")
+        return 5000
+
+    monkeypatch.setattr(preview, "wav_duration_ms", duration)
+    monkeypatch.setattr(preview, "select_reference", lambda takes: takes[0])
+    assert preview.choose_reference(candidates) == (good, "Good")
+    with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_unusable"):
+        preview.choose_reference(candidates[:1])

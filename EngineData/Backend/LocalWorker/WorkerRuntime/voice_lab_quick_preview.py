@@ -87,15 +87,22 @@ def choose_reference(candidates: list[str]) -> tuple[Path, str]:
             path = Path(path_value)
             if path.is_symlink() or not path.is_file():
                 raise ValueError("invalid candidate file")
+            try:
+                duration_ms = wav_duration_ms(path)
+            except VoiceLabProviderError:
+                # A previously accepted WAV may have become corrupt; try other takes.
+                continue
             takes.append({
                 "line_id": line_id,
                 "exact_text": exact_text.strip(),
                 "wav_path": path,
-                "duration_ms": wav_duration_ms(path),
+                "duration_ms": duration_ms,
             })
         except (TypeError, ValueError, KeyError, json.JSONDecodeError, OSError) as exc:
             raise VoiceLabProviderError("preview_reference_candidate_invalid") from exc
-    if not takes or len({take["line_id"] for take in takes}) != len(takes):
+    if not takes:
+        raise VoiceLabProviderError("preview_reference_unusable")
+    if len({take["line_id"] for take in takes}) != len(takes):
         raise VoiceLabProviderError("preview_reference_candidate_invalid")
     selected = select_reference(takes)
     return Path(selected["wav_path"]), str(selected["exact_text"])
