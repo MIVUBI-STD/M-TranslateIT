@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { sanitizeDiagnosticText } from "../../app/shared/diagnosticPrivacy";
   import {
     exportDiagnosticSupportBundle,
     getDeviceLossGuardStatus,
@@ -15,6 +15,8 @@
   } from "../../app/bridge/reliabilityApi";
   import StatusBadge from "../ui/StatusBadge.svelte";
 
+  let { refreshRevision = 0 }: { refreshRevision?: number } = $props();
+
   let watchdog = $state<RuntimeWatchdogStatus | null>(null);
   let recovery = $state<StartupRecoveryReport | null>(null);
   let devices = $state<DeviceLossGuardStatus | null>(null);
@@ -22,15 +24,33 @@
   let longSession = $state<LongSessionHealthStatus | null>(null);
   let exporting = $state(false);
   let exportMessage = $state("");
+  let loading = $state(true);
 
-  async function refresh(): Promise<void> {
-    [watchdog, recovery, devices, incidents, longSession] = await Promise.all([
+  const watchdogLabel = $derived(
+    loading ? "Checking" :
+      !watchdog || watchdog.state === "unavailable" ? "Not verified" :
+      watchdog.state === "idle" ? "Idle" :
+      watchdog.healthy ? "Healthy" : "Needs attention",
+  );
+  const recoveryLabel = $derived(
+    loading || !recovery ? "Not checked" :
+      recovery.blocker ? "Needs attention" :
+      !recovery.cleanup_ok ? "Not verified" :
+      recovery.another_instance_detected ? "Another instance detected" :
+      recovery.previous_unclean_shutdown ? "Recovered" : "Clean",
+  );
+
+  async function refresh(isCurrent: () => boolean): Promise<void> {
+    const next = await Promise.all([
       getRuntimeWatchdogStatus().catch(() => null),
       getStartupRecoveryStatus().catch(() => null),
       getDeviceLossGuardStatus().catch(() => null),
       getRecentRuntimeIncidents().catch(() => null),
       getLongSessionHealthStatus().catch(() => null),
     ]);
+    if (!isCurrent()) return;
+    [watchdog, recovery, devices, incidents, longSession] = next;
+    loading = false;
   }
 
   async function exportSupport(): Promise<void> {
@@ -42,13 +62,25 @@
       exportMessage = result.ok && result.file_path
         ? `${result.message} Saved to ${result.file_path}`
         : result.message;
+    } catch {
+      exportMessage = "Diagnostic export failed. Check the local Diagnostics folder and try again.";
     } finally {
       exporting = false;
     }
   }
 
-  onMount(() => {
-    void refresh();
+  $effect(() => {
+    const revision = refreshRevision;
+    let active = true;
+    loading = true;
+    watchdog = null;
+    recovery = null;
+    devices = null;
+    incidents = null;
+    longSession = null;
+    // A disposed or superseded Diagnostics read must not replace newer data.
+    void refresh(() => active && revision === refreshRevision);
+    return () => { active = false; };
   });
 </script>
 
@@ -59,8 +91,8 @@
       <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">Runtime health</h4>
     </div>
     <StatusBadge
-      label={watchdog?.healthy ? "Healthy" : watchdog?.state === "idle" ? "Idle" : "Needs attention"}
-      tone={watchdog?.healthy ? "good" : watchdog?.action_required ? "danger" : "warning"}
+      label={watchdogLabel}
+      tone={watchdog?.action_required ? "danger" : watchdog?.healthy ? "good" : "warning"}
     />
   </div>
 
@@ -68,17 +100,17 @@
     <div class="ti-state-card">
       <span class="ti-field-label">Watchdog</span>
       <strong class="mt-2 block text-[12px]">{watchdog?.state ?? "Not checked"}</strong>
-      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{watchdog?.note ?? "Open Diagnostics again to refresh runtime health."}</p>
+      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{sanitizeDiagnosticText(watchdog?.note, "Watchdog status has not been loaded.")}</p>
     </div>
     <div class="ti-state-card">
       <span class="ti-field-label">Devices</span>
       <strong class="mt-2 block text-[12px]">{devices?.state ?? "Not checked"}</strong>
-      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{devices?.note ?? "Device-loss status has not been loaded."}</p>
+      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{sanitizeDiagnosticText(devices?.note, "Device-loss status has not been loaded.")}</p>
     </div>
     <div class="ti-state-card">
       <span class="ti-field-label">Previous shutdown</span>
-      <strong class="mt-2 block text-[12px]">{recovery?.previous_unclean_shutdown ? "Recovered" : recovery?.another_instance_detected ? "Another instance detected" : "Clean"}</strong>
-      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{recovery?.note ?? "Startup recovery status has not been loaded."}</p>
+      <strong class="mt-2 block text-[12px]">{recoveryLabel}</strong>
+      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{sanitizeDiagnosticText(recovery?.note, "Startup recovery status has not been loaded.")}</p>
     </div>
   </div>
 
@@ -94,8 +126,8 @@
   {#if incidents?.incidents[0]}
     <div class="mt-4 ti-subtle-card px-4 py-3">
       <span class="ti-field-label">Last incident · {incidents.incidents[0].category}</span>
-      <strong class="mt-1 block text-[11.5px]">{incidents.incidents[0].blocker}</strong>
-      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{incidents.incidents[0].note}</p>
+      <strong class="mt-1 block text-[11.5px]">{sanitizeDiagnosticText(incidents.incidents[0].blocker)}</strong>
+      <p class="mb-0 mt-1 text-[11px] leading-5 text-[var(--ti-text-soft)]">{sanitizeDiagnosticText(incidents.incidents[0].note)}</p>
     </div>
   {/if}
 

@@ -44,6 +44,7 @@
   let tab = $state<SettingsTab>("meeting");
   let diagnosticsOpen = $state(false);
   let diagnosticsLoading = $state(false);
+  let diagnosticsRefreshRevision = $state(0);
   let devices = $state<AudioDeviceListReport | null>(null);
   let routeStatus = $state<VirtualMicRouteContractStatus | null>(null);
   let devicesLoading = $state(false);
@@ -150,6 +151,9 @@
     if (diagnosticsLoading) return;
     diagnosticsOpen = true;
     diagnosticsLoading = true;
+    // The mounted reliability panel observes this revision on every explicit
+    // Check Again, rather than keeping only its initial onMount snapshot.
+    diagnosticsRefreshRevision += 1;
     onNotice("Refreshing Diagnostics...");
     try {
       await onRefresh("Diagnostics refreshed.");
@@ -307,6 +311,7 @@
         {snapshot}
         {setupBusy}
         {diagnosticsLoading}
+        refreshRevision={diagnosticsRefreshRevision}
         onRefreshDiagnostics={refreshDiagnostics}
         {onSetupAction}
         onBack={() => { diagnosticsOpen = false; }}

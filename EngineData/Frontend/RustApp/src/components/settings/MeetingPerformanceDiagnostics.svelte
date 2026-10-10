@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MeetingSessionStatus } from "../../app/bridge/runtimeApi";
+  import { sanitizeDiagnosticText } from "../../app/shared/diagnosticPrivacy";
 
   let { status }: { status: MeetingSessionStatus | null } = $props();
 
@@ -22,6 +23,33 @@
       ? `${value.toFixed(1)} tok/s`
       : "Not measured";
   }
+
+  const diagnosis = $derived.by(() => {
+    if (!status?.has_session) return "No active Meeting session. Start a real session to collect timing evidence.";
+    if ((outbound?.overflow_dropped_utterance_count ?? 0) > 0 ||
+        (outbound?.evicted_pending_utterance_count ?? 0) > 0) {
+      return "The runtime reports dropped or evicted finalized phrases. Inspect queue pressure before changing ASR or VAD settings.";
+    }
+    if (outbound?.blocker) {
+      return `Latest outbound blocker: ${sanitizeDiagnosticText(outbound.blocker)}. Check the affected stage before changing models.`;
+    }
+    if (timing?.outbound_latency_ms == null) {
+      return "First translated playback has not been measured for this phrase. Do not infer end-to-end latency from partial stages.";
+    }
+    const stages: Array<[string, number | null | undefined]> = [
+      ["Queue", timing.queue_ms],
+      ["Audio preparation", timing.audio_prepare_ms],
+      ["ASR", timing.asr_ms],
+      ["Translation", timing.translation_ms],
+      ["Voice TTS", timing.tts_ms],
+      ["Delivery", timing.delivery_ms],
+    ];
+    const measured = stages.filter((stage): stage is [string, number] =>
+      typeof stage[1] === "number" && Number.isFinite(stage[1]) && stage[1] >= 0);
+    if (!measured.length) return "No individual processing stage has valid timing evidence yet.";
+    const largest = measured.reduce((best, stage) => stage[1] > best[1] ? stage : best);
+    return `Largest recorded stage: ${largest[0]} (${formatTiming(largest[1])}). This is a measurement, not proof of the underlying bottleneck.`;
+  });
 </script>
 
 <article class="ti-panel p-5">
@@ -63,7 +91,8 @@
     </div>
   </div>
 
-  <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-    Use these stage timings to identify the first bottleneck. Measure whole-product VRAM with the Windows/NVIDIA GPU monitor because ASR and PyTorch use separate CUDA runtimes.
+  <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-muted)]" role="status">{diagnosis}</p>
+  <p class="mb-0 mt-2 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
+    Stage timings are observational evidence. Measure whole-product VRAM with the Windows/NVIDIA GPU monitor because ASR and PyTorch use separate CUDA runtimes.
   </p>
 </article>

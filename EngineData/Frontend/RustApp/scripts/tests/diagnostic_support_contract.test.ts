@@ -24,3 +24,12 @@ test("support bundle omits raw local identifiers", () => {
 test("support bundle snapshot does not mutate incident history while observing guards", () => {
   assert.match(support, /without_runtime_incident_recording/);
 });
+
+test("support bundle records only numeric stage timing, not private speech timestamps", () => {
+  assert.match(support, /"timing_ms": meeting\.outbound\.timing\.as_ref\(\)/);
+  for (const field of ["speech_boundary", "finalization", "queue", "audio_prepare",
+    "asr", "translation", "tts", "playback_queue", "delivery", "outbound_latency"]) {
+    assert.ok(support.includes('"' + field + '": timing.'), field);
+  }
+  assert.doesNotMatch(support, /"finalized_unix_ms":|"first_playback_unix_ms":/);
+});

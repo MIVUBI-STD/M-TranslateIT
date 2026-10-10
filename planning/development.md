@@ -31,6 +31,10 @@ Goal: improve quality truth using the existing Faster Whisper and MiLMMT pipelin
 
 Proof remains REMOTE_GITHUB static source review only; executable regression suites, GPU, real microphone, translation quality and Windows Meeting acceptance are NOT EXECUTED. Do not introduce neural metrics, external dataset copies or VAD swaps without a measured baseline. The existing combined target-Windows runbook remains the sole execution gate.
 
+## Active Settings / Meeting Diagnostics Work
+
+The existing Settings diagnostics owner now refreshes its Runtime Health panel on the same explicit Check Again action that refreshes the product snapshot; stale, superseded reads cannot overwrite the newest visible evidence. Unavailable watchdog/recovery states no longer display as Healthy or Clean, and diagnostic notes are rendered through the existing redaction utility. The existing Meeting Performance panel derives only an observed largest stage or queue/error guidance from existing runtime counters/timing, without inferring that stage is the root cause. The existing redacted support export now whitelists numeric per-stage timing to support reproducible bottleneck diagnosis, without copying user speech, exact utterance times or identifiers. No model, audio engine, new IPC command, monitoring timer or state store was added. Static contracts authored; actual Svelte/Rust compiler, native audio and GPU acceptance NOT EXECUTED.
+
 ## Active Text & Meeting Fidelity Work
 
 The existing canonical MiLMMT worker remains the only translator. Source-level work now improves three existing boundaries without changing the model or adding a second runtime:

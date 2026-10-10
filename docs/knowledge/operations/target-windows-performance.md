@@ -9,7 +9,9 @@ lifecycle: ACTIVE
 
 # Target Windows Performance Acceptance
 
-Use this runbook once a **source-integrated candidate** has passed GitHub source/contract review and its locked build/package inputs are prepared. It groups the first actual local build, package, install and TARGET_WINDOWS acceptance into one planned phase, not per-change PC testing.
+Use this runbook once a **source-integrated candidate** has passed GitHub source/contract review and its locked build/package inputs are prepared.
+
+The existing Settings → Diagnostics → Check Again action refreshes the worker/Meeting snapshot **and** the Runtime Health evidence panel on explicit user action; it is not a new monitoring daemon. Meeting performance reports the largest measured stage only after actual first playback timing exists; this is a candidate for investigation, not a proven root cause. The redacted support bundle includes numeric stage timings but no per-utterance timestamps, audio, transcripts, speaker references or session IDs. Collect the exact source SHA alongside any exported evidence. An unverified status must not be interpreted as Healthy/Clean. It groups the first actual local build, package, install and TARGET_WINDOWS acceptance into one planned phase, not per-change PC testing.
 
 ## Purpose
 

@@ -14,6 +14,7 @@
     snapshot,
     setupBusy = false,
     diagnosticsLoading = false,
+    refreshRevision = 0,
     onRefreshDiagnostics,
     onSetupAction,
     onBack,
@@ -21,6 +22,7 @@
     snapshot: ProductRuntimeSnapshot;
     setupBusy?: boolean;
     diagnosticsLoading?: boolean;
+    refreshRevision?: number;
     onRefreshDiagnostics: () => void | Promise<void>;
     onSetupAction: (action: ProductSetupAction) => void | Promise<void>;
     onBack: () => void;
@@ -79,7 +81,7 @@
     <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Processing mode: {workerDiagnostics.executionDisplay}. This information is only needed for troubleshooting.</p>
   </article>
 
-  <RuntimeReliabilityDiagnostics />
+  <RuntimeReliabilityDiagnostics {refreshRevision} />
   <MeetingPerformanceDiagnostics status={snapshot.meetingSession} />
 
   <article class="ti-panel p-5">
