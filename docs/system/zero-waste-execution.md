@@ -49,7 +49,7 @@ A benchmark must count **correctly scoped outcomes and truthful evidence** rathe
 4. **Execution honesty:** planning cannot invoke CI/tests; unexecuted source/native claims stay NOT EXECUTED.
 5. **Maintenance overhead:** persistent authority/file/copy count; new caches/registries/aliases must remain zero without a measured need.
 
-Positive cases alone cannot demonstrate conformance. Compare counterexamples (ambiguous owner, missing dependency, invalid permission, native-only claim). An executable source test, model-run trace, performance measurement and target Windows acceptance are separate proof levels. Any future benchmark implementation should reuse current corpora and explicit source-derived planners; it must not create a new live result database.
+Positive cases alone cannot demonstrate conformance. Compare counterexamples (ambiguous owner, missing dependency, invalid permission, native-only claim). An executable source test, model-run trace, performance measurement and target Windows acceptance are separate proof levels. **Implementation:** `tools/repository_benchmark.py` replays *declared* routing cases through the explicit context planner, compares the existing permission corpus, checks document routing and conservative impact, and reports context-file counts and source-proof ceilings. `python tools/repository_benchmark.py --check --summary` is an optional source-level command; `--extended` explicitly opts into one source dependency graph. It never invokes a model, CI, real audio, installer, or Windows runtime and never saves a second benchmark database. Successful source replay is not observed agent accuracy or measured speedup.
 
 ## STOP and escalation
 

@@ -40,6 +40,8 @@ REQUIRED_PATHS = (
     "tools/repository_dependencies.py",
     "tools/tests/test_repository_dependencies.py",
     "tools/repository_context.py",
+    "tools/repository_benchmark.py",
+    "tools/tests/test_repository_benchmark.py",
     "tools/tests/test_repository_context.py",
     "tools/tests/test_repository_governance.py",
     "tools/tests/test_repository_information_architecture.py",
@@ -655,7 +657,8 @@ def check_document_ownership_separation(errors: list[str]) -> None:
         "planning/development.md": ("## Current Status", "## Active Boundary", "## Next Step"),
         ".agents/README.md": ("skill-registry.json", "permissions/permission-policy.json",
                                "development-brief"),
-        "tools/README.md": ("repository_knowledge.py", "repository_impact.py"),
+        "tools/README.md": ("repository_knowledge.py", "repository_impact.py", "repository_benchmark.py"),
+        "docs/system/zero-waste-execution.md": ("tools/repository_benchmark.py", "Batch 5"),
         "tooling/README.md": ("windows-toolchain/dev.ps1", "DEV.cmd"),
     }.items():
         for marker in markers:

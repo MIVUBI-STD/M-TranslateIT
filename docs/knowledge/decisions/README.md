@@ -198,6 +198,16 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owners:** [System router](../../system/README.md), [Documentation router](../../README.md), `planning/development.md`, `tools/repository_knowledge.py` and `tools/verify_repository.py`.
 
+### D-045 — Reuse declared cases for zero-waste conformance
+
+**Context:** Batch 5 required measurable routing/context/affected-review discipline without duplicate model-evaluation fixtures, agents, benchmark state, automatic CI, or user-PC tests.
+
+**Decision:** `tools/repository_benchmark.py` consumes the existing agent routing/permission/procedure corpora, read-only context/document planners and conservative impact planner. It reports actual counts of selected contexts, conformance with *declared* cases and explicit unknown proof. Source-import graph inspection is opt-in, and benchmark output is ephemeral JSON on stdout rather than a persisted status database.
+
+**Tradeoffs:** a synthetic/declarative replay cannot prove that ChatGPT selected a skill correctly on a real task, obeyed a procedure, improved token/runtime cost, or exercised a Windows meeting. Actual external model-run receipts, executable regression suites and native acceptance remain independent proof requirements.
+
+**Owners:** [Zero-Waste Execution](../../system/zero-waste-execution.md), `tools/repository_benchmark.py`, `tools/tests/test_repository_benchmark.py` and the existing independent evaluation/impact owners.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

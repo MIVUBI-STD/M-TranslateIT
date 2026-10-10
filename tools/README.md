@@ -7,6 +7,7 @@ Repository-owned Python tools for **source-derived verification, routing, impact
 - `repository_context.py` — bounded read-only context/permission projection
 - `repository_dependencies.py`, `repository_impact.py` — partial source dependency impact and affected proof planning
 - `repository_verification.py` — explicit opt-in execution of existing selected commands only
+- `repository_benchmark.py` — opt-in source-derived method-flow/context/permission conformance replay, not model or native proof
 - `repository_permissions.py`, `repository_agent_evals.py`, `repository_skill_admission.py` — scoped preflight, evaluation and skill package admission
 - `repository_contracts.py` and `interop-contracts.json` — bridge contract location, not duplicate Rust/TS/Python semantics
 - `translation_quality/`, `asr_quality/`, `tts_quality/`, `quality_readiness/` — independent current quality contracts; baseline fixture presence is not real inference PASS

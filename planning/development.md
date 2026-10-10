@@ -24,7 +24,9 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Next: build zero-waste benchmark and conformance review (Batch 5) without inventing model-run proof. Skill security and procedure corpora are source-gated; execution remains unverified. Rust/frontend and native Windows acceptance are pending. `main` stays final-only and GitHub CI manual.
+Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
+
+Next: close the highest-priority source/integration proof gap through GitHub/cloud, then define the next evidence-grounded product change. `main` remains final-only and CI manual.
 
 Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
 
@@ -35,6 +37,6 @@ Verification definitions and source test entrypoints are available on `Local`; h
 
 If CI reports a concrete regression, repair only that regression.
 
-Only after Batch 5 and matching source/integration/package proof, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: plan one grouped `TARGET_WINDOWS` pass for installed-product, device, meeting, latency and clean-machine acceptance. Missing critical executable proof blocks candidate readiness; do not assign it to the user.
+Only after matching source/integration/package proof, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: plan one grouped `TARGET_WINDOWS` pass for installed-product, device, meeting, latency and clean-machine acceptance. Missing critical executable proof blocks candidate readiness; do not assign it to the user.
 
 Source/hosted CI proof must not be reported as native-device acceptance.
