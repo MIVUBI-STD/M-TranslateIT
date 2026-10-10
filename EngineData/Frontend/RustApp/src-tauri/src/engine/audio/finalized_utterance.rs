@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::evidence::AudioEvidenceReport;
 use super::vad::{evaluate_vad_gate, runtime_vad_profile, RuntimeVadProfile, VadGateResult};
@@ -413,6 +413,53 @@ pub fn wait_take_finalized_incoming_utterance(
             return Some(utterance);
         }
         guard = sync.ready.wait(guard).ok()?;
+    }
+}
+
+// Incoming deferred ASR/translation may need another chance even when no
+// further Meeting Sound utterance arrives. Reuse the existing producer condition
+// variable; only the consumer with queued deferred work requests a bounded wait.
+#[derive(Debug)]
+pub enum IncomingTimedWait {
+    Utterance(FinalizedMeetingUtterance),
+    TimedOut,
+    Stopped,
+}
+
+pub fn wait_take_finalized_incoming_utterance_for(
+    session_id: &str,
+    timeout: Duration,
+) -> IncomingTimedWait {
+    wait_take_finalized_incoming_utterance_for_sync(incoming_sync(), session_id, timeout)
+}
+
+fn wait_take_finalized_incoming_utterance_for_sync(
+    sync: &FinalizedProducerSync,
+    session_id: &str,
+    timeout: Duration,
+) -> IncomingTimedWait {
+    let Ok(guard) = sync.state.lock() else {
+        return IncomingTimedWait::Stopped;
+    };
+    let Ok((mut guard, _)) = sync.ready.wait_timeout_while(guard, timeout, |producer| {
+        producer.as_ref().is_some_and(|state| {
+            state.session_id == session_id
+                && state.lane == LANE_INCOMING
+                && state.pending.is_empty()
+        })
+    }) else {
+        return IncomingTimedWait::Stopped;
+    };
+
+    let Some(state) = guard.as_mut() else {
+        return IncomingTimedWait::Stopped;
+    };
+    if state.session_id != session_id || state.lane != LANE_INCOMING {
+        return IncomingTimedWait::Stopped;
+    }
+    match state.pending.pop_front() {
+        Some(utterance) => IncomingTimedWait::Utterance(utterance),
+        None => IncomingTimedWait::TimedOut,
     }
 }
 
@@ -883,6 +930,75 @@ mod tests {
             clear_speech.len() * 2 + clipped_burst.len()
         );
         assert!(state.pending.is_empty());
+    }
+
+    #[test]
+    fn incoming_bounded_wait_distinguishes_deferred_retry_from_stopped_producer() {
+        let sync = FinalizedProducerSync {
+            state: Mutex::new(Some(FinalizedProducerState {
+                session_id: "retry-session".to_string(),
+                generation: None,
+                lane: LANE_INCOMING,
+                sample_rate_hz: 16_000,
+                profile: runtime_vad_profile(),
+                pre_roll: VecDeque::new(),
+                in_utterance: false,
+                current_samples: Vec::new(),
+                speech_samples: 0,
+                trailing_silence_samples: 0,
+                overflowed: false,
+                next_utterance_id: 1,
+                pending: VecDeque::new(),
+            })),
+            ready: Condvar::new(),
+        };
+        assert!(matches!(
+            wait_take_finalized_incoming_utterance_for_sync(
+                &sync, "retry-session", Duration::from_millis(1)
+            ),
+            IncomingTimedWait::TimedOut
+        ));
+        assert!(matches!(
+            wait_take_finalized_incoming_utterance_for_sync(
+                &sync, "another-session", Duration::from_millis(1)
+            ),
+            IncomingTimedWait::Stopped
+        ));
+
+        sync.state.lock().unwrap().as_mut().unwrap().pending.push_back(
+            FinalizedMeetingUtterance {
+                session_id: "retry-session".to_string(),
+                sequence: 1,
+                lane: LANE_INCOMING.to_string(),
+                generation: None,
+                utterance_id: 1,
+                finalized_at: Instant::now(),
+                enqueued_at: Instant::now(),
+                finalized_unix_ms: 0,
+                speech_boundary_ms: 100,
+                speech_duration_ms: 300,
+                finalization_ms: 0,
+                frame: AudioFrame {
+                    sample_rate_hz: TARGET_SAMPLE_RATE_HZ,
+                    channels: TARGET_CHANNELS,
+                    samples: vec![0.1; 4_800],
+                },
+            },
+        );
+        assert!(matches!(
+            wait_take_finalized_incoming_utterance_for_sync(
+                &sync, "retry-session", Duration::from_millis(1)
+            ),
+            IncomingTimedWait::Utterance(utterance) if utterance.sequence == 1
+        ));
+        *sync.state.lock().unwrap() = None;
+        sync.ready.notify_all();
+        assert!(matches!(
+            wait_take_finalized_incoming_utterance_for_sync(
+                &sync, "retry-session", Duration::from_millis(1)
+            ),
+            IncomingTimedWait::Stopped
+        ));
     }
 
     fn silence_of(rate: u32, ms: u32) -> Vec<f32> {

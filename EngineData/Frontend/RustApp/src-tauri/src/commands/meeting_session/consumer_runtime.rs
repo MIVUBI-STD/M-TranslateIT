@@ -1,11 +1,12 @@
 use std::sync::{Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::engine::audio::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, clear_finalized_outbound_utterance_producer,
     try_take_finalized_incoming_utterance, wait_take_finalized_incoming_utterance,
-    wait_take_finalized_outbound_utterance,
+    wait_take_finalized_incoming_utterance_for, wait_take_finalized_outbound_utterance,
+    IncomingTimedWait,
 };
 use crate::engine::audio::live_segment_writer::{
     remove_finalized_meeting_utterance_wav,
@@ -28,6 +29,10 @@ use super::{
     generation_is_live, incoming_session_is_eligible,
     process_authoritative_finalized_outbound_wav,
 };
+
+// Only wait on a short interval when deferred incoming work exists. Normal
+// idle Meeting Sound retains the existing event-driven blocking wait.
+const DEFERRED_INCOMING_RETRY_WAIT: Duration = Duration::from_millis(500);
 
 struct MeetingOutboundConsumerRuntime {
     generation: u64,
@@ -229,6 +234,16 @@ pub(super) fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), St
 
                 let utterance = match try_take_finalized_incoming_utterance(&thread_session_id) {
                     Some(utterance) => utterance,
+                    None if super::incoming_deferred::deferred_incoming_health_counts().0 > 0 => {
+                        match wait_take_finalized_incoming_utterance_for(
+                            &thread_session_id,
+                            DEFERRED_INCOMING_RETRY_WAIT,
+                        ) {
+                            IncomingTimedWait::Utterance(utterance) => utterance,
+                            IncomingTimedWait::TimedOut => continue,
+                            IncomingTimedWait::Stopped => break,
+                        }
+                    }
                     None => {
                         let Some(utterance) =
                             wait_take_finalized_incoming_utterance(&thread_session_id)
