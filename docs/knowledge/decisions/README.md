@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # TranslateIT Decision Register
 
-Durable decisions store **why a current rule exists**. Current product law belongs in `docs/foundation/`; active status belongs in `next-action.md`; proof belongs in `current-validation.md`; historical detail belongs in Git history or `history-legacy.md`.
+Durable decisions store **why a current rule exists**. Current product law belongs in `docs/foundation/`; active status belongs in `planning/development.md`; proof belongs in `current-validation.md`; historical detail belongs in Git history or `history-legacy.md`.
 
 Historical rationale is retained as [historical evidence](./history-legacy.md), not current product authority.
 
@@ -122,7 +122,7 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Context:** source development crosses short ChatGPT/Codex sessions, while plain chat history and a mutable active-next-action document cannot safely reconstruct every prior decision.
 
-**Decision:** material logical commits record `Work`, `State`, and actual `Proof`, with `Decision`, `Unresolved`, and `Next` only when applicable. Cold start is read-only, recovers relevant topic commits, and verifies their meaning against current canonical source before resuming. Current active continuation remains owned by `docs/knowledge/next-action.md`; Git history owns older revision-scoped evidence.
+**Decision:** material logical commits record `Work`, `State`, and actual `Proof`, with `Decision`, `Unresolved`, and `Next` only when applicable. Cold start is read-only, recovers relevant topic commits, and verifies their meaning against current canonical source before resuming. Current active continuation remains owned by `planning/development.md`; Git history owns older revision-scoped evidence.
 
 **Why:** recover development accurately without extra state databases, heartbeat commits, duplicate TODO documents, or reliance on inaccessible chat context.
 
@@ -185,6 +185,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 **Tradeoffs:** no invented test success or premature "ready to test" while critical execution evidence is missing; inability to run one proof does not block independent source-verifiable work. Final Windows acceptance is still required before accepting the finished product.
 
 **Owners:** root `GITHUB_RULES.md` owns ChatGPT execution/transfer; `docs/knowledge/development-discipline.md` owns proof escalation; `docs/knowledge/operations/target-windows-performance.md` owns candidate admission and grouped native procedure. Existing skills inherit the root policy.
+
+### D-044 — Semantic documentation routing and planning separation
+
+**Context:** TranslateIT had stable product documents, skill rules and verification contracts, but an oversized workflow document mixed application architecture into execution rules, and active continuation lived under durable documentation.
+
+**Decision:** keep `docs/foundation/` as product law, `docs/knowledge/` as established development/proof/decision/runbook ownership, and `docs/system/` for distinct durable repository/application architecture. Route through stable frontmatter IDs and explicit links. Move the one active next step to `planning/development.md`, outside the document Catalog; extract ApplicationRuntime architecture from the work-flow document into one actual system owner. Preserve the current `EngineData/`, `UserData/`, `tools/` and `tooling/` responsibilities rather than copying Minecraft-specific folder names.
+
+**Reason:** same one-owner, minimum-context, zero-waste and recoverable-GitHub governance standard as Lazy-Developer, with product-specific paths and fewer duplicate authorities.
+
+**Tradeoffs:** source reviewers must update all affected docs and tooling references together. No automatic model/workspace/release success follows from a documentation reorganization; persistent `workspace/` and `experiments/` are not created without real tracked content. Git history retains the superseded path.
+
+**Owners:** [System router](../../system/README.md), [Documentation router](../../README.md), `planning/development.md`, `tools/repository_knowledge.py` and `tools/verify_repository.py`.
 
 ## Recording policy
 

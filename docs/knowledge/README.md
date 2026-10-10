@@ -7,18 +7,17 @@ authority: CANONICAL
 lifecycle: ACTIVE
 ---
 
-# TranslateIT Knowledge Map
+# TranslateIT Knowledge
 
-This router preserves the existing owners. Current implementation truth remains in source and matching proof, not documentation search.
+Current procedures and rationale remain with their existing canonical owners; this router does not duplicate [System](../system/README.md), [Foundation](../foundation/README.md) or [Planning](../../planning/README.md).
 
-- [Development workflow](./flow.md)
-- [Development discipline](./development-discipline.md)
-- [Current continuation / one next action](./next-action.md)
-- [Current validation / proof interpretation](./current-validation.md)
-- [Canonical source ownership](./source-ownership.md)
-- [Legacy decision log pointer](./decision-log.md)
-- [Current durable decision register](./decisions/README.md)
-- [Operations and runbooks](./operations/README.md)
-- [Agent skill routing](./skills/README.md)
+- [Development workflow](./flow.md) — task modes and bounded routing
+- [Development discipline](./development-discipline.md) — first wrong owner, smallest change and proof
+- [Validation/proof interpretation](./current-validation.md) — exact-revision evidence, not a run diary
+- [Source ownership](./source-ownership.md) — responsibility → implementation owner
+- [Decision register](./decisions/README.md) — durable tradeoffs, not product law
+- [Operational runbooks](./operations/README.md) — repeatable release and Windows acceptance
+- [Agent skills](./skills/README.md) — selection guide; procedures remain in `.agents/`
+- [Legacy decisions pointer](./decision-log.md) — historical only
 
-Current product law is in [Foundation](../foundation/README.md). Do not create duplicate roadmap, session-memory, or proof-state hierarchies.
+**Current next action:** [planning/development.md](../../planning/development.md), outside the document Catalog. Current behavior is the exact `Local` source with matching proof.

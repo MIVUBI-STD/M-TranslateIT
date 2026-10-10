@@ -88,6 +88,27 @@ UserData/
 
 Historical development material is retained by Git history rather than exposed as a second current source tree.
 
+## Start here and file ownership
+
+For ChatGPT repository work use `Local` on GitHub/cloud: `AGENTS.md` → `GITHUB_RULES.md` → [Documentation](docs/README.md) → exact canonical owner → bounded verification → STOP. A local PC checkout is not a prerequisite, and real Windows acceptance waits for an integrated test-ready candidate.
+
+| Root path | Single responsibility | Detail |
+|---|---|---|
+| `README.md` | Human entry/navigation | Domain routers, not duplicated owner rules |
+| `AGENTS.md` | Mode, context, specialist budget | [.agents/](.agents/README.md) |
+| `GITHUB_RULES.md` | GitHub ref, mutation, evidence and retry | Existing root policy |
+| `CONTEXT.md` | Stable product/architecture orientation | No active work state |
+| `CONTRIBUTING.md`, `SECURITY.md` | Contribution and trust boundaries | Existing root contracts |
+| `toolchain.json`, `DEV.cmd` | Toolchain policy and optional thin launcher | [Tooling](tooling/README.md) |
+| `docs/` | Durable product/system/developer knowledge | [Documentation](docs/README.md) |
+| `planning/` | Current development intent/next action | [Development](planning/README.md) |
+| `EngineData/` | Tauri frontend, Rust runtime, Python AI worker/assets | [Source owners](docs/knowledge/source-ownership.md) |
+| `UserData/` | Private runtime/user storage placeholders only | [Storage](UserData/README.md) |
+| `tools/` | Repository/quality validation and source-derived planning | [Tools](tools/README.md) |
+| `.agents/`, `.github/` | Skill/permission registry and GitHub configuration | [Agents](.agents/README.md) |
+
+Naming and update/move rules: [Canonical Naming](docs/system/canonical-naming.md). Source is one owner per behavior; Git history carries revisions. Do not fabricate parallel `workspace/` or `experiments/` folders for this Windows desktop product.
+
 ## Repository operating model
 
 Read [documentation routing](docs/README.md) first for source/owner questions. Stable document identities and explicit Markdown links power a derived, bounded catalog; `python tools/repository_knowledge.py --summary` shows its current surface. Existing runtime validators remain authoritative for their respective wire contracts.
@@ -105,7 +126,7 @@ CONTEXT.md
 docs/foundation/
 → current product/system law
 
-docs/knowledge/next-action.md
+planning/development.md
 → current continuation + exactly one next step
 
 docs/knowledge/current-validation.md

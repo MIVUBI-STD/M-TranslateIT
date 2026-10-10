@@ -1,13 +1,4 @@
----
-id: document.knowledge.next-action
-class: DOCUMENT
-domain: knowledge
-role: WORKFLOW
-authority: CANONICAL
-lifecycle: ACTIVE
----
-
-# Next Action
+# TranslateIT Development
 
 ## Current Status
 

@@ -33,7 +33,7 @@ DEFAULT_TASK = {
 ROOT_CONTEXT = ("AGENTS.md", "GITHUB_RULES.md")
 DEVELOPMENT_DISCIPLINE = "docs/knowledge/development-discipline.md"
 BRIEF = ".agents/skills/development-brief/SKILL.md"
-CONTINUATION = "docs/knowledge/next-action.md"
+CONTINUATION = "planning/development.md"
 OWNER_MAP = "docs/knowledge/source-ownership.md"
 
 
@@ -196,7 +196,7 @@ def plan_context(
     ranked = []
     if knowledge_query is not None:
         _nonempty(knowledge_query, "knowledge query")
-        if knowledge_domain not in {"foundation", "knowledge"}:
+        if knowledge_domain not in {"foundation", "knowledge", "system"}:
             raise ValueError("ranked retrieval requires an explicit documentation domain")
         ranked = retrieve(knowledge_query, knowledge_domain, root=root, limit=4)
     elif knowledge_domain is not None:
@@ -275,7 +275,7 @@ def main() -> int:
     parser.add_argument("--activate-specialist", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--knowledge-query")
-    parser.add_argument("--knowledge-domain", choices=("foundation", "knowledge"))
+    parser.add_argument("--knowledge-domain", choices=("foundation", "knowledge", "system"))
     parser.add_argument("--handoff", help="Explicit JSON handoff; never switches lanes")
     parser.add_argument("--branch", default="Local")
     args = parser.parse_args()

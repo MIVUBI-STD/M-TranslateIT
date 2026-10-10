@@ -14,7 +14,7 @@ Root `GITHUB_RULES.md` owns GitHub-first partitioning, atomic delivery, transfer
 ```text
 AGENTS.md
 → GITHUB_RULES.md Core Rules
-→ CONTEXT.md / next-action only if material
+→ CONTEXT.md / planning/development.md only if material
 → this brief
 → smallest current owner/evidence
 ```

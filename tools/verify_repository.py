@@ -42,6 +42,16 @@ REQUIRED_PATHS = (
     "tools/repository_context.py",
     "tools/tests/test_repository_context.py",
     "tools/tests/test_repository_governance.py",
+    "tools/tests/test_repository_information_architecture.py",
+    "planning/README.md",
+    ".agents/README.md",
+    "tools/README.md",
+    "tooling/README.md",
+    "docs/system/README.md",
+    "docs/system/authority-model.md",
+    "docs/system/canonical-naming.md",
+    "docs/system/application-runtime.md",
+    "docs/system/zero-waste-execution.md",
     "tools/repository_verification.py",
     "tools/tests/test_repository_verification.py",
     "tools/interop-contracts.json",
@@ -56,7 +66,7 @@ REQUIRED_PATHS = (
     "docs/knowledge/skills/README.md",
     "docs/knowledge/flow.md",
     "docs/knowledge/development-discipline.md",
-    "docs/knowledge/next-action.md",
+    "planning/development.md",
     "docs/knowledge/current-validation.md",
     "docs/knowledge/source-ownership.md",
     "docs/knowledge/decision-log.md",
@@ -117,6 +127,7 @@ REQUIRED_PATHS = (
 
 FORBIDDEN_PATHS = (
     "DevelopingData",
+    "docs/knowledge/next-action.md",
     ".github/workflows/stable-release-verify.yml",
     "tools/verify_frontend_runtime_policy_tests.py",
     "EngineData/Frontend/RustApp/scripts/validate_bridge_type_safety.mjs",
@@ -134,8 +145,18 @@ ACTIVE_GOVERNANCE = (
     "docs/foundation/02-product-requirements.md",
     "docs/foundation/03-acceptance-scenarios.md",
     "docs/knowledge/README.md",
+    "docs/system/README.md",
+    "docs/system/authority-model.md",
+    "docs/system/canonical-naming.md",
+    "docs/system/application-runtime.md",
+    "docs/system/zero-waste-execution.md",
+    "planning/README.md",
+    "planning/development.md",
+    ".agents/README.md",
+    "tools/README.md",
+    "tooling/README.md",
     "docs/knowledge/flow.md",
-    "docs/knowledge/next-action.md",
+    "planning/development.md",
     "docs/knowledge/current-validation.md",
     "docs/knowledge/source-ownership.md",
     "docs/knowledge/decision-log.md",
@@ -205,7 +226,7 @@ def check_compactness(errors: list[str]) -> None:
         "AGENTS.md": 14_000,
         "GITHUB_RULES.md": 26_000,
         "CONTEXT.md": 9_000,
-        "docs/knowledge/next-action.md": 3_000,
+        "planning/development.md": 3_000,
         "docs/knowledge/current-validation.md": 7_000,
         "docs/knowledge/source-ownership.md": 9_000,
     }
@@ -270,7 +291,7 @@ def check_branch_authority(errors: list[str]) -> None:
     ):
         if marker not in rules:
             fail(errors, f"GITHUB_RULES.md lost Local-development/main-final separation: {marker}")
-    next_action = text("docs/knowledge/next-action.md")
+    next_action = text("planning/development.md")
     if "GitHub default branch `main` remains reserved" not in next_action:
         fail(errors, "next-action.md must preserve main as a final-only branch")
     for rel in ("README.md", "AGENTS.md", "GITHUB_RULES.md", "CONTEXT.md", "CONTRIBUTING.md"):
@@ -292,7 +313,7 @@ def check_branch_authority(errors: list[str]) -> None:
 
 
 def check_continuation_and_product(errors: list[str]) -> None:
-    next_action = text("docs/knowledge/next-action.md")
+    next_action = text("planning/development.md")
     for heading in ("## Current Status", "## Active Boundary", "## Next Step"):
         if next_action.count(heading) != 1:
             fail(errors, f"next-action.md must contain exactly one {heading}")
@@ -582,7 +603,7 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
         "docs/knowledge/development-discipline.md": ("Test readiness and native escalation",
                                                       "Do not demand per-commit tests"),
         "docs/knowledge/flow.md": ("no user-PC handoff", "integrated test-ready candidate"),
-        "docs/knowledge/next-action.md": ("No per-change tests on the user's PC",
+        "planning/development.md": ("No per-change tests on the user's PC",
                                          "integrated test-ready candidate"),
         "docs/knowledge/current-validation.md": ("not an incremental user-PC testing request",
                                                  "UNKNOWN / NOT EXECUTED"),
@@ -620,6 +641,40 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
                 fail(errors, f"{identity}: procedure regression on deferred native testing")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         fail(errors, f"invalid ChatGPT/native policy validation data: {exc}")
+
+
+def check_document_ownership_separation(errors: list[str]) -> None:
+    """Enforce durable documents vs one active plan and one runtime owner."""
+    if (ROOT / "docs/knowledge/next-action.md").exists():
+        fail(errors, "obsolete docs/knowledge/next-action.md duplicates planning authority")
+    for rel, markers in {
+        "docs/README.md": ("## Domain routing", "./system/README.md", "planning/README.md"),
+        "docs/system/README.md": ("canonical-naming.md", "authority-model.md",
+                                  "application-runtime.md", "zero-waste-execution.md"),
+        "planning/README.md": ("development.md", "not product law"),
+        "planning/development.md": ("## Current Status", "## Active Boundary", "## Next Step"),
+        ".agents/README.md": ("skill-registry.json", "permissions/permission-policy.json",
+                               "development-brief"),
+        "tools/README.md": ("repository_knowledge.py", "repository_impact.py"),
+        "tooling/README.md": ("windows-toolchain/dev.ps1", "DEV.cmd"),
+    }.items():
+        for marker in markers:
+            if marker not in text(rel):
+                fail(errors, f"{rel} lost canonical routing/ownership marker: {marker}")
+    flow = text("docs/knowledge/flow.md")
+    if "## Product runtime authority" in flow or "## Product facade split" in flow:
+        fail(errors, "development flow duplicates ApplicationRuntime architecture")
+    if "../system/application-runtime.md" not in flow:
+        fail(errors, "development flow must route to ApplicationRuntime system owner")
+    runtime = text("docs/system/application-runtime.md")
+    for marker in ("## Product runtime authority", "## Product facade split",
+                   "## Product-state policy split"):
+        if marker not in runtime:
+            fail(errors, f"ApplicationRuntime owner missing boundary: {marker}")
+    if "planning/development.md" not in text("docs/knowledge/README.md"):
+        fail(errors, "knowledge router must link to active planning")
+    if "foundation|knowledge|system" not in text("docs/README.md"):
+        fail(errors, "documentation retrieval must describe all active domains")
 
 
 def check_agent_permission_policy(errors: list[str]) -> None:
@@ -691,6 +746,7 @@ def main() -> int:
     errors: list[str] = []
     check_structure(errors)
     check_repository_information_architecture(errors)
+    check_document_ownership_separation(errors)
     check_agent_permission_policy(errors)
     check_agent_skill_evaluations(errors)
     check_compactness(errors)

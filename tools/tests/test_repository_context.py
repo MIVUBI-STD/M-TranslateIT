@@ -215,6 +215,15 @@ class DevelopmentContextTests(unittest.TestCase):
         self.assertTrue(all(x["path"].startswith("docs/foundation/")
                             for x in p["rankedKnowledge"]["matches"]))
 
+    def test_planning_continuation_is_a_separate_read_only_owner(self):
+        resumed = plan_context(intent="Continue TranslateIT governance", mode="context-recovery", resume=True)
+        self.assertIn("planning/development.md", resumed["context"]["REQUIRED"])
+        self.assertFalse(any(path == "docs/knowledge/next-action.md" for path in resumed["context"]["REQUIRED"]))
+        system = plan_context(intent="Find canonical naming", mode="context-recovery",
+                              knowledge_query="canonical naming", knowledge_domain="system")
+        self.assertEqual(system["rankedKnowledge"]["status"], "RANKING_NOT_AUTHORITY")
+        self.assertTrue(any(x["path"].startswith("docs/system/") for x in system["rankedKnowledge"]["matches"]))
+
     def test_prompt_does_not_select_mode_or_request_write(self):
         p = plan_context(
             intent="please fix this right now", mode="context-recovery",

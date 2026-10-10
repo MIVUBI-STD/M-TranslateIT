@@ -32,7 +32,7 @@ Before material work, know repository, exact `Local` HEAD, scope, writability, a
 - Every repository write explicitly targets `Local` unless the user explicitly authorizes a different ref for that exact action.
 - Re-check `Local` HEAD immediately before an atomic ref move when concurrency is plausible.
 - Current source plus matching proof outranks stale continuation prose.
-- If `next-action.md` disagrees with current source, reconcile the stale state owner before continuing.
+- If `planning/development.md` disagrees with current source, reconcile the stale state owner before continuing.
 - Historical branches, deleted branches, old chats, and old reports are recovery evidence only.
 
 ### Execution context / proof ceiling
@@ -281,7 +281,7 @@ Unresolved: <specific remaining unknown or risk, if any>
 Next: <one actionable step unless this bounded work unit is DONE>
 ```
 
-`Work`, `State`, and `Proof` are required for material commits; the rest are conditional. `DONE` closes the bounded commit outcome, not the entire project or an unrelated feature. Do not create checkpoint commits, heartbeat updates, duplicate progress ledgers, or copy complete chat transcripts into the repository. The existing `docs/knowledge/next-action.md` remains the one owner of **current active continuation**, and Git history retains older revision-scoped evidence.
+`Work`, `State`, and `Proof` are required for material commits; the rest are conditional. `DONE` closes the bounded commit outcome, not the entire project or an unrelated feature. Do not create checkpoint commits, heartbeat updates, duplicate progress ledgers, or copy complete chat transcripts into the repository. The existing `planning/development.md` remains the one owner of **current active continuation**, and Git history retains older revision-scoped evidence.
 
 Repository URL + "amati/inspect/audit" is read-only: pin the requested ref and current HEAD; load `AGENTS.md`, `GITHUB_RULES.md`, and the smallest canonical owner; review relevant `Work/State/Proof` trailers only when task recovery is necessary; reconcile them with current source and newer commits affecting that owner; report exact current facts, UNKNOWNs and one defensible next action, then STOP. Historical `Next` is a suggestion at that SHA, **not** a current command. An explicit continuation request may resume a uniquely identified, authorized bounded task; a materially ambiguous topic requires one decisive question.
 
@@ -358,7 +358,7 @@ branch/history/security   → GITHUB_RULES.md
 agent routing/modes       → AGENTS.md
 current orientation       → CONTEXT.md
 product/system law        → docs/foundation/
-continuation              → docs/knowledge/next-action.md
+continuation              → planning/development.md
 current proof meaning     → docs/knowledge/current-validation.md
 implementation ownership  → docs/knowledge/source-ownership.md
 durable decisions         → docs/knowledge/decisions/
@@ -368,7 +368,7 @@ actual behavior           → current Local source + matching proof
 historical evidence       → Git history only unless explicitly revalidated
 ```
 
-`next-action.md` stores only resume-critical state and one next step. `current-validation.md` owns proof interpretation. Historical status/report trees are not current navigation surfaces.
+`planning/development.md` stores only resume-critical state and one next step. `current-validation.md` owns proof interpretation. Historical status/report trees are not current navigation surfaces.
 
 # Conditional GitHub surfaces
 

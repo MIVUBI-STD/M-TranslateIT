@@ -25,9 +25,9 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Proof taxonomy / development discipline | `docs/knowledge/development-discipline.md` |
 | Toolchain policy | `toolchain.json` |
 | Unified Windows developer routing | `DEV.cmd` → `tooling/windows-toolchain/dev.ps1` |
-| Architecture vocabulary | `CONTEXT.md` |
+| Stable product facts | `CONTEXT.md` |
 | Product/system law | `docs/foundation/` |
-| Active continuation | `docs/knowledge/next-action.md` |
+| Active continuation | `planning/development.md` |
 | Proof interpretation | `docs/knowledge/current-validation.md` |
 | Repository static governance | `tools/verify_repository.py` |
 | Document identity/graph/section lookup | `docs/**/*.md` metadata + links → `tools/repository_knowledge.py` (derived) |
@@ -134,7 +134,7 @@ Domain algorithms remain in their domain modules; ApplicationRuntime coordinates
 ```text
 Who owns this?        → source-ownership.md
 What must it do?      → docs/foundation/
-What is active?       → next-action.md
+What is active?       → planning/development.md
 What is proven?       → current-validation.md
 Why was it chosen?    → decisions/
 What happens now?     → current source + matching proof

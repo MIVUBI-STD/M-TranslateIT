@@ -53,7 +53,7 @@ def canonical_path(value: str) -> str:
 
 def _base_domains(path: str) -> tuple[set[str], bool]:
     # This is an execution-scope fallback, not semantic product ownership.
-    if path.startswith(("docs/", ".agents/")) or path in {
+    if path.startswith(("docs/", "planning/", ".agents/")) or path in {
         "AGENTS.md", "GITHUB_RULES.md", "CONTEXT.md", "README.md",
         "CONTRIBUTING.md", "SECURITY.md", "toolchain.json",
         ".editorconfig", ".gitignore", ".gitattributes", "DEV.cmd",

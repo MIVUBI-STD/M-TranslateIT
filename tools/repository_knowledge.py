@@ -26,6 +26,7 @@ ROUTERS = (
     "docs/README.md",
     "docs/foundation/README.md",
     "docs/knowledge/README.md",
+    "docs/system/README.md",
     "docs/knowledge/decisions/README.md",
     "docs/knowledge/operations/README.md",
     "docs/knowledge/skills/README.md",
@@ -50,7 +51,7 @@ def read_metadata(content: str, path: str) -> dict[str, str]:
         raise ValueError(f"{path}: invalid stable document ID")
     if fields["class"] != "DOCUMENT" or fields["role"] not in ROLES:
         raise ValueError(f"{path}: invalid document classification")
-    if fields["domain"] not in {"docs", "knowledge", "foundation"}:
+    if fields["domain"] not in {"docs", "knowledge", "foundation", "system"}:
         raise ValueError(f"{path}: unsupported document domain")
     if fields["authority"] not in AUTHORITIES or fields["lifecycle"] not in {"ACTIVE", "RETIRED"}:
         raise ValueError(f"{path}: invalid authority/lifecycle")
@@ -151,7 +152,7 @@ def sections(text: str) -> list[tuple[str, str, int]]:
 
 
 def retrieve(query: str, domain: str, root: Path = ROOT, limit: int = 8) -> list[dict]:
-    if domain not in {"foundation", "knowledge", "all"}:
+    if domain not in {"foundation", "knowledge", "system", "all"}:
         raise ValueError("retrieve only from a selected domain unless explicitly all")
     if limit < 1 or limit > 25:
         raise ValueError("retrieval limit must be 1..25")
@@ -189,7 +190,7 @@ def main() -> int:
     opts.add_argument("--summary", action="store_true")
     opts.add_argument("--id")
     opts.add_argument("--query")
-    parser.add_argument("--domain", choices=["foundation", "knowledge"])
+    parser.add_argument("--domain", choices=["foundation", "knowledge", "system"])
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--limit", type=int, default=8)
     args = parser.parse_args()

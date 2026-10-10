@@ -189,7 +189,7 @@ If investigation reveals a second independent problem, finish/reframe the curren
 | Agent mode/context/routing/skill budget | `AGENTS.md` |
 | Current product/repository orientation | `CONTEXT.md` |
 | Current product/system law | `docs/foundation/` |
-| Active continuation + one next step | `docs/knowledge/next-action.md` |
+| Active continuation + one next step | `planning/development.md` |
 | Current proof interpretation | `docs/knowledge/current-validation.md` |
 | Responsibility → current source owner | `docs/knowledge/source-ownership.md` |
 | Durable decisions/reasons | `docs/knowledge/decisions/` |

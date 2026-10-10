@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from repository_knowledge import (  # noqa: E402
-    read_metadata, document_target, retrieve, verify_knowledge,
+    read_metadata, document_target, retrieve, verify_knowledge, catalog,
 )
 
 
@@ -20,6 +20,18 @@ class KnowledgeTests(unittest.TestCase):
         self.assertTrue(matches)
         self.assertTrue(all(x["path"].startswith("docs/foundation/") for x in matches))
         self.assertTrue(all(x["authority"] == "CANONICAL" for x in matches))
+
+    def test_system_domain_is_routed_and_ranked(self):
+        matches = retrieve("Zero-Waste", "system", limit=6)
+        self.assertTrue(matches)
+        self.assertTrue(all(x["path"].startswith("docs/system/") for x in matches))
+        docs, _, errors = catalog()
+        self.assertEqual(errors, [])
+        self.assertTrue(any(x["id"] == "document.system.application-runtime" for x in docs))
+        self.assertFalse(any(x["path"].startswith("planning/") for x in docs))
+
+    def test_planning_is_not_a_second_document_catalog(self):
+        self.assertIsNone(document_target("docs/knowledge/README.md", "../../planning/development.md"))
 
     def test_id_does_not_change_with_physical_path(self):
         header = "---\nid: document.knowledge.continuity\nclass: DOCUMENT\ndomain: knowledge\nrole: GUIDE\nauthority: CANONICAL\nlifecycle: ACTIVE\n---\n"

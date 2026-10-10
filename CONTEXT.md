@@ -129,7 +129,9 @@ Source presence never upgrades itself into runtime or target-Windows proof. Chat
 - GitHub mechanics: `GITHUB_RULES.md`
 - Agent modes/routing: `AGENTS.md`
 - Current product law: `docs/foundation/`
-- Continuation: `docs/knowledge/next-action.md`
+- Durable system/naming authority: `docs/system/`
+- Current development intent: `planning/development.md`
+- Continuation: `planning/development.md`
 - Proof interpretation: `docs/knowledge/current-validation.md`
 - Ownership: `docs/knowledge/source-ownership.md`
 - Decisions: `docs/knowledge/decisions/`
