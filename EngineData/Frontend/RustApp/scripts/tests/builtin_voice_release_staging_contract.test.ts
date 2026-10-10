@@ -38,3 +38,8 @@ test("canonical built-in voice source inventory has two approved IDs and digest 
     assert.equal(voice.license, "CC-BY-4.0");
   }
 });
+
+
+test("release payload requires the Quick Preview Python child", () => {
+  assert.match(validator, /"voice_lab_quick_preview\.py"/);
+});
