@@ -22,14 +22,20 @@ Preserve:
 
 Do not add features or broad architecture work without a concrete defect or explicit product decision.
 
-## Next Step
+## Active My Voice Quality Plan
 
-Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
+Goal: improve voice resemblance, intelligibility, naturalness, and reliability using only existing GPT-SoVITS V2ProPlus. Voicebox is a research inspiration, not an approved second engine or proof of measured improvement. Product requirements PR-110 through PR-119 remain authoritative.
 
-Next: Quick Voice Preview remains source-wired, not runtime-accepted. Generated preview WAV now has PCM framing/duration/rate checks before exposure and the Rust owner rechecks cancellation after child exit. Source tests were authored but NOT EXECUTED. Reference choice now ranks accepted canonical-size takes nearest five seconds, rejects symlinks, and delegates signal validation to Python; source contracts authored NOT EXECUTED. Next audit pinned asset packaging and cross-layer ownership, then integrated native acceptance. NO cloud execution/CI or incremental PC tests; `main` remains final-only.
+Evidence from current Local source:
+- Guided take checks already validate WAV signal quality and known transcripts. Full training reference selection ranks eligible 3–10 second takes by clipping, silence, DC offset, duration proximity and line ID.
+- Training creates bounded GPT/SoVITS checkpoint candidates; held-out synthesis is evaluated with artifact flags, intelligibility WER and speaker similarity. Candidate selection prioritizes clean audio and intelligibility before similarity, followed by user listening and approval.
+- Quick Preview uses a separate lightweight Rust reference selector prioritizing duration, while Python verifies signal quality. This is an intentional current behavioral difference requiring a focused consistency review, not a justification for a second quality framework.
+- Quick Preview source, cancellation guard, WAV validation and release entrypoint check are written. Native model output, build, and audio quality are NOT EXECUTED.
 
-Eight GitHub Actions workflow definitions remain **inactive** under the no-cloud policy. Their Code Health, repository/quality/lock and Windows release gates describe future local acceptance requirements, not current executable PASS. If source review finds a concrete regression, repair only its canonical owner.
+Next decisions in order:
+1. Compare training and preview reference selection against actual user quality requirements. Reuse existing metrics and owners; consider changing ranking only after a concrete quality defect is established.
+2. Review dataset preparation and candidate evaluation for demonstrated correctness gaps. Do not tune epochs or similarity cutoffs without comparative evidence.
+3. Prepare reproducible listening and inference comparison across the same held-out English sentences, including speaker identity, pronunciation, artifact rate and stability. No new engine or separate score database.
+4. Complete existing source/package contracts and enter one grouped Windows build/install/GPU/audio/Meeting acceptance only when integrated test-ready. Never run hosted CI/cloud inference or require incremental user-PC testing.
 
-After static source/integration review and locked package-input preparation, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: a single grouped local build/package/install + `TARGET_WINDOWS` pass will establish executable proof. Until actually run, build/native results remain unknown.
-
-Source/hosted CI proof must not be reported as native-device acceptance.
+No benchmark improvement, native inference, installer validation, or runtime PASS is claimed. Branch Local remains development-only; main is reserved for expressly approved final results.
