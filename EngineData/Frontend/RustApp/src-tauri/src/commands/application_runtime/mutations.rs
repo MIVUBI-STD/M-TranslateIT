@@ -67,9 +67,10 @@ pub fn cancel_product_voice_build(
 pub fn approve_product_voice_candidate(
     app: tauri::AppHandle,
     reviewed_line_ids: Vec<u32>,
+    quality_confirmed: bool,
 ) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
     emit_after(&app, "approve_voice_candidate", || {
-        super::super::voice_lab_build::approve_voice_lab_candidate(reviewed_line_ids)
+        super::super::voice_lab_build::approve_voice_lab_candidate(reviewed_line_ids, quality_confirmed)
     })
 }
 

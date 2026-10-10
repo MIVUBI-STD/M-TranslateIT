@@ -119,6 +119,21 @@
     onRecordingChange(next.recording_line_id !== null);
   }
 
+  function recordingQualityGuidance(blocker: string): string {
+    switch (blocker) {
+      case "voice_lab:take_signal_unusable:rejected_silence":
+        return "No clear speech was captured. Check your selected microphone, then record this line again.";
+      case "voice_lab:take_signal_unusable:severe_clipping":
+        return "The recording is distorted or too loud. Lower the microphone level or move farther away, then retry.";
+      case "voice_lab:take_signal_unusable:signal_too_low":
+        return "The recorded voice is too quiet. Check the microphone level or move closer, then retry.";
+      case "voice_lab:take_signal_unusable:dc_offset_too_high":
+        return "The microphone signal is unsuitable. Check the microphone connection or select another input, then retry.";
+      default:
+        return "This recording failed its audio check. Replay it if useful, then record the line again.";
+    }
+  }
+
   function productMessage(result: GuidedRecordingActionResult): string {
     switch (result.state) {
       case "recording":
@@ -363,7 +378,7 @@
             <strong class="text-sm font-semibold">Review this take</strong>
             <p class={`mb-0 mt-1 text-sm leading-5 ${recordingState.pending_review.quality_blocker ? "text-[var(--ti-danger)]" : "text-[var(--ti-text-muted)]"}`}>
               {recordingState.pending_review.quality_blocker
-                ? "This recording isn't clear enough yet. Replay it if useful, then try this line again."
+                ? recordingQualityGuidance(recordingState.pending_review.quality_blocker)
                 : "Listen once. Accept it if the recording sounds clear and natural."}
             </p>
           </div>

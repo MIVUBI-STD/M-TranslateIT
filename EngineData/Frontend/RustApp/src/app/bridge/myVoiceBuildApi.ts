@@ -114,9 +114,10 @@ export const myVoiceBuildApi = {
       : unavailableAction("My Voice could not confirm that creation stopped.");
   },
 
-  async approve(reviewedLineIds: number[]): Promise<MyVoiceBuildActionResult> {
+  async approve(reviewedLineIds: number[], qualityConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
     const action = await runCommand<MyVoiceBuildActionResult>("approve_product_voice_candidate", {
       reviewedLineIds,
+      qualityConfirmed,
     });
     return action
       ? normalizeAction(action)

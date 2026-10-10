@@ -14,6 +14,9 @@ const releasePayload = readFileSync(new URL("../validate_release_payload.mjs", i
 const previewChild = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntime/voice_lab_quick_preview.py", import.meta.url), "utf8");
 const buildChild = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntime/voice_lab_build.py", import.meta.url), "utf8");
 const actor = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
+const mutations = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/mutations.rs", import.meta.url), "utf8");
+const recordingUi = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+const guidedAudio = readFileSync(new URL("../../src-tauri/src/engine/audio/guided_take.rs", import.meta.url), "utf8");
 
 test("quick preview is an isolated one-WAV child with existing VoiceLab authority", () => {
   assert.match(preview, /begin_voice_lab_build\(\)/);
@@ -32,7 +35,7 @@ test("preview cancel is restricted to its own generation, never trained build", 
   assert.match(preview, /current\.phase == "preparing"/);
   assert.match(preview, /request_voice_lab_build_cancel\(generation\)/);
   assert.match(preview, /child\.kill\(\)/);
-  assert.match(actor, /approve_voice_lab_candidate\(reviewed_line_ids: Vec<u32>\)/);
+  assert.match(actor, /approve_voice_lab_candidate\(\s*reviewed_line_ids: Vec<u32>,\s*quality_confirmed: bool,/);
   assert.doesNotMatch(preview, /approve_voice_lab_candidate/);
 });
 
@@ -129,4 +132,24 @@ test("Setup packages both My Voice children and their shared canonical training 
   }
   assert.match(previewChild, /from voice_lab_gpt_sovits_build import select_reference/);
   assert.match(buildChild, /from voice_lab_gpt_sovits_build import build_candidate/);
+});
+
+test("trained voice approval requires audible review and affirmative human quality confirmation", () => {
+  assert.match(ui, /qualityConfirmed = \$state\(false\)/);
+  assert.match(ui, /!evaluationReviewComplete \|\| !qualityConfirmed/);
+  assert.match(ui, /myVoiceBuildApi\.approve\(reviewedLineIds, qualityConfirmed\)/);
+  assert.match(bridge, /reviewedLineIds,\s*qualityConfirmed,/);
+  assert.match(mutations, /approve_voice_lab_candidate\(reviewed_line_ids, quality_confirmed\)/);
+  assert.match(actor, /if !evaluation_review_complete\(&evaluation, &reviewed_line_ids\)/);
+  assert.match(actor, /if !quality_confirmed\s*\{\s*return result\(\s*false,\s*"evaluation_quality_confirmation_required"/);
+  assert.ok(actor.indexOf("if !quality_confirmed") < actor.indexOf("match promote_voice_actor_candidate"));
+  assert.match(ui, /Create Another Candidate/);
+});
+
+test("guided-take signal reasons provide actionable recording guidance without a new scorer", () => {
+  for (const reason of ["rejected_silence", "severe_clipping", "signal_too_low", "dc_offset_too_high"]) {
+    assert.ok(guidedAudio.includes("voice_lab:take_signal_unusable:" + reason), reason);
+    assert.ok(recordingUi.includes("voice_lab:take_signal_unusable:" + reason), reason);
+  }
+  assert.match(recordingUi, /recordingQualityGuidance\(recordingState\.pending_review\.quality_blocker\)/);
 });

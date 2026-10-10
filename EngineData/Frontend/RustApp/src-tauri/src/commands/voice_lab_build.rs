@@ -700,7 +700,10 @@ pub fn select_builtin_voice(
     }
 }
 
-pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuildActionResult {
+pub fn approve_voice_lab_candidate(
+    reviewed_line_ids: Vec<u32>,
+    quality_confirmed: bool,
+) -> VoiceLabBuildActionResult {
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
     }
@@ -727,6 +730,13 @@ pub fn approve_voice_lab_candidate(reviewed_line_ids: Vec<u32>) -> VoiceLabBuild
             false,
             "evaluation_listening_required",
             "Finish listening to every My Voice preview before approving it.",
+        );
+    }
+    if !quality_confirmed {
+        return result(
+            false,
+            "evaluation_quality_confirmation_required",
+            "Confirm that the voice is clear, natural, and resembles the authorized speaker before using it.",
         );
     }
     let project_paths = ProjectPaths::discover();

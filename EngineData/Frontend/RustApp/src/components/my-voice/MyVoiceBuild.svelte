@@ -44,6 +44,7 @@
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
   let reviewedLineIds = $state<number[]>([]);
+  let qualityConfirmed = $state(false);
 
   const evaluationReviewComplete = $derived(
     build.evaluation_ready &&
@@ -81,7 +82,10 @@
 
   function applyStatus(next: MyVoiceBuildStatus): void {
     build = next;
-    if (!next.evaluation_ready) reviewedLineIds = [];
+    if (!next.evaluation_ready) {
+      reviewedLineIds = [];
+      qualityConfirmed = false;
+    }
     // Another training lifecycle supersedes an earlier temporary preview.
     if (next.active && !next.preview_active) {
       quickPreviewReady = false;
@@ -94,8 +98,6 @@
     switch (result.state) {
       case "building":
         return "Creating My Voice. You can leave My Voice open while it works.";
-      case "approved":
-        return "My Voice is ready for Meeting translation.";
       case "cancelled":
         return "My Voice creation stopped. Your accepted recordings were kept.";
       case "authorization_required":
@@ -113,6 +115,8 @@
       case "evaluation_required":
       case "evaluation_listening_required":
         return "Listen to every voice preview before approving My Voice.";
+      case "evaluation_quality_confirmation_required":
+        return "Confirm that the trained voice sounds clear, natural, and like the authorized speaker before using it.";
       case "evaluation_candidate_mismatch":
         return "The review no longer matches the voice candidate. Create My Voice again.";
       case "approved":
@@ -255,11 +259,11 @@
   }
 
   async function approve(): Promise<void> {
-    if (busy || build.active || !build.evaluation_ready || !evaluationReviewComplete) return;
+    if (busy || build.active || !build.evaluation_ready || !evaluationReviewComplete || !qualityConfirmed) return;
     stopAudio();
     busy = true;
     try {
-      const result = await myVoiceBuildApi.approve(reviewedLineIds);
+      const result = await myVoiceBuildApi.approve(reviewedLineIds, qualityConfirmed);
       applyResult(result);
       if (result.ok && result.state === "approved") {
         await onMeetingVoiceChanged(productMessage(result));
@@ -303,6 +307,8 @@
     if (revision !== seenRefreshRevision) {
       seenRefreshRevision = revision;
       quickPreviewReady = false;
+      reviewedLineIds = [];
+      qualityConfirmed = false;
       stopAudio();
     }
     void refresh();
@@ -381,9 +387,21 @@
         {/each}
       </div>
       <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]">{reviewedLineIds.length} of {build.evaluation_samples.length} previews listened</p>
-      <button type="button" class="ti-button mt-5" disabled={busy || !evaluationReviewComplete} onclick={() => void approve()}>
+      <label class="mt-4 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
+        <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={qualityConfirmed} disabled={!evaluationReviewComplete || busy} />
+        <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I listened to every preview. The voice is clear, sounds natural, resembles the authorized speaker, and I want to use it for meetings.</span>
+      </label>
+      <button type="button" class="ti-button mt-4" disabled={busy || !evaluationReviewComplete || !qualityConfirmed} onclick={() => void approve()}>
         <Check size={15} /><span>{busy ? "Saving..." : "Use My Voice"}</span>
       </button>
+      <p class="mb-0 mt-4 text-xs leading-5 text-[var(--ti-text-muted)]">Not satisfied? Keep the current Meeting voice and record more samples before creating another candidate.</p>
+      {#if build.can_build}
+        <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
+          <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} disabled={busy} />
+          I own this voice or have permission to create another version.
+        </label>
+        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+      {/if}
     </div>
   {:else}
     {#if !build.can_build}
