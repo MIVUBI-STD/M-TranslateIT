@@ -72,7 +72,11 @@ test("preview success rechecks cancellation after child exit", () => {
 
 test("reference ranking belongs to the Python training selector", () => {
   assert.match(preview, /accepted_guided_recordings\(\)/);
-  assert.match(preview, /--reference-candidate/);
+  assert.match(preview, /--reference-candidates-stdin/);
+  assert.match(preview, /MAX_REFERENCE_PAYLOAD_BYTES/);
+  assert.match(preview, /Stdio::piped\(\)/);
+  assert.match(preview, /stdin\.write_all\(&payload\)/);
+  assert.doesNotMatch(preview, /command\.arg\("--reference-candidate"\)/);
   assert.match(preview, /"line_id": take.line_id/);
   assert.doesNotMatch(preview, /TARGET_REFERENCE_BYTES|min_by_key/);
 });

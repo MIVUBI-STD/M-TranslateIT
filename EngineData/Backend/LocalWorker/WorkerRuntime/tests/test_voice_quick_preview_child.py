@@ -114,8 +114,8 @@ def test_preview_uses_training_reference_selector(tmp_path: Path, monkeypatch):
     second = tmp_path / "take2.wav"
     second.write_bytes(b"second")
     candidates = [
-        json.dumps({"line_id": 1, "exact_text": "One", "wav_path": str(reference)}),
-        json.dumps({"line_id": 2, "exact_text": "Two", "wav_path": str(second)}),
+        {"line_id": 1, "exact_text": "One", "wav_path": str(reference)},
+        {"line_id": 2, "exact_text": "Two", "wav_path": str(second)},
     ]
     monkeypatch.setattr(preview, "validate_take_signal", lambda _: {"duration_ms": 5000})
     observed = []
@@ -139,14 +139,14 @@ def test_preview_uses_training_reference_selector(tmp_path: Path, monkeypatch):
 def test_preview_rejects_invalid_candidate_metadata(invalid):
     preview = module()
     with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_candidate_invalid"):
-        preview.choose_reference([json.dumps(invalid)])
+        preview.choose_reference([invalid])
 
 
 def test_preview_rejects_duplicate_identity_before_audio_filter(tmp_path: Path):
     preview = module()
     candidates = [
-        json.dumps({"line_id": 1, "exact_text": "One", "wav_path": str(tmp_path / "missing.wav")}),
-        json.dumps({"line_id": 1, "exact_text": "Two", "wav_path": str(tmp_path / "second.wav")}),
+        {"line_id": 1, "exact_text": "One", "wav_path": str(tmp_path / "missing.wav")},
+        {"line_id": 1, "exact_text": "Two", "wav_path": str(tmp_path / "second.wav")},
     ]
     with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_candidate_invalid"):
         preview.choose_reference(candidates)
@@ -168,7 +168,7 @@ def test_missing_or_corrupt_accepted_wav_does_not_hide_valid_reference(tmp_path:
     good = tmp_path / "good.wav"
     good.write_bytes(b"valid fixture")
     candidates = [
-        json.dumps({"line_id": i, "exact_text": text, "wav_path": str(path)})
+        {"line_id": i, "exact_text": text, "wav_path": str(path)}
         for i, text, path in [(1, "Missing", missing), (2, "Corrupt", bad),
                               (3, "Quiet", quiet), (4, "Good", good)]
     ]
@@ -206,3 +206,22 @@ def test_silent_or_clipped_preview_output_is_removed(tmp_path: Path, monkeypatch
     with pytest.raises(preview.VoiceLabProviderError, match="preview_audio_artifacts"):
         preview.preview_once(source, reference, output, "Hello")
     assert not (output / preview.OUTPUT_FILE).exists()
+
+
+def test_bounded_preview_candidate_stdin(tmp_path: Path, monkeypatch):
+    import io
+    import types
+
+    preview = module()
+    candidates = [{"line_id": 1, "exact_text": "Hello", "wav_path": str(tmp_path / "take.wav")}]
+    payload = json.dumps(candidates).encode("utf-8")
+    monkeypatch.setattr(preview.sys, "stdin", types.SimpleNamespace(buffer=io.BytesIO(payload)))
+    assert preview.read_reference_candidates() == candidates
+
+    monkeypatch.setattr(preview.sys, "stdin", types.SimpleNamespace(buffer=io.BytesIO(b"x" * (preview.MAX_REFERENCE_PAYLOAD_BYTES + 1))))
+    with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_payload_invalid"):
+        preview.read_reference_candidates()
+
+    monkeypatch.setattr(preview.sys, "stdin", types.SimpleNamespace(buffer=io.BytesIO(b'{"not":"an array"}')))
+    with pytest.raises(preview.VoiceLabProviderError, match="preview_reference_payload_invalid"):
+        preview.read_reference_candidates()

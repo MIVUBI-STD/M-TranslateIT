@@ -25,6 +25,7 @@ from voice_lab_gpt_sovits_build import select_reference, synthesis_artifact_flag
 PREVIEW_TEXT = "Good morning, everyone. Thank you for joining this meeting."
 OUTPUT_FILE = "quick_voice_preview.wav"
 MAX_REFERENCE_TEXT_CHARS = 512
+MAX_REFERENCE_PAYLOAD_BYTES = 256 * 1024
 MAX_STATUS_BYTES = 4096
 
 
@@ -75,16 +76,15 @@ def validate_preview_wav(path: Path, expected_rate: int) -> None:
         raise VoiceLabProviderError("preview_audio_invalid") from exc
 
 
-def choose_reference(candidates: list[str]) -> tuple[Path, str]:
+def choose_reference(candidates: list[dict[str, object]]) -> tuple[Path, str]:
     """Reuse full-training signal admission and reference ranking."""
     # The product has 128 fixed guided lines; refuse unbounded child payloads.
     if not 1 <= len(candidates) <= 128:
         raise VoiceLabProviderError("preview_reference_candidate_invalid")
     takes = []
     seen_ids: set[int] = set()
-    for serialized in candidates:
+    for item in candidates:
         try:
-            item = json.loads(serialized)
             line_id = item["line_id"]
             exact_text = item["exact_text"]
             path_value = item["wav_path"]
@@ -119,6 +119,20 @@ def choose_reference(candidates: list[str]) -> tuple[Path, str]:
     return Path(selected["wav_path"]), str(selected["exact_text"])
 
 
+def read_reference_candidates() -> list[dict[str, object]]:
+    """Read one bounded candidate envelope from the Rust-owned child stdin."""
+    payload = sys.stdin.buffer.read(MAX_REFERENCE_PAYLOAD_BYTES + 1)
+    if not payload or len(payload) > MAX_REFERENCE_PAYLOAD_BYTES:
+        raise VoiceLabProviderError("preview_reference_payload_invalid")
+    try:
+        candidates = json.loads(payload)
+    except (UnicodeError, ValueError) as exc:
+        raise VoiceLabProviderError("preview_reference_payload_invalid") from exc
+    if not isinstance(candidates, list):
+        raise VoiceLabProviderError("preview_reference_payload_invalid")
+    return candidates
+
+
 def preview_once(
     source_root: Path,
     reference_wav: Path,
@@ -150,11 +164,11 @@ def preview_once(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
-    parser.add_argument("--reference-candidate", action="append", required=True)
+    parser.add_argument("--reference-candidates-stdin", action="store_true", required=True)
     parser.add_argument("--output-dir", required=True, type=Path)
     args = parser.parse_args(argv)
     try:
-        reference_wav, reference_text = choose_reference(args.reference_candidate)
+        reference_wav, reference_text = choose_reference(read_reference_candidates())
         response = preview_once(
             args.source_root, reference_wav, args.output_dir, reference_text
         )

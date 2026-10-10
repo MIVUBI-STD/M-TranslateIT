@@ -33,7 +33,7 @@ Evidence from current Local source:
 - Quick Preview source, cancellation guard, WAV validation and release entrypoint check are written. Native model output, build, and audio quality are NOT EXECUTED.
 
 Next decisions in order:
-1. Complete one bounded review of the Rust-to-Python preview CLI payload size and process cancellation under the 128-line recording corpus; change transport only if source evidence establishes a real limit.
+1. Quick Preview accepted candidate data now uses bounded JSON stdin instead of repeated command-line arguments (avoids Windows 32,767-character CreateProcessW limit); Rust retains timeout/cancel ownership. Python and Rust source contract tests are authored, NOT EXECUTED.
 2. Prepare a fixed held-out voice listening/inference comparison covering intelligibility, speaker identity, artifacts and stability; do not alter GPT-SoVITS epochs or add an evaluator without comparative evidence.
 3. Assess the integrated test-ready gate and group Windows build/install/GPU/audio/Meeting acceptance. No hosted CI/cloud inference or incremental user-PC tests.
 

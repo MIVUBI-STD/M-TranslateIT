@@ -2,6 +2,7 @@
 //! It cannot install, approve, or select any voice for Meeting.
 use serde::Serialize;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -20,6 +21,7 @@ const TIMEOUT: Duration = Duration::from_secs(180);
 static ACTIVE_PREVIEW_GENERATION: AtomicU64 = AtomicU64::new(0);
 const PREVIEW_WAV: &str = "quick_voice_preview.wav";
 const MAX_PREVIEW_WAV_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_REFERENCE_PAYLOAD_BYTES: usize = 256 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct QuickVoicePreviewResult {
@@ -71,20 +73,32 @@ fn generate_once() -> QuickVoicePreviewResult {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
             Err(_) => return Err("preview_cleanup_failed".into()),
         }
+        // Send the bounded candidate set over stdin, not the Windows command
+        // line: all 128 guided lines plus user paths can exceed CreateProcessW's
+        // command-line limit. No temporary candidate manifest or extra service.
+        let candidates: Vec<_> = accepted.iter().map(|take| serde_json::json!({
+            "line_id": take.line_id, "exact_text": take.text, "wav_path": take.path,
+        })).collect();
+        let payload = serde_json::to_vec(&candidates)
+            .map_err(|_| "preview_input_invalid")?;
+        if payload.len() > MAX_REFERENCE_PAYLOAD_BYTES {
+            return Err("preview_input_too_large".into());
+        }
         let mut command = Command::new(python.program);
         command.args(python.bootstrap_args);
         command.arg(script).arg("--source-root").arg(source)
-            .arg("--output-dir").arg(&destination);
-        // Pass accepted take identities; the Python training selector alone ranks quality.
-        for take in &accepted {
-            let candidate = serde_json::json!({
-                "line_id": take.line_id, "exact_text": take.text, "wav_path": take.path,
-            });
-            command.arg("--reference-candidate").arg(candidate.to_string());
-        }
-        command.current_dir(worker_root())
-            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+            .arg("--output-dir").arg(&destination)
+            .arg("--reference-candidates-stdin")
+            .current_dir(worker_root())
+            .stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null());
         let mut child = command.spawn().map_err(|_| "preview_process_unavailable")?;
+        let input_sent = child.stdin.take().map(|mut stdin| stdin.write_all(&payload).is_ok())
+            .unwrap_or(false);
+        if !input_sent {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("preview_input_unavailable".into());
+        }
         let deadline = Instant::now() + TIMEOUT;
         loop {
             match child.try_wait() {
