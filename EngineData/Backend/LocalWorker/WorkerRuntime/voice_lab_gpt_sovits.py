@@ -360,6 +360,72 @@ def english_tts_inputs(
     }
 
 
+def pretrained_voice_preview_assets(source_root: Path) -> dict[str, Path]:
+    """Resolve only the pinned V2ProPlus pretrained checkpoints, not a trained actor."""
+    assets = inference_source_assets(source_root)
+    gsv = assets["gsv"]
+    assets["pretrained_gpt"] = gsv / "pretrained_models" / "s1v3.ckpt"
+    assets["pretrained_sovits"] = (
+        gsv / "pretrained_models" / "v2Pro" / "s2Gv2ProPlus.pth"
+    )
+    require_file(assets["pretrained_gpt"], "pretrained_gpt")
+    require_file(assets["pretrained_sovits"], "pretrained_sovits")
+    return assets
+
+
+def prepare_pretrained_voice_preview(
+    source_root: Path,
+    reference_wav: Path,
+    reference_text: str,
+) -> dict[str, Any]:
+    """Build a *preview-only* zero-shot runtime. Never mint or approve actor.json.
+
+    This intentionally does not participate in Meeting runtime selection. The
+    caller must hold the existing My Voice build/recording resource authority.
+    """
+    reference_text = str(reference_text).strip()
+    if not reference_text or len(reference_text) > 512:
+        raise VoiceLabProviderError("preview_reference_text_invalid")
+    require_regular_file(reference_wav, "preview_reference")
+    metrics = wav_signal_metrics_pcm16(reference_wav)
+    if not REFERENCE_MIN_MS <= metrics["duration_ms"] <= REFERENCE_MAX_MS:
+        raise VoiceLabProviderError("preview_reference_duration_invalid")
+    if (metrics["silence_fraction"] >= 0.90
+        or metrics["clipping_fraction"] >= 0.05
+        or metrics["active_rms"] < 256.0
+        or metrics["dc_offset"] >= 2_048.0):
+        raise VoiceLabProviderError("preview_reference_quality_invalid")
+    assets = pretrained_voice_preview_assets(source_root)
+    runtime = create_tts_runtime(
+        source_root,
+        assets,
+        assets["pretrained_gpt"],
+        assets["pretrained_sovits"],
+        reference_wav,
+    )
+    runtime["reference_text"] = reference_text
+    runtime["preview_only"] = True
+    return runtime
+
+
+def synthesize_pretrained_voice_preview(
+    runtime: dict[str, Any], text: str, output_path: Path,
+) -> dict[str, Any]:
+    """One local WAV preview; explicitly not a Meeting voice or trained actor."""
+    if runtime.get("preview_only") is not True:
+        raise VoiceLabProviderError("preview_runtime_required")
+    text = str(text).strip()
+    if not text or len(text) > 400:
+        raise VoiceLabProviderError("preview_text_invalid")
+    if output_path.exists():
+        raise VoiceLabProviderError("preview_output_already_exists")
+    if output_path.name != "quick_voice_preview.wav":
+        raise VoiceLabProviderError("preview_output_name_invalid")
+    result = synthesize_voice_actor(runtime, text, output_path)
+    result["preview_only"] = True
+    return result
+
+
 def load_voice_actor_runtime(source_root: Path, actor_dir: Path) -> dict[str, Any]:
     package = validate_actor_package(actor_dir)
     assets = inference_source_assets(source_root)
