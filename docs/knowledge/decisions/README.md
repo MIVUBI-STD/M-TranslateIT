@@ -142,6 +142,18 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** `AGENTS.md`, `.agents/evals/`, `tools/repository_agent_evals.py`.
 
+### D-040 — Ephemeral source dependency graph, not a second runtime owner
+
+**Context:** the bounded impact planner knew only four explicit interop contracts and literal test references, so normal Rust/TypeScript/Python import consumers were not visible during affected verification.
+
+**Decision:** derive a bounded, in-memory source-import graph from current source only, and integrate it with the existing `tools/repository_impact.py` and canonical `tools/interop-contracts.json`. Do not persist a graph, create a second source registry, or infer runtime/type semantics from static imports.
+
+**Why:** surface transitive consumers for targeted tests while preserving immutable canonical source and the one-owner boundary.
+
+**Tradeoffs:** unknown/dynamic imports, macro-generated dependencies and protocol semantics remain partial evidence requiring conservative review or broader verification; result is never executable proof.
+
+**Owner:** `tools/repository_dependencies.py` parses source; `tools/repository_impact.py` owns affected verification planning.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

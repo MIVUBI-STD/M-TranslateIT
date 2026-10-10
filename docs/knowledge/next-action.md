@@ -33,7 +33,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 ## Next Step
 
-Next: scoped source-dependency and affected execution (Batch 2), using the read-only context projection. Rust/ApplicationRuntime compiler and target-Windows acceptance remain unverified. `main` stays final-only; manual CI is opt-in and not currently dispatchable from the default branch.
+Next: implement safe, opt-in affected execution (Batch 3) using the derived partial source graph; do not invent verification results. Rust/frontend compilation and target-Windows acceptance remain unverified. `main` stays final-only; GitHub CI is manual and not currently dispatchable from the default branch.
 
 Verification definitions and source test entrypoints are available on `Local`; hosted dispatch is not yet established:
 

@@ -11,8 +11,13 @@ import json
 import posixpath
 import re
 from pathlib import Path
+from typing import Any
 
 from repository_contracts import verify_contracts
+from repository_dependencies import (
+    FRONT as FRONT_SOURCE_ROOT, RUST as RUST_SOURCE_ROOT, WORKER as PYTHON_SOURCE_ROOT,
+    affected_consumers, build_source_graph, relevant_unknown_imports,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONT = "EngineData/Frontend/RustApp/"
@@ -140,32 +145,70 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
     risks: list[str] = []
     entries: list[dict] = []
     refs = _literal_test_edges(root) if any(p.startswith("EngineData/") for p in changed) else {}
+    source_paths = tuple((FRONT_SOURCE_ROOT + "src/", FRONT_SOURCE_ROOT + "scripts/tests/",
+                          RUST_SOURCE_ROOT, PYTHON_SOURCE_ROOT))
+    graph = build_source_graph(root) if any(p.startswith(source_paths) for p in changed) else None
+    all_consumers: set[str] = set()
+    graph_unknown: list[dict[str, str]] = []
     for path in changed:
         base_domains, conservative = _base_domains(path)
         matched: list[str] = []
         linked_tests = set(refs.get(path, set()))
+        source_consumers: list[str] = []
+        unknown: list[dict[str, str]] = []
+        if graph is not None and path.startswith(source_paths):
+            if path not in graph["indexed"]:
+                risks.append(path)  # Removed/moved/unknown source: fail open is forbidden.
+            else:
+                source_consumers = affected_consumers(graph, path)
+                projected = {path, *source_consumers}
+                unknown = relevant_unknown_imports(graph, projected)
+                graph_unknown.extend(unknown)
+                for consumer in source_consumers:
+                    affected_domains, _ = _base_domains(consumer)
+                    base_domains.update(affected_domains)
+                    linked_tests.update(refs.get(consumer, set()))
+                    if consumer.endswith(".test.ts") or (
+                        consumer.startswith(PYTHON_SOURCE_ROOT + "tests/") and
+                        consumer.split("/")[-1].startswith("test_") and consumer.endswith(".py")
+                    ):
+                        linked_tests.add(consumer)
+                all_consumers.update(source_consumers)
+        else:
+            projected = {path}
         for contract in registry["contracts"]:
             endpoints = {contract["owner"], *contract["consumers"], *contract["tests"]}
-            if path in endpoints:
+            if not projected.isdisjoint(endpoints):
                 matched.append(contract["id"])
                 owners.add(contract["owner"])
                 validators.update(contract["scripts"])
                 linked_tests.update(contract["tests"])
-                # One interop change can affect both producer and consumer domains.
+                # Interop producer/consumer validation is shared even when only
+                # a transitive source consumer overlaps the registered contract.
                 for endpoint in {contract["owner"], *contract["consumers"]}:
                     cross_domains, _ = _base_domains(endpoint)
                     base_domains.update(cross_domains)
         if linked_tests:
-            base_domains.add("frontend")
+            if any(test.startswith(FRONT + "scripts/tests/") for test in linked_tests):
+                base_domains.add("frontend")
+            if any(test.startswith(PYTHON_SOURCE_ROOT + "tests/") for test in linked_tests):
+                base_domains.add("python")
             tests.update(linked_tests)
         domains.update(base_domains)
-        if conservative and not matched:
+        if (conservative and not matched) or unknown:
             risks.append(path)
         entries.append({
             "path": path,
             "domains": sorted(base_domains),
             "interopContracts": sorted(matched),
             "directRegressionTests": sorted(linked_tests),
+            "directSourceConsumers": sorted(graph["reverse"].get(path, ())) if graph else [],
+            "affectedSourceConsumers": source_consumers,
+            "unknownSourceImports": unknown[:16],
+            "sourceDependencyProof": (
+                "PARTIAL_SOURCE_IMPORTS_NOT_COMPILE_PROOF" if graph and path in graph["indexed"]
+                else "NOT_INDEXED"
+            ),
             "conservative": conservative and not matched,
         })
     manual_workflows = sorted({WORKFLOWS[d] for d in domains})
@@ -185,8 +228,21 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
         "candidateFrontendScripts": candidate_frontend_scripts,
         "manualWorkflowCandidates": manual_workflows,
         "reviewRequired": bool(risks),
-        "unprovenClosures": sorted(risks),
-        "dependencyCoverage": "CONSERVATIVE" if risks else "REGISTERED_BOUNDARY_ONLY",
+        "unprovenClosures": sorted(set(risks)),
+        "dependencyCoverage": (
+            "CONSERVATIVE" if risks else
+            "REGISTERED_BOUNDARY_PLUS_PARTIAL_IMPORTS" if graph else "REGISTERED_BOUNDARY_ONLY"
+        ),
+        "sourceDependencyGraph": ({
+            "indexedByLanguage": graph["indexedByLanguage"],
+            "knownEdges": len(graph["edges"]),
+            "unresolvedReferences": len(graph["unresolved"]),
+            "affectedSourceConsumers": sorted(all_consumers),
+            "affectedUnknownImports": sorted(graph_unknown, key=lambda x: (
+                x["importer"], x["specifier"])),
+            "fullClosureProven": False,
+            "proof": graph["proof"],
+        } if graph else None),
         "proof": "PLANNING_ONLY_NOT_EXECUTED",
         "ciTriggered": False,
     }
@@ -199,6 +255,8 @@ def verify_impact(root: Path = ROOT) -> list[str]:
         (["docs/knowledge/flow.md"], {"repository"}),
         ([FRONT + "src-tauri/src/commands/registry.rs"], {"rust", "frontend"}),
         ([WORKER + "worker_io_runtime.py"], {"python", "frontend", "rust"}),
+        ([FRONT + "src/app/bridge/applicationRuntimeApi.ts"], {"frontend"}),
+        ([RUST + "src/engine/runtime_state.rs"], {"rust", "frontend"}),
     )
     for paths, required in cases:
         try:
@@ -207,6 +265,27 @@ def verify_impact(root: Path = ROOT) -> list[str]:
                 issues.append(f"{paths}: missing conservative impacted domains: {sorted(required)}")
             if plan["proof"] != "PLANNING_ONLY_NOT_EXECUTED" or plan["ciTriggered"]:
                 issues.append(f"{paths}: impact plan overstated proof")
+            if any(p.startswith(FRONT + "src/") or p.startswith(WORKER) for p in paths):
+                graph = plan["sourceDependencyGraph"]
+                if graph is None or graph["fullClosureProven"] is not False:
+                    issues.append(f"{paths}: source graph missing its partial-proof boundary")
+            if paths == [WORKER + "worker_io_runtime.py"] and (
+                WORKER + "realtime_local_worker_base.py"
+                not in plan["sourceDependencyGraph"]["affectedSourceConsumers"]
+            ):
+                issues.append("Python worker importer is missing from the derived consumer graph")
+            if paths == [FRONT + "src/app/bridge/applicationRuntimeApi.ts"] and (
+                FRONT + "src/app/runtime/applicationController.ts"
+                not in plan["sourceDependencyGraph"]["affectedSourceConsumers"]
+            ):
+                issues.append("TypeScript transitive controller consumer was not discovered")
+            if paths == [RUST + "src/engine/runtime_state.rs"] and (
+                FRONT + "src-tauri/src/commands/meeting_session.rs"
+                not in plan["sourceDependencyGraph"]["affectedSourceConsumers"]
+            ):
+                issues.append("Rust runtime-state caller was not discovered")
+            if paths == ["docs/knowledge/flow.md"] and plan["sourceDependencyGraph"] is not None:
+                issues.append("documentation change unnecessarily loaded the entire source graph")
         except (OSError, ValueError, KeyError, TypeError) as exc:
             issues.append(f"{paths}: invalid impact planner: {exc}")
     return issues

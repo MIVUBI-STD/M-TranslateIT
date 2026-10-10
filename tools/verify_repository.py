@@ -37,6 +37,8 @@ REQUIRED_PATHS = (
     "tools/repository_contracts.py",
     "tools/repository_impact.py",
     "tools/tests/test_repository_impact.py",
+    "tools/repository_dependencies.py",
+    "tools/tests/test_repository_dependencies.py",
     "tools/repository_context.py",
     "tools/tests/test_repository_context.py",
     "tools/interop-contracts.json",

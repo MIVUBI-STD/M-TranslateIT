@@ -35,6 +35,36 @@ class ImpactPlanningTests(unittest.TestCase):
         self.assertTrue(any(path.endswith("test_worker_protocol_framing.py") for path in plan["knownRegressionTests"]))
         self.assertEqual(plan["proof"], "PLANNING_ONLY_NOT_EXECUTED")
 
+    def test_rust_source_reaches_downstream_meeting_and_module_consumers(self):
+        plan = plan_impacted([FRONT + "src-tauri/src/engine/runtime_state.rs"])
+        consumers = plan["sourceDependencyGraph"]["affectedSourceConsumers"]
+        self.assertIn(FRONT + "src-tauri/src/commands/meeting_session.rs", consumers)
+        self.assertFalse(plan["sourceDependencyGraph"]["fullClosureProven"])
+        self.assertEqual(plan["proof"], "PLANNING_ONLY_NOT_EXECUTED")
+
+    def test_application_bridge_changes_include_transitive_frontend_consumers(self):
+        plan = plan_impacted([FRONT + "src/app/bridge/applicationRuntimeApi.ts"])
+        self.assertIn(
+            FRONT + "src/app/runtime/applicationController.ts",
+            plan["sourceDependencyGraph"]["affectedSourceConsumers"],
+        )
+        self.assertEqual(plan["dependencyCoverage"],
+                         "REGISTERED_BOUNDARY_PLUS_PARTIAL_IMPORTS")
+        self.assertIn("code-health.yml", plan["manualWorkflowCandidates"])
+        self.assertFalse(plan["ciTriggered"])
+
+    def test_python_worker_import_graph_reaches_known_callers(self):
+        plan = plan_impacted([WORKER + "worker_io_runtime.py"])
+        self.assertIn(WORKER + "realtime_local_worker_base.py",
+                      plan["sourceDependencyGraph"]["affectedSourceConsumers"])
+        self.assertIn("local-worker-wire-framing", plan["paths"][0]["interopContracts"])
+        self.assertFalse(plan["sourceDependencyGraph"]["fullClosureProven"])
+
+    def test_document_only_change_does_not_parse_source_graph(self):
+        plan = plan_impacted(["docs/knowledge/flow.md"])
+        self.assertIsNone(plan["sourceDependencyGraph"])
+        self.assertEqual(plan["manualWorkflowCandidates"], ["repository-verify.yml"])
+
     def test_unregistered_source_cannot_claim_complete_dependency_closure(self):
         plan = plan_impacted([FRONT + "src/app/runtime/textTranslationCache.ts"])
         self.assertTrue(plan["reviewRequired"])

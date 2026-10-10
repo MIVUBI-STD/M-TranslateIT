@@ -118,6 +118,12 @@ For a cross-domain defect, do not silently change the active scope. A `DEVELOPME
 
 Six canonical skills remain unchanged. Golden routing cases validate expected modes and specialist ownership; only actual observed agent-run receipts may support a model-routing accuracy claim. A semantic specialist never overrides the active lane's permission or starts an unrelated release.
 
+## Derived dependency intelligence
+
+`python tools/repository_impact.py --changed <repository-relative-file> [...]` can identify known import consumers and cross-language contract regressions before source modification or targeted validation. `tools/repository_dependencies.py` parses current TypeScript/Svelte relative imports, Rust module/use relationships, and local Python AST imports into an **ephemeral** reverse graph; no second knowledge/owner registry or generated graph file exists.
+
+Only explicit source edges are derived. Dynamic imports, macro expansions, service IPC protocols, type/value semantics, and runtime behavior are outside this partial graph. Registered Rust↔TypeScript↔Python interop boundaries retain their canonical `tools/interop-contracts.json` owners and verifiers. Unknown imports, unindexed sources or uncertain closure require review or broader proof, never silent test omission. Each run is `PLANNING_ONLY_NOT_EXECUTED`; it cannot start tests, CI, release, or update `main`.
+
 ## First-wrong-owner examples
 
 ```text

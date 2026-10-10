@@ -31,7 +31,8 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Repository static governance | `tools/verify_repository.py` |
 | Document identity/graph/section lookup | `docs/**/*.md` metadata + links → `tools/repository_knowledge.py` (derived) |
 | Cross-language contract test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` (navigation, not DTO truth) |
-| Changed-path affected-proof recommendation | `tools/repository_impact.py` (derived from existing contracts + literal regression links; not dependency authority) |
+| Changed-path impact/proof recommendation | `tools/repository_impact.py` (canonical planner; contracts and tests remain source-owned) |
+| Derived source-import relationships | `tools/repository_dependencies.py` (ephemeral Rust/TS/Python graph; partial, not semantic authority) |
 | Task-mode context projection / handoff | `tools/repository_context.py` (read-only composition; mode policy remains in `AGENTS.md`) |
 | Frontend source/bridge contracts | `EngineData/Frontend/RustApp/scripts/` validators |
 
