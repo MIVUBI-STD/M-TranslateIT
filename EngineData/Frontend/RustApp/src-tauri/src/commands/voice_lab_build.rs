@@ -16,8 +16,8 @@ use super::builtin_voice::{
 };
 use super::voice_lab::{
     approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
-    finish_voice_lab_build, mark_voice_lab_build_evaluating, mark_voice_lab_build_training,
-    prepare_guided_dataset, promote_voice_actor_candidate, request_voice_lab_build_cancel,
+    finish_voice_lab_build, prepare_guided_dataset, promote_voice_actor_candidate,
+    request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedTakeContract,
     VoiceLabStoragePaths, MAX_REFERENCE_MS, MIN_REFERENCE_MS, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
