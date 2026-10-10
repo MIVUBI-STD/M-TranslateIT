@@ -7,6 +7,7 @@ const registry = readFileSync(new URL("../../src-tauri/src/commands/registry.rs"
 const bridge = readFileSync(new URL("../../src/app/bridge/myVoiceBuildApi.ts", import.meta.url), "utf8");
 const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
 const status = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
+const phase = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build/phase.rs", import.meta.url), "utf8");
 const actor = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
 
 test("quick preview is an isolated one-WAV child with existing VoiceLab authority", () => {
@@ -92,13 +93,10 @@ test("preview readiness is invalidated when accepted recording revision or train
 });
 
 test("preview phase cannot be reconciled from stale trained-build status", () => {
-  const start = status.indexOf("fn reconcile_phase(");
-  const end = status.indexOf("fn current_status(", start);
-  assert.ok(start >= 0 && end > start);
-  assert.match(
-    status.slice(start, end),
-    /if super::voice_lab_preview::quick_voice_preview_active\(\) \{\s*return;/,
-  );
+  assert.match(status, /mod phase;/);
+  assert.match(status, /use phase::reconcile_phase;/);
+  assert.match(phase, /fn reconcile_phase\(/);
+  assert.match(phase, /if super::super::voice_lab_preview::quick_voice_preview_active\(\) \{\s*return;/);
   assert.match(status, /let child = if preview_active \{ None \} else \{ child_status\(&paths\) \}/);
   assert.match(status, /"Creating Quick Preview locally\."/);
   assert.match(status, /"Stopping Quick Preview safely\."/);

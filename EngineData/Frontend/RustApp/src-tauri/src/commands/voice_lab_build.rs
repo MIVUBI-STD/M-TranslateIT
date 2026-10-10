@@ -27,8 +27,10 @@ use super::voice_lab_recording::{
 };
 
 mod evaluation;
+mod phase;
 
 pub use evaluation::VoiceLabEvaluationSample;
+use phase::reconcile_phase;
 use evaluation::{
     candidate_selection_matches_actor_json, evaluation_dir, evaluation_manifest,
     evaluation_review_complete, held_out_contract, EvaluationManifest, MAX_EVALUATION_WAV_BYTES,
@@ -290,38 +292,6 @@ fn child_status(paths: &VoiceLabStoragePaths) -> Option<BuildChildStatusFile> {
         && value.engine == VOICE_ACTOR_ENGINE
         && value.engine_revision == VOICE_ACTOR_ENGINE_REVISION)
         .then_some(value)
-}
-
-fn reconcile_phase(paths: &VoiceLabStoragePaths) {
-    // The preview borrows the VoiceLab resource but is not a trained build.
-    // Its phase must never be changed by a previous build's status.json.
-    if super::voice_lab_preview::quick_voice_preview_active() {
-        return;
-    }
-    let snapshot = current_voice_lab_build_snapshot();
-    let Some(generation) = snapshot.generation else {
-        return;
-    };
-    if !snapshot.active || snapshot.phase == "cancelling" {
-        return;
-    }
-    let Some(status) = child_status(paths) else {
-        return;
-    };
-    match (snapshot.phase.as_str(), status.phase.as_str()) {
-        ("preparing", "training") => {
-            let _ = mark_voice_lab_build_training(generation);
-        }
-        ("preparing", "evaluating") | ("preparing", "ready_for_review") => {
-            if mark_voice_lab_build_training(generation).is_ok() {
-                let _ = mark_voice_lab_build_evaluating(generation);
-            }
-        }
-        ("training", "evaluating") | ("training", "ready_for_review") => {
-            let _ = mark_voice_lab_build_evaluating(generation);
-        }
-        _ => {}
-    }
 }
 
 fn current_status() -> VoiceLabBuildStatus {
