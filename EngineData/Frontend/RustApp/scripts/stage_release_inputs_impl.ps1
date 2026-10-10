@@ -135,8 +135,28 @@ foreach ($model in $manifest.models) {
     }
 }
 Write-Host '[release-stage][sha256] ASR + MiLMMT artifact hashes PASS'
-Write-Host '[release-stage] Stage built-in zero-shot voice references'
-Copy-Tree (Join-Path $RepoRoot 'EngineData\Backend\RuntimeAssets\Voice\BuiltInVoices') (Join-Path $Backend 'RuntimeAssets\Voice\BuiltInVoices')
+Write-Host '[release-stage] Verify repository-owned built-in voice references'
+$builtInRoot = Join-Path $Assets 'Voice\BuiltInVoices'
+$builtInSources = Join-Path $builtInRoot 'SOURCES.json'
+if (-not (Test-Path -LiteralPath $builtInSources -PathType Leaf)) { throw 'BuiltInVoices/SOURCES.json missing' }
+$builtInRecord = Get-Content -LiteralPath $builtInSources -Raw | ConvertFrom-Json
+if ($builtInRecord.schema -ne 'translateit.builtin_voice_sources.v1') { throw 'BuiltInVoices source schema mismatch' }
+$expectedVoiceIds = @('MaleVoice', 'FemaleVoice')
+$actualVoiceIds = @($builtInRecord.voices | ForEach-Object { $_.voice_id })
+if (@($actualVoiceIds | Sort-Object -Unique).Count -ne 2 -or
+    @($actualVoiceIds | Sort-Object).Count -ne 2 -or
+    @(Compare-Object ($expectedVoiceIds | Sort-Object) ($actualVoiceIds | Sort-Object)).Count -ne 0) {
+    throw 'BuiltInVoices manifest must contain exactly MaleVoice and FemaleVoice'
+}
+foreach ($voice in $builtInRecord.voices) {
+    if ([string]$voice.wav_sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw "Invalid BuiltInVoices SHA-256: $($voice.voice_id)" }
+    $reference = Join-Path $builtInRoot "$($voice.voice_id)\reference.wav"
+    $attribution = Join-Path $builtInRoot "$($voice.voice_id)\REFERENCE_SOURCE.txt"
+    if (-not (Test-Path -LiteralPath $reference -PathType Leaf)) { throw "BuiltInVoices reference missing: $($voice.voice_id)" }
+    if (-not (Test-Path -LiteralPath $attribution -PathType Leaf)) { throw "BuiltInVoices attribution missing: $($voice.voice_id)" }
+    Assert-Hash $reference ([string]$voice.wav_sha256) "BuiltInVoices/$($voice.voice_id)/reference.wav"
+}
+Write-Host '[release-stage] BuiltInVoices tracked source and hashes PASS'
 
 Write-Host '[release-stage] Stage pinned GPT-SoVITS pretrained Hugging Face assets'
 $env:GPT_ASSET_OUT = Join-Path $Temp 'gpt-assets'

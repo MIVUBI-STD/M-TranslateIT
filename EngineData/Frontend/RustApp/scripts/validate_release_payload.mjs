@@ -271,8 +271,19 @@ if (existsSync(join(builtinVoiceRoot, "SOURCES.json"))) {
   const sourcesJsonText = readFileSync(join(builtinVoiceRoot, "SOURCES.json"), "utf8").replace(/^\uFEFF/, "");
   const sources = JSON.parse(sourcesJsonText);
   if (sources.schema !== "translateit.builtin_voice_sources.v1") fail("builtin_voice_sources_schema");
-  for (const voice of sources.voices ?? []) {
+  const voices = sources.voices;
+  if (!Array.isArray(voices) || voices.length !== 2 ||
+      new Set(voices.map((voice) => voice.voice_id)).size !== 2 ||
+      !["MaleVoice", "FemaleVoice"].every((id) => voices.some((voice) => voice.voice_id === id))) {
+    fail("builtin_voice_sources_inventory_mismatch");
+  }
+  for (const voice of voices ?? []) {
+    if (!/^[a-f0-9]{64}$/i.test(String(voice.wav_sha256 ?? ""))) {
+      fail(`builtin_voice_invalid_sha256:${voice.voice_id}`);
+      continue;
+    }
     const path = join(builtinVoiceRoot, voice.voice_id, "reference.wav");
+    requireFile(path, `BuiltInVoices/${voice.voice_id}/reference.wav`);
     if (!existsSync(path)) continue;
     const actual = createHash("sha256").update(readFileSync(path)).digest("hex");
     if (actual !== String(voice.wav_sha256).toLowerCase()) fail(`builtin_voice_hash_mismatch:${voice.voice_id}`);
