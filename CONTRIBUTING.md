@@ -37,7 +37,7 @@ Use the Bounded, Standard, or Complex contract from `AGENTS.md`. Complex/ambiguo
 
 ## Before committing
 
-Verification workflows are `workflow_dispatch` only. A source/static change does not require an automatic or ceremonial CI run. Prefer the smallest meaningful local/source check; manual GitHub Actions provide optional stronger execution proof when the exact claim demands it. Do not change the GitHub default branch from `main`: it is reserved for finalized results. Manual dispatch of workflows present only on `Local` is not yet guaranteed; use available source/local checks and report any missing CI proof rather than promoting unfinished files.
+Verification workflows are `workflow_dispatch` only. A source/static change does not require an automatic or ceremonial CI run. Prefer exact-source checks and available ChatGPT/cloud execution; manual GitHub Actions provide optional stronger evidence when required. Do not ask the user to run incremental tests or use their PC as a substitute for unavailable cloud tooling. Do not change the GitHub default branch from `main`: it is reserved for finalized results. Manual dispatch of workflows present only on `Local` is not yet guaranteed; use available source/local checks and report any missing CI proof rather than promoting unfinished files.
 
 
 Run the cheapest relevant proof.
@@ -48,7 +48,7 @@ Repository/governance:
 python tools/verify_repository.py
 ```
 
-Desktop/frontend/Rust and Python worker proof follow their owning package/workflow. Do not run target-Windows/device checks ceremonially for source-only changes.
+Desktop/frontend/Rust and Python worker proof follow their owning package/workflow. Native Windows/device acceptance is single planned stage after an integrated test-ready candidate meets `docs/knowledge/operations/target-windows-performance.md`, not a per-commit test.
 
 ## Commit discipline
 

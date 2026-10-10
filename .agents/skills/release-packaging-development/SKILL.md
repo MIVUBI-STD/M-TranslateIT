@@ -50,6 +50,8 @@ Normal users do not manually install Python, run pip, download core models, extr
 
 ## Proof hierarchy
 
+Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+
 ```text
 configuration/source proof
 → artifact build proof

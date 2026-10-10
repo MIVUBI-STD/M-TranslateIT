@@ -160,7 +160,7 @@ DEV.cmd test
 DEV.cmd package
 ```
 
-`DEV.cmd` is only a thin router. Existing npm/Cargo/uv/release owners remain authoritative; it does not create a second build system. Supported toolchain policy is recorded in `toolchain.json`.
+`DEV.cmd` is an optional developer convenience, not a step ChatGPT assigns to the user's PC during development. Existing npm/Cargo/uv/release owners remain authoritative; it does not create a second build system. Supported toolchain policy is recorded in `toolchain.json`.
 
 Direct subsystem commands remain valid for targeted work. Use only proof required by the changed claim; hosted/static proof does not become native Windows acceptance.
 

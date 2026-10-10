@@ -44,6 +44,6 @@ Verification definitions and source test entrypoints are available on `Local`; h
 
 If CI reports a concrete regression, repair only that regression.
 
-After hosted source proof, proceed to `TARGET_WINDOWS` acceptance using `docs/knowledge/operations/target-windows-performance.md`: physical microphone, TranslateIT Meeting Microphone route, Zoom/Teams/Meet/Discord reception, GPU/CPU/RAM/VRAM behavior, Start→Live and speech→playback latency, long-session stability, mixed-DPI overlay, sleep/wake, unplug/replug, My Voice audible quality, updater install, and clean-machine setup.
+Only after Batch 5 and matching source/integration/package proof, assess the **integrated test-ready candidate** gate in `docs/knowledge/operations/target-windows-performance.md`. No per-change tests on the user's PC: plan one grouped `TARGET_WINDOWS` pass for installed-product, device, meeting, latency and clean-machine acceptance. Missing critical executable proof blocks candidate readiness; do not assign it to the user.
 
 Source/hosted CI proof must not be reported as native-device acceptance.

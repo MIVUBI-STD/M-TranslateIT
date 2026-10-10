@@ -41,6 +41,7 @@ REQUIRED_PATHS = (
     "tools/tests/test_repository_dependencies.py",
     "tools/repository_context.py",
     "tools/tests/test_repository_context.py",
+    "tools/tests/test_repository_governance.py",
     "tools/repository_verification.py",
     "tools/tests/test_repository_verification.py",
     "tools/interop-contracts.json",
@@ -566,6 +567,61 @@ def check_decision_boundary(errors: list[str]) -> None:
         fail(errors, "decision-log compatibility pointer must mark legacy content historical")
 
 
+def check_chatgpt_execution_policy(errors: list[str]) -> None:
+    """Check remote-only work and bundled candidate admission markers.
+
+    This is source/static enforcement, never executed or native acceptance proof.
+    """
+    required = {
+        "AGENTS.md": ("## ChatGPT source boundary", "ChatGPT Project Instructions",
+                      "not the user's PC", "integrated test-ready candidate"),
+        "GITHUB_RULES.md": ("### ChatGPT no-user-PC invariant", "Never ask the user to run",
+                            "not a user-PC handoff", "Integrated test-ready candidate gate"),
+        "README.md": ("optional developer convenience", "not a step ChatGPT assigns"),
+        "CONTRIBUTING.md": ("## ChatGPT repository route", "single planned stage"),
+        "docs/knowledge/development-discipline.md": ("Test readiness and native escalation",
+                                                      "Do not demand per-commit tests"),
+        "docs/knowledge/flow.md": ("no user-PC handoff", "integrated test-ready candidate"),
+        "docs/knowledge/next-action.md": ("No per-change tests on the user's PC",
+                                         "integrated test-ready candidate"),
+        "docs/knowledge/current-validation.md": ("not an incremental user-PC testing request",
+                                                 "UNKNOWN / NOT EXECUTED"),
+        "docs/knowledge/operations/target-windows-performance.md": ("## Candidate admission",
+                                                                    "integrated test-ready candidate",
+                                                                    "one coordinated test phase"),
+        "docs/knowledge/decisions/README.md": ("D-043 — ChatGPT/cloud development",
+                                               "bundled Windows acceptance"),
+    }
+    for rel, markers in required.items():
+        contents = text(rel)
+        for marker in markers:
+            if marker not in contents:
+                fail(errors, f"{rel} lost remote/candidate contract: {marker}")
+
+    try:
+        skills = json.loads(text(".agents/skill-registry.json"))["skills"]
+        for entry in skills:
+            rel = f".agents/skills/{entry['id']}/SKILL.md"
+            contents = text(rel)
+            if "GITHUB_RULES.md" not in contents or "integrated test-ready candidate" not in contents:
+                fail(errors, f"{rel} lacks the inherited root candidate/no-PC boundary")
+
+        cases = json.loads(text(".agents/evals/skill-procedure.json"))["cases"]
+        indexed = {case["id"]: case for case in cases}
+        for identity in (
+            "brief-cross-owner", "desktop-readiness", "ui-settings",
+            "ai-translation", "audio-device", "release-controlled",
+        ):
+            case = indexed.get(identity)
+            if not case or (
+                "defer-native-proof-until-candidate" not in case.get("requiredMilestones", []) or
+                "request-user-pc-test-per-change" not in case.get("forbiddenActions", [])
+            ):
+                fail(errors, f"{identity}: procedure regression on deferred native testing")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        fail(errors, f"invalid ChatGPT/native policy validation data: {exc}")
+
+
 def check_agent_permission_policy(errors: list[str]) -> None:
     try:
         from repository_permissions import evaluate_permission, load_policy
@@ -639,6 +695,7 @@ def main() -> int:
     check_agent_skill_evaluations(errors)
     check_compactness(errors)
     check_development_foundation(errors)
+    check_chatgpt_execution_policy(errors)
     check_branch_authority(errors)
     check_continuation_and_product(errors)
     check_governance_links(errors)

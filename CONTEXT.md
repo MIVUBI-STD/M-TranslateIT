@@ -119,7 +119,7 @@ TARGET_WINDOWS
 → installed app + real GPU/audio/devices/VB-CABLE/meeting/latency/clean-machine proof
 ```
 
-Source presence never upgrades itself into runtime or target-Windows proof.
+Source presence never upgrades itself into runtime or target-Windows proof. ChatGPT develops against remote GitHub `Local`; the user's Windows PC is the final integrated-candidate acceptance environment, not an incremental source-testing prerequisite.
 
 ## Canonical navigation
 

@@ -102,7 +102,7 @@ Context is not permission and is not proof. Use actual capability plus observed 
 
 Before material work, translate the request into an observable goal, constraints, non-goals, known consumer and canonical owner, cheapest falsifying evidence, and STOP condition. Choose exactly one current work mode; do not promote speculative evidence to a higher proof tier. Prefer: no change → delete an unnecessary path → correct the current owner → reuse an existing capability → minimal complete addition.
 
-**Development preflight:** identify the first wrong owner, direct caller/consumer, proposed change scope, actual permission/ability to execute, and the narrow evidence capable of rejecting the result. A missing compiler or native Windows environment is an explicit proof residue, not permission to edit tests or ask the user for a local checkout by default.
+**Development preflight:** identify the first wrong owner, direct caller/consumer, proposed change scope, actual permission/ability to execute, and the narrow evidence capable of rejecting the result. A missing compiler or native Windows environment is an explicit proof residue, not permission to edit tests or hand work to the user's PC.
 
 **Completion review:** verify no unauthorized scope expansion, new alias/duplicate authority, missing downstream consumer, stale documentation reference, unconsumed fixture/artifact, or proof overclaim. Record current evidence and the exact unverified residue. STOP on the requested bounded outcome instead of continuing adjacent refactors.
 
@@ -119,6 +119,14 @@ For non-trivial mutation:
 7. stop after acceptance.
 
 Context selection is explicit and bounded: `tools/repository_context.py` may project minimal owner/skill/doc dependencies but is not a second agent router, approval or executable proof. A proposed handoff never activates another scope. Prefer targeted checks during iteration. Do not run broad verification repeatedly for reassurance. When changed-source dependencies cross Rust/TypeScript/Python owners, `tools/repository_impact.py --changed <path>` derives bounded imports via `repository_dependencies.py` and registered contract edges for conservative candidate tests; partial graphs and UNKNOWN closures never authorize skipping evidence. Full manual CI is separate and never dispatched by this planner. `tools/repository_verification.py` is a separate opt-in executor of existing bounded checks: explicit `--execute`, a clean pinned `Local` SHA, approved development mode/scope, fixed no-shell commands, offline defaults, and fail-fast results are required. Selected test PASS does not resolve unknown source edges, unselected regressions or native proof.
+
+## Test readiness and native escalation
+
+- **Every source change:** inspect its canonical owner and affected consumers; use available ChatGPT/GitHub/cloud checks that can falsify the change. Separate observed PASS from unexecuted/unknown proof. A missing runner is not a reason to request user-PC commands or another CI branch.
+- **Before proposing a Windows test:** require an **integrated test-ready candidate**, not one newly implemented feature. Reconcile the current intended Meeting, Text, My Voice and Settings flows with source/integration contracts; eliminate known blocking regressions; gather feasible exact-revision execution proof and controlled installable package inputs. Unknown critical build/integration results block a ready-to-test claim; they do not invalidate completed independent source work.
+- **One coordinated native acceptance:** follow the candidate admission and scoped runbook at `docs/knowledge/operations/target-windows-performance.md`. Reserve physical microphone, GPU, device routing, meeting-app delivery, installation, and clean-machine outcomes for that planned stage. Until executed they remain `UNKNOWN / NOT EXECUTED`, never source PASS. Do not demand per-commit tests, ad hoc screenshots, or repeated installs from the user.
+
+This is a proof-escalation policy, not a new tracker or automatic release authorization. Existing product acceptance contracts, verification scripts, and release gates keep their owners.
 
 ## Performance work
 

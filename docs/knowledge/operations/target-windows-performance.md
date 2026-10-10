@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # Target Windows Performance Acceptance
 
-Use this runbook after the exact current `Local` source checks are green. It owns one repeatable TARGET_WINDOWS baseline for performance decisions; it is not a milestone/status report.
+Use this runbook only for an **integrated test-ready candidate**, after feasible exact-revision source/integration/package checks have been reviewed. It owns the coordinated TARGET_WINDOWS acceptance baseline, not a milestone/status report or recurring request to test every change on the user's PC.
 
 ## Purpose
 
@@ -26,6 +26,17 @@ physical microphone
 ```
 
 The baseline must distinguish speech-boundary delay, CPU/audio preparation, AI stages, output delivery, and hardware pressure. Do not infer any target result from CI/source presence.
+
+## Candidate admission — before any user-PC test request
+
+This is a **read-only admission review**, not proof of native behavior or release approval. Require all of the following before inviting a single planned Windows acceptance session:
+
+1. **Integrated scope:** the intended Meeting (outbound and optional incoming), Text, selected built-in/My Voice behavior, Settings, and application lifecycle paths are implemented and reconciled against `docs/foundation/03-acceptance-scenarios.md`. Do not call an isolated feature or partial source patch an install-ready product.
+2. **Source/integration proof:** resolve known blocking failures and review relevant exact-`Local`-SHA source contracts and executable cloud/hosted checks where available. List genuinely unavailable critical build/integration checks as blockers instead of marking them PASS or assigning them to the user's PC.
+3. **Installable candidate:** controlled Setup/payload inputs, locks, model/voice assets, notices, signing requirements, and package source ownership are accounted for under the existing release procedure. Do not claim an installer exists or works without matching artifact evidence; publishing/promoting is separately authorized.
+4. **One bounded acceptance plan:** pin the candidate revision, enumerate native-only questions, required test environment, safe diagnostic capture and STOP criteria. Run the physical device/Meeting/latency sequence below and the existing product/package acceptance scenarios as one coordinated test phase, not many incremental local test requests.
+
+If any gate is not met, remain in GitHub/cloud development and record the exact unresolved proof at its current owner. `NATIVE_ACCEPTANCE` stays `UNKNOWN / NOT EXECUTED` until the actual Windows tests finish. The final installed product still requires this real-device stage.
 
 ## Preconditions
 

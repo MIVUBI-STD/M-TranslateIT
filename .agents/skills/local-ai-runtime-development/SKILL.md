@@ -75,4 +75,6 @@ Use `uv`, Ruff, pytest, benchmark/profiling tools or type checking only when the
 
 ## Proof
 
+Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+
 GitHub/static proof can establish wiring/contracts/model identity. Actual model load, CUDA behavior, translation quality, generated speech quality, speaker similarity and practical latency require matching runtime/hardware evidence.

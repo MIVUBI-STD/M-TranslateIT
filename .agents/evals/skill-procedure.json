@@ -10,11 +10,13 @@
       "requiredMilestones": [
         "identify-first-owner",
         "record-evidence-ceiling",
-        "bound-current-partition"
+        "bound-current-partition",
+        "defer-native-proof-until-candidate"
       ],
       "forbiddenActions": [
         "write-before-diagnosis",
-        "activate-multiple-specialists"
+        "activate-multiple-specialists",
+        "request-user-pc-test-per-change"
       ],
       "expectedDisposition": "REPORT_RESIDUE",
       "handoffTarget": null
@@ -44,11 +46,13 @@
       "requiredMilestones": [
         "read-canonical-snapshot",
         "locate-presentation-mapping",
-        "check-affected-consumers"
+        "check-affected-consumers",
+        "defer-native-proof-until-candidate"
       ],
       "forbiddenActions": [
         "invent-process-readiness",
-        "rewrite-python-worker"
+        "rewrite-python-worker",
+        "request-user-pc-test-per-change"
       ],
       "expectedDisposition": "BOUNDED_WORK",
       "handoffTarget": null
@@ -95,11 +99,13 @@
       "requiredMilestones": [
         "inspect-existing-visual-tokens",
         "retain-real-interaction-states",
-        "record-rendered-proof-residue"
+        "record-rendered-proof-residue",
+        "defer-native-proof-until-candidate"
       ],
       "forbiddenActions": [
         "edit-audio-runtime",
-        "claim-visual-pass-from-css"
+        "claim-visual-pass-from-css",
+        "request-user-pc-test-per-change"
       ],
       "expectedDisposition": "BOUNDED_WORK",
       "handoffTarget": null
@@ -129,11 +135,13 @@
       "requiredMilestones": [
         "identify-canonical-worker",
         "trace-translation-envelope",
-        "protect-no-truncation-contract"
+        "protect-no-truncation-contract",
+        "defer-native-proof-until-candidate"
       ],
       "forbiddenActions": [
         "add-cloud-fallback",
-        "rewrite-vad-device-owner"
+        "rewrite-vad-device-owner",
+        "request-user-pc-test-per-change"
       ],
       "expectedDisposition": "BOUNDED_WORK",
       "handoffTarget": null
@@ -180,11 +188,13 @@
       "requiredMilestones": [
         "trace-physical-device-selection",
         "check-device-lifecycle",
-        "name-target-windows-proof"
+        "name-target-windows-proof",
+        "defer-native-proof-until-candidate"
       ],
       "forbiddenActions": [
         "auto-hot-swap-device",
-        "claim-vb-cable-from-status"
+        "claim-vb-cable-from-status",
+        "request-user-pc-test-per-change"
       ],
       "expectedDisposition": "REPORT_RESIDUE",
       "handoffTarget": null
@@ -231,11 +241,13 @@
       "requiredMilestones": [
         "check-artifact-provenance",
         "separate-signing-approval",
-        "plan-clean-machine-proof"
+        "plan-clean-machine-proof",
+        "defer-native-proof-until-candidate"
       ],
       "forbiddenActions": [
         "publish-unsigned-package",
-        "silently-promote-main"
+        "silently-promote-main",
+        "request-user-pc-test-per-change"
       ],
       "expectedDisposition": "REQUEST_DECISION",
       "handoffTarget": null

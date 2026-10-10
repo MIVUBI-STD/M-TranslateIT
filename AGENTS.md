@@ -14,7 +14,7 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 
 ## ChatGPT source boundary
 
-ChatGPT-owned `Local` work is GitHub/cloud-only. Never require the user's PC, checkout, installs, `DEV.cmd`, private audio/data or local Windows tests to finish GitHub-verifiable source work. Unavailable native proof remains `UNKNOWN / NOT EXECUTED`. Details: `GITHUB_RULES.md`.
+ChatGPT-owned `Local` work is GitHub/cloud-only, not the user's PC. Never request checkout, installs, `DEV.cmd`, private audio/data or per-change Windows tests. Native-only proof remains `UNKNOWN / NOT EXECUTED` until an integrated test-ready candidate is prepared for one coordinated acceptance. See `GITHUB_RULES.md`.
 
 ## Capability Gate
 
@@ -29,7 +29,7 @@ ARTIFACT_ACCESS = inspect/download exact build or proof artifacts
 NATIVE_HOST     = exercise installed TranslateIT on the target Windows machine
 ```
 
-Capabilities are additive. `REPO_WRITE` does not imply `LOCAL_SHELL`; hosted Windows CI does not imply `NATIVE_HOST`. Use the smallest capability set that can satisfy the claim and finish lower-capability partitions before handing off only the remaining residue.
+Capabilities are additive: `REPO_WRITE` does not imply `LOCAL_SHELL`, and hosted CI does not imply `NATIVE_HOST`. Finish available remote work before recording proof residue.
 
 ## Execution Context Gate
 
@@ -64,7 +64,7 @@ AGENTS.md
 
 Read-only means no edit, CI trigger, continuation advance, or execution of the recorded next step.
 
-**Short-prompt and session recovery:** for a repository URL or "amati", inspect the exact `Local` ref and only the relevant current owner. Use commit `Work`, `State`, and `Proof` as revision-scoped historical evidence, then reconcile with current source and `docs/knowledge/next-action.md` only when continuity is material. An old `Next` does not authorize a new mutation. A clear "continue" retains the current bounded work; do not silently switch specialists or reconstruct missing chat details as facts.
+**Short-prompt and session recovery:** ChatGPT Project Instructions point to `Local` without copying repository rules. New chats read current `AGENTS.md` and `GITHUB_RULES.md` completely, then the smallest owner/skill. A repository URL or "amati" is read-only. Resume by topic from current source, relevant commit `Work/State/Proof`, and `next-action.md` only for active continuation. Historical `Next`, chat history/titles and memory are not authority; no chat naming/retention rules. "Continue" retains the bounded scope; never invent missing facts.
 
 ## Work mode after context
 

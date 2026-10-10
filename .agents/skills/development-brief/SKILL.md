@@ -83,4 +83,6 @@ Framework/library helpers are technical tools, not additional TranslateIT specia
 
 ## Completion
 
+Root `GITHUB_RULES.md` controls ChatGPT/cloud-only execution and the **integrated test-ready candidate** gate. Do not assign the user's PC as an incremental test runner; name unexecuted native-only proof without claiming PASS.
+
 If implementation is complete but required higher-context proof is unavailable, report that residue precisely instead of claiming completion above the proof ceiling. Update only changed canonical state owners and use exactly one next step when work remains.

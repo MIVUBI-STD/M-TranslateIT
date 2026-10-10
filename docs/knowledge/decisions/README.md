@@ -176,6 +176,16 @@ Built-in references are LibriSpeech/OpenSLR-derived CC-BY-4.0 material with exac
 
 **Owner:** existing Skill/registry/permission owners, `.agents/evals/skill-procedure.json`, and the two canonical repository verification helpers.
 
+### D-043 — ChatGPT/cloud development and bundled Windows acceptance
+
+**Context:** TranslateIT is eventually installed on a Windows PC, but incremental development and proof of source changes do not require the user's device.
+
+**Decision:** perform ChatGPT-owned source and feasible integration work through GitHub/cloud on `Local`. Never make user-PC checkout, toolchain installation, manual per-change tests or artifact uploads a routine handoff. Keep genuinely native-only claims `UNKNOWN / NOT EXECUTED` until an integrated test-ready candidate has reviewed product coverage, resolved known blockers, matching feasible source/integration proof, controlled installable inputs, and one grouped acceptance plan. Actual device, audio, GPU, meeting-app and clean-install outcomes remain native acceptance, not source PASS.
+
+**Tradeoffs:** no invented test success or premature "ready to test" while critical execution evidence is missing; inability to run one proof does not block independent source-verifiable work. Final Windows acceptance is still required before accepting the finished product.
+
+**Owners:** root `GITHUB_RULES.md` owns ChatGPT execution/transfer; `docs/knowledge/development-discipline.md` owns proof escalation; `docs/knowledge/operations/target-windows-performance.md` owns candidate admission and grouped native procedure. Existing skills inherit the root policy.
+
 ## Recording policy
 
 Record a durable decision only when architecture/workflow/reasoning must survive sessions, multiple owners depend on it, a meaningful tradeoff exists, or an old method is explicitly superseded.

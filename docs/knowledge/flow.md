@@ -46,7 +46,7 @@ TARGET_WINDOWS
 → installed TranslateIT + real GPU/audio/device/meeting environment
 ```
 
-Never transfer an entire task because one residue requires a higher context. Finish independent GitHub-valid source/test/harness/provenance work first and hand off only the intrinsic residue.
+Never transfer an entire task because one residue requires a higher context. Finish independent GitHub-valid source/test/harness/provenance work first and preserve only the intrinsic proof residue. For ChatGPT-owned work, this is a **no user-PC handoff**: complete available GitHub/cloud work, mark unavailable tests unexecuted, and defer a single grouped native test to the integrated test-ready candidate gate defined by `GITHUB_RULES.md` and `docs/knowledge/operations/target-windows-performance.md`.
 
 ## Modes
 

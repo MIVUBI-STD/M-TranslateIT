@@ -84,6 +84,12 @@ For ChatGPT-owned TranslateIT source work, `Local` is a remote GitHub branch, no
 
 Complete independently provable `REMOTE_GITHUB` changes and commit truthful revision-scoped evidence. When authorized cloud execution cannot perform a claim that genuinely needs `LOCAL_CODE` or `TARGET_WINDOWS`, record only that claim as `UNKNOWN / NOT EXECUTED`; do not assign a user-PC to-do. Windows audio/GPU/device quality, packaging and installed acceptance still require actual matching execution evidence before those claims can PASS. Developer-initiated local work remains optional and independent of ChatGPT source completion.
 
+### Integrated test-ready candidate gate
+
+**Never ask the user to run** incremental npm/Python/Cargo/`DEV.cmd` tests, clone or upload source, reinstall the app for each change, or conduct repeated physical Windows audio/GPU/meeting checks to compensate for an unavailable ChatGPT/cloud runner. Source, contracts, fixtures, integration, and available cloud execution stay owned by ChatGPT; missing critical execution evidence is an explicit blocker, not fabricated PASS.
+
+Invite a **single coordinated `TARGET_WINDOWS` acceptance** only when the intended Meeting/Text/My Voice/Settings product scope is integrated, known source/integration/packaging blockers are resolved, feasible exact-SHA GitHub/cloud checks have actual evidence, and controlled installable inputs plus a bounded test plan exist. If those admission criteria are not met, continue independent remote work and retain precise `UNKNOWN / NOT EXECUTED` residue. Actual Windows microphone, GPU, virtual route, meeting-app reception, latency, installed runtime and clean-machine behavior still require native evidence before final product acceptance. Admission details belong only to `docs/knowledge/operations/target-windows-performance.md`; no second status or release registry is created.
+
 ### Source acceptance
 
 For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. Manual Code Health still requires full frontend/Rust/Python source proof when explicitly dispatched. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.
@@ -200,7 +206,7 @@ Never create placeholders, transfer-only manifests, temporary loaders, artificia
 
 ### Execution Handoff
 
-Use only for genuine remaining work above the current context:
+This records minimum higher-context proof residue, **not a user-PC handoff** or a request for incremental local tests. Native-only proof waits for the integrated test-ready candidate gate. Use only for genuine remaining work above the current context:
 
 ```text
 FROM_CONTEXT

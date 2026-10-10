@@ -91,6 +91,8 @@ Can additionally prove the exact checkout/toolchain/filesystem/build that actual
 
 ## Target Windows
 
+Native acceptance is not an incremental user-PC testing request. Its claims remain `UNKNOWN / NOT EXECUTED` until a bounded, integrated test-ready candidate has passed the entry criteria in `docs/knowledge/operations/target-windows-performance.md` and the actual target checks have run. Source/CI completion alone is not admission.
+
 ### TARGET_WINDOWS / NATIVE_ACCEPTANCE
 
 Required for:
