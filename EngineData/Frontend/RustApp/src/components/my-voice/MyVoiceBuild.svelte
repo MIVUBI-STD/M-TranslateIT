@@ -282,11 +282,12 @@
   async function playEvaluation(lineId: number): Promise<void> {
     if (busy || playingLineId !== null) return;
     const reviewId = build.evaluation_review_id;
-    if (!reviewId) return;
-    const bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId);
+    const expectedSha256 = build.evaluation_samples.find((sample) => sample.line_id === lineId)?.sha256;
+    if (!reviewId || !expectedSha256) return;
+    const bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId, expectedSha256);
     if (reviewId !== build.evaluation_review_id) return;
     if (!bytes) {
-      onNotice("This My Voice preview is unavailable.");
+      onNotice("This My Voice preview is unavailable or failed its integrity check.");
       return;
     }
     stopAudio();
@@ -294,7 +295,7 @@
     audio = new Audio(audioUrl);
     playingLineId = lineId;
     audio.onended = () => {
-      if (!reviewedLineIds.includes(lineId)) reviewedLineIds = [...reviewedLineIds, lineId];
+      if (reviewId === build.evaluation_review_id && !reviewedLineIds.includes(lineId)) reviewedLineIds = [...reviewedLineIds, lineId];
       stopAudio();
     };
     audio.onerror = () => {

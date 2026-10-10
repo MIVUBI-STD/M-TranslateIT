@@ -11,6 +11,7 @@ export type MyVoiceEvaluationSample = {
   line_id: number;
   exact_text: string;
   wav_file: string;
+  sha256: string;
   speaker_similarity: number;
   intelligibility_text: string;
   intelligibility_wer: number;
@@ -154,8 +155,18 @@ export const myVoiceBuildApi = {
     return action ? normalizeAction(action) : unavailableAction("My Voice could not switch to that built-in voice.");
   },
 
-  async getEvaluationAudio(lineId: number, reviewId: string): Promise<ArrayBuffer | null> {
-    return runCommand<ArrayBuffer>("get_voice_lab_evaluation_audio", { lineId, reviewId });
+  async getEvaluationAudio(lineId: number, reviewId: string, expectedSha256: string): Promise<ArrayBuffer | null> {
+    if (!/^[0-9a-f]{64}$/.test(expectedSha256)) return null;
+    const bytes = await runCommand<ArrayBuffer>("get_voice_lab_evaluation_audio", { lineId, reviewId });
+    const subtle = globalThis.crypto?.subtle;
+    if (!bytes || bytes.byteLength < 44 || !subtle) return null;
+    try {
+      const digest = await subtle.digest("SHA-256", bytes);
+      const actual = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      return actual === expectedSha256 ? bytes : null;
+    } catch {
+      return null;
+    }
   },
 
   subscribeRuntime(

@@ -17,6 +17,8 @@ const actor = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build
 const mutations = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/mutations.rs", import.meta.url), "utf8");
 const recordingUi = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
 const guidedAudio = readFileSync(new URL("../../src-tauri/src/engine/audio/guided_take.rs", import.meta.url), "utf8");
+const evaluation = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build/evaluation.rs", import.meta.url), "utf8");
+const synthesis = readFileSync(new URL("../../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py", import.meta.url), "utf8");
 
 test("quick preview is an isolated one-WAV child with existing VoiceLab authority", () => {
   assert.match(preview, /begin_voice_lab_build\(\)/);
@@ -157,8 +159,18 @@ test("guided-take signal reasons provide actionable recording guidance without a
 test("My Voice listening and approval require the same synthesized review identity", () => {
   assert.match(status, /evaluation_review_id: evaluation\.as_ref\(\)\.map\(/);
   assert.match(ui, /build\.evaluation_review_id !== next\.evaluation_review_id/);
-  assert.match(ui, /myVoiceBuildApi\.getEvaluationAudio\(lineId, reviewId\)/);
+  assert.match(ui, /myVoiceBuildApi\.getEvaluationAudio\(lineId, reviewId, expectedSha256\)/);
   assert.match(bridge, /get_voice_lab_evaluation_audio", \{ lineId, reviewId \}/);
   assert.match(actor, /if review_id != evaluation\.review_id/);
   assert.match(actor, /if review_id != manifest\.review_id/);
+});
+
+test("review playback hashes the actual returned WAV and never accepts a stale clip", () => {
+  assert.match(synthesis, /"sha256": str\(sample\["sha256"\]\)/);
+  assert.match(evaluation, /pub sha256: String/);
+  assert.match(evaluation, /!valid_sha256\(&sample\.sha256\)/);
+  assert.match(bridge, /subtle\.digest\("SHA-256", bytes\)/);
+  assert.match(bridge, /actual === expectedSha256 \? bytes : null/);
+  assert.match(ui, /sample\.line_id === lineId\)\?\.sha256/);
+  assert.match(ui, /reviewId === build\.evaluation_review_id && !reviewedLineIds\.includes\(lineId\)/);
 });

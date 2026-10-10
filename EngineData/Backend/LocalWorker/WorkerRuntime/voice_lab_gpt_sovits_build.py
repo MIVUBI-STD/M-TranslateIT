@@ -698,6 +698,7 @@ def promote_selected_candidate(
                 "intelligibility_text": str(sample["intelligibility_text"]),
                 "intelligibility_wer": float(sample["intelligibility_wer"]),
                 "artifact_flags": list(sample["artifact_flags"]),
+                "sha256": str(sample["sha256"]),
             }
         )
     return selected_samples

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import struct
 import tempfile
 import unittest
@@ -9,6 +10,7 @@ from pathlib import Path
 from voice_lab_build import BuildError, validate_dataset_signal, validate_take_signal
 from voice_lab_gpt_sovits import GPT_EPOCHS, SOVITS_EPOCHS, VoiceLabProviderError
 from voice_lab_gpt_sovits_build import (
+    promote_selected_candidate,
     select_best_candidate,
     select_reference,
     synthesis_artifact_flags,
@@ -34,6 +36,40 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             writer.setsampwidth(2)
             writer.setframerate(32_000)
             writer.writeframes(struct.pack(f"<{len(samples)}h", *samples))
+
+    def test_selected_evaluation_carries_verified_audio_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            candidate = root / "candidate"
+            evaluation = root / "evaluation"
+            candidate.mkdir()
+            evaluation.mkdir()
+            wav = root / "generated.wav"
+            self.write_canonical_wav(wav, 1_000)
+            reference = root / "reference.wav"
+            self.write_canonical_wav(reference, 4_000)
+            gpt = root / "gpt.ckpt"
+            sovits = root / "sovits.pth"
+            gpt.write_bytes(b"gpt")
+            sovits.write_bytes(b"sovits")
+            expected_hash = hashlib.sha256(wav.read_bytes()).hexdigest()
+            selected = {
+                "gpt_path": gpt,
+                "sovits_path": sovits,
+                "samples": [{
+                    "line_id": 1001,
+                    "exact_text": "Hello",
+                    "speaker_similarity": 0.9,
+                    "intelligibility_text": "Hello",
+                    "intelligibility_wer": 0.0,
+                    "artifact_flags": [],
+                    "sha256": expected_hash,
+                    "_wav_path": wav,
+                }],
+            }
+            samples = promote_selected_candidate(selected, candidate, evaluation, {"wav_path": reference})
+            self.assertEqual(samples[0]["sha256"], expected_hash)
+            self.assertEqual(hashlib.sha256((evaluation / "held_out_1001.wav").read_bytes()).hexdigest(), expected_hash)
 
     def test_training_epoch_contract_is_explicit_and_importable(self) -> None:
         self.assertEqual(SOVITS_EPOCHS, 8)

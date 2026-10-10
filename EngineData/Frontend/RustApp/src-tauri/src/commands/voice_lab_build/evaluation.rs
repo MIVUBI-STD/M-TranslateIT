@@ -11,6 +11,13 @@ use super::super::voice_lab::{
 pub(super) const MAX_EVALUATION_WAV_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_FROZEN_TAKE_WAV_BYTES: u64 = 4 * 1024 * 1024;
 const MAX_DATASET_MANIFEST_BYTES: u64 = 64 * 1024;
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
 pub(super) const EVALUATION_SELECTION_METHOD: &str =
     "held_out_artifacts_then_mean_wer_then_max_wer_then_similarity_tiebreak";
 
@@ -30,6 +37,7 @@ pub struct VoiceLabEvaluationSample {
     pub line_id: u32,
     pub exact_text: String,
     pub wav_file: String,
+    pub sha256: String,
     pub speaker_similarity: f64,
     pub intelligibility_text: String,
     pub intelligibility_wer: f64,
@@ -141,8 +149,7 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
         || manifest.engine_revision != VOICE_ACTOR_ENGINE_REVISION
         || manifest.selection_method != EVALUATION_SELECTION_METHOD
         || manifest.selected_candidate_id.trim().is_empty()
-        || manifest.review_id.len() != 64
-        || !manifest.review_id.bytes().all(|byte| byte.is_ascii_hexdigit())
+        || !valid_sha256(&manifest.review_id)
         || manifest.samples.len() != HELD_OUT_LINES.len()
     {
         return None;
@@ -168,7 +175,8 @@ pub(super) fn evaluation_manifest(paths: &VoiceLabStoragePaths) -> Option<Evalua
             || sample.artifact_flags.iter().any(|flag| {
                 !matches!(flag.as_str(), "clipping" | "unexpected_silence")
             })
-            || sample.wav_file.trim().is_empty()
+            || !valid_sha256(&sample.sha256)
+            || sample.wav_file != format!("held_out_{}.wav", sample.line_id)
             || Path::new(&sample.wav_file).file_name().and_then(|name| name.to_str())
                 != Some(sample.wav_file.as_str())
         {
@@ -256,6 +264,7 @@ mod tests {
                     line_id: *line_id,
                     exact_text: (*text).to_string(),
                     wav_file: format!("held_out_{line_id}.wav"),
+                    sha256: "b".repeat(64),
                     speaker_similarity: 0.9,
                     intelligibility_text: (*text).to_string(),
                     intelligibility_wer: 0.0,
@@ -324,6 +333,9 @@ mod tests {
         let manifest = manifest();
         assert_eq!(manifest.review_id.len(), 64);
         assert_ne!(manifest.review_id, "b".repeat(64));
+        assert!(valid_sha256(&manifest.samples[0].sha256));
+        assert!(!valid_sha256(&"G".repeat(64)));
+        assert!(!valid_sha256(&"a".repeat(63)));
     }
 
     #[test]
