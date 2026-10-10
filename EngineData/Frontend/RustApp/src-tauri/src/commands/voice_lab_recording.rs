@@ -286,6 +286,9 @@ pub fn retry_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult 
 
 #[tauri::command]
 pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
+    if current_voice_lab_build_snapshot().active {
+        return result(false, "build_active", "Wait for My Voice creation to finish before accepting a new recording.");
+    }
     let mut guard = match draft_store().lock() {
         Ok(guard) => guard,
         Err(_) => return result(false, "draft_state_unavailable", "VoiceLab cannot access the pending review take."),

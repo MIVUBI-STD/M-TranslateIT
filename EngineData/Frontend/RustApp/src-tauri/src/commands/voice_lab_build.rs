@@ -33,7 +33,8 @@ pub use evaluation::VoiceLabEvaluationSample;
 use phase::reconcile_phase;
 use evaluation::{
     candidate_selection_matches_actor_json, evaluation_dir, evaluation_manifest,
-    evaluation_review_complete, held_out_contract, EvaluationManifest, MAX_EVALUATION_WAV_BYTES,
+    evaluation_review_complete, frozen_dataset_matches_current, held_out_contract,
+    EvaluationManifest, MAX_EVALUATION_WAV_BYTES,
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
@@ -170,6 +171,13 @@ fn clear_previous_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), St
 
 fn reviewable_evaluation(paths: &VoiceLabStoragePaths) -> Option<EvaluationManifest> {
     let evaluation = evaluation_manifest(paths)?;
+    if !frozen_dataset_matches_current(
+        &paths.takes_dir,
+        &paths.build_dataset_dir,
+        &accepted_contract().0,
+    ) {
+        return None;
+    }
     let actor_bytes = fs::read(paths.candidate_actor_dir.join("actor.json")).ok()?;
     let actor_json = serde_json::from_slice::<serde_json::Value>(&actor_bytes).ok()?;
     candidate_selection_matches_actor_json(&evaluation, &actor_json).then_some(evaluation)
@@ -327,6 +335,8 @@ fn current_status() -> VoiceLabBuildStatus {
         })
     } else if evaluation.is_some() {
         "Voice Actor samples are ready. Listen before approving My Voice.".to_string()
+    } else if child.as_ref().is_some_and(|status| status.phase == "ready_for_review") {
+        "Recordings have changed or the earlier voice review is unavailable. Create My Voice again before approval. Your existing Meeting voice is unchanged.".to_string()
     } else if !terminal_message.is_empty() {
         terminal_message
     } else if duration_ms < MIN_TRAINING_SPEECH_MS {
