@@ -1,6 +1,12 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { runCommand } from "../shared/tauriBridge";
 
+export type QuickVoicePreviewResult = {
+  ok: boolean;
+  state: string;
+  message: string;
+};
+
 export type MyVoiceEvaluationSample = {
   line_id: number;
   exact_text: string;
@@ -113,6 +119,21 @@ export const myVoiceBuildApi = {
     return action
       ? normalizeAction(action)
       : unavailableAction("My Voice could not approve the new voice.");
+  },
+
+  // These actions are for My Voice creation only. No selection or Meeting mutation.
+  async generateQuickPreview(): Promise<QuickVoicePreviewResult> {
+    return (await runCommand<QuickVoicePreviewResult>("generate_voice_lab_quick_preview"))
+      ?? { ok: false, state: "unavailable", message: "Quick Preview is unavailable." };
+  },
+
+  async cancelQuickPreview(): Promise<QuickVoicePreviewResult> {
+    return (await runCommand<QuickVoicePreviewResult>("cancel_voice_lab_quick_preview"))
+      ?? { ok: false, state: "unavailable", message: "Quick Preview cancellation is unavailable." };
+  },
+
+  async getQuickPreviewAudio(): Promise<ArrayBuffer | null> {
+    return runCommand<ArrayBuffer>("get_voice_lab_quick_preview_audio");
   },
 
   async getBuiltinPreviewAudio(voiceId: string): Promise<ArrayBuffer | null> {

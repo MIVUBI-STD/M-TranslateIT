@@ -26,7 +26,7 @@ Do not add features or broad architecture work without a concrete defect or expl
 
 Batch 5 source work adds `tools/repository_benchmark.py` and regression cases over existing agent/permission/context/impact owners. No actual model-routing accuracy, speedup or native PASS is implied; executable proof remains unverified.
 
-Next: GPT-SoVITS zero-shot preview helper and one-shot Python child exist as source only; Rust-owned exclusive process lifecycle, cancellation, UI preview/playback and typed bridge remain NOT IMPLEMENTED. Do not expose preview to Meeting or reuse trained-actor approval. No cloud execution or interim PC tests; `main` stays final-only.
+Next: Quick Voice Preview Python child plus Rust resource-owned generator/cancellation and typed frontend bridge are source-wired. My Voice page controls and UI playback remain NOT IMPLEMENTED. Preview must never be selectable in Meeting. Audit model and regression contracts before grouped local acceptance; no cloud execution or incremental PC tests. `main` stays final-only.
 
 Eight GitHub Actions workflow definitions remain **inactive** under the no-cloud policy. Their Code Health, repository/quality/lock and Windows release gates describe future local acceptance requirements, not current executable PASS. If source review finds a concrete regression, repair only its canonical owner.
 

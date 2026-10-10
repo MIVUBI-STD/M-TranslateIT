@@ -25,6 +25,7 @@ pub mod virtual_mic_route;
 pub mod voice_lab;
 pub mod voice_lab_build;
 pub mod voice_lab_recording;
+pub mod voice_lab_preview;
 
 #[cfg(test)]
 mod helper_bridge_contract_tests;
