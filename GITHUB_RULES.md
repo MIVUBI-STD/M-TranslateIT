@@ -80,6 +80,9 @@ Rules:
 
 ### Source acceptance
 
+For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It derives bounded known contracts and regression references, conservatively widens unproven dependency closures, and never certifies skipped tests. Manual Code Health always runs full frontend/Rust/Python source proof when explicitly dispatched; a narrower development impact plan is not a substitute for a required complete run.
+
+
 Normal development uses the smallest owning verifier on the exact `Local` SHA under discussion.
 
 When combining separate checks manually, require completed success on the same exact SHA. Different SHAs or ancestor results do not compose into current proof.

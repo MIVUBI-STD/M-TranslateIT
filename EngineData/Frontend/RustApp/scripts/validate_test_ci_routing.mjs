@@ -1,51 +1,28 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(appRoot, "..", "..", "..");
-const testsRoot = resolve(appRoot, "scripts", "tests");
 const workflow = readFileSync(resolve(repoRoot, ".github", "workflows", "code-health.yml"), "utf8");
 
-function collectTests(directory) {
-  const files = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const path = resolve(directory, entry.name);
-    if (entry.isDirectory()) files.push(...collectTests(path));
-    else if (entry.isFile() && entry.name.endsWith(".test.ts")) files.push(path);
-  }
-  return files;
-}
-
-const referencedPython = new Set();
-
-for (const testPath of collectTests(testsRoot)) {
-  const source = readFileSync(testPath, "utf8");
-  for (const match of source.matchAll(/new URL\(\s*["'`]([^"'`]+\.py)["'`]/g)) {
-    if (match[1].includes("${")) continue;
-    const absolute = resolve(dirname(testPath), match[1]);
-    if (!existsSync(absolute)) continue;
-    const relative = absolute
-      .slice(repoRoot.length + 1)
-      .replaceAll("\\", "/");
-    if (relative.startsWith("EngineData/Backend/LocalWorker/WorkerRuntime/")) {
-      referencedPython.add(relative);
-    }
+// Literal cross-language test references are checked separately by
+// validate_test_reference_reachability.mjs. Manual Code Health selects all
+// frontend, Rust and Python source suites; no second path list is maintained.
+for (const marker of [
+  'echo "frontend=true"', 'echo "python=true"', 'echo "rust=true"',
+  "needs.changes.outputs.frontend == 'true'",
+  "needs.changes.outputs.python == 'true'",
+  "needs.changes.outputs.rust == 'true'",
+  "npm run test:frontend-runtime", "name: Python source and unit health",
+]) {
+  if (!workflow.includes(marker)) {
+    console.error("Manual cross-language Code Health routing missing: " + marker);
+    process.exit(1);
   }
 }
-
-const missing = [...referencedPython]
-  .filter((path) => !workflow.includes(path))
-  .sort();
-
-if (missing.length > 0) {
-  console.error("Cross-language frontend-test CI routing failed:");
-  for (const path of missing) {
-    console.error(`- frontend tests reference ${path}, but Code Health does not explicitly cross-route it to frontend proof`);
-  }
+if (/PUSH_BASE|PR_BASE|git diff --name-only/.test(workflow)) {
+  console.error("Manual Code Health must not retain unreachable push/PR path routing.");
   process.exit(1);
 }
-
-console.log(
-  `[test-ci-routing] ${referencedPython.size} Python sources referenced by frontend tests are cross-routed to frontend Code Health.`,
-);
+console.log("[test-ci-routing] manual Code Health covers frontend, Rust and Python source domains.");

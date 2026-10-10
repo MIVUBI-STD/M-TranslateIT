@@ -12,65 +12,16 @@ permissions:
 
 jobs:
   payload-scope:
-    name: Detect controlled-payload impact
+    name: Require controlled manual release proof
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
     outputs:
       controlled: ${{ steps.scope.outputs.controlled }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-          fetch-depth: 0
       - id: scope
-        name: Classify release changes
+        name: Require controlled payload on explicit manual dispatch
         shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PUSH_BASE: ${{ github.event.before }}
-        run: |
-          set -euo pipefail
-
-          controlled=false
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            controlled=true
-          elif [[ "$EVENT_NAME" == "push" ]]; then
-            base="$PUSH_BASE"
-            if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-              controlled=true
-            else
-              git diff --name-only "$base" "$GITHUB_SHA" > "$RUNNER_TEMP/translateit-r3-changed-paths.txt"
-              while IFS= read -r path; do
-                case "$path" in
-                  EngineData/Frontend/RustApp/scripts/build_r3_external_payload.py|\
-                  EngineData/Frontend/RustApp/scripts/build_release.ps1|\
-                  EngineData/Frontend/RustApp/scripts/generate_third_party_notices.mjs|\
-                  EngineData/Frontend/RustApp/scripts/optimize_release_payload.py|\
-                  EngineData/Frontend/RustApp/scripts/stage_release_inputs.ps1|\
-                  EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1|\
-                  EngineData/Frontend/RustApp/scripts/stage_release_license_material.py|\
-                  EngineData/Frontend/RustApp/scripts/validate_release_model_revisions.mjs|\
-                  EngineData/Frontend/RustApp/scripts/validate_release_payload.mjs|\
-                  EngineData/Frontend/RustApp/scripts/validate_release_package_contract.mjs|\
-                  EngineData/Frontend/RustApp/scripts/validate_tauri_package_preflight.mjs|\
-                  EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json|\
-                  EngineData/Frontend/RustApp/src-tauri/windows/*|\
-                  EngineData/Backend/RuntimeAssets/AudioProvider/VBCABLE/*|\
-                  EngineData/Backend/RuntimeAssets/Voice/BuiltInVoices/*|\
-                  EngineData/Backend/RuntimeAssets/README.md|\
-                  EngineData/Backend/LocalWorker/README.md|\
-                  tools/translation_quality/validate_canonical_milmmt_repo.py|\
-                  tools/quality_readiness/*|\
-                  .github/workflows/release-payload-verify.yml)
-                    controlled=true
-                    break
-                    ;;
-                esac
-              done < "$RUNNER_TEMP/translateit-r3-changed-paths.txt"
-            fi
-          fi
-
-          echo "controlled=$controlled" >> "$GITHUB_OUTPUT"
+        run: echo "controlled=true" >> "$GITHUB_OUTPUT"
 
   source-contract:
     name: R3 source contract
@@ -118,7 +69,7 @@ jobs:
     needs:
       - payload-scope
       - source-contract
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.payload-scope.outputs.controlled == 'true'
+    if: needs.payload-scope.outputs.controlled == 'true'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:

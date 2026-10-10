@@ -8,77 +8,23 @@ permissions:
 
 jobs:
   changes:
-    name: Detect changed source domains
+    name: Select complete manual source proof
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
     outputs:
       frontend: ${{ steps.scope.outputs.frontend }}
       python: ${{ steps.scope.outputs.python }}
       rust: ${{ steps.scope.outputs.rust }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-          fetch-depth: 0
       - id: scope
-        name: Classify changed paths
+        name: Require all source domains for explicit manual run
         shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          PUSH_BASE: ${{ github.event.before }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          set -euo pipefail
-
-          frontend=false
-          python=false
-          rust=false
-          base="$PUSH_BASE"
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            frontend=true
-            python=true
-            rust=true
-          else
-            if [[ "$EVENT_NAME" == "pull_request" ]]; then
-              base="$PR_BASE"
-            fi
-
-            if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-              frontend=true
-              python=true
-              rust=true
-            else
-            git diff --name-only "$base" "$GITHUB_SHA" > "$RUNNER_TEMP/translateit-changed-paths.txt"
-            while IFS= read -r path; do
-              case "$path" in
-                .github/workflows/code-health.yml)
-                  frontend=true
-                  python=true
-                  rust=true
-                  ;;
-                EngineData/Frontend/RustApp/src-tauri/src/*|EngineData/Frontend/RustApp/src-tauri/Cargo.toml|EngineData/Frontend/RustApp/src-tauri/Cargo.lock|EngineData/Frontend/RustApp/src-tauri/tauri.conf.json|EngineData/Frontend/RustApp/src-tauri/tauri.release.conf.json|EngineData/Frontend/RustApp/src-tauri/capabilities/*)
-                  frontend=true
-                  rust=true
-                  ;;
-                EngineData/Frontend/RustApp/src/*|EngineData/Frontend/RustApp/scripts/*|EngineData/Frontend/RustApp/package.json|EngineData/Frontend/RustApp/package-lock.json|EngineData/Frontend/RustApp/tsconfig.json)
-                  frontend=true
-                  ;;
-                EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker_base.py|EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py|EngineData/Backend/LocalWorker/WorkerRuntime/worker_runtime_common.py|EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py)
-                  frontend=true
-                  python=true
-                  ;;
-                EngineData/Backend/LocalWorker/WorkerRuntime/*)
-                  python=true
-                  ;;
-              esac
-            done < "$RUNNER_TEMP/translateit-changed-paths.txt"
-            fi
-          fi
-
-          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
-          echo "python=$python" >> "$GITHUB_OUTPUT"
-          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          {
+            echo "frontend=true"
+            echo "python=true"
+            echo "rust=true"
+          } >> "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend source health

@@ -35,6 +35,8 @@ REQUIRED_PATHS = (
     "docs/knowledge/skills/README.md",
     "tools/repository_knowledge.py",
     "tools/repository_contracts.py",
+    "tools/repository_impact.py",
+    "tools/tests/test_repository_impact.py",
     "tools/interop-contracts.json",
     "tools/tests/test_repository_knowledge.py",
     "tools/tests/test_repository_contracts.py",
@@ -374,52 +376,53 @@ def check_workflows(errors: list[str]) -> None:
 def check_ci_efficiency_contract(errors: list[str]) -> None:
     code_health = text(".github/workflows/code-health.yml")
     for marker in (
-        "Detect changed source domains",
-        "workflow_dispatch:",
+        "Select complete manual source proof",
+        'echo "frontend=true"',
+        'echo "python=true"',
+        'echo "rust=true"',
         "Exact SHA proof summary",
         "Enforce matching changed-domain proof",
         "A skipped domain is not evidence for that domain.",
-        'EVENT_NAME" == "workflow_dispatch"',
-        "fetch-depth: 0",
-        "git diff --name-only",
         "needs.changes.outputs.frontend == 'true'",
         "needs.changes.outputs.python == 'true'",
         "needs.changes.outputs.rust == 'true'",
+        "name: Python source and unit health",
+        "name: Rust source and unit health",
+        "name: Windows Rust source and unit health",
         "npm run build:frontend",
+        "npm run test:frontend-runtime",
         "npm run validate:bridge-contract",
         "npm run validate:tauri-command-args",
+        "npm run validate:application-runtime",
         "npm run validate:reachability",
         "npm run validate:runtime-api-usage",
         "npm run validate:test-references",
         "npm run validate:test-ci-routing",
-        "EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker_base.py",
-        "EngineData/Backend/LocalWorker/WorkerRuntime/worker_io_runtime.py",
-        "EngineData/Backend/LocalWorker/WorkerRuntime/worker_runtime_common.py",
-        "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py",
-        '"EngineData/Frontend/RustApp/src-tauri/tauri.conf.json"',
-        '"EngineData/Frontend/RustApp/src-tauri/capabilities/**"',
         "npm run preflight:tauri-package",
     ):
         if marker not in code_health:
-            fail(errors, f"Code Health lost selective source-proof contract: {marker}")
+            fail(errors, f"Code Health lost full manual source-proof contract: {marker}")
+    for stale in ("git diff --name-only", "PUSH_BASE", "PR_BASE"):
+        if stale in code_health:
+            fail(errors, f"Code Health still contains unreachable automatic CI source routing: {stale}")
 
     release = text(".github/workflows/release-payload-verify.yml")
-    if '"EngineData/Frontend/RustApp/scripts/**"' in release:
-        fail(errors, "R3 Release Contract must not rebuild payloads for every frontend script change")
     for marker in (
-        '"EngineData/Frontend/RustApp/package.json"',
-        '"EngineData/Frontend/RustApp/scripts/build_r3_external_payload.py"',
-        '"EngineData/Frontend/RustApp/scripts/validate_release_payload.mjs"',
-        '"EngineData/Frontend/RustApp/src-tauri/windows/**"',
         "workflow_dispatch:",
-        'EVENT_NAME" == "workflow_dispatch"',
-        "controlled=true",
+        "Require controlled manual release proof",
+        'echo "controlled=true"',
+        "name: R3 source contract",
+        "name: Controlled Windows payload proof",
+        "if: needs.payload-scope.outputs.controlled == 'true'",
         "Exact SHA release proof summary",
         "Enforce release proof completeness",
         "Controlled Windows payload proof required but result was",
     ):
         if marker not in release:
-            fail(errors, f"R3 Release Contract missing release/proof contract: {marker}")
+            fail(errors, f"R3 Release Contract lost controlled manual proof: {marker}")
+    for stale in ("git diff --name-only", "PUSH_BASE", "github.event_name == 'push'"):
+        if stale in release:
+            fail(errors, f"R3 Release Contract still contains automatic payload routing: {stale}")
 
     for workflow in (
         ".github/workflows/repository-verify.yml",
@@ -582,6 +585,11 @@ def check_repository_information_architecture(errors: list[str]) -> None:
         errors.extend(f"interop contracts: {issue}" for issue in verify_contracts())
     except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
         fail(errors, f"invalid cross-language contract inventory: {exc}")
+    try:
+        from repository_impact import verify_impact
+        errors.extend(f"affected-proof planning: {issue}" for issue in verify_impact())
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+        fail(errors, f"invalid affected-proof planner: {exc}")
 
 
 def main() -> int:

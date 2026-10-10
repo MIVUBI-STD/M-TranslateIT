@@ -31,6 +31,7 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Repository static governance | `tools/verify_repository.py` |
 | Document identity/graph/section lookup | `docs/**/*.md` metadata + links → `tools/repository_knowledge.py` (derived) |
 | Cross-language contract test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` (navigation, not DTO truth) |
+| Changed-path affected-proof recommendation | `tools/repository_impact.py` (derived from existing contracts + literal regression links; not dependency authority) |
 | Frontend source/bridge contracts | `EngineData/Frontend/RustApp/scripts/` validators |
 
 ## Desktop product/runtime

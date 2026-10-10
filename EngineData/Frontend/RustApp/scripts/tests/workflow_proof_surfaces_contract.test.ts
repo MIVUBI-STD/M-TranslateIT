@@ -3,23 +3,16 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 function workflow(name: string): string {
-  return readFileSync(
-    new URL(`../../../../../.github/workflows/${name}`, import.meta.url),
-    "utf8",
-  );
+  return readFileSync(new URL("../../../../../.github/workflows/" + name, import.meta.url), "utf8");
 }
 
-const singleJobProofWorkflows = [
-  "repository-verify.yml",
-  "milmmt-repo-contract.yml",
-  "asr-quality-contract.yml",
-  "tts-quality-contract.yml",
-  "quality-readiness-contract.yml",
-  "workerruntime-lock.yml",
+const sourceWorkflows = [
+  "repository-verify.yml", "milmmt-repo-contract.yml", "asr-quality-contract.yml",
+  "tts-quality-contract.yml", "quality-readiness-contract.yml", "workerruntime-lock.yml",
 ];
 
-test("important source-contract workflows support manual exact-SHA proof", () => {
-  for (const name of singleJobProofWorkflows) {
+test("repository and quality contracts provide manual exact-SHA evidence", () => {
+  for (const name of sourceWorkflows) {
     const source = workflow(name);
     assert.match(source, /workflow_dispatch:/, name);
     assert.match(source, /Write exact-SHA proof summary/, name);
@@ -28,41 +21,31 @@ test("important source-contract workflows support manual exact-SHA proof", () =>
   }
 });
 
-test("manual R3 release proof includes controlled Windows payload", () => {
+test("manual R3 release always requires controlled Windows payload proof", () => {
   const source = workflow("release-payload-verify.yml");
-  assert.match(source, /workflow_dispatch:/);
-  assert.match(source, /EVENT_NAME" == "workflow_dispatch"/);
-  assert.match(source, /controlled=true/);
-  assert.match(
-    source,
-    /github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'/,
-  );
-  assert.match(source, /Exact SHA release proof summary/);
-  assert.match(source, /Enforce release proof completeness/);
-  assert.match(
-    source,
-    /Controlled Windows payload proof required but result was/,
-  );
+  for (const marker of [
+    "workflow_dispatch:", "Require controlled manual release proof",
+    'echo "controlled=true"', "if: needs.payload-scope.outputs.controlled == 'true'",
+    "Exact SHA release proof summary", "Enforce release proof completeness",
+    "Controlled Windows payload proof required but result was",
+  ]) {
+    assert.ok(source.includes(marker), marker);
+  }
+  assert.doesNotMatch(source, /PUSH_BASE|git diff --name-only|github\.event_name == 'push'/);
 });
 
-test("Code Health retains aggregate exact-SHA proof semantics", () => {
+test("Code Health retains complete manual exact-SHA gate", () => {
   const source = workflow("code-health.yml");
-  assert.match(source, /workflow_dispatch:/);
+  assert.match(source, /Select complete manual source proof/);
   assert.match(source, /Exact SHA proof summary/);
   assert.match(source, /Enforce matching changed-domain proof/);
 });
 
-const verificationWorkflows = [
-  ...singleJobProofWorkflows,
-  "code-health.yml",
-  "release-payload-verify.yml",
-];
-
-test("all GitHub Actions workflows are manual-only; no push/PR/scheduled verification", () => {
-  for (const name of verificationWorkflows) {
+test("all eight workflows forbid automatic push, PR, schedule and release triggers", () => {
+  for (const name of [...sourceWorkflows, "code-health.yml", "release-payload-verify.yml"]) {
     const source = workflow(name);
     const trigger = source.match(/^on:\n([\s\S]*?)(?=^(?:permissions|concurrency):)/m)?.[1];
-    assert.ok(trigger, `${name}: event block must be explicit`);
+    assert.ok(trigger, name + ": explicit workflow event block missing");
     assert.match(trigger, /^  workflow_dispatch:/m, name);
     assert.doesNotMatch(trigger, /^  (?:push|pull_request|pull_request_target|schedule|workflow_run|release|create|delete|merge_group|issue_comment):/m, name);
   }
