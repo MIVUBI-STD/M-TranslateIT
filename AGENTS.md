@@ -12,6 +12,10 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 - Do not create alternate development branches as part of the normal method.
 - Historical branches/reports are recovery evidence only and are not current task or product authority.
 
+## ChatGPT source boundary
+
+ChatGPT-owned `Local` work is GitHub/cloud-only. Never require the user's PC, checkout, installs, `DEV.cmd`, private audio/data or local Windows tests to finish GitHub-verifiable source work. Unavailable native proof remains `UNKNOWN / NOT EXECUTED`. Details: `GITHUB_RULES.md`.
+
 ## Capability Gate
 
 Resolve actual capability before choosing execution mechanics. Capability describes what the current session can do; it is not proof by itself.

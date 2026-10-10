@@ -246,6 +246,10 @@ def check_development_foundation(errors: list[str]) -> None:
             fail(errors, f"GITHUB_RULES.md lost material commit continuity: {marker}")
     if "Short-prompt and session recovery" not in agents:
         fail(errors, "AGENTS.md must preserve source-grounded cold-start recovery")
+    if "## ChatGPT source boundary" not in agents or "GitHub/cloud-only" not in agents:
+        fail(errors, "AGENTS.md lost ChatGPT remote-only source routing")
+    if "### ChatGPT no-user-PC invariant" not in github_rules or "user-PC to-do" not in github_rules:
+        fail(errors, "GITHUB_RULES.md must preserve no-user-PC proof boundary")
     if "Development preflight:" not in discipline or "Completion review:" not in discipline:
         fail(errors, "development discipline lost mandatory preflight/completion review")
     for marker in (

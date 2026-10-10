@@ -14,6 +14,10 @@ Local
 
 Routine work is performed directly on `Local`. Do not create task branches, promotion branches, compatibility branches, or branch-per-proof workflows as part of the normal method. A different branch lifecycle requires a new explicit user decision.
 
+## ChatGPT repository route
+
+ChatGPT uses `Local` on GitHub/cloud for source-verifiable development; user-PC setup, toolchain installs, local checkout and native Windows/audio testing are not prerequisites for a remote code/docs change. Higher-context proof is reported `UNKNOWN / NOT EXECUTED` until genuinely observed, without an automatic user-PC handoff. Human local development remains optional; see `GITHUB_RULES.md`.
+
 ## Development method
 
 Follow `GITHUB_RULES.md` and `AGENTS.md`.

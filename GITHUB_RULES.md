@@ -78,6 +78,12 @@ Rules:
 - Never claim a prepared harness or CI artifact performed a higher-context action itself.
 - If a canonical edit cannot be complete without unavailable generated output, do not move `Local` with an incomplete canonical state.
 
+### ChatGPT no-user-PC invariant
+
+For ChatGPT-owned TranslateIT source work, `Local` is a remote GitHub branch, not a folder or toolchain on the user's computer. **ChatGPT + GitHub/cloud-only** is the normal repository development and continuity route. Never ask the user to clone/download source, install Rust/Node/Python, execute `DEV.cmd` or tests, supply local paths/files or meeting/audio content, or operate Windows/GPU/microphone/meeting apps as a prerequisite or workaround for GitHub-verifiable work.
+
+Complete independently provable `REMOTE_GITHUB` changes and commit truthful revision-scoped evidence. When authorized cloud execution cannot perform a claim that genuinely needs `LOCAL_CODE` or `TARGET_WINDOWS`, record only that claim as `UNKNOWN / NOT EXECUTED`; do not assign a user-PC to-do. Windows audio/GPU/device quality, packaging and installed acceptance still require actual matching execution evidence before those claims can PASS. Developer-initiated local work remains optional and independent of ChatGPT source completion.
+
 ### Source acceptance
 
 For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. Manual Code Health still requires full frontend/Rust/Python source proof when explicitly dispatched. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.

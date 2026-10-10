@@ -11,6 +11,8 @@ lifecycle: ACTIVE
 
 This file owns the minimum development flow, failure classification, ownership economy, proof vocabulary, and STOP discipline. Product behavior remains in `docs/foundation/`; source ownership remains in `source-ownership.md`.
 
+ChatGPT-owned source work is GitHub/cloud-only. Do not require the user's PC, checkout, dependency installation, `DEV.cmd`, private voice/meeting files, or device tests to close a GitHub-provable change. Separate unavailable `LOCAL_CODE` / `TARGET_WINDOWS` claims as `UNKNOWN / NOT EXECUTED`; native acceptance remains subject to actual observed proof.
+
 ## Minimum flow
 
 ```text
