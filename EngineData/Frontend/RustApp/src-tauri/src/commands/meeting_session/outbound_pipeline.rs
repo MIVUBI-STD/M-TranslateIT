@@ -13,7 +13,8 @@ use super::committed_turns::{
 };
 use super::super::helper_bridge::{required_outbound_voice_actor_token, send_helper_worker_task};
 use super::{
-    generation_is_live, worker_blocker, worker_number, worker_text, MeetingOutboundProcessResult,
+    generation_is_live, validated_meeting_translation, worker_blocker, worker_number, worker_text,
+    MeetingOutboundProcessResult,
 };
 use super::playback_runtime::{enqueue_meeting_playback, PreparedPlaybackJob};
 use super::session_state::{
@@ -238,9 +239,13 @@ pub(super) fn process_outbound_wav(
     if !generation_is_live(generation) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
-    let translated_text = worker_text(&translation, "translated_text");
-    if !translation.ok || translated_text.is_none() {
-        let blocker = worker_blocker(&translation, "translation:empty_output");
+    let translated_text = validated_meeting_translation(&translation, "id", "en");
+    if translated_text.is_none() {
+        let blocker = if translation.ok {
+            "translation:invalid_meeting_response".to_string()
+        } else {
+            worker_blocker(&translation, "translation:empty_output")
+        };
         update_outbound_status(
             generation,
             session_id,

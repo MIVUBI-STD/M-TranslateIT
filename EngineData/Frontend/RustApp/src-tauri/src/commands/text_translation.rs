@@ -95,24 +95,30 @@ fn clean_source(value: &str) -> String {
 }
 
 fn source_review_hints(source: &str) -> Vec<String> {
-    let folded = format!(" {} ", source.to_lowercase());
+    // Token boundaries keep punctuation next to a critical word from hiding it,
+    // without treating substrings of unrelated words as negation or references.
+    let folded = source.to_lowercase();
+    let words: Vec<&str> = folded
+        .split(|character: char| !character.is_alphanumeric() && character != '\'')
+        .filter(|word| !word.is_empty())
+        .collect();
+    let has_word = |choices: &[&str]| words.iter().any(|word| choices.contains(word));
+    let has_pair = |first: &str, second: &str| {
+        words.windows(2).any(|pair| pair == [first, second])
+    };
     let mut hints = Vec::new();
     if source.chars().any(|character| character.is_ascii_digit()) {
         hints.push("Check numbers, dates, units, prices, and versions.".to_string());
     }
-    if [
-        " tidak ", " bukan ", " jangan ", " belum ", " maksud ", " not ", " don't ",
-        " do not ", " never ", " instead ", " correction ",
-    ]
-    .iter()
-    .any(|needle| folded.contains(needle))
-    {
+    if has_word(&[
+        "tidak", "bukan", "jangan", "belum", "maksud", "not", "don't", "never",
+        "instead", "correction",
+    ]) || has_pair("do", "not") {
         hints.push("Check negation or correction wording.".to_string());
     }
-    if [" itu ", " ini ", " yang tadi ", " tersebut ", " that ", " this ", " it ", " those ", " these "]
-        .iter()
-        .any(|needle| folded.contains(needle))
-    {
+    if has_word(&[
+        "itu", "ini", "tersebut", "that", "this", "it", "those", "these",
+    ]) || has_pair("yang", "tadi") {
         hints.push("Check references when the sentence depends on earlier context.".to_string());
     }
     hints
@@ -164,18 +170,23 @@ fn worker_blocker(response: &Value) -> String {
     }
 }
 
-fn worker_response_is_complete(response: &Value) -> bool {
-    response.get("stage").and_then(Value::as_str) == Some("translate")
-        && response
-            .get("translation_contract")
-            .and_then(Value::as_str)
+fn worker_generation_is_complete(response: &Value) -> bool {
+    response.get("ok").and_then(Value::as_bool) == Some(true)
+        && response.get("stage").and_then(Value::as_str) == Some("translate")
+        && response.get("translation_contract").and_then(Value::as_str)
             == Some("canonical_bidirectional_id_en")
         && response.get("complete").and_then(Value::as_bool) == Some(true)
         && response.get("finished_with_eos").and_then(Value::as_bool) == Some(true)
-        && response
-            .get("paragraph_structure_preserved")
-            .and_then(Value::as_bool)
-            == Some(true)
+}
+
+fn worker_response_matches_direction(response: &Value, source: &str, target: &str) -> bool {
+    response.get("source_language").and_then(Value::as_str) == Some(source)
+        && response.get("target_language").and_then(Value::as_str) == Some(target)
+}
+
+fn worker_response_is_complete(response: &Value) -> bool {
+    worker_generation_is_complete(response)
+        && response.get("paragraph_structure_preserved").and_then(Value::as_bool) == Some(true)
 }
 
 fn worker_failure_message(response: &Value) -> &'static str {
@@ -263,7 +274,11 @@ fn translate_with_persistent_helper(
         .unwrap_or_default()
         .trim();
 
-    if response.ok && worker_response_is_complete(&worker_response) && !translated.is_empty() {
+    if response.ok
+        && worker_response_is_complete(&worker_response)
+        && worker_response_matches_direction(&worker_response, &source_language, &target_language)
+        && !translated.is_empty()
+    {
         return (
             TextTranslationResult::success(translated.to_string(), source_review_hints(source)),
             source_language,
@@ -353,12 +368,16 @@ pub fn quick_translate_text(source: String) -> QuickTranslationResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{worker_failure_message, worker_response_is_complete};
+    use super::{
+        source_review_hints, worker_failure_message, worker_generation_is_complete,
+        worker_response_is_complete, worker_response_matches_direction,
+    };
     use serde_json::json;
 
     #[test]
     fn standalone_success_requires_complete_eos_and_preserved_paragraph_structure() {
         let valid = json!({
+            "ok": true,
             "stage": "translate",
             "translation_contract": "canonical_bidirectional_id_en",
             "complete": true,
@@ -372,6 +391,42 @@ mod tests {
             invalid[key] = json!(false);
             assert!(!worker_response_is_complete(&invalid));
         }
+    }
+
+    #[test]
+    fn alternatives_require_verified_generation_and_direction() {
+        let valid = json!({
+            "ok": true, "stage": "translate",
+            "translation_contract": "canonical_bidirectional_id_en",
+            "complete": true, "finished_with_eos": true,
+            "source_language": "id", "target_language": "en",
+            "translated_text": "Please review it.",
+        });
+        assert!(worker_generation_is_complete(&valid));
+        assert!(worker_response_matches_direction(&valid, "id", "en"));
+        assert!(!worker_response_matches_direction(&valid, "en", "id"));
+        for field in ["ok", "complete", "finished_with_eos"] {
+            let mut broken = valid.clone();
+            broken[field] = json!(false);
+            assert!(!worker_generation_is_complete(&broken));
+        }
+        let mut missing_contract = valid.clone();
+        missing_contract["translation_contract"] = json!("unknown");
+        assert!(!worker_generation_is_complete(&missing_contract));
+    }
+
+    #[test]
+    fn review_cues_recognize_punctuation_without_embedded_words() {
+        let negation = source_review_hints("Tidak, jangan ubah angka 21.");
+        assert!(negation.iter().any(|hint| hint.contains("negation")));
+        assert!(negation.iter().any(|hint| hint.contains("numbers")));
+        let corrections = source_review_hints("No, do not change it!");
+        assert!(corrections.iter().any(|hint| hint.contains("negation")));
+        assert!(corrections.iter().any(|hint| hint.contains("references")));
+        assert!(!source_review_hints("The notebook is operational.").iter()
+            .any(|hint| hint.contains("negation")));
+        assert!(source_review_hints("Kita membahas yang tadi.").iter()
+            .any(|hint| hint.contains("references")));
     }
 
     #[test]
@@ -457,13 +512,33 @@ pub fn translate_text_alternative(source: String, current_translation: String) -
             .and_then(Value::as_str)
             .unwrap_or_default()
             .trim();
-        if response.ok
-            && worker_response.get("complete").and_then(Value::as_bool) == Some(true)
-            && worker_response.get("finished_with_eos").and_then(Value::as_bool) == Some(true)
-            && !translated.is_empty()
-            && translated != current_translation
-        {
-            TextTranslationResult::success(translated.to_string(), source_review_hints(&source))
+        let verified = response.ok
+            && worker_generation_is_complete(&worker_response)
+            && worker_response_matches_direction(
+                &worker_response,
+                &settings.source_language,
+                &settings.target_language,
+            );
+        if !verified {
+            if response.ok {
+                TextTranslationResult::blocked(
+                    "alternative_unavailable",
+                    "The local translator didn't return a complete, verified alternative. Keep the current wording and try again.",
+                    "text_translation:alternative_result_unverified".to_string(),
+                )
+            } else {
+                TextTranslationResult::blocked(
+                    "alternative_unavailable",
+                    worker_failure_message(&worker_response),
+                    worker_blocker(&worker_response),
+                )
+            }
+        } else if translated.is_empty() {
+            TextTranslationResult::blocked(
+                "alternative_unavailable",
+                "The local translator returned no alternative. Keep the current wording and try again.",
+                "text_translation:alternative_empty_output".to_string(),
+            )
         } else if translated == current_translation {
             TextTranslationResult::blocked(
                 "no_distinct_alternative",
@@ -471,11 +546,7 @@ pub fn translate_text_alternative(source: String, current_translation: String) -
                 "text_translation:no_distinct_alternative".to_string(),
             )
         } else {
-            TextTranslationResult::blocked(
-                "alternative_unavailable",
-                worker_failure_message(&worker_response),
-                worker_blocker(&worker_response),
-            )
+            TextTranslationResult::success(translated.to_string(), source_review_hints(&source))
         }
     };
 

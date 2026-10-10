@@ -181,6 +181,36 @@ fn worker_text(response: &HelperBridgeWorkerResponse, key: &str) -> Option<Strin
         .map(str::to_string)
 }
 
+// Meeting uses finalized, direction-bound translations only. The Python
+// worker guarantees completion; reject an inconsistent bridge response here
+// before committing a caption or sending any text to the selected voice.
+fn validated_meeting_translation(
+    response: &HelperBridgeWorkerResponse,
+    source_language: &str,
+    target_language: &str,
+) -> Option<String> {
+    if !response.ok {
+        return None;
+    }
+    let value = worker_json(response);
+    if value.get("ok").and_then(Value::as_bool) != Some(true)
+        || value.get("stage").and_then(Value::as_str) != Some("translate")
+        || value.get("translation_contract").and_then(Value::as_str)
+            != Some("canonical_bidirectional_id_en")
+        || value.get("complete").and_then(Value::as_bool) != Some(true)
+        || value.get("finished_with_eos").and_then(Value::as_bool) != Some(true)
+        || value.get("source_language").and_then(Value::as_str) != Some(source_language)
+        || value.get("target_language").and_then(Value::as_str) != Some(target_language)
+    {
+        return None;
+    }
+    value.get("translated_text")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_string)
+}
+
 fn worker_blocker(response: &HelperBridgeWorkerResponse, fallback: &str) -> String {
     worker_text(response, "blocker").unwrap_or_else(|| fallback.to_string())
 }
@@ -399,3 +429,66 @@ mod cleanup_truth_tests {
 
 
 
+
+#[cfg(test)]
+mod translation_delivery_contract_tests {
+    use super::validated_meeting_translation;
+    use super::super::helper_bridge::HelperBridgeWorkerResponse;
+    use serde_json::{json, Value};
+
+    fn response(payload: Value) -> HelperBridgeWorkerResponse {
+        HelperBridgeWorkerResponse {
+            ok: true,
+            state: "completed".into(),
+            task: "translate".into(),
+            request_id: "test".into(),
+            scheduler_priority: "meeting_outbound".into(),
+            message: String::new(),
+            generation_token: 1,
+            runtime_claim: "test_fixture".into(),
+            worker_response_json: payload.to_string(),
+        }
+    }
+
+    #[test]
+    fn meeting_never_commits_partial_or_wrong_direction_translation() {
+        let valid = json!({
+            "ok": true,
+            "stage": "translate",
+            "translation_contract": "canonical_bidirectional_id_en",
+            "complete": true,
+            "finished_with_eos": true,
+            "source_language": "id",
+            "target_language": "en",
+            "translated_text": "  The meeting starts now.  ",
+        });
+        assert_eq!(
+            validated_meeting_translation(&response(valid.clone()), "id", "en"),
+            Some("The meeting starts now.".into())
+        );
+        for (key, replacement) in [
+            ("ok", json!(false)),
+            ("stage", json!("asr")),
+            ("translation_contract", json!("unknown")),
+            ("complete", json!(false)),
+            ("finished_with_eos", json!(false)),
+            ("source_language", json!("en")),
+            ("target_language", json!("id")),
+            ("translated_text", json!("  ")),
+        ] {
+            let mut broken = valid.clone();
+            broken[key] = replacement;
+            assert!(
+                validated_meeting_translation(&response(broken), "id", "en").is_none(),
+                "invalid translation field must block delivery: {key}"
+            );
+        }
+        let mut failed_transport = response(valid);
+        failed_transport.ok = false;
+        assert!(validated_meeting_translation(&failed_transport, "id", "en").is_none());
+        assert!(validated_meeting_translation(&response(json!({
+            "ok": true, "stage": "translate", "complete": true,
+            "finished_with_eos": true, "translated_text": "unverified"
+        })), "id", "en").is_none());
+    }
+}

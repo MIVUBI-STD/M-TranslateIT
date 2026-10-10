@@ -10,7 +10,7 @@ use super::incoming_deferred::{
     take_due_deferred_incoming, DeferredIncomingJob, DeferredIncomingStage,
     IncomingAsrDisposition, MAX_DEFERRED_INCOMING,
 };
-use super::{incoming_session_is_eligible, worker_blocker, worker_text};
+use super::{incoming_session_is_eligible, validated_meeting_translation, worker_blocker};
 use super::session_state::update_incoming_status;
 use super::super::helper_bridge::send_helper_worker_task;
 use super::super::helper_bridge_runtime::unix_ms;
@@ -286,9 +286,17 @@ fn translate_and_commit_incoming_transcript(
         }
         return true;
     }
-    let translated_text = worker_text(&translation, "translated_text");
-    if !translation.ok || translated_text.is_none() {
-        let blocker = worker_blocker(&translation, "translation:empty_output");
+    let translated_text = validated_meeting_translation(
+        &translation,
+        source_language,
+        target_language,
+    );
+    if translated_text.is_none() {
+        let blocker = if translation.ok {
+            "translation:invalid_meeting_response".to_string()
+        } else {
+            worker_blocker(&translation, "translation:empty_output")
+        };
         update_incoming_status(
             session_id,
             "degraded",

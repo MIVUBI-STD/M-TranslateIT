@@ -31,6 +31,15 @@ Goal: improve quality truth using the existing Faster Whisper and MiLMMT pipelin
 
 Proof remains REMOTE_GITHUB static source review only; executable regression suites, GPU, real microphone, translation quality and Windows Meeting acceptance are NOT EXECUTED. Do not introduce neural metrics, external dataset copies or VAD swaps without a measured baseline. The existing combined target-Windows runbook remains the sole execution gate.
 
+## Active Text & Meeting Fidelity Work
+
+The existing canonical MiLMMT worker remains the only translator. Source-level work now improves three existing boundaries without changing the model or adding a second runtime:
+- Meeting outbound and optional incoming now require a successful, completed, EOS-terminated, canonical and direction-correct translation response in their shared Rust session owner before any TTS/commit. A contradictory worker/bridge success envelope is rejected rather than displayed or spoken.
+- Text and Quick Translate now additionally verify source/target direction on the canonical paragraph-preserving result. On-demand Alternative Wording verifies its own complete canonical generation and direction before classifying a result as distinct or no-change; failed/incomplete outputs cannot masquerade as a harmless no-alternative response.
+- Text review cues use existing simple word and phrase checks with punctuation-tolerant boundaries, allowing warnings for critical negations and corrections with punctuation while avoiding embedded-word false positives. No model-based UI review/scorer has been introduced.
+
+Static source and Rust unit contracts were authored but NOT EXECUTED. The exact-SHA integrated test/build/package and native Meeting/Text acceptance remain the only proof path. Next priority is to measure end-to-end playback, latency and error types on target Windows rather than adding unmeasured architecture.
+
 ## Active My Voice Quality Plan
 
 Goal: improve voice resemblance, intelligibility, naturalness, and reliability using only existing GPT-SoVITS V2ProPlus. Voicebox is a research inspiration, not an approved second engine or proof of measured improvement. Product requirements PR-110 through PR-119 remain authoritative.
