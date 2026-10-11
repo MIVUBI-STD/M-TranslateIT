@@ -19,6 +19,10 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
+from voice_lab_audio_quality import (
+    inspect_take_frames,
+    reference_quiet_context_available,
+)
 from voice_lab_gpt_sovits import (
     ACTOR_GPT_WEIGHT_FILE,
     ACTOR_REFERENCE_WAV_FILE,
@@ -141,13 +145,28 @@ def select_reference(takes: list[dict[str, Any]]) -> dict[str, Any]:
     if not eligible:
         raise VoiceLabProviderError("reference_take_3_to_10_seconds_required")
 
-    ranked: list[tuple[tuple[float, float, float, int, int], dict[str, Any]]] = []
-    for take in eligible:
-        metrics = wav_signal_metrics_pcm16(Path(take["wav_path"]))
+    # Only compare an edge-energy noise proxy if every eligible reference has
+    # a sufficiently long quiet boundary. Without that evidence, keep the
+    # existing validated signal ordering instead of guessing an SNR score.
+    evidence = [
+        (
+            take,
+            wav_signal_metrics_pcm16(Path(take["wav_path"])),
+            inspect_take_frames(Path(take["wav_path"])),
+        )
+        for take in eligible
+    ]
+    compare_quiet_edges = reference_quiet_context_available(
+        [frames for _, _, frames in evidence]
+    )
+    ranked: list[tuple[tuple[float, ...], dict[str, Any]]] = []
+    for take, metrics, frames in evidence:
+        edge_floor = frames["edge_floor_rms_pcm16"]
         ranked.append(
             (
                 (
                     float(metrics["clipping_fraction"]),
+                    float(edge_floor) if compare_quiet_edges and edge_floor is not None else 0.0,
                     float(metrics["silence_fraction"]),
                     float(metrics["dc_offset"]),
                     abs(int(take["duration_ms"]) - REFERENCE_TARGET_MS),

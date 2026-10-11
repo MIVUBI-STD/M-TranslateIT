@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from voice_lab_audio_quality import inspect_take_frames
 from voice_lab_gpt_sovits import (
     ENGINE,
     ENGINE_REVISION,
@@ -119,13 +120,20 @@ def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None
     if not isinstance(takes, list):
         raise BuildError("insufficient_training_takes")
     metrics: list[dict[str, float]] = []
+    reports: list[dict[str, Any]] = []
     for item in takes:
         if not isinstance(item, dict):
             raise BuildError("invalid_training_take")
         wav_file = str(item.get("wav_file", "")).strip()
         if not wav_file or Path(wav_file).name != wav_file:
             raise BuildError("invalid_training_take")
-        metrics.append(validate_take_signal(dataset_dir / wav_file))
+        path = dataset_dir / wav_file
+        metrics.append(validate_take_signal(path))
+        try:
+            frames = inspect_take_frames(path)
+        except ValueError as exc:
+            raise BuildError(f"take_frame_analysis_failed:{wav_file}:{exc}") from exc
+        reports.append({"wav_file": wav_file, **frames})
 
     active_rms_values = [item["active_rms"] for item in metrics]
     if len(active_rms_values) >= 2:
@@ -134,6 +142,18 @@ def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None
         spread_db = 20.0 * math.log10(loudest / quietest)
         if spread_db > MAX_DATASET_ACTIVE_RMS_SPREAD_DB:
             raise BuildError("dataset_recording_level_inconsistent")
+
+    # Advisory report lives inside the existing disposable, frozen build
+    # dataset. No accepted take bytes, public manifest, or TTS engine change.
+    atomic_json(
+        dataset_dir / "audio_quality.json",
+        {
+            "schema": "voice_lab.audio_quality.v1",
+            "method": "non_destructive_frame_energy",
+            "provides_perceptual_quality_score": False,
+            "takes": reports,
+        },
+    )
 
 
 def main() -> int:
