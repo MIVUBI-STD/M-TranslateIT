@@ -44,8 +44,9 @@ export async function publishTranslationOverlay(payload: TranslationOverlayPaylo
     const window = await overlayWindow();
     if (!window) throw new Error("Floating caption window is unavailable.");
     if (explicitlyRestored) await emitPreferences(preferences);
-    await window.show();
+    // Deliver current content before exposing the window: never flash a previous caption.
     await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, normalized);
+    await window.show();
     clearOverlayError();
     return "shown";
   } catch (error) {
@@ -83,9 +84,9 @@ export async function showTranslationOverlay(): Promise<boolean> {
     const window = await overlayWindow();
     if (!window) throw new Error("Floating caption window is unavailable.");
     await emitPreferences(preferences);
-    await window.show();
     if (latestPresented) await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
     else await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {});
+    await window.show();
     clearOverlayError();
     return true;
   } catch (error) {

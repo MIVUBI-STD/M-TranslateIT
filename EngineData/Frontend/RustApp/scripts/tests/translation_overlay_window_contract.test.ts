@@ -53,3 +53,10 @@ test("overlay adapts text bounds and reconciles monitor DPI without global short
   assert.match(overlayPage, /onOverlayKeydown/);
   assert.match(overlayPage, /captionText\?\.scrollHeight/);
 });
+
+test("caption payload or clear is sent before exposing the native window", () => {
+  const publish = overlayRuntime.split("export async function publishTranslationOverlay")[1]?.split("export async function publishLatestMeetingOverlay")[0] ?? "";
+  const show = overlayRuntime.split("export async function showTranslationOverlay")[1]?.split("export async function hideTranslationOverlay")[0] ?? "";
+  assert.ok(publish.indexOf("await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, normalized)") < publish.indexOf("await window.show()"));
+  assert.ok(show.indexOf("TRANSLATION_OVERLAY_CLEAR_EVENT") < show.indexOf("await window.show()"));
+});
