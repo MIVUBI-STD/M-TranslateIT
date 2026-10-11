@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -43,4 +43,19 @@ test("same-session late captions cannot overtake newer committed turns", () => {
   assert.equal(shouldAcceptOverlayCaption(latest, { ...latest }), false);
   assert.equal(shouldAcceptOverlayCaption(latest, { ...latest, revision: "s:9" }), true);
   assert.equal(shouldAcceptOverlayCaption(latest, { ...latest, revision: "other:1" }), true);
+});
+
+test("caption height uses measured content and preserves font size", () => {
+  assert.equal(captionHeightForContent(20, "medium"), 180);
+  assert.equal(captionHeightForContent(230, "medium"), 306);
+  assert.equal(captionHeightForContent(10000, "medium"), 420);
+  assert.equal(captionHeightForContent(999, "large", true), 64);
+  assert.equal(captionHeightForContent(Number.NaN, "medium"), 180);
+});
+
+test("overlay width accounts for physical pixels at mixed DPI", () => {
+  assert.equal(fitOverlayWidth(760, 1920, 1.5), 760);
+  assert.equal(fitOverlayWidth(760, 900, 1.5), 568);
+  assert.equal(fitOverlayWidth(760, 500, 1), 468);
+  assert.equal(fitOverlayWidth(620, 1200, Number.NaN), 620);
 });

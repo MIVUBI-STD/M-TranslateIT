@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeftRight, Check, Copy, PictureInPicture2, RefreshCw, ShieldAlert } from "@lucide/svelte";
+  import { ArrowLeftRight, Check, Copy, Eraser, PictureInPicture2, RefreshCw, ShieldAlert, Undo2 } from "@lucide/svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
   import { publishTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
@@ -13,6 +13,14 @@
   type TextResultState = "idle" | "translating" | "success" | "stale" | "error";
   type CopyState = "idle" | "copied" | "error";
   type CopyMode = "translation" | "source" | "bilingual";
+  type ClearedDraft = {
+    source: string;
+    target: string;
+    translatedSource: string | null;
+    translationSettings: string | null;
+    reviewHints: string[];
+    result: { state: TextResultState; label: string; message: string };
+  };
 
   let {
     settings,
@@ -39,6 +47,7 @@
   let copyMode = $state<CopyMode>("translation");
   let reviewHints = $state<string[]>([]);
   let alternativeBusy = $state(false);
+  let clearedDraft = $state<ClearedDraft | null>(null);
   let targetRevision = 0;
 
   const sourceLanguageName = $derived(languageName(settings.source_language));
@@ -60,6 +69,7 @@
   }
 
   function handleSourceInput(): void {
+    clearedDraft = null;
     if (lastTranslatedSource === null) {
       if (resultState === "error") setResult("idle", "Ready", "Enter text, then choose Translate.");
       return;
@@ -80,8 +90,48 @@
   }
 
   function handleTargetInput(): void {
+    clearedDraft = null;
+    setResult("stale", "Edited", "Translation was edited manually. Review it before copying.");
     targetRevision += 1;
     if (copyState !== "idle") copyState = "idle";
+  }
+
+  function clearWorkspace(): void {
+    if (translating || alternativeBusy || settingsSaving || (!sourceText && !targetText)) return;
+    clearedDraft = {
+      source: sourceText, target: targetText,
+      translatedSource: lastTranslatedSource,
+      translationSettings: lastTranslatedSettingsKey,
+      reviewHints: [...reviewHints],
+      result: { state: resultState, label: resultLabel, message: resultMessage },
+    };
+    sourceText = "";
+    targetText = "";
+    lastTranslatedSource = null;
+    lastTranslatedSettingsKey = null;
+    reviewHints = [];
+    copyState = "idle";
+    targetRevision += 1;
+    setResult("idle", "Ready", "Workspace cleared. Undo is available until the next edit.");
+    onNotice("Text cleared. Use Undo to restore it during this app session.");
+  }
+
+  function undoClear(): void {
+    const draft = clearedDraft;
+    if (!draft || translating || alternativeBusy || settingsSaving) return;
+    clearedDraft = null;
+    sourceText = draft.source;
+    targetText = draft.target;
+    lastTranslatedSource = draft.translatedSource;
+    lastTranslatedSettingsKey = draft.translationSettings;
+    reviewHints = [...draft.reviewHints];
+    targetRevision += 1;
+    copyState = "idle";
+    setResult(draft.result.state, draft.result.label, draft.result.message);
+    if (draft.translationSettings !== null && draft.translationSettings !== currentTextSettingsKey) {
+      setResult("stale", "Needs update", "Translation settings changed. Translate again.");
+    }
+    onNotice("Text restored from this app session.");
   }
 
   async function submitText(): Promise<void> {
@@ -98,6 +148,7 @@
       return;
     }
     if (translating || alternativeBusy) return;
+    clearedDraft = null;
 
     const requestSource = source;
     const requestTargetRevision = targetRevision;
@@ -127,9 +178,9 @@
     try {
       const result = await runtimeProductFacade.runProductTranslation(requestSource);
       const userEditedTargetWhileRunning = targetRevision !== requestTargetRevision;
-      if (currentTextSettingsKey !== requestSettingsKey) {
-        setResult("stale", "Settings changed", "Translation finished with previous settings. Translate again.");
-        onNotice("Translation settings changed; the previous result was not applied.");
+      if (currentTextSettingsKey !== requestSettingsKey || sourceText.trim() !== requestSource) {
+        setResult("stale", "Needs update", "Source or translation settings changed. Translate again.");
+        onNotice("Source or translation settings changed; the previous result was not applied.");
         return;
       }
       if (!result.ok) {
@@ -167,7 +218,7 @@
         onNotice("Translation finished for the previous text.");
       }
     } catch {
-      if (targetRevision === requestTargetRevision) targetText = previousTarget;
+      if (targetRevision === requestTargetRevision && sourceText.trim() === requestSource && currentTextSettingsKey === requestSettingsKey) targetText = previousTarget;
       const message = "Translation is unavailable right now. Try again in a moment.";
       setResult("error", "Couldn't translate", message);
       onNotice(message);
@@ -181,6 +232,7 @@
     const current = targetText.trim();
     if (!source || !current || alternativeBusy || translating) return;
     alternativeBusy = true;
+    clearedDraft = null;
     const requestTargetRevision = targetRevision;
     const requestSettingsKey = currentTextSettingsKey;
     try {
@@ -251,6 +303,7 @@
   async function swapLanguages(): Promise<void> {
     if (settingsSaving || translating || alternativeBusy) return;
     settingsSaving = true;
+    clearedDraft = null;
     const candidate: RuntimeSettings = {
       ...settings,
       source_language: settings.target_language,
@@ -378,6 +431,8 @@
         <p class="mb-0 mt-1 text-[11px] text-[var(--ti-text-soft)]">Ctrl + Enter to translate</p>
       </div>
       <div class="ti-action-row shrink-0">
+        <button type="button" class="ti-button ti-button-secondary" disabled={translating || alternativeBusy || settingsSaving || (!sourceText && !targetText)} onclick={clearWorkspace}><Eraser size={15} /> Clear</button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={!clearedDraft || translating || alternativeBusy || settingsSaving} onclick={undoClear}><Undo2 size={15} /> Undo Clear</button>
         <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim()} onclick={() => void showFloatingCaption()}>
           <PictureInPicture2 size={15} /> Floating caption
         </button>

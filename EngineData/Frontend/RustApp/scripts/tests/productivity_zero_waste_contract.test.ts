@@ -49,3 +49,13 @@ test("retained Text results become stale when translation settings change", () =
   assert.match(textPage, /currentTextSettingsKey !== requestSettingsKey/);
   assert.match(textPage, /Translation settings changed/);
 });
+
+test("Text Clear/Undo is a bounded process-only edit path", () => {
+  const page = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
+  assert.match(page, /function clearWorkspace\(\)/);
+  assert.match(page, /function undoClear\(\)/);
+  assert.match(page, /clearedDraft = null/);
+  assert.match(page, /Undo Clear/);
+  assert.match(page, /sourceText\.trim\(\) !== requestSource/);
+  assert.doesNotMatch(page, /localStorage|sessionStorage|indexedDB/);
+});

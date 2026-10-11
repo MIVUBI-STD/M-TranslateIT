@@ -84,6 +84,19 @@ export function overlayWidth(width: OverlayWidth): number {
   return 620;
 }
 
+// Grow to a bounded viewport based on rendered text; never shrink user-selected type.
+export function captionHeightForContent(contentHeight: number, size: OverlayTextSize, collapsed = false): number {
+  if (collapsed) return overlayHeightForTextSize(size, true);
+  const measured = Number.isFinite(contentHeight) ? Math.max(0, Math.ceil(contentHeight)) : 0;
+  return Math.min(420, Math.max(overlayHeightForTextSize(size), measured + 76));
+}
+
+// Convert physical monitor work area to logical window width with a modest safety margin.
+export function fitOverlayWidth(desiredLogicalWidth: number, physicalWorkAreaWidth: number, scaleFactor: number): number {
+  if (!Number.isFinite(scaleFactor) || scaleFactor <= 0 || !Number.isFinite(physicalWorkAreaWidth) || physicalWorkAreaWidth <= 0) return desiredLogicalWidth;
+  return Math.max(260, Math.min(desiredLogicalWidth, Math.floor(physicalWorkAreaWidth / scaleFactor) - 32));
+}
+
 export function overlayFontSize(size: OverlayTextSize): number {
   if (size === "small") return 18;
   if (size === "large") return 26;

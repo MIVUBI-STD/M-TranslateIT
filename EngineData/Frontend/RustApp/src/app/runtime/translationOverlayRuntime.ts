@@ -3,6 +3,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MeetingCommittedTurnsSnapshot } from "../bridge/runtimeApi";
 import {
   TRANSLATION_OVERLAY_EVENT,
+  TRANSLATION_OVERLAY_CLEAR_EVENT,
   TRANSLATION_OVERLAY_READY_EVENT,
   TRANSLATION_OVERLAY_PREFERENCES_EVENT,
   latestMeetingCaption,
@@ -64,8 +65,11 @@ export async function publishLatestMeetingOverlay(turns: MeetingCommittedTurnsSn
 export async function subscribeOverlayReady(): Promise<UnlistenFn> {
   return listen(TRANSLATION_OVERLAY_READY_EVENT, async () => {
     const prefs = readOverlayPreferences();
-    if (!latestPresented || prefs.visibility === "hidden" || (latestPresented.source === "meeting" && !prefs.meetingEnabled)) return;
-    try { await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented); } catch { /* New events still deliver directly. */ }
+    if (prefs.visibility === "hidden") return;
+    try {
+      if (latestPresented && (latestPresented.source !== "meeting" || prefs.meetingEnabled)) await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
+      else await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {});
+    } catch { /* Future events still have a live delivery path. */ }
   });
 }
 
@@ -81,6 +85,7 @@ export async function showTranslationOverlay(): Promise<boolean> {
     await emitPreferences(preferences);
     await window.show();
     if (latestPresented) await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
+    else await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {});
     clearOverlayError();
     return true;
   } catch (error) {
@@ -92,6 +97,7 @@ export async function showTranslationOverlay(): Promise<boolean> {
 export async function hideTranslationOverlay(): Promise<void> {
   const prefs = updateOverlayPreferences({ visibility: "hidden" });
   latestPresented = null;
+  try { await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {}); } catch { /* Unavailable overlay. */ }
   try { await emitPreferences(prefs); } catch { /* Hiding must not depend on event delivery. */ }
   try { await (await overlayWindow())?.hide(); } catch { }
 }

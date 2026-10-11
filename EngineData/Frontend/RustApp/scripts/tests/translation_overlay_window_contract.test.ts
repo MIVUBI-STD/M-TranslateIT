@@ -40,3 +40,16 @@ test("overlay and main window permissions remain split by least privilege", () =
 test("overlay includes high contrast, work area placement and explicit hide", () => {
   assert.match(overlayPage, /forced-colors: active/); assert.match(overlayPage, /Hide floating caption/); assert.match(overlayPage, /monitor\.workArea/);
 });
+
+test("Hide/Show cannot retain old private caption content", () => {
+  assert.match(overlayRuntime, /TRANSLATION_OVERLAY_CLEAR_EVENT/);
+  assert.match(overlayPage, /function clearCaption\(\)/);
+  assert.match(overlayPage, /unlistenClear/);
+});
+
+test("overlay adapts text bounds and reconciles monitor DPI without global shortcuts", () => {
+  assert.match(overlayPage, /onScaleChanged/);
+  assert.match(overlayPage, /fitOverlayWidth/);
+  assert.match(overlayPage, /onOverlayKeydown/);
+  assert.match(overlayPage, /captionText\?\.scrollHeight/);
+});
