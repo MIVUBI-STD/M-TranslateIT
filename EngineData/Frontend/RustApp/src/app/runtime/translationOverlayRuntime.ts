@@ -79,7 +79,10 @@ export async function subscribeOverlayReady(): Promise<UnlistenFn> {
   });
   try {
     // The overlay and main window have independent JavaScript module memory.
-    const stopHidden = await listen(TRANSLATION_OVERLAY_HIDDEN_EVENT, () => { latestPresented = null; });
+    const stopHidden = await listen(TRANSLATION_OVERLAY_HIDDEN_EVENT, () => {
+      // A delayed Hide event cannot clear a newer explicit Show/translation intent.
+      if (readOverlayPreferences().visibility === "hidden") latestPresented = null;
+    });
     return () => { stopReady(); stopHidden(); };
   } catch (error) {
     stopReady();

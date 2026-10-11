@@ -102,7 +102,8 @@ test("native preference delivery errors remain bounded and user recoverable", ()
 
 test("Hide from the overlay revokes the main window transient caption", () => {
   assert.match(overlayRuntime, /await emit\(TRANSLATION_OVERLAY_HIDDEN_EVENT\)/);
-  assert.match(overlayRuntime, /listen\(TRANSLATION_OVERLAY_HIDDEN_EVENT, \(\) => \{ latestPresented = null; \}\)/);
+  assert.match(overlayRuntime, /listen\(TRANSLATION_OVERLAY_HIDDEN_EVENT/);
+  assert.match(overlayRuntime, /if \(readOverlayPreferences\(\)\.visibility === "hidden"\) latestPresented = null/);
   assert.match(overlayRuntime, /if \(readOverlayPreferences\(\)\.visibility === "hidden"\) latestPresented = null/);
   assert.match(overlayPage, /mayPresentOverlayCaption\(readOverlayPreferences\(\), next\)/);
 });
