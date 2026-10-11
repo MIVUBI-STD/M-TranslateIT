@@ -1,12 +1,12 @@
 # TranslateIT Development
 
-## Active continuation — P0 UX correctness source integration (2026-10-12)
+## Active continuation — P0 UX first-launch task routing (2026-10-12)
 
-**State: SOURCE CHANGES ON Local; COMPILE, RENDERED, AND TARGET_WINDOWS PROOF NOT EXECUTED.** Product UI remains English-only with no new mockups. Voice retention and reversible selection were delivered on Local through `3bd13b2`, while Text result provenance is now gated for alternative wording, floating captions, copy, and feedback. A current result must match the latest source and direction/style/terminology settings. Manual edits and review-cued translations remain eligible when their source/settings still match. One pure eligibility policy and focused regression contracts own these rules.
+**State: SOURCE CHANGE DELIVERED ON Local; NODE/SVELTE BUILD, RENDERED AND TARGET_WINDOWS PROOF NOT EXECUTED.** First launch now offers Text or Meeting directly within the existing FirstSetup screen. Choosing Text persists `meeting_setup_state=deferred` and the existing Meeting checkpoint; it never claims completed Meeting readiness, and Text still relies on independent runtime translation capability. The existing Meeting wizard, later `Set Up Later`, four top-level navigation destinations and returning-user Meeting default remain intact. No new dashboard, router, UI locale, or visual mockup was introduced.
 
-**Proof ceiling:** GitHub exact-source/static inspection only, no npm/Cargo, native Windows, audio-device, or model execution. Existing manual-only CI remains inactive. The integrated exact-SHA Windows acceptance phase remains pending after source integration. Do not generate new preview UI, add an app router, or promote main.
+**Proof ceiling:** GitHub exact-source/static review and added setup-flow source contract tests only; executable tests and Windows behavior remain UNKNOWN / NOT EXECUTED. Manual-only hosted CI remains inactive; `main` is unchanged. The integrated acceptance gate remains one grouped exact-SHA local run.
 
-**One next step:** deliver the P0 first-launch task routing so Text can open without completing Meeting setup, while preserving the existing returning-user Meeting default and canonical setup checkpoints.
+**One next step:** correct Meeting action labels and lifecycle states so Start, Stop, cleanup incomplete, and unknown runtime never present a misleading action.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

@@ -27,7 +27,7 @@
     onOpenMyVoice,
   }: {
     initialSettings: RuntimeSettings;
-    onComplete: (settings: RuntimeSettings) => void | Promise<void>;
+    onComplete: (settings: RuntimeSettings, destination?: "meeting" | "text") => void | Promise<void>;
     onOpenMyVoice: (settings: RuntimeSettings) => void | Promise<void>;
   } = $props();
 
@@ -159,9 +159,26 @@
     if (busy) return;
     busy = true;
     message = "Saving...";
-    const saved = await persistSetupFact("deferred", step);
-    busy = false;
-    if (saved) await onComplete(settings);
+    try {
+      const saved = await persistSetupFact("deferred", step);
+      if (saved) await onComplete(settings);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function openTextInstead(): Promise<void> {
+    if (busy || step !== 1) return;
+    busy = true;
+    message = "Saving...";
+    try {
+      // Mark only Meeting setup as deferred. Do not claim setup completed.
+      // Keep the existing checkpoint so Meeting can be resumed later.
+      const saved = await persistSetupFact("deferred", step);
+      if (saved) await onComplete(settings, "text");
+    } finally {
+      busy = false;
+    }
   }
 
   async function saveSelectedMicrophone(): Promise<void> {
@@ -282,27 +299,24 @@
       <div class="grid size-10 place-items-center rounded-[12px] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] text-base font-bold">T</div>
       <div>
         <strong class="block text-sm font-semibold">TranslateIT</strong>
-        <span class="mt-0.5 block text-xs text-[var(--ti-text-muted)]">Quick setup</span>
+        <span class="mt-0.5 block text-xs text-[var(--ti-text-muted)]">{step === 1 ? "Get started" : "Meeting setup"}</span>
       </div>
-      <div class="ml-auto min-w-44" role="progressbar" aria-label="Setup progress" aria-valuemin="1" aria-valuemax="4" aria-valuenow={step}>
-        <div class="text-[11px] font-semibold text-[var(--ti-text-muted)]">Step {step} of 4</div>
-        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]">
-          <div class="h-full rounded-full bg-[var(--ti-accent)]" style={`width:${step * 25}%`}></div>
+      {#if step > 1}
+        <div class="ml-auto min-w-44" role="progressbar" aria-label="Meeting setup progress" aria-valuemin="1" aria-valuemax="4" aria-valuenow={step}>
+          <div class="text-[11px] font-semibold text-[var(--ti-text-muted)]">Step {step} of 4</div>
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]">
+            <div class="h-full rounded-full bg-[var(--ti-accent)]" style={`width:${step * 25}%`}></div>
+          </div>
         </div>
-      </div>
+      {/if}
     </header>
 
     <section class="mx-auto grid max-w-[720px] gap-6 px-8 py-9">
       {#if step === 1}
         <div>
-          <span class="ti-kicker">Welcome</span>
-          <h1 class="ti-page-title text-[2.2rem]">Get ready for meeting translation</h1>
-          <p class="ti-page-copy">TranslateIT only needs a few choices before your first call. You can change them later in Settings.</p>
-          <div class="mt-6 grid grid-cols-3 gap-3">
-            <div class="ti-subtle-card p-4"><span class="ti-field-label">1</span><strong class="mt-1 block text-sm font-semibold">The mic you speak into</strong></div>
-            <div class="ti-subtle-card p-4"><span class="ti-field-label">2</span><strong class="mt-1 block text-sm font-semibold">Mic used by your meeting app</strong></div>
-            <div class="ti-subtle-card p-4"><span class="ti-field-label">3</span><strong class="mt-1 block text-sm font-semibold">Voice others will hear</strong></div>
-          </div>
+          <span class="ti-kicker">Choose a task</span>
+          <h1 class="ti-page-title text-[2.2rem]">How would you like to start?</h1>
+          <p class="ti-page-copy">Translate text now, or set up your microphone and English voice for meetings. Meeting setup can wait.</p>
         </div>
       {:else if step === 2}
         <div>
@@ -389,6 +403,7 @@
         meetingReady={snapshot?.readiness.meetingReady === true}
         onBack={goBack}
         onDefer={deferSetup}
+        onOpenText={openTextInstead}
         onAdvance={advance}
         onRepair={repairSetup}
         onRefresh={refreshReadiness}

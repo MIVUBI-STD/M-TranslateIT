@@ -173,11 +173,24 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     await refreshSnapshot(message ?? "Meeting voice updated.");
   }
 
-  async function finishFirstSetup(next: RuntimeSettings): Promise<void> {
-    applicationController.applySettings(next);
-    applicationState = applicationController.read();
-    await refreshSnapshot("Setup saved.", next);
-    route = "meeting";
+  async function finishFirstSetup(
+    next: RuntimeSettings,
+    destination: "meeting" | "text" = "meeting",
+  ): Promise<void> {
+    // The chosen task is a navigation preference, not Meeting readiness.
+    // Text still receives its own runtime status after deferred setup is saved.
+    booting = true;
+    try {
+      applicationController.applySettings(next);
+      applicationState = applicationController.read();
+      route = destination;
+      await refreshSnapshot(
+        destination === "text" ? "Type or paste text to translate." : "Setup saved.",
+        next,
+      );
+    } finally {
+      booting = false;
+    }
   }
 
   async function openMyVoiceFromSetup(next: RuntimeSettings): Promise<void> {
