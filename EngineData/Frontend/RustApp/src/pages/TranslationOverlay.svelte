@@ -19,6 +19,7 @@
     fitOverlayHeight,
     isProgrammaticOverlayMove,
     overlayMeetingSession,
+    mayPresentOverlayCaption,
     overlayFontSize,
     overlayWidth,
     recentMeetingCaptions,
@@ -144,6 +145,7 @@
   async function applyPreferences(next: TranslationOverlayPreferences): Promise<void> {
     preferences = next;
     if (next.visibility === "hidden") {
+      clearCaption();
       try { await getCurrentWindow().setIgnoreCursorEvents(false); } catch { /* Still hide below. */ }
       await getCurrentWindow().hide();
       return;
@@ -204,7 +206,9 @@
   }
 
   async function applyCaption(next: TranslationOverlayPayload): Promise<void> {
-    if (disposed || !shouldAcceptOverlayCaption(pendingCaption ?? caption, next)) return;
+    // Read cross-window visibility at delivery, not from potentially delayed events.
+    if (disposed || !mayPresentOverlayCaption(readOverlayPreferences(), next)
+      || !shouldAcceptOverlayCaption(pendingCaption ?? caption, next)) return;
     if (overlayMeetingSession(caption) !== overlayMeetingSession(next)) {
       historyRequestId += 1;
       historyOpen = false;

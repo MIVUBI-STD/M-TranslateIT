@@ -1,13 +1,15 @@
-import { emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emit, emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MeetingCommittedTurnsSnapshot } from "../bridge/runtimeApi";
 import {
   TRANSLATION_OVERLAY_EVENT,
   TRANSLATION_OVERLAY_CLEAR_EVENT,
+  TRANSLATION_OVERLAY_HIDDEN_EVENT,
   TRANSLATION_OVERLAY_READY_EVENT,
   TRANSLATION_OVERLAY_PREFERENCES_EVENT,
   latestMeetingCaption,
   normalizeOverlayText,
+  mayPresentOverlayCaption,
   type TranslationOverlayPayload,
   type TranslationOverlayPreferences,
 } from "./translationOverlayPolicy";
@@ -37,7 +39,7 @@ export async function publishTranslationOverlay(payload: TranslationOverlayPaylo
   let preferences = readOverlayPreferences();
   const explicitlyRestored = explicit && preferences.visibility === "hidden";
   if (explicitlyRestored) preferences = updateOverlayPreferences({ visibility: "expanded" });
-  if (!explicit && (preferences.visibility === "hidden" || (payload.source === "meeting" && !preferences.meetingEnabled))) return "suppressed";
+  if (!explicit && !mayPresentOverlayCaption(preferences, normalized)) return "suppressed";
   latestPresented = normalized;
 
   try {
@@ -64,14 +66,25 @@ export async function publishLatestMeetingOverlay(turns: MeetingCommittedTurnsSn
 
 // Replay after the separate webview registers its caption listener.
 export async function subscribeOverlayReady(): Promise<UnlistenFn> {
-  return listen(TRANSLATION_OVERLAY_READY_EVENT, async () => {
+  const stopReady = await listen(TRANSLATION_OVERLAY_READY_EVENT, async () => {
     const prefs = readOverlayPreferences();
     if (prefs.visibility === "hidden") return;
     try {
-      if (latestPresented && (latestPresented.source !== "meeting" || prefs.meetingEnabled)) await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
-      else await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {});
-    } catch { /* Future events still have a live delivery path. */ }
+      if (latestPresented && mayPresentOverlayCaption(prefs, latestPresented)) {
+        await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
+      } else {
+        await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {});
+      }
+    } catch { /* Future caption events may still deliver. */ }
   });
+  try {
+    // The overlay and main window have independent JavaScript module memory.
+    const stopHidden = await listen(TRANSLATION_OVERLAY_HIDDEN_EVENT, () => { latestPresented = null; });
+    return () => { stopReady(); stopHidden(); };
+  } catch (error) {
+    stopReady();
+    throw error;
+  }
 }
 
 export async function notifyOverlayPreferencesChanged(preferences: TranslationOverlayPreferences): Promise<void> {
@@ -79,6 +92,8 @@ export async function notifyOverlayPreferencesChanged(preferences: TranslationOv
 }
 
 export async function showTranslationOverlay(): Promise<boolean> {
+  // An ordinary Show never restores conversation text after the previous Hide.
+  if (readOverlayPreferences().visibility === "hidden") latestPresented = null;
   const preferences = updateOverlayPreferences({ visibility: "expanded" });
   try {
     const window = await overlayWindow();
@@ -98,6 +113,7 @@ export async function showTranslationOverlay(): Promise<boolean> {
 export async function hideTranslationOverlay(): Promise<void> {
   const prefs = updateOverlayPreferences({ visibility: "hidden" });
   latestPresented = null;
+  try { await emit(TRANSLATION_OVERLAY_HIDDEN_EVENT); } catch { /* Persisted Hide remains authoritative. */ }
   try { await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {}); } catch { /* Unavailable overlay. */ }
   try { await emitPreferences(prefs); } catch { /* Hiding must not depend on event delivery. */ }
   try { await (await overlayWindow())?.hide(); } catch { }

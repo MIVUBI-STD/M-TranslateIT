@@ -2,6 +2,7 @@ export const TRANSLATION_OVERLAY_EVENT = "translation-overlay:update";
 export const TRANSLATION_OVERLAY_PREFERENCES_EVENT = "translation-overlay:preferences";
 export const TRANSLATION_OVERLAY_READY_EVENT = "translation-overlay:ready";
 export const TRANSLATION_OVERLAY_CLEAR_EVENT = "translation-overlay:clear";
+export const TRANSLATION_OVERLAY_HIDDEN_EVENT = "translation-overlay:hidden";
 
 export type TranslationOverlayPayload = {
   text: string;
@@ -25,6 +26,10 @@ export type TranslationOverlayPreferences = {
 };
 
 // Dedupe and reject late committed-turn presentation in the same Meeting session.
+export function mayPresentOverlayCaption(preferences: TranslationOverlayPreferences, caption: TranslationOverlayPayload): boolean {
+  return preferences.visibility !== "hidden" && (caption.source !== "meeting" || preferences.meetingEnabled);
+}
+
 export function shouldAcceptOverlayCaption(current: TranslationOverlayPayload | null, next: TranslationOverlayPayload): boolean {
   if (!current) return true;
   if (current.source === next.source && current.revision === next.revision) return false;

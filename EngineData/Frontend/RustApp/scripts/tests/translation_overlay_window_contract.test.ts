@@ -99,3 +99,14 @@ test("native preference delivery errors remain bounded and user recoverable", ()
   assert.match(overlayPage, /Floating caption size could not be changed/);
   assert.match(overlayPage, /recordOverlayError/);
 });
+
+test("Hide from the overlay revokes the main window transient caption", () => {
+  assert.match(overlayRuntime, /await emit\(TRANSLATION_OVERLAY_HIDDEN_EVENT\)/);
+  assert.match(overlayRuntime, /listen\(TRANSLATION_OVERLAY_HIDDEN_EVENT, \(\) => \{ latestPresented = null; \}\)/);
+  assert.match(overlayRuntime, /if \(readOverlayPreferences\(\)\.visibility === "hidden"\) latestPresented = null/);
+  assert.match(overlayPage, /mayPresentOverlayCaption\(readOverlayPreferences\(\), next\)/);
+});
+test("hidden preferences clear stale private overlay content", () => {
+  assert.match(overlayPage, /if \(next\.visibility === "hidden"\) \{\s*clearCaption\(\)/);
+  assert.match(overlayRuntime, /return \(\) => \{ stopReady\(\); stopHidden\(\); \}/);
+});

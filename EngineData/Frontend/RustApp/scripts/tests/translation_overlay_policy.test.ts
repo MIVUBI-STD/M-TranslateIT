@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove, overlayMeetingSession } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove, overlayMeetingSession, mayPresentOverlayCaption } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -80,4 +80,13 @@ test("Meeting revision parsing retains compound session IDs and rejects malforme
   assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "meeting", revision: "meeting:s:bad" }), null);
   assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "text", revision: "meeting:s:20" }), null);
   assert.equal(overlayMeetingSession(null), null);
+});
+
+test("visibility admission denies hidden or disabled Meeting content", () => {
+  const p = { visibility: "expanded" as const, meetingEnabled: true, textSize: "medium" as const, width: "standard" as const, contrast: "standard" as const, clickThrough: false };
+  const c = { source: "meeting" as const, revision: "s:1", language: "en", text: "secret" };
+  assert.equal(mayPresentOverlayCaption(p, c), true);
+  assert.equal(mayPresentOverlayCaption({ ...p, visibility: "hidden" }, c), false);
+  assert.equal(mayPresentOverlayCaption({ ...p, meetingEnabled: false }, c), false);
+  assert.equal(mayPresentOverlayCaption({ ...p, meetingEnabled: false }, { ...c, source: "text" }), true);
 });
