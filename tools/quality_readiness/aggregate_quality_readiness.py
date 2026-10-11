@@ -19,9 +19,9 @@ REPORT_SCHEMAS = {
 MEETING_TRACE_SCHEMA = "translateit.meeting_fidelity.trace.v1"
 MAX_MEETING_TRACE_BYTES = 2 * 1024 * 1024
 MAX_MEETING_CASES = 64
-CASE_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}\\Z")
-RISK_TAG = re.compile(r"[a-z][a-z0-9_-]{0,39}\\Z")
-SHA256 = re.compile(r"[0-9a-f]{64}\\Z")
+CASE_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}\Z")
+RISK_TAG = re.compile(r"[a-z][a-z0-9_-]{0,39}\Z")
+SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def keys_equal(value: object, required: set[str]) -> bool:
