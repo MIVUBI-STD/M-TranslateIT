@@ -8,6 +8,10 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## UI/Overlay source enhancement — 2026-10-11
+
+**State: SOURCE IMPLEMENTED / NATIVE NOT EXECUTED.** User authorized a modular Text/overlay improvement while Q4 integrated build/packaging remains separately paused. Existing Tauri/Svelte owners now preserve Text drafts during navigation, retire persisted plaintext caption state, replay captions through transient Tauri events, reject stale same-session caption revisions, align wide caption window dimensions, give High Contrast actual visual styles, and allow reversible overlay-only click-through using Settings. Legacy plaintext key is removed on boot without reading its content. No new AI engine, worker, cloud API, permanent translation history, UI framework, hosted CI, installer or release. Quick Actions already was wired via ProductivityActions; unchanged. Updated static/test sources are NOT EXECUTED. Compilation, DPI/Windows native interaction and accessibility remain UNKNOWN until separately authorized integrated acceptance. Next: inspect exact Local SHA and preserve Q4 pause.
+
 ## Active Quality Improvement Implementation Plan — 2026-10-11
 
 **State:** ACTIVE (Q1/Q2/Q3 source changes implemented; executable/model/native proof remains NOT EXECUTED). The user approved a modular, evidence-driven quality-improvement implementation plan. This is not runtime-quality proof, permission to resume packaging, or a model/feature replacement decision. Canonical owners remain unchanged. Use one cohesive source delivery per bounded outcome, not per assertion or microtest.

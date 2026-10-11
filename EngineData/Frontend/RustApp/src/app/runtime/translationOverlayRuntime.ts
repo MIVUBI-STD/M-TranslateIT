@@ -1,8 +1,9 @@
-import { emitTo } from "@tauri-apps/api/event";
+import { emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { MeetingCommittedTurnsSnapshot } from "../bridge/runtimeApi";
 import {
   TRANSLATION_OVERLAY_EVENT,
+  TRANSLATION_OVERLAY_READY_EVENT,
   TRANSLATION_OVERLAY_PREFERENCES_EVENT,
   latestMeetingCaption,
   normalizeOverlayText,
@@ -14,11 +15,12 @@ import {
   readOverlayPreferences,
   recordOverlayError,
   updateOverlayPreferences,
-  writeLatestOverlayCaption,
 } from "./translationOverlayState";
 
 export const OVERLAY_WINDOW_LABEL = "translation-overlay";
 export type OverlayPublishResult = "shown" | "suppressed" | "unavailable";
+// Private in-memory caption, never written to browser storage.
+let latestPresented: TranslationOverlayPayload | null = null;
 
 async function overlayWindow(): Promise<WebviewWindow | null> {
   return WebviewWindow.getByLabel(OVERLAY_WINDOW_LABEL);
@@ -31,12 +33,11 @@ export async function publishTranslationOverlay(payload: TranslationOverlayPaylo
   const text = normalizeOverlayText(payload.text);
   if (!text) return "suppressed";
   const normalized = { ...payload, text };
-  writeLatestOverlayCaption(normalized);
-
   let preferences = readOverlayPreferences();
   const explicitlyRestored = explicit && preferences.visibility === "hidden";
   if (explicitlyRestored) preferences = updateOverlayPreferences({ visibility: "expanded" });
   if (!explicit && (preferences.visibility === "hidden" || (payload.source === "meeting" && !preferences.meetingEnabled))) return "suppressed";
+  latestPresented = normalized;
 
   try {
     const window = await overlayWindow();
@@ -59,6 +60,15 @@ export async function publishLatestMeetingOverlay(turns: MeetingCommittedTurnsSn
   return result === "unavailable" ? previousRevision : caption.revision;
 }
 
+// Replay after the separate webview registers its caption listener.
+export async function subscribeOverlayReady(): Promise<UnlistenFn> {
+  return listen(TRANSLATION_OVERLAY_READY_EVENT, async () => {
+    const prefs = readOverlayPreferences();
+    if (!latestPresented || prefs.visibility === "hidden" || (latestPresented.source === "meeting" && !prefs.meetingEnabled)) return;
+    try { await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented); } catch { /* New events still deliver directly. */ }
+  });
+}
+
 export async function notifyOverlayPreferencesChanged(preferences: TranslationOverlayPreferences): Promise<void> {
   try { await emitPreferences(preferences); } catch { }
 }
@@ -70,6 +80,7 @@ export async function showTranslationOverlay(): Promise<boolean> {
     if (!window) throw new Error("Floating caption window is unavailable.");
     await emitPreferences(preferences);
     await window.show();
+    if (latestPresented) await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
     clearOverlayError();
     return true;
   } catch (error) {
@@ -79,10 +90,12 @@ export async function showTranslationOverlay(): Promise<boolean> {
 }
 
 export async function hideTranslationOverlay(): Promise<void> {
-  updateOverlayPreferences({ visibility: "hidden" });
-  try { await (await overlayWindow())?.hide(); } catch { }
+  const prefs = updateOverlayPreferences({ visibility: "hidden" });
+  latestPresented = null;
+  try { await emitPreferences(prefs); await (await overlayWindow())?.hide(); } catch { }
 }
 
 export async function destroyTranslationOverlay(): Promise<void> {
+  latestPresented = null;
   await (await overlayWindow())?.destroy();
 }

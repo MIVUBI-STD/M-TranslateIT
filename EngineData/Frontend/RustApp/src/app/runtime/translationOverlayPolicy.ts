@@ -1,5 +1,6 @@
 export const TRANSLATION_OVERLAY_EVENT = "translation-overlay:update";
 export const TRANSLATION_OVERLAY_PREFERENCES_EVENT = "translation-overlay:preferences";
+export const TRANSLATION_OVERLAY_READY_EVENT = "translation-overlay:ready";
 
 export type TranslationOverlayPayload = {
   text: string;
@@ -19,7 +20,22 @@ export type TranslationOverlayPreferences = {
   textSize: OverlayTextSize;
   width: OverlayWidth;
   contrast: OverlayContrast;
+  clickThrough: boolean;
 };
+
+// Dedupe and reject late committed-turn presentation in the same Meeting session.
+export function shouldAcceptOverlayCaption(current: TranslationOverlayPayload | null, next: TranslationOverlayPayload): boolean {
+  if (!current) return true;
+  if (current.source === next.source && current.revision === next.revision) return false;
+  if (current.source !== "meeting" || next.source !== "meeting") return true;
+  const previousSeparator = current.revision.lastIndexOf(":");
+  const nextSeparator = next.revision.lastIndexOf(":");
+  if (previousSeparator < 1 || nextSeparator < 1) return true;
+  if (current.revision.slice(0, previousSeparator) !== next.revision.slice(0, nextSeparator)) return true;
+  const previous = Number(current.revision.slice(previousSeparator + 1));
+  const upcoming = Number(next.revision.slice(nextSeparator + 1));
+  return !Number.isSafeInteger(previous) || !Number.isSafeInteger(upcoming) || upcoming > previous;
+}
 
 export type PhysicalPoint = { x: number; y: number };
 export type PhysicalRect = { x: number; y: number; width: number; height: number };

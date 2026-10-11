@@ -12,6 +12,7 @@ const DEFAULT_OVERLAY_PREFERENCES: TranslationOverlayPreferences = {
   textSize: "medium",
   width: "standard",
   contrast: "standard",
+  clickThrough: false,
 };
 
 const LATEST_KEY = "translateit.translationOverlay.latest.v2";
@@ -39,7 +40,7 @@ export function readOverlayPreferences(): TranslationOverlayPreferences {
       ? parsed.width as OverlayWidth : DEFAULT_OVERLAY_PREFERENCES.width;
     const contrast: OverlayContrast = ["standard", "high"].includes(String(parsed.contrast))
       ? parsed.contrast as OverlayContrast : DEFAULT_OVERLAY_PREFERENCES.contrast;
-    return { meetingEnabled: parsed.meetingEnabled !== false, visibility, textSize, width, contrast };
+    return { meetingEnabled: parsed.meetingEnabled !== false, visibility, textSize, width, contrast, clickThrough: parsed.clickThrough === true };
   } catch { return { ...DEFAULT_OVERLAY_PREFERENCES }; }
 }
 
@@ -53,17 +54,9 @@ export function updateOverlayPreferences(patch: Partial<TranslationOverlayPrefer
   return next;
 }
 
-export function readLatestOverlayCaption(): TranslationOverlayPayload | null {
-  try {
-    const raw = storage()?.getItem(LATEST_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as TranslationOverlayPayload;
-    return parsed?.text && parsed?.revision ? parsed : null;
-  } catch { return null; }
-}
-
-export function writeLatestOverlayCaption(payload: TranslationOverlayPayload): void {
-  storage()?.setItem(LATEST_KEY, JSON.stringify(payload));
+// Delete the old plaintext caption cache without deserializing the text.
+export function discardLegacyOverlayCaption(): void {
+  try { storage()?.removeItem(LATEST_KEY); } catch { /* Storage can be disabled. */ }
 }
 
 export function readOverlayPosition(): StoredOverlayPosition | null {

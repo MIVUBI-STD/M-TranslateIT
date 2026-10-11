@@ -1,12 +1,14 @@
 <script lang="ts">
   import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
-  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { availableMonitors, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
   import { ArrowLeft, History, Maximize2, Minus, Pause, Play, X } from "@lucide/svelte";
   import { onMount, tick } from "svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import {
     TRANSLATION_OVERLAY_EVENT,
+    TRANSLATION_OVERLAY_READY_EVENT,
+    shouldAcceptOverlayCaption,
     TRANSLATION_OVERLAY_PREFERENCES_EVENT,
     clampPositionToWorkArea,
     intersectionArea,
@@ -22,9 +24,9 @@
   } from "../app/runtime/translationOverlayPolicy";
   import { hideTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
   import {
-    readLatestOverlayCaption,
     readOverlayPosition,
     readOverlayPreferences,
+    discardLegacyOverlayCaption,
     updateOverlayPreferences,
     writeOverlayPosition,
   } from "../app/runtime/translationOverlayState";
@@ -90,13 +92,23 @@
 
   async function applyPreferences(next: TranslationOverlayPreferences, reposition = false): Promise<void> {
     preferences = next;
-    if (next.visibility === "hidden") { await getCurrentWindow().hide(); return; }
+    if (next.visibility === "hidden") {
+      await getCurrentWindow().setIgnoreCursorEvents(false);
+      await getCurrentWindow().hide();
+      return;
+    }
     if (next.visibility === "collapsed") historyOpen = false;
     await getCurrentWindow().setSize(new LogicalSize(
       next.visibility === "collapsed" ? COLLAPSED_WIDTH : overlayWidth(next.width),
       historyOpen ? HISTORY_HEIGHT : overlayHeightForTextSize(next.textSize, next.visibility === "collapsed"),
     ));
     if (reposition) await restorePosition();
+    try {
+      await getCurrentWindow().setIgnoreCursorEvents(next.clickThrough);
+    } catch {
+      // Fail open: native caption controls must remain accessible.
+      preferences = updateOverlayPreferences({ clickThrough: false });
+    }
   }
   async function setVisibility(visibility: "expanded" | "collapsed"): Promise<void> {
     await applyPreferences(updateOverlayPreferences({ visibility }), true);
@@ -138,6 +150,7 @@
   }
 
   async function applyCaption(next: TranslationOverlayPayload): Promise<void> {
+    if (!shouldAcceptOverlayCaption(pendingCaption ?? caption, next)) return;
     if (captionsPaused && next.source === "meeting") {
       pendingCaption = next;
       return;
@@ -155,7 +168,7 @@
     if (caption?.source !== "meeting") return;
     if (captionsPaused) {
       captionsPaused = false;
-      const latest = pendingCaption ?? readLatestOverlayCaption();
+      const latest = pendingCaption;
       pendingCaption = null;
       if (latest?.source === "meeting") await applyCaption(latest);
       return;
@@ -175,11 +188,12 @@
       unlistenPreferences = await listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, (event) => {
         if (!disposed) void applyPreferences(event.payload, true);
       });
-      caption = readLatestOverlayCaption();
+      discardLegacyOverlayCaption();
       preferences = readOverlayPreferences();
       await applyPreferences(preferences);
       await restorePosition();
       unlistenMoved = await getCurrentWindow().onMoved(({ payload }) => writeOverlayPosition({ x: payload.x, y: payload.y }));
+      if (!disposed) await emit(TRANSLATION_OVERLAY_READY_EVENT);
     };
     void initialize();
     return () => { disposed = true; unlistenCaption?.(); unlistenPreferences?.(); unlistenMoved?.(); };
@@ -252,6 +266,9 @@
   :global(html.ti-overlay-document body) { user-select: none; }
   .overlay-shell { width: 100vw; height: 100vh; padding: 8px; background: transparent; }
   .caption-card { height: 100%; overflow: hidden; border: 1px solid rgb(255 255 255 / 0.14); border-radius: 14px; background: rgb(16 19 22 / 0.96); box-shadow: 0 16px 46px rgb(0 0 0 / 0.38); color: #f7f8fa; }
+  .high-contrast .caption-card { background: #000; border: 2px solid #fff; box-shadow: none; }
+  .high-contrast .caption-meta, .high-contrast .history-entry-meta, .high-contrast .caption-control, .high-contrast .caption-body .caption-placeholder, .high-contrast .history-empty { color: #fff; }
+  .high-contrast .caption-control:focus-visible { outline: 3px solid #fff; }
   .caption-header { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 9px 5px 14px; cursor: grab; }
   .caption-header:active { cursor: grabbing; }
   .caption-meta { display: flex; min-width: 0; align-items: center; gap: 8px; color: rgb(232 237 242 / 0.68); font-size: 10px; font-weight: 700; letter-spacing: 0.09em; }

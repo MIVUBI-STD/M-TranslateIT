@@ -30,6 +30,7 @@
       textSize?: OverlayTextSize;
       width?: OverlayWidth;
       contrast?: OverlayContrast;
+      clickThrough?: boolean;
     },
   ): Promise<void> {
     preferences = updateOverlayPreferences(patch);
@@ -110,6 +111,16 @@
         </select>
       </label>
     </div>
+
+    <label class="flex items-start justify-between gap-5">
+      <span>
+        <strong class="block text-[13px] font-semibold">Allow clicks through caption</strong>
+        <small class="mt-1 block text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
+          Work in windows behind the caption. Turn this off here to interact with caption controls again.
+        </small>
+      </span>
+      <input type="checkbox" class="mt-1 size-4" checked={preferences.clickThrough} onchange={(event) => void update({ clickThrough: (event.currentTarget as HTMLInputElement).checked })} />
+    </label>
 
     <div>
       <button type="button" class="ti-button ti-button-secondary" onclick={() => void show()}>

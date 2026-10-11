@@ -36,3 +36,9 @@ test("session review and feedback remain explicit bounded workflows", () => {
   assert.match(feedbackReview, /> Clear</);
   assert.match(feedbackReview, /bounded to 40 entries/);
 });
+
+test("Text workspace remains mounted across navigation without disk persistence", () => {
+  const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8");
+  assert.match(app, /class=\{route === "text" \? "" : "hidden"\}/);
+  assert.match(app, /<Text\s+settings=\{snapshot\.settings\}/);
+});

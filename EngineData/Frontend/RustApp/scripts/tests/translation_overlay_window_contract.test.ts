@@ -11,17 +11,22 @@ const overlayPage = readFileSync(new URL("../../src/pages/TranslationOverlay.sve
 test("floating caption native window keeps readability contract", () => {
   const overlay = tauri.app.windows.find((window) => window.label === "translation-overlay"); assert.ok(overlay);
   assert.equal(overlay.alwaysOnTop, true); assert.equal(overlay.skipTaskbar, true); assert.equal(overlay.visible, false); assert.equal(overlay.decorations, false); assert.equal(overlay.resizable, false);
+  assert.ok(overlay.maxWidth >= 760, "native window must support wide preset");
 });
 test("shutdown destroys overlay before main window", () => {
   assert.match(closeRuntime, /destroyTranslationOverlay\(\)/); assert.match(closeRuntime, /getCurrentWindow\(\)\.destroy\(\)/);
 });
-test("caption delivery is durable state plus realtime event", () => {
-  assert.match(overlayRuntime, /writeLatestOverlayCaption\(normalized\)/); assert.match(overlayPage, /listen<TranslationOverlayPayload>/); assert.match(overlayPage, /readLatestOverlayCaption\(\)/);
+test("caption delivery is in-memory plus live event and ready replay", () => {
+  assert.match(overlayRuntime, /let latestPresented:/);
+  assert.match(overlayRuntime, /subscribeOverlayReady/);
+  assert.match(overlayPage, /listen<TranslationOverlayPayload>/);
+  assert.match(overlayPage, /TRANSLATION_OVERLAY_READY_EVENT/);
+  assert.doesNotMatch(overlayRuntime, /writeLatestOverlayCaption|localStorage/);
 });
 test("overlay and main window permissions remain split by least privilege", () => {
   assert.deepEqual(mainCapability.windows, ["main"]);
   assert.deepEqual(overlayCapability.windows, ["translation-overlay"]);
-  for (const permission of ["core:window:allow-set-size", "core:window:allow-set-position", "core:window:allow-start-dragging"]) {
+  for (const permission of ["core:window:allow-set-size", "core:window:allow-set-position", "core:window:allow-start-dragging", "core:window:allow-set-ignore-cursor-events"]) {
     assert.ok(overlayCapability.permissions.includes(permission), permission);
     assert.equal(mainCapability.permissions.includes(permission), false, permission);
   }

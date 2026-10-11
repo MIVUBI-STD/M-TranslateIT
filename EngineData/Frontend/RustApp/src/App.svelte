@@ -11,6 +11,8 @@
     type ProductSetupAction,
   } from "./app/bridge/runtimeProductFacade";
   import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
+import { subscribeOverlayReady } from "./app/runtime/translationOverlayRuntime";
+import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlayState";
   import { startVoiceBuildRuntimeSync } from "./app/runtime/voiceBuildRuntimeSync";
   import { installNativeCloseGuard } from "./app/runtime/nativeCloseRuntime";
   import {
@@ -295,6 +297,8 @@
     let disposed = false;
     let unlistenClose: (() => void) | null = null;
     let unlistenApplicationRuntime: (() => void) | null = null;
+    let unlistenOverlayReady: (() => void) | null = null;
+    discardLegacyOverlayCaption();
     const stopVoiceBuildRuntimeSync = startVoiceBuildRuntimeSync((message) => refreshSnapshot(message));
     const boot = async () => {
       try {
@@ -343,11 +347,16 @@
     void boot();
     void installCloseGuard();
     void installApplicationRuntimeSync();
+    void subscribeOverlayReady().then((stop) => {
+      if (disposed) stop();
+      else unlistenOverlayReady = stop;
+    }).catch(() => { /* Live event delivery remains available. */ });
 
     return () => {
       disposed = true;
       unlistenClose?.();
       unlistenApplicationRuntime?.();
+      unlistenOverlayReady?.();
       stopVoiceBuildRuntimeSync();
     };
   });
@@ -401,12 +410,7 @@
             onOpenMyVoice={() => navigate("my-voice")}
           />
         {:else if route === "text"}
-          <Text
-            settings={snapshot.settings}
-            textStatus={snapshot.readiness.textStatus}
-            onSettingsChange={applySettings}
-            onNotice={setNotice}
-          />
+          <!-- Text workspace stays mounted below during navigation. -->
         {:else if route === "my-voice"}
           <MyVoice
             onNotice={setNotice}
@@ -427,6 +431,14 @@
             onNotice={setNotice}
           />
         {/if}
+        <div class={route === "text" ? "" : "hidden"}>
+          <Text
+            settings={snapshot.settings}
+            textStatus={snapshot.readiness.textStatus}
+            onSettingsChange={applySettings}
+            onNotice={setNotice}
+          />
+        </div>
       </div>
     </section>
   </main>

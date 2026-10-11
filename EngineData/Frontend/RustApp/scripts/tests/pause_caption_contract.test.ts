@@ -11,8 +11,8 @@ test("pause captions freezes only meeting presentation and keeps latest caption 
   assert.match(overlay, /pendingCaption = next/);
 });
 
-test("resume captions applies the newest pending or durable meeting caption", () => {
-  assert.match(overlay, /pendingCaption \?\? readLatestOverlayCaption\(\)/);
+test("resume captions applies only the newest pending in-memory caption", () => {
+  assert.match(overlay, /const latest = pendingCaption/);
   assert.match(overlay, /Resume floating captions/);
   assert.match(overlay, /Pause floating captions/);
   assert.match(overlay, /PAUSED/);

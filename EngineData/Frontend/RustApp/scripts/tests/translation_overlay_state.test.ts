@@ -3,13 +3,12 @@ import test from "node:test";
 
 import {
   clearOverlayError,
-  readLatestOverlayCaption,
+  discardLegacyOverlayCaption,
   readOverlayDiagnostic,
   readOverlayPosition,
   readOverlayPreferences,
   recordOverlayError,
   updateOverlayPreferences,
-  writeLatestOverlayCaption,
   writeOverlayPosition,
 } from "../../src/app/runtime/translationOverlayState.ts";
 
@@ -26,25 +25,25 @@ Object.defineProperty(globalThis, "localStorage", { value: memory, configurable:
 
 test("overlay preferences default safely and persist bounded choices", () => {
   memory.clear();
-  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard" });
+  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard", clickThrough: false });
   assert.deepEqual(updateOverlayPreferences({ meetingEnabled: false, visibility: "hidden", textSize: "large" }), {
-    meetingEnabled: false, visibility: "hidden", textSize: "large", width: "standard", contrast: "standard",
+    meetingEnabled: false, visibility: "hidden", textSize: "large", width: "standard", contrast: "standard", clickThrough: false,
   });
-  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: false, visibility: "hidden", textSize: "large", width: "standard", contrast: "standard" });
+  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: false, visibility: "hidden", textSize: "large", width: "standard", contrast: "standard", clickThrough: false });
 });
 
 test("corrupt persisted preferences fail back to readable defaults", () => {
   memory.clear();
   memory.setItem("translateit.translationOverlay.preferences.v2", "{bad json");
-  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard" });
+  assert.deepEqual(readOverlayPreferences(), { meetingEnabled: true, visibility: "expanded", textSize: "medium", width: "standard", contrast: "standard", clickThrough: false });
 });
 
-test("latest caption and physical position round trip through durable state", () => {
+test("old caption storage is erased but positioning survives", () => {
   memory.clear();
-  const caption = { text: "Hello", language: "en", source: "text" as const, revision: "text:1" };
-  writeLatestOverlayCaption(caption);
+  memory.setItem("translateit.translationOverlay.latest.v2", JSON.stringify({ text: "private" }));
+  discardLegacyOverlayCaption();
+  assert.equal(memory.getItem("translateit.translationOverlay.latest.v2"), null);
   writeOverlayPosition({ x: 120, y: -40 });
-  assert.deepEqual(readLatestOverlayCaption(), caption);
   assert.deepEqual(readOverlayPosition(), { x: 120, y: -40 });
 });
 
@@ -76,6 +75,6 @@ test("legacy overlay preferences migrate to standard width and contrast", () => 
     visibility: "collapsed",
     textSize: "large",
     width: "standard",
-    contrast: "standard",
+    contrast: "standard", clickThrough: false,
   });
 });

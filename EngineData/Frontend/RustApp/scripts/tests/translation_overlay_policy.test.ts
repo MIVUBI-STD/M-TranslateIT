@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -35,4 +35,12 @@ test("monitor overlap scoring prefers the display containing most of the caption
   const left = { x: 0, y: 0, width: 1920, height: 1040 };
   const right = { x: 1920, y: 0, width: 2560, height: 1400 };
   assert.ok(intersectionArea(caption, right) > intersectionArea(caption, left));
+});
+
+test("same-session late captions cannot overtake newer committed turns", () => {
+  const latest = { text: "new", language: "en", source: "meeting" as const, revision: "s:8" };
+  assert.equal(shouldAcceptOverlayCaption(latest, { ...latest, revision: "s:7" }), false);
+  assert.equal(shouldAcceptOverlayCaption(latest, { ...latest }), false);
+  assert.equal(shouldAcceptOverlayCaption(latest, { ...latest, revision: "s:9" }), true);
+  assert.equal(shouldAcceptOverlayCaption(latest, { ...latest, revision: "other:1" }), true);
 });

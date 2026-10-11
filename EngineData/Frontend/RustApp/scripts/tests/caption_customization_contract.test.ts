@@ -18,6 +18,8 @@ test("caption width and contrast persist as bounded presets", () => {
   assert.match(state, /"standard", "high"/);
   assert.match(overlay, /overlayWidth\(preferences\.width\)/);
   assert.match(overlay, /preferences\.contrast === "high"/);
+  assert.match(overlay, /\.high-contrast \.caption-card/);
+  assert.match(owner, /Allow clicks through caption/);
 });
 
 test("floating caption settings live in a dedicated owner component", () => {
