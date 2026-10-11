@@ -20,9 +20,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 from voice_lab_audio_quality import (
+    attach_speaker_evidence,
     inspect_take_frames,
     reference_quiet_context_available,
 )
+from voice_lab_speaker_consistency import inspect_speaker_embeddings
 from voice_lab_gpt_sovits import (
     ACTOR_GPT_WEIGHT_FILE,
     ACTOR_REFERENCE_WAV_FILE,
@@ -140,7 +142,10 @@ def training_takes(dataset_dir: Path, manifest: dict[str, Any]) -> list[dict[str
     return result
 
 
-def select_reference(takes: list[dict[str, Any]]) -> dict[str, Any]:
+def select_reference(
+    takes: list[dict[str, Any]],
+    peer_cosines: dict[int, float] | None = None,
+) -> dict[str, Any]:
     eligible = [x for x in takes if REFERENCE_MIN_MS <= int(x["duration_ms"]) <= REFERENCE_MAX_MS]
     if not eligible:
         raise VoiceLabProviderError("reference_take_3_to_10_seconds_required")
@@ -169,6 +174,7 @@ def select_reference(takes: list[dict[str, Any]]) -> dict[str, Any]:
                     float(edge_floor) if compare_quiet_edges and edge_floor is not None else 0.0,
                     float(metrics["silence_fraction"]),
                     float(metrics["dc_offset"]),
+                    -float(peer_cosines.get(int(take["line_id"]), 0.0)) if peer_cosines else 0.0,
                     abs(int(take["duration_ms"]) - REFERENCE_TARGET_MS),
                     int(take["line_id"]),
                 ),
@@ -736,7 +742,6 @@ def build_candidate(
 ) -> None:
     assets = source_assets(source_root)
     takes = training_takes(dataset_dir, manifest)
-    reference = select_reference(takes)
     for path in (candidate_dir, evaluation_dir, work_dir):
         if path.exists():
             shutil.rmtree(path)
@@ -744,6 +749,17 @@ def build_candidate(
 
     exp = work_dir / "experiment"
     prepare_dataset(source_root, assets, dataset_dir, exp, takes)
+    # Reuse artifacts produced by the pinned SoVITS SV preprocessing stage.
+    speaker_evidence = inspect_speaker_embeddings(exp / "7-sv_cn", takes)
+    try:
+        attach_speaker_evidence(dataset_dir / "audio_quality.json", takes, speaker_evidence)
+    except ValueError as exc:
+        raise VoiceLabProviderError(f"speaker_quality_report_failed:{exc}") from exc
+    peer_cosines = {
+        int(item["line_id"]): float(item["median_peer_cosine"])
+        for item in speaker_evidence["per_take"]
+    }
+    reference = select_reference(takes, peer_cosines=peer_cosines)
     status_writer(
         "training",
         "Creating bounded Voice Actor training candidates from accepted recordings.",

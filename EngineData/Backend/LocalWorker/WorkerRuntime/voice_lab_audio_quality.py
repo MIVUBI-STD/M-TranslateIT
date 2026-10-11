@@ -8,7 +8,9 @@ evidence. The approved GPT-SoVITS engine and frozen input bytes stay unchanged.
 
 from __future__ import annotations
 
+import json
 import math
+import os
 import statistics
 import struct
 import wave
@@ -103,3 +105,30 @@ def reference_quiet_context_available(reports: list[dict[str, float | int | None
     return bool(reports) and all(
         report["edge_floor_rms_pcm16"] is not None for report in reports
     )
+
+
+def attach_speaker_evidence(
+    report_path: Path, takes: list[dict[str, Any]], evidence: dict[str, Any]
+) -> None:
+    """Extend the existing temporary dataset report; never edit a training WAV."""
+    try:
+        current = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError("audio_quality_report_unavailable") from exc
+    if current.get("schema") != "voice_lab.audio_quality.v1":
+        raise ValueError("audio_quality_report_schema_mismatch")
+    recorded = [item.get("wav_file") for item in current.get("takes", [])]
+    expected = [str(item["wav_file"]) for item in takes]
+    speaker_ids = [int(item["line_id"]) for item in evidence["per_take"]]
+    if recorded != expected or speaker_ids != [int(item["line_id"]) for item in takes]:
+        raise ValueError("audio_quality_report_dataset_mismatch")
+    current["speaker_consistency"] = evidence
+    temp = report_path.with_suffix(".json.tmp")
+    try:
+        temp.write_text(
+            json.dumps(current, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temp, report_path)
+    finally:
+        temp.unlink(missing_ok=True)
