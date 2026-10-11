@@ -18,6 +18,113 @@ fn valid_sha256(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+
+#[cfg(target_os = "windows")]
+#[link(name = "bcrypt")]
+unsafe extern "system" {
+    fn BCryptHash(
+        algorithm: *mut std::ffi::c_void,
+        secret: *mut u8,
+        secret_len: u32,
+        input: *mut u8,
+        input_len: u32,
+        output: *mut u8,
+        output_len: u32,
+    ) -> i32;
+}
+
+// Use the native Windows 10+ CNG SHA-256 algorithm pseudo-handle. This avoids
+// a second cryptographic implementation and an unnecessary Cargo dependency.
+#[cfg(target_os = "windows")]
+fn sha256_digest(bytes: &[u8]) -> Option<[u8; 32]> {
+    let len = u32::try_from(bytes.len()).ok()?;
+    let mut digest = [0_u8; 32];
+    // SAFETY: BCryptHash does not mutate the input, all buffers remain alive,
+    // the lengths are bounded, and 0x41 is the Windows SHA-256 pseudo-handle.
+    let status = unsafe {
+        BCryptHash(
+            0x41_usize as *mut std::ffi::c_void,
+            std::ptr::null_mut(),
+            0,
+            bytes.as_ptr() as *mut u8,
+            len,
+            digest.as_mut_ptr(),
+            digest.len() as u32,
+        )
+    };
+    (status == 0).then_some(digest)
+}
+
+// The desktop runtime is Windows-only. Unsupported build targets fail closed.
+#[cfg(not(target_os = "windows"))]
+fn sha256_digest(_bytes: &[u8]) -> Option<[u8; 32]> {
+    None
+}
+
+fn sha256_matches(bytes: &[u8], expected: &str) -> bool {
+    if !valid_sha256(expected) {
+        return false;
+    }
+    let Some(digest) = sha256_digest(bytes) else {
+        return false;
+    };
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    digest.iter().enumerate().all(|(index, value)| {
+        let byte = *value as usize;
+        expected.as_bytes()[2 * index] == HEX[byte >> 4]
+            && expected.as_bytes()[2 * index + 1] == HEX[byte & 15]
+    })
+}
+
+// Hash the very same bounded bytes that are returned for playback. Never
+// trust a manifest SHA-256 string by format alone.
+pub(super) fn verified_held_out_wav(
+    root: &Path,
+    sample: &VoiceLabEvaluationSample,
+) -> Option<Vec<u8>> {
+    if !valid_sha256(&sample.sha256)
+        || sample.wav_file != format!("held_out_{}.wav", sample.line_id)
+    {
+        return None;
+    }
+    let path = root.join(&sample.wav_file);
+    let info = fs::symlink_metadata(&path).ok()?;
+    if info.file_type().is_symlink()
+        || !info.is_file()
+        || info.len() < 44
+        || info.len() > MAX_EVALUATION_WAV_BYTES
+    {
+        return None;
+    }
+    let file = File::open(path).ok()?;
+    if file.metadata().ok()?.len() != info.len() {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_EVALUATION_WAV_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() as u64 != info.len()
+        || !sha256_matches(&bytes, &sample.sha256)
+    {
+        return None;
+    }
+    Some(bytes)
+}
+
+// The 1.4s UI status polling stays metadata-only; strong verification occurs
+// when a sample is served and immediately before actor promotion.
+pub(super) fn held_out_wavs_intact(
+    paths: &VoiceLabStoragePaths,
+    manifest: &EvaluationManifest,
+) -> bool {
+    let root = evaluation_dir(paths);
+    manifest
+        .samples
+        .iter()
+        .all(|sample| verified_held_out_wav(&root, sample).is_some())
+}
+
 pub(super) const EVALUATION_SELECTION_METHOD: &str =
     "held_out_artifacts_then_mean_wer_then_max_wer_then_similarity_tiebreak";
 
@@ -326,6 +433,47 @@ mod tests {
         fs::remove_file(takes_dir.join(filename)).expect("remove accepted audio");
         assert!(!frozen_dataset_matches_current(&takes_dir, &dataset_dir, &[take]));
         fs::remove_dir_all(root).expect("cleanup");
+    }
+
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn held_out_sha256_is_bound_to_exact_wav_bytes() {
+        assert!(sha256_matches(
+            b"abc",
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        ));
+        assert!(!sha256_matches(
+            b"abd",
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        ));
+
+        let root = std::env::temp_dir().join(format!(
+            "translateit-wav-integrity-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        fs::create_dir_all(&root).expect("fixture directory");
+        let mut bytes = vec![0x42_u8; 44];
+        let digest = sha256_digest(&bytes).expect("native SHA-256");
+        let sha256 = digest.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let sample = VoiceLabEvaluationSample {
+            line_id: 1001,
+            exact_text: "Test".into(),
+            wav_file: "held_out_1001.wav".into(),
+            sha256,
+            speaker_similarity: 0.9,
+            intelligibility_text: "Test".into(),
+            intelligibility_wer: 0.0,
+            artifact_flags: Vec::new(),
+        };
+        let path = root.join(&sample.wav_file);
+        fs::write(&path, &bytes).expect("write fixture");
+        assert_eq!(verified_held_out_wav(&root, &sample), Some(bytes.clone()));
+        bytes[43] ^= 1;
+        fs::write(&path, &bytes).expect("change same-length bytes");
+        assert!(verified_held_out_wav(&root, &sample).is_none());
+        fs::remove_dir_all(root).expect("remove fixture");
     }
 
     #[test]

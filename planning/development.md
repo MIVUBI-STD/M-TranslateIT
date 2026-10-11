@@ -10,7 +10,7 @@ Actual latency, device routing, audio quality, GPU behavior, and installed-app b
 
 ## Active Quality Improvement Implementation Plan — 2026-10-11
 
-**State:** ACTIVE (Q1 playback bound/source review); native and compiler verification remain NOT EXECUTED. The user approved a modular, evidence-driven quality-improvement implementation plan. This is not runtime-quality proof, permission to resume packaging, or a model/feature replacement decision. Canonical owners remain unchanged. Use one cohesive source delivery per bounded outcome, not per assertion or microtest.
+**State:** ACTIVE (Q1 playback and My Voice integrity source changes); native and compiler verification remain NOT EXECUTED. The user approved a modular, evidence-driven quality-improvement implementation plan. This is not runtime-quality proof, permission to resume packaging, or a model/feature replacement decision. Canonical owners remain unchanged. Use one cohesive source delivery per bounded outcome, not per assertion or microtest.
 
 **Objective:** improve meaning fidelity, speech-to-speech correctness, My Voice integrity, bounded Meeting behavior, and maintenance economics within the existing Tauri/Rust + one Python worker design. Prevent wrong or incomplete speech output rather than chasing synthetic speed or arbitrary coverage counts. The first real-language/acoustic quality gains are conditional on executed model and native evidence.
 
@@ -44,13 +44,15 @@ Reuse only `docs/knowledge/operations/target-windows-performance.md` and `docs/f
 
 **Q1 playback source checkpoint:** the existing bounded playback sender now shares the native delivery deadline and returns a terminal enqueue error on stalled capacity, lost generation, unavailable runtime, or disconnected receiver; every failed admission takes ownership of temp-WAV cleanup and leaves queued output intact. One focused Rust regression covers the boundaries. This is source-only, not compiled/native PASS. Outbound failure/status mapping remains in its existing caller.
 
-**One next source action:** complete Q1 backend My Voice held-out WAV SHA-256 verification in the current Rust evaluation/approval owners. A direct cryptographic dependency needs a consistent canonical Cargo.toml + generated Cargo.lock; do not write an unlocked or hand-edited lockfile in REMOTE_GITHUB. If that cannot be completed within the source-only execution partition, retain it as the minimum LOCAL_CODE residue and continue the next independent, GitHub-verifiable quality owner. Q2 and Q3 follow; Q4 stays paused.
+**Q1 My Voice source checkpoint:** the existing Rust evaluation owner now verifies the exact bounded held-out WAV bytes with Windows CNG SHA-256 before returning audio for listening and before candidate approval. Manifest, actor and frozen-dataset identity checks, plus frontend Web Crypto, remain. This Windows 10+ system API requires no new Cargo dependency or lockfile mutation and fails closed on non-Windows. The frequently polled status remains metadata-only to avoid repeated hashing; the decisive read/approval boundaries verify actual bytes. One focused Windows-only regression protects the SHA-256 known vector and same-size audio mutation. This is REMOTE_GITHUB source work only; compiler, model and TARGET_WINDOWS evidence remain NOT EXECUTED.
+
+**One next source action:** implement Q2 provenance-bound, cross-stage quality evidence using the existing evaluator and quality-readiness owners; do not invent model outputs, another evaluator runtime, or benchmark improvements. Q3 follows; Q4 remains paused.
 
 ## Paused Work — Integrated Build / Packaging
 
 **State: PAUSED (2026-10-11, user decision).** Source development already committed on `Local` is retained; the current build/packaging/release candidate is **not** approved, published, compiled, packaged, or native-validated. FFmpeg release provenance was reconciled in `46b8b94bb1acaf08c9a8a9e18eb0a5b1223ae3fd`, but its archive, model/runtime assets, quality receipts, installer signatures and Windows audio behavior remain unverified. Preserve all locks, sources, acceptance contracts and accumulated evidence; do **not** run packaging, hosted CI, sign artifacts or promote `main`.
 
-**Next active direction:** follow the quality improvement implementation plan above; Q1 My Voice integrity is the single next source outcome. New unrelated feature work is not active. The existing `docs/knowledge/operations/target-windows-performance.md` is the canonical integration/acceptance runbook **when packaging is explicitly resumed**; do not treat its sequence as the next task now. For a new feature, recover current `Local` HEAD and follow normal owner-first development discipline; no unrelated packaging or repeated incremental testing.
+**Next active direction:** follow the quality improvement implementation plan above; Q2 cross-stage fidelity evidence is the single next source outcome. New unrelated feature work is not active. The existing `docs/knowledge/operations/target-windows-performance.md` is the canonical integration/acceptance runbook **when packaging is explicitly resumed**; do not treat its sequence as the next task now. For a new feature, recover current `Local` HEAD and follow normal owner-first development discipline; no unrelated packaging or repeated incremental testing.
 
 ## Active Boundary
 

@@ -32,9 +32,9 @@ mod phase;
 pub use evaluation::VoiceLabEvaluationSample;
 use phase::reconcile_phase;
 use evaluation::{
-    evaluation_dir, evaluation_review_complete, held_out_contract,
-    reviewable_evaluation as reviewable_evaluation_for_takes, EvaluationManifest,
-    MAX_EVALUATION_WAV_BYTES,
+    evaluation_dir, evaluation_review_complete, held_out_contract, held_out_wavs_intact,
+    reviewable_evaluation as reviewable_evaluation_for_takes, verified_held_out_wav,
+    EvaluationManifest,
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
@@ -745,6 +745,13 @@ pub fn approve_voice_lab_candidate(
             "Confirm that the voice is clear, natural, and resembles the authorized speaker before using it.",
         );
     }
+    if !held_out_wavs_intact(&paths, &evaluation) {
+        return result(
+            false,
+            "evaluation_audio_integrity_failed",
+            "A voice sample no longer matches the evaluated audio. Create My Voice again before approving it.",
+        );
+    }
     let project_paths = ProjectPaths::discover();
     match promote_voice_actor_candidate(&project_paths) {
         Ok(()) => {
@@ -780,11 +787,8 @@ pub fn get_voice_lab_evaluation_audio(
         .into_iter()
         .find(|sample| sample.line_id == line_id)
         .ok_or_else(|| "voice_lab:evaluation_line_missing".to_string())?;
-    let path = evaluation_dir(&paths).join(sample.wav_file);
-    let bytes = fs::read(path).map_err(|_| "voice_lab:evaluation_audio_read_failed".to_string())?;
-    if bytes.len() < 44 || bytes.len() as u64 > MAX_EVALUATION_WAV_BYTES {
-        return Err("voice_lab:evaluation_audio_invalid".to_string());
-    }
+    let bytes = verified_held_out_wav(&evaluation_dir(&paths), &sample)
+        .ok_or_else(|| "voice_lab:evaluation_audio_integrity_failed".to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
 }
 
