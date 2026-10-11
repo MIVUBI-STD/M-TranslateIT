@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import copy
+import hashlib
 import json
 import tempfile
 from pathlib import Path
@@ -62,6 +63,40 @@ def main() -> int:
         assert ready["ready_on_declared_quality_evidence"] is True
         assert ready["blockers"] == []
         assert all(row["report_sha256"] for row in ready["domains"].values())
+        translation_path = root / "translation.json"
+        original_translation = translation_path.read_bytes()
+        original_digest = hashlib.sha256(original_translation).hexdigest()
+        assert ready["domains"]["translation"]["report_sha256"] == original_digest
+
+        # Deterministic file mutation between report parsing and final output:
+        # digest must identify the evaluated bytes, not the replaced file.
+        original_loader = evaluator.load_report
+
+        def mutate_after_load(path, schema):
+            parsed, digest = original_loader(path, schema)
+            if path == translation_path:
+                path.write_text(json.dumps(comparison(
+                    schema, "changed-after-read"
+                )), encoding="utf-8")
+            return parsed, digest
+
+        evaluator.load_report = mutate_after_load
+        try:
+            pinned = evaluator.evaluate_manifest(manifest_path)
+        finally:
+            evaluator.load_report = original_loader
+        assert pinned["domains"]["translation"]["candidate_source_identity"] == identity
+        assert pinned["domains"]["translation"]["report_sha256"] == original_digest
+        translation_path.write_bytes(original_translation)
+
+        # A broken domain comparison is a structured blocker, not a crash.
+        asr_path = root / "asr.json"
+        old_asr = asr_path.read_bytes()
+        asr_path.write_text("{malformed", encoding="utf-8")
+        invalid = evaluator.evaluate_manifest(manifest_path)
+        assert "asr:report_invalid_or_unreadable" in invalid["blockers"]
+        assert invalid["domains"]["asr"]["report_sha256"] is None
+        asr_path.write_bytes(old_asr)
 
         tts_path = root / "tts.json"
         tts_path.write_text(

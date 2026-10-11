@@ -29,7 +29,13 @@ Create a local manifest beside the three comparison reports:
 }
 ```
 
-Each report filename must be local to the manifest directory. The aggregator records the SHA-256 of every input report.
+Each report filename must be local to the manifest directory. The aggregator records
+the SHA-256 of the **exact bounded bytes it parses**, rather than reopening a
+report later for a separate hash. Invalid, unreadable, oversized or symlinked
+comparison reports fail closed with a domain blocker; optional Meeting trace
+reports follow the same single-read rule. The release-quality validator binds
+its result hash to the exact input bytes it checks. These hashes establish
+file-content identity, not proof that an AI model or human reviewer ran.
 
 ## Run
 

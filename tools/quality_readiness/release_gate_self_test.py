@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import tempfile
 from pathlib import Path
@@ -46,7 +47,7 @@ def main() -> int:
         path.write_text(json.dumps(ready_report(identity)), encoding="utf-8")
         result = validator.validate_release_quality(path, identity)
         assert result["release_identity"] == identity
-        assert len(result["report_sha256"]) == 64
+        assert result["report_sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
 
         optional = ready_report(identity)
         optional["meeting_trace"] = {

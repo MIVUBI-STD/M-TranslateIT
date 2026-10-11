@@ -9,16 +9,17 @@ SCHEMA = "translateit.quality_readiness.report.v1"
 DOMAINS = ("translation", "asr", "tts")
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+MAX_READINESS_REPORT_BYTES = 2 * 1024 * 1024
 
 
 def validate_release_quality(report_path: Path, release_identity: str) -> dict:
-    data = json.loads(report_path.read_text(encoding="utf-8"))
+    if report_path.is_symlink():
+        raise ValueError("quality_readiness_report_symlink")
+    with report_path.open("rb") as stream:
+        raw = stream.read(MAX_READINESS_REPORT_BYTES + 1)
+    if not raw or len(raw) > MAX_READINESS_REPORT_BYTES:
+        raise ValueError("quality_readiness_report_size_invalid")
+    data = json.loads(raw)
     if not isinstance(data, dict) or data.get("schema") != SCHEMA:
         raise ValueError("quality_readiness_schema_invalid")
     expected_identity = release_identity.strip().lower()
@@ -54,7 +55,7 @@ def validate_release_quality(report_path: Path, release_identity: str) -> dict:
     result = {
         "schema": SCHEMA,
         "release_identity": actual_identity,
-        "report_sha256": sha256_file(report_path),
+        "report_sha256": hashlib.sha256(raw).hexdigest(),
         "domains": {
             domain: {
                 "candidate_source_identity": domains[domain].get("candidate_source_identity"),

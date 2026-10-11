@@ -133,15 +133,22 @@ def evaluate_meeting_trace(
     }
     if not path.is_file() or path.is_symlink():
         return summary, ["meeting_trace:report_missing_or_link"]
-    if path.stat().st_size > MAX_MEETING_TRACE_BYTES:
-        return summary, ["meeting_trace:report_too_large"]
-    summary["report_sha256"] = sha256_file(path)
     try:
-        receipt = json.loads(path.read_text(encoding="utf-8"))
+        raw = bounded_report_bytes(path, MAX_MEETING_TRACE_BYTES)
+    except ValueError as error:
+        blocker = ("meeting_trace:report_too_large"
+                   if str(error) == "too_large" else "meeting_trace:report_invalid_json")
+        return summary, [blocker]
+    except OSError:
+        return summary, ["meeting_trace:report_unreadable"]
+    try:
+        receipt = json.loads(raw)
         if not isinstance(receipt, dict):
             raise ValueError("receipt not an object")
     except (ValueError, UnicodeError):
         return summary, ["meeting_trace:report_invalid_json"]
+    # This digest identifies exactly the bytes parsed, not a later reread.
+    summary["report_sha256"] = hashlib.sha256(raw).hexdigest()
     if isinstance(receipt.get("cases"), list):
         summary["case_count"] = len(receipt["cases"])
     blockers = meeting_trace_blockers(
@@ -151,12 +158,20 @@ def evaluate_meeting_trace(
     return summary, blockers
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
+MAX_COMPARISON_REPORT_BYTES = 16 * 1024 * 1024
+
+
+def bounded_report_bytes(path: Path, max_bytes: int) -> bytes:
+    # Keep untrusted reports bounded and reject local symlink indirection.
+    if path.is_symlink():
+        raise ValueError("symlink")
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+        raw = stream.read(max_bytes + 1)
+    if len(raw) > max_bytes:
+        raise ValueError("too_large")
+    if not raw:
+        raise ValueError("empty")
+    return raw
 
 
 def load_manifest(path: Path) -> dict:
@@ -197,15 +212,16 @@ def load_manifest(path: Path) -> dict:
     return data
 
 
-def load_report(path: Path, expected_schema: str) -> dict:
-    data = json.loads(path.read_text(encoding="utf-8"))
+def load_report(path: Path, expected_schema: str) -> tuple[dict, str]:
+    raw = bounded_report_bytes(path, MAX_COMPARISON_REPORT_BYTES)
+    data = json.loads(raw)
     if not isinstance(data, dict):
         raise ValueError(f"{path.name}: comparison report must be an object")
     if data.get("schema") != expected_schema:
         raise ValueError(
             f"{path.name}: expected schema {expected_schema!r}, got {data.get('schema')!r}"
         )
-    return data
+    return data, hashlib.sha256(raw).hexdigest()
 
 
 def evaluate_manifest(manifest_path: Path) -> dict:
@@ -226,7 +242,16 @@ def evaluate_manifest(manifest_path: Path) -> dict:
             }
             continue
 
-        report = load_report(report_path, expected_schema)
+        try:
+            report, report_digest = load_report(report_path, expected_schema)
+        except (OSError, ValueError, UnicodeError):
+            blockers.append(f"{domain}:report_invalid_or_unreadable")
+            domain_rows[domain] = {
+                "ready": False,
+                "report": config["report"],
+                "report_sha256": None,
+            }
+            continue
         candidate_identity = str(report.get("candidate_source_identity") or "").strip()
         expected_candidate = config["expected_candidate_source_identity"]
         provenance_complete = report.get("promotion_provenance_complete") is True
@@ -246,7 +271,7 @@ def evaluate_manifest(manifest_path: Path) -> dict:
         domain_rows[domain] = {
             "ready": provenance_complete and complete_sets and identity_matches and safe,
             "report": config["report"],
-            "report_sha256": sha256_file(report_path),
+            "report_sha256": report_digest,
             "candidate_source_identity": candidate_identity or None,
             "expected_candidate_source_identity": expected_candidate,
             "promotion_provenance_complete": provenance_complete,
@@ -288,7 +313,14 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, required=True)
     args = parser.parse_args()
-    report = evaluate_manifest(args.manifest)
+    try:
+        report = evaluate_manifest(args.manifest)
+    except (OSError, ValueError, UnicodeError):
+        print(json.dumps({
+            "ok": False,
+            "blocker": "quality_readiness_manifest_invalid_or_unreadable",
+        }, indent=2))
+        return 1
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["ready_on_declared_quality_evidence"] else 1
 
