@@ -8,6 +8,14 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## UI/UX usability iteration — U2 First Setup and Meeting (2026-10-11)
+
+**State: SOURCE IMPLEMENTED; COMPILER, RENDERED AND TARGET_WINDOWS PROOF NOT EXECUTED.** Continue on `Local` using the existing Svelte owners. First Setup now distinguishes a newly selected (unsaved/unverified) input device from the saved microphone; step-2 Continue is disabled until the device choice is saved and readiness confirms it. The Meeting app step explicitly separates Windows virtual microphone availability from selection inside Zoom/Meet/Discord, which TranslateIT cannot attest. Final setup adds current-snapshot-based recovery guidance for missing microphone, route, voice and translation readiness. Meeting gives actionable reason-specific recovery text while preserving its existing Start/Stop, repair, refresh and voice-selection handlers; a route-display fallback no longer contradicts an already-ready snapshot. No new persistence, backend calls, audio owner, synthetic readiness, or alternative setup workflow.
+
+**Acceptance boundary:** Inspect actual UI at the supported Windows native minimum, high scaling, keyboard focus and disabled step progression in the existing grouped Windows acceptance, with one pinned `Local` SHA. Source delivery and static checks alone do not prove compiled/rendered/native behavior. `main`, hosted CI and Q4 package/native acceptance remain untouched and paused.
+
+**Next UX batch:** U3 simplify My Voice and Settings progressive disclosure (plus existing caption preference clarity), preserving voice approval, data security and canonical Svelte/Tauri owners. Do not start microtest cycles or native packaging ahead of the integrated gate.
+
 ## UI/UX usability iteration — U1 source delivery (2026-10-11)
 
 **State: SOURCE IMPLEMENTED; EXECUTABLE AND NATIVE ACCEPTANCE NOT EXECUTED.** The user explicitly reauthorized staged UI usability work after the previous overlay source closeout. Existing Svelte/Tauri owners improve semantic small-text contrast and label hierarchy; prepare a narrow Text editor layout; keep Translate and selected-format Copy prominent while grouping all prior secondary actions with accessible, reversible disclosure; and clarify Meeting voice readiness and navigation. No new UI framework, worker, service, database, or persistent personal-data store.

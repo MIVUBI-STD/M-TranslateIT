@@ -41,6 +41,10 @@
   let builtinPendingId = $state<BuiltinVoiceId | null>(null);
 
   const meetingVoiceReady = $derived(snapshot?.readiness.approvedVoiceReady ?? null);
+  // An unsaved device choice is not the verified microphone in the runtime snapshot.
+  const microphoneSelectionPending = $derived(
+    selectedMicrophone.trim() !== String(settings.audio.input_device_id ?? "").trim(),
+  );
 
   function microphoneDevices() {
     return devices?.input_devices ?? [];
@@ -60,7 +64,10 @@
   }
 
   function currentMeetingMicrophone(): string {
-    return compact(routeStatus?.selected_input_device, "TranslateIT microphone not ready");
+    return compact(
+      routeStatus?.selected_input_device,
+      snapshot?.readiness.meetingRouteReady ? "Device name unavailable — check Settings" : "TranslateIT microphone not ready",
+    );
   }
 
   function currentMeetingSound(): string {
@@ -300,7 +307,7 @@
         <div>
           <span class="ti-kicker">Microphone</span>
           <h1 class="ti-page-title">Which microphone do you speak into?</h1>
-          <p class="ti-page-copy">Choose your usual microphone. If you are unsure, keep Windows Default.</p>
+          <p class="ti-page-copy">Choose the microphone you speak into. If unsure, keep Windows Default. Save your choice before continuing.</p>
         </div>
         <div class="grid grid-cols-[1fr_auto] items-end gap-3">
           <label class="grid gap-2">
@@ -321,26 +328,32 @@
           <StatusRow
             label="Selected microphone"
             value={currentMicrophone()}
-            detail="The microphone you speak into."
-            status={snapshot?.readiness.microphoneReady ? "Ready" : snapshot?.readiness.level === "checking" ? "Checking" : "Setup Needed"}
-            tone={snapshot?.readiness.microphoneReady ? "good" : snapshot?.readiness.level === "checking" ? "neutral" : "warning"}
+            detail={microphoneSelectionPending ? "The saved microphone is shown here. Save your new choice before continuing." : "The microphone currently saved for your calls."}
+            status={microphoneSelectionPending ? "Not saved" : snapshot?.readiness.microphoneReady ? "Ready" : snapshot?.readiness.level === "checking" ? "Checking" : "Setup Needed"}
+            tone={microphoneSelectionPending ? "warning" : snapshot?.readiness.microphoneReady ? "good" : snapshot?.readiness.level === "checking" ? "neutral" : "warning"}
           />
         </div>
+        {#if microphoneSelectionPending}
+          <p class="m-0 text-sm leading-6 text-[var(--ti-warning)]" role="status">This microphone choice has not been saved or checked. Select “Use this microphone” first.</p>
+        {:else if snapshot && !snapshot.readiness.microphoneReady}
+          <p class="m-0 text-sm leading-6 text-[var(--ti-text-muted)]" role="status">This microphone is not ready. Check its connection, then choose “Use this microphone” again.</p>
+        {/if}
       {:else if step === 3}
         <div>
           <span class="ti-kicker">Meeting app</span>
-          <h1 class="ti-page-title">Connect TranslateIT to your meeting app</h1>
-          <p class="ti-page-copy">In Zoom, Google Meet, Discord, or another calling app, choose the TranslateIT microphone shown below.</p>
+          <h1 class="ti-page-title">Choose TranslateIT as your call microphone</h1>
+          <p class="ti-page-copy">In the audio settings of Zoom, Google Meet, Discord, or your calling app, select the microphone shown below.</p>
         </div>
         <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] p-5">
           <span class="ti-field-label">Choose this as the microphone in your meeting app</span>
-          <strong class="mt-2 block text-base font-semibold">{currentMeetingMicrophone()}</strong>
+          <strong class="mt-2 block break-words text-base font-semibold">{currentMeetingMicrophone()}</strong>
+          <p class="mb-0 mt-2 text-xs leading-5 text-[var(--ti-text-muted)]">Check Again verifies only the TranslateIT device in Windows. It cannot confirm which microphone your calling app selected.</p>
         </div>
         <div class="ti-subtle-card overflow-hidden">
           <StatusRow
             label="TranslateIT microphone"
             value={currentMeetingMicrophone()}
-            detail={snapshot?.readiness.meetingRouteReady ? "Ready on this computer. Select this microphone in your meeting app." : "TranslateIT needs to finish setting up this microphone."}
+            detail={snapshot?.readiness.meetingRouteReady ? "Available in Windows. Select it separately in your calling app." : "TranslateIT needs to finish setting up this microphone."}
             status={snapshot?.readiness.meetingRouteReady ? "Available" : snapshot?.readiness.level === "checking" ? "Checking" : "Setup Needed"}
             tone={snapshot?.readiness.meetingRouteReady ? "good" : snapshot?.readiness.level === "checking" ? "neutral" : "warning"}
           />
@@ -348,8 +361,8 @@
       {:else}
         <div>
           <span class="ti-kicker">Voice others hear</span>
-          <h1 class="ti-page-title">{meetingVoiceReady && snapshot?.readiness.meetingReady ? "You're ready to translate." : "Choose the English voice others will hear."}</h1>
-          <p class="ti-page-copy">Choose a built-in voice to start quickly, or make a personalized voice later.</p>
+          <h1 class="ti-page-title">{meetingVoiceReady && snapshot?.readiness.meetingReady ? "TranslateIT is ready for a call." : "Choose the English voice others will hear."}</h1>
+          <p class="ti-page-copy">Choose a built-in voice to start quickly, or make a personalized voice later. In your calling app, select the TranslateIT microphone before speaking.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -378,12 +391,28 @@
 
         <div class="ti-subtle-card divide-y divide-[var(--ti-border)] overflow-hidden">
           <StatusRow label="Microphone" value={currentMicrophone()} status={snapshot?.readiness.microphoneReady ? "Ready" : "Setup Needed"} tone={snapshot?.readiness.microphoneReady ? "good" : "warning"} />
-          <StatusRow label="Voice others hear" value={meetingVoiceReady ? "Selected Voice others hear" : meetingVoiceReady === null ? "Checking Voice others hear" : "Choose a built-in voice or create My Voice"} status={meetingVoiceReady ? "Ready" : meetingVoiceReady === null ? "Checking" : "Setup Needed"} tone={meetingVoiceReady ? "good" : meetingVoiceReady === null ? "neutral" : "warning"} />
-          <StatusRow label="TranslateIT microphone" value={currentMeetingMicrophone()} detail="Remember to select this microphone inside your meeting app." status={snapshot?.readiness.meetingRouteReady ? "Available" : "Setup Needed"} tone={snapshot?.readiness.meetingRouteReady ? "good" : "warning"} />
+          <StatusRow label="Voice others hear" value={meetingVoiceReady ? "A Meeting voice is ready" : meetingVoiceReady === null ? "Checking the Meeting voice" : "Choose a built-in voice or create My Voice"} status={meetingVoiceReady ? "Ready" : meetingVoiceReady === null ? "Checking" : "Setup Needed"} tone={meetingVoiceReady ? "good" : meetingVoiceReady === null ? "neutral" : "warning"} />
+          <StatusRow label="TranslateIT microphone" value={currentMeetingMicrophone()} detail="Windows availability does not confirm selection inside your calling app." status={snapshot?.readiness.meetingRouteReady ? "Available" : "Setup Needed"} tone={snapshot?.readiness.meetingRouteReady ? "good" : "warning"} />
           <StatusRow label="Translate what you hear" value={`English → Indonesian text · ${currentMeetingSound()}`} detail="Optional. You can turn this on or change it later." status="Optional" tone="neutral" />
         </div>
 
         <button type="button" class="ti-button ti-button-secondary justify-self-start" disabled={busy} onclick={() => void openMyVoice()}>Create my own voice instead</button>
+        {#if snapshot && !snapshot.readiness.meetingReady}
+          <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] p-4" role="status">
+            <strong class="block text-sm font-semibold">What still needs attention</strong>
+            <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">
+              {snapshot.readiness.level === "checking"
+                ? "The local translation check is still running. Select Check Again."
+                : !snapshot.readiness.microphoneReady
+                  ? "Your input microphone is not ready. Go back to the Microphone step to select or check it."
+                  : !snapshot.readiness.meetingRouteReady
+                    ? "The TranslateIT microphone is not available in Windows. Go back to the Meeting app step to check it."
+                    : meetingVoiceReady === false
+                      ? "Choose a built-in Meeting voice above or create My Voice."
+                      : "The local translation check is not ready. Select Check Again, then Fix Setup if needed."}
+            </p>
+          </div>
+        {/if}
       {/if}
 
       {#if message}
@@ -394,6 +423,7 @@
         {step}
         {busy}
         microphoneReady={snapshot?.readiness.microphoneReady === true}
+        {microphoneSelectionPending}
         meetingRouteReady={snapshot?.readiness.meetingRouteReady === true}
         {meetingVoiceReady}
         meetingReady={snapshot?.readiness.meetingReady === true}

@@ -6,6 +6,7 @@
     step,
     busy,
     microphoneReady,
+    microphoneSelectionPending,
     meetingRouteReady,
     meetingVoiceReady,
     meetingReady,
@@ -19,6 +20,7 @@
     step: SetupStep;
     busy: boolean;
     microphoneReady: boolean;
+    microphoneSelectionPending: boolean;
     meetingRouteReady: boolean;
     meetingVoiceReady: boolean | null;
     meetingReady: boolean;
@@ -50,7 +52,7 @@
         Continue <ChevronRight size={16} />
       </button>
     {:else if step === 2}
-      <button type="button" class="ti-button" disabled={busy || !microphoneReady} onclick={() => void onAdvance(3)}>
+      <button type="button" class="ti-button" disabled={busy || !microphoneReady || microphoneSelectionPending} onclick={() => void onAdvance(3)}>
         Continue <ChevronRight size={16} />
       </button>
     {:else if step === 3}

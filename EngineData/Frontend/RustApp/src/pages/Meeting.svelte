@@ -61,7 +61,8 @@
   );
   const meetingSound = $derived(String(snapshot.settings.audio.output_device_id ?? "").trim() || "Windows Default");
   const meetingMicrophoneDevice = $derived(
-    String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
+    String(routeStatus?.selected_input_device ?? "").trim()
+      || (readiness.meetingRouteReady ? "Device name unavailable — check Settings" : "TranslateIT microphone not ready"),
   );
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.hasSession && (meeting.live || meeting.busy)));
   const outboundSourceName = $derived(languageName(snapshot.settings.source_language));
@@ -109,18 +110,22 @@
     resumeError
       ? resumeError
       : setupDeferred
-        ? "Setup is not finished yet. Continue setup before starting."
+        ? "Setup is not finished. Select Resume Setup before starting a call."
         : runtimeUnavailable
-          ? "TranslateIT isn't ready right now. Check again in a moment."
+          ? "The local translation runtime is unavailable. Choose Retry Status; if it stays unavailable, open Help in Settings."
           : checking || meetingVoiceReady === null
-            ? "Checking your microphone, selected voice, and meeting connection..."
-            : meetingVoiceReady === false
-              ? "Choose the voice other people will hear before starting."
-              : readiness.meetingReady
-                ? "Ready. Open your meeting, then start translation."
-                : meeting.canStart
-                  ? "Everything looks ready. Start Translation will do one final check."
-                  : "Finish the items below before starting.",
+            ? "Checking your microphone, Meeting voice, and local translation readiness..."
+            : !readiness.microphoneReady
+              ? "Your input microphone is not ready. Check it in Settings, or choose Repair Setup."
+              : !readiness.meetingRouteReady
+                ? "The TranslateIT microphone is unavailable in Windows. Choose Repair Setup, then select it in your calling app."
+                : meetingVoiceReady === false
+                  ? "Choose Voice to select the English voice others will hear."
+                  : readiness.meetingReady
+                    ? "TranslateIT is ready. Select its microphone inside your calling app, then start translation."
+                    : meeting.canStart
+                      ? "Start Translation will perform a final readiness check."
+                      : "The local translation check is incomplete. Choose Check Again, then Repair Setup if needed.",
   );
 
   async function swapListenDirection(): Promise<void> {
@@ -292,7 +297,7 @@
             <StatusBadge label={audioQuality?.label ?? "Checking audio"} tone={audioQualityTone} />
             {#if audioQuality?.available}
               <span class="text-[10.5px] text-[var(--ti-text-soft)]" title={audioQuality.note}>
-                RMS {audioQuality.rms.toFixed(3)} · peak {audioQuality.peak.toFixed(3)}
+                Audio diagnostics available
               </span>
             {/if}
           </div>
@@ -333,7 +338,7 @@
           <strong class="mt-2 block break-words text-[13px] font-semibold leading-5">{meetingMicrophoneDevice}</strong>
           <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">
             {readiness.meetingRouteReady
-              ? "Select this microphone in your meeting app."
+              ? "Available in Windows. Select it in your calling app."
               : "TranslateIT microphone setup is required before you start."}
           </p>
           {#if !readiness.meetingRouteReady}
@@ -344,7 +349,7 @@
               />
             </div>
           {:else}
-            <div class="mt-3"><StatusBadge label="Available" tone="good" /></div>
+            <div class="mt-3"><StatusBadge label="Available in Windows" tone="good" /></div>
           {/if}
         </section>
       </div>
@@ -387,9 +392,9 @@
           <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening..." : "Resume Setup"}</button>
         {:else}
           {#if !meeting.live && !meeting.busy && !readiness.meetingReady}
-            <button type="button" class="ti-button ti-button-secondary" onclick={() => void refreshMeetingSetup()}>{runtimeUnavailable ? "Retry Status" : "Refresh Status"}</button>
+            <button type="button" class="ti-button ti-button-secondary" onclick={() => void refreshMeetingSetup()}>{runtimeUnavailable ? "Retry Status" : "Check Again"}</button>
             {#if !runtimeUnavailable}
-              <button type="button" class="ti-button ti-button-secondary" onclick={onFixSetup}>Fix Setup</button>
+              <button type="button" class="ti-button ti-button-secondary" onclick={onFixSetup}>Repair Setup</button>
             {/if}
           {/if}
           {#if meetingVoiceReady === false && !meeting.live && !meeting.busy}
