@@ -6,6 +6,8 @@ use super::duration_ms;
 #[path = "meeting_output_runtime.rs"]
 mod runtime;
 
+pub(crate) use runtime::MAX_DELIVERY_DEADLINE_MS;
+
 pub use runtime::{
     cancel_meeting_output_for_generation, clear_prepared_meeting_output_device,
     prepare_meeting_output_device, probe_prepared_meeting_output_device_functionally,

@@ -10,7 +10,7 @@ Actual latency, device routing, audio quality, GPU behavior, and installed-app b
 
 ## Active Quality Improvement Implementation Plan — 2026-10-11
 
-**State:** PLANNED. The user approved preparing a modular, evidence-driven quality-improvement implementation plan. This is not runtime-quality proof, permission to resume packaging, or a model/feature replacement decision. Canonical owners remain unchanged. Use one cohesive source delivery per bounded outcome, not per assertion or microtest.
+**State:** ACTIVE (Q1 playback bound/source review); native and compiler verification remain NOT EXECUTED. The user approved a modular, evidence-driven quality-improvement implementation plan. This is not runtime-quality proof, permission to resume packaging, or a model/feature replacement decision. Canonical owners remain unchanged. Use one cohesive source delivery per bounded outcome, not per assertion or microtest.
 
 **Objective:** improve meaning fidelity, speech-to-speech correctness, My Voice integrity, bounded Meeting behavior, and maintenance economics within the existing Tauri/Rust + one Python worker design. Prevent wrong or incomplete speech output rather than chasing synthetic speed or arbitrary coverage counts. The first real-language/acoustic quality gains are conditional on executed model and native evidence.
 
@@ -42,13 +42,15 @@ Reuse only `docs/knowledge/operations/target-windows-performance.md` and `docs/f
 
 **Definition of improvement:** a changed source invariant is justified by a reproducible defect or tighter correctness guarantee; an asserted language/acoustic improvement additionally requires matched real output and no new critical regression; a release-readiness claim additionally requires exact-SHA build/native evidence. Numeric speed and accuracy gains are **UNKNOWN** until measured.
 
-**One next source action:** prepare and implement Q1 as the first coherent safety-quality batch in the existing playback and My Voice integrity owners, keeping any lockfile/toolchain-only residue explicitly unresolved rather than generating an inconsistent GitHub source candidate. Follow with Q2 and Q3 only after the owning Q1 source boundary is reconciled; Q4 remains paused.
+**Q1 playback source checkpoint:** the existing bounded playback sender now shares the native delivery deadline and returns a terminal enqueue error on stalled capacity, lost generation, unavailable runtime, or disconnected receiver; every failed admission takes ownership of temp-WAV cleanup and leaves queued output intact. One focused Rust regression covers the boundaries. This is source-only, not compiled/native PASS. Outbound failure/status mapping remains in its existing caller.
+
+**One next source action:** complete Q1 backend My Voice held-out WAV SHA-256 verification in the current Rust evaluation/approval owners. A direct cryptographic dependency needs a consistent canonical Cargo.toml + generated Cargo.lock; do not write an unlocked or hand-edited lockfile in REMOTE_GITHUB. If that cannot be completed within the source-only execution partition, retain it as the minimum LOCAL_CODE residue and continue the next independent, GitHub-verifiable quality owner. Q2 and Q3 follow; Q4 stays paused.
 
 ## Paused Work — Integrated Build / Packaging
 
 **State: PAUSED (2026-10-11, user decision).** Source development already committed on `Local` is retained; the current build/packaging/release candidate is **not** approved, published, compiled, packaged, or native-validated. FFmpeg release provenance was reconciled in `46b8b94bb1acaf08c9a8a9e18eb0a5b1223ae3fd`, but its archive, model/runtime assets, quality receipts, installer signatures and Windows audio behavior remain unverified. Preserve all locks, sources, acceptance contracts and accumulated evidence; do **not** run packaging, hosted CI, sign artifacts or promote `main`.
 
-**Next active direction:** follow the quality improvement implementation plan above; Q1 is the single next source batch. New unrelated feature work is not active. The existing `docs/knowledge/operations/target-windows-performance.md` is the canonical integration/acceptance runbook **when packaging is explicitly resumed**; do not treat its sequence as the next task now. For a new feature, recover current `Local` HEAD and follow normal owner-first development discipline; no unrelated packaging or repeated incremental testing.
+**Next active direction:** follow the quality improvement implementation plan above; Q1 My Voice integrity is the single next source outcome. New unrelated feature work is not active. The existing `docs/knowledge/operations/target-windows-performance.md` is the canonical integration/acceptance runbook **when packaging is explicitly resumed**; do not treat its sequence as the next task now. For a new feature, recover current `Local` HEAD and follow normal owner-first development discipline; no unrelated packaging or repeated incremental testing.
 
 ## Active Boundary
 

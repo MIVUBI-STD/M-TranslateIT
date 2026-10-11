@@ -3,7 +3,7 @@ use std::sync::{Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use crate::engine::audio::meeting_output::deliver_meeting_output_wav;
+use crate::engine::audio::meeting_output::{deliver_meeting_output_wav, MAX_DELIVERY_DEADLINE_MS};
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 
 use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
@@ -304,37 +304,68 @@ pub(super) fn start_meeting_playback_runtime(
     Ok(())
 }
 
-pub(super) fn enqueue_meeting_playback(
-    mut job: PreparedPlaybackJob,
-) -> Result<(), String> {
-    let sender = {
-        let guard = playback_runtime_store()
-            .lock()
-            .map_err(|_| "meeting_playback:runtime_state_lock_failed".to_string())?;
-        let runtime = guard
-            .as_ref()
-            .filter(|runtime| {
-                runtime.generation == job.generation && runtime.session_id == job.session_id
-            })
-            .ok_or_else(|| "meeting_playback:runtime_not_active".to_string())?;
-        runtime.sender.clone()
-    };
-
+// The active playback may take up to the native delivery deadline. Never let
+// a stalled receiver pin the AI consumer indefinitely or evict existing audio.
+fn enqueue_with_deadline<T>(
+    sender: &SyncSender<T>,
+    mut value: T,
+    wait_budget: Duration,
+    mut still_authoritative: impl FnMut() -> bool,
+) -> Result<(), (T, &'static str)> {
+    let started = Instant::now();
     loop {
-        if !generation_is_live(job.generation) {
-            cleanup_job(&job);
-            return Err("meeting_playback:generation_not_authoritative".to_string());
+        if !still_authoritative() {
+            return Err((value, "meeting_playback:generation_not_authoritative"));
         }
-        match sender.try_send(job) {
+        match sender.try_send(value) {
             Ok(()) => return Ok(()),
             Err(TrySendError::Full(returned)) => {
-                job = returned;
-                thread::sleep(ENQUEUE_RETRY_DELAY);
+                value = returned;
+                let remaining = wait_budget.saturating_sub(started.elapsed());
+                if remaining.is_zero() {
+                    return Err((value, "meeting_playback:enqueue_wait_deadline_exceeded"));
+                }
+                thread::sleep(remaining.min(ENQUEUE_RETRY_DELAY));
             }
             Err(TrySendError::Disconnected(returned)) => {
-                cleanup_job(&returned);
-                return Err("meeting_playback:runtime_disconnected".to_string());
+                return Err((returned, "meeting_playback:runtime_disconnected"));
             }
+        }
+    }
+}
+
+pub(super) fn enqueue_meeting_playback(job: PreparedPlaybackJob) -> Result<(), String> {
+    let generation = job.generation;
+    let sender = playback_runtime_store()
+        .lock()
+        .map_err(|_| "meeting_playback:runtime_state_lock_failed".to_string())
+        .and_then(|guard| {
+            guard
+                .as_ref()
+                .filter(|runtime| {
+                    runtime.generation == job.generation && runtime.session_id == job.session_id
+                })
+                .map(|runtime| runtime.sender.clone())
+                .ok_or_else(|| "meeting_playback:runtime_not_active".to_string())
+        });
+    let sender = match sender {
+        Ok(sender) => sender,
+        Err(blocker) => {
+            cleanup_job(&job);
+            return Err(blocker);
+        }
+    };
+
+    match enqueue_with_deadline(
+        &sender,
+        job,
+        Duration::from_millis(MAX_DELIVERY_DEADLINE_MS),
+        || generation_is_live(generation),
+    ) {
+        Ok(()) => Ok(()),
+        Err((job, blocker)) => {
+            cleanup_job(&job);
+            Err(blocker.to_string())
         }
     }
 }
@@ -394,7 +425,45 @@ pub(super) fn stop_meeting_playback_runtime(
 
 #[cfg(test)]
 mod tests {
-    use super::{sequence_is_monotonic, PLAYBACK_QUEUE_CAPACITY};
+    use super::{enqueue_with_deadline, sequence_is_monotonic, PLAYBACK_QUEUE_CAPACITY};
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    #[test]
+    fn admission_rejects_stall_cancellation_and_disconnect_without_eviction() {
+        let (sender, receiver) = mpsc::sync_channel(1);
+        sender.try_send(1_u8).expect("fill pending slot");
+
+        let timed_out = enqueue_with_deadline(&sender, 2_u8, Duration::ZERO, || true)
+            .expect_err("full queue must not wait forever");
+        assert_eq!(timed_out, (2, "meeting_playback:enqueue_wait_deadline_exceeded"));
+        assert_eq!(receiver.try_recv(), Ok(1));
+
+        sender.try_send(3_u8).expect("refill pending slot");
+        let mut checks = 0_u8;
+        let cancelled = enqueue_with_deadline(
+            &sender,
+            4_u8,
+            Duration::from_millis(50),
+            || {
+                checks += 1;
+                checks == 1
+            },
+        )
+        .expect_err("generation revocation must interrupt a blocked producer");
+        assert_eq!(cancelled, (4, "meeting_playback:generation_not_authoritative"));
+        assert_eq!(receiver.try_recv(), Ok(3));
+
+        drop(receiver);
+        let disconnected = enqueue_with_deadline(&sender, 5_u8, Duration::ZERO, || true)
+            .expect_err("closed receiver must reject new output");
+        assert_eq!(disconnected, (5, "meeting_playback:runtime_disconnected"));
+
+        let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
+        enqueue_with_deadline(&ready_sender, 6_u8, Duration::ZERO, || true)
+            .expect("available slot admits output immediately");
+        assert_eq!(ready_receiver.try_recv(), Ok(6));
+    }
 
     #[test]
     fn bounded_playback_keeps_exactly_one_pending_slot() {
