@@ -14,6 +14,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import wave
@@ -24,12 +25,26 @@ from voice_lab_source_pair import MAX_NATIVE_BYTES, _read_pcm16, inspect_frozen_
 
 EXECUTABLE_NAME = "deep-filter-0.5.6-x86_64-pc-windows-msvc.exe"
 MODEL_NAME = "DeepFilterNet3_onnx.tar.gz"
+# Git object SHA-1 from the reviewed Rikorose v0.5.6 model archive.
+# Independent upstream content identity; not a substitute for SHA-256.
+MODEL_GIT_BLOB_SHA1 = "1c4f4ffe1015fbb4541433cf291234ca32338871"
+EXECUTABLE_RELEASE_SIZE = 26_912_256
 ATTENUATION_DB = 18
 MAX_TAKES = 8
 
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def git_blob_sha1(path: Path) -> str:
+    """Compare local model bytes with the exact upstream Git blob object."""
+    digest = hashlib.sha1()
+    digest.update(f"blob {path.stat().st_size}\0".encode("ascii"))
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
@@ -43,6 +58,10 @@ def verify_asset(path: Path, name: str, expected_sha256: str, size_limit: int) -
         raise ValueError("asset_identity_invalid")
     if not 0 < path.stat().st_size <= size_limit:
         raise ValueError("asset_size_invalid")
+    if name == EXECUTABLE_NAME and path.stat().st_size != EXECUTABLE_RELEASE_SIZE:
+        raise ValueError("binary_release_size_mismatch")
+    if name == MODEL_NAME and git_blob_sha1(path) != MODEL_GIT_BLOB_SHA1:
+        raise ValueError("model_upstream_revision_mismatch")
     digest = sha256_file(path)
     if digest != expected_sha256.lower():
         raise ValueError("asset_checksum_mismatch")
@@ -139,6 +158,19 @@ def save_pcm16_wav(destination: Path, samples: Any, sample_rate: int) -> None:
         writer.writeframes(converted.tobytes())
 
 
+def stage_original_32k(canonical: Path, baseline: Path, expected_sha256: str) -> str:
+    """Freeze a byte-identical 32 kHz original for direct A/B comparison."""
+    if canonical.is_symlink() or not canonical.is_file():
+        raise ValueError("original_baseline_invalid")
+    baseline.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(canonical, baseline)
+    digest = sha256_file(baseline)
+    if digest != expected_sha256 or sha256_file(canonical) != expected_sha256:
+        baseline.unlink(missing_ok=True)
+        raise ValueError("original_baseline_hash_mismatch")
+    return digest
+
+
 def prepare_48k(native: Path, out_file: Path) -> dict[str, Any]:
     from scipy.signal import resample_poly
 
@@ -206,15 +238,23 @@ def run_trial(
 
     inputs = root / "inputs_48k"
     outputs = root / "outputs_48k"
+    originals = root / "originals_32k"
     candidates = root / "candidates_32k"
-    for folder in (inputs, outputs, candidates):
+    for folder in (inputs, outputs, originals, candidates):
         folder.mkdir(parents=True, exist_ok=False)
     staged = []
     for take in source_rows:
+        original_hash = stage_original_32k(
+            take["canonical"], originals / take["name"], take["canonical_sha256"]
+        )
         record = prepare_48k(take["native"], inputs / take["name"])
         if record["native_sha256"] != take["native_sha256"]:
             raise ValueError("native_changed_while_preparing")
-        staged.append({**take, **record})
+        staged.append({
+            **take, **record,
+            "original_32k_sha256": original_hash,
+            "input_48k_sha256": sha256_file(inputs / take["name"]),
+        })
     cmd = deepfilter_command(binary.resolve(strict=True), model.resolve(strict=True),
                              outputs, [inputs / take["name"] for take in staged])
     try:
@@ -237,12 +277,21 @@ def run_trial(
             or current.get("status") != "signal_consistent"
         ):
             raise ValueError("frozen_source_mutated_during_trial")
+        if sha256_file(inputs / take["name"]) != take["input_48k_sha256"]:
+            raise ValueError("denoiser_modified_trial_input")
+        if sha256_file(originals / take["name"]) != take["original_32k_sha256"]:
+            raise ValueError("original_baseline_mutated_during_trial")
         result = inspect_enhanced(
             inputs / take["name"], outputs / take["name"], candidates / take["name"]
         )
         rows.append({
             "line_id": take["line_id"], "native_sha256": take["native_sha256"],
-            "canonical_sha256": take["canonical_sha256"], **result,
+            "canonical_sha256": take["canonical_sha256"],
+            "input_48k_sha256": take["input_48k_sha256"],
+            "original_32k": f"originals_32k/{take['name']}",
+            "candidate_32k": f"candidates_32k/{take['name']}",
+            "original_32k_sha256": take["original_32k_sha256"],
+            **result,
         })
 
     result = {
@@ -255,6 +304,7 @@ def run_trial(
         "post_filter": False,
         "binary_sha256": binary_hash,
         "model_sha256": model_hash,
+        "model_git_blob_sha1": MODEL_GIT_BLOB_SHA1,
         "takes": rows,
     }
     (root / "trial.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

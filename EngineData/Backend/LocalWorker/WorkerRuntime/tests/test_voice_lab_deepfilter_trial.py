@@ -11,8 +11,9 @@ from scipy.signal import resample_poly
 
 from test_voice_lab_source_pair import tone, wav
 from voice_lab_deepfilter_trial import (
-    ATTENUATION_DB, EXECUTABLE_NAME, MODEL_NAME, deepfilter_command,
-    frozen_sources, inspect_enhanced, prepare_48k, verify_asset,
+    ATTENUATION_DB, EXECUTABLE_NAME, MODEL_NAME, MODEL_GIT_BLOB_SHA1,
+    deepfilter_command, frozen_sources, git_blob_sha1, inspect_enhanced,
+    prepare_48k, sha256_file, stage_original_32k, verify_asset,
 )
 from voice_lab_source_pair import inspect_frozen_source_pair
 
@@ -21,14 +22,45 @@ class DeepFilterTrialContracts(unittest.TestCase):
     def test_assets_require_exact_filename_and_sha(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            exe = root / EXECUTABLE_NAME
-            exe.write_bytes(b"fixture executable bytes")
-            digest = hashlib.sha256(exe.read_bytes()).hexdigest()
-            self.assertEqual(verify_asset(exe, EXECUTABLE_NAME, digest, 256), digest)
+            fixture = root / "fixture.bin"
+            fixture.write_bytes(b"fixture executable bytes")
+            digest = hashlib.sha256(fixture.read_bytes()).hexdigest()
+            self.assertEqual(verify_asset(fixture, fixture.name, digest, 256), digest)
             with self.assertRaisesRegex(ValueError, "asset_checksum_mismatch"):
-                verify_asset(exe, EXECUTABLE_NAME, "0" * 64, 256)
+                verify_asset(fixture, fixture.name, "0" * 64, 256)
             with self.assertRaisesRegex(ValueError, "asset_identity_invalid"):
-                verify_asset(exe, MODEL_NAME, digest, 256)
+                verify_asset(fixture, MODEL_NAME, digest, 256)
+
+    def test_pin_matches_git_object_and_release_size(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            model = root / MODEL_NAME
+            model.write_bytes(b"sample model bytes")
+            self.assertEqual(
+                git_blob_sha1(model),
+                hashlib.sha1(b"blob 18\0sample model bytes").hexdigest(),
+            )
+            self.assertEqual(len(MODEL_GIT_BLOB_SHA1), 40)
+            with self.assertRaisesRegex(ValueError, "model_upstream_revision_mismatch"):
+                verify_asset(model, MODEL_NAME, sha256_file(model), 256)
+            executable = root / EXECUTABLE_NAME
+            executable.write_bytes(b"tiny executable")
+            with self.assertRaisesRegex(ValueError, "binary_release_size_mismatch"):
+                verify_asset(executable, EXECUTABLE_NAME, sha256_file(executable), 256)
+
+    def test_original_32k_baseline_preserves_identical_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original = root / "take_0001.wav"
+            baseline = root / "originals_32k" / original.name
+            wav(original, tone(32_000), 32_000)
+            expected = sha256_file(original)
+            self.assertEqual(stage_original_32k(original, baseline, expected), expected)
+            self.assertEqual(original.read_bytes(), baseline.read_bytes())
+            bad = root / "bad" / original.name
+            with self.assertRaisesRegex(ValueError, "original_baseline_hash_mismatch"):
+                stage_original_32k(original, bad, "0" * 64)
+            self.assertFalse(bad.exists())
 
     def test_prepares_48k_without_changing_source(self):
         with tempfile.TemporaryDirectory() as tmp:

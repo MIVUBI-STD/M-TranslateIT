@@ -238,9 +238,12 @@ Evidence from current Local source:
   without changing the existing 32 kHz training WAVs; freezes bounded sidecars
   into the current build dataset and records a conservative waveform/canonical
   SHA-256 pair check in the existing `audio_quality.json`. Legacy takes still train.
-- New experimental offline DeepFilterNet3 trial on source-frozen pairs uses
-  upstream v0.5.6 Windows CLI + explicit model, asset SHA-256 checks and an
-  isolated read-only A/B path. It never promotes output to training or Meeting.
+- Experimental offline DeepFilterNet3 trial on source-frozen pairs uses
+  upstream v0.5.6 Windows CLI, an independently pinned Git object ID for the
+  model archive, the known Windows release size, and local asset SHA-256 checks.
+  It copies exact original 32 kHz audio for direct paired A/B listening and
+  verifies unchanged 48 kHz trial inputs after the denoiser runs.
+  It never promotes output to training or Meeting.
   No official executable SHA-256 is supplied by GitHub release metadata;
   the binary, model, Windows packaging and fidelity quality remain NOT EXECUTED.
 
