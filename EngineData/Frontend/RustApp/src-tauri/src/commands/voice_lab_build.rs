@@ -655,6 +655,28 @@ pub fn get_builtin_voice_preview_audio(voice_id: String) -> Result<tauri::ipc::R
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+// A built-in selection replaces the canonical active actor directory. Until a
+// durable personal-actor archive and restoration path is admitted, never allow
+// that replacement to discard an approved personal voice or recovery artifact.
+fn confirmed_builtin_actor(actor_dir: &Path) -> bool {
+    let Ok(bytes) = fs::read(actor_dir.join("actor.json")) else {
+        return false;
+    };
+    serde_json::from_slice::<serde_json::Value>(&bytes)
+        .ok()
+        .and_then(|value| value.get("builtin_voice").and_then(serde_json::Value::as_bool))
+        == Some(true)
+}
+
+fn voice_selection_recovery_pending(saved_root: &Path) -> bool {
+    [
+        saved_root.join(".MyVoice.previous"),
+        saved_root.join(".MyVoice.builtin-previous"),
+    ]
+    .iter()
+    .any(|path| path.exists())
+}
+
 pub fn select_builtin_voice(
     voice_id: String,
     authorized_voice_confirmed: bool,
@@ -680,6 +702,20 @@ pub fn select_builtin_voice(
     let project_paths = ProjectPaths::discover();
     let storage = VoiceLabStoragePaths::from_project_paths(&project_paths);
     let target = storage.approved_actor_dir.clone();
+    if voice_selection_recovery_pending(&storage.saved_root) {
+        return result(
+            false,
+            "voice_recovery_required",
+            "Voice switching is unavailable while a previous voice may need recovery. Your saved files were kept.",
+        );
+    }
+    if target.exists() && (!approved_voice_actor_ready(&storage) || !confirmed_builtin_actor(&target)) {
+        return result(
+            false,
+            "personal_voice_preserved",
+            "Your current Meeting voice may be a personal voice. Switching to a built-in voice would replace it, so nothing was changed.",
+        );
+    }
     if target.join("actor.json").is_file() && !authorized_voice_confirmed {
         return result(
             false,
@@ -791,3 +827,36 @@ pub fn get_voice_lab_evaluation_audio(
 #[cfg(test)]
 #[path = "voice_lab_build_tests.rs"]
 mod p1_recording_coverage_tests;
+
+#[cfg(test)]
+mod builtin_selection_protection_tests {
+    use super::{confirmed_builtin_actor, voice_selection_recovery_pending};
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn personal_and_invalid_manifests_are_not_treated_as_builtin() {
+        let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("translateit_builtin_guard_{id}"));
+        fs::create_dir_all(&root).unwrap();
+        let manifest = root.join("actor.json");
+        fs::write(&manifest, r#"{"schema_version":1,"engine":"gpt-sovits-v2proplus"}"#).unwrap();
+        assert!(!confirmed_builtin_actor(&root));
+        fs::write(&manifest, b"invalid json").unwrap();
+        assert!(!confirmed_builtin_actor(&root));
+        fs::write(&manifest, r#"{"builtin_voice":true}"#).unwrap();
+        assert!(confirmed_builtin_actor(&root));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn unfinished_voice_replacement_blocks_new_builtin_selection() {
+        let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("translateit_voice_recovery_{id}"));
+        fs::create_dir_all(&root).unwrap();
+        assert!(!voice_selection_recovery_pending(&root));
+        fs::create_dir_all(root.join(".MyVoice.builtin-previous")).unwrap();
+        assert!(voice_selection_recovery_pending(&root));
+        let _ = fs::remove_dir_all(root);
+    }
+}
