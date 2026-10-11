@@ -161,6 +161,8 @@ def sha256_file(path: Path) -> str:
 
 def load_manifest(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("manifest must be a JSON object")
     if data.get("schema") != SCHEMA:
         raise ValueError(f"unsupported manifest schema: {data.get('schema')!r}")
     release_identity = str(data.get("release_identity", "")).strip()
@@ -174,7 +176,8 @@ def load_manifest(path: Path) -> dict:
             raise ValueError(f"{domain}: domain declaration must be an object")
         report = str(item.get("report", "")).strip()
         expected_candidate = str(item.get("expected_candidate_source_identity", "")).strip()
-        if not report or Path(report).name != report:
+        if (not report or Path(report).name != report
+            or "/" in report or chr(92) in report):
             raise ValueError(f"{domain}: report must be a local filename")
         if not expected_candidate:
             raise ValueError(f"{domain}: expected_candidate_source_identity required")

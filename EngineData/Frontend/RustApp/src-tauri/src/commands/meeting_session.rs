@@ -27,6 +27,11 @@ mod suppression;
 mod transcript_export;
 
 use committed_turns::{current_committed_turn_snapshot, exportable_committed_turn_snapshot};
+
+// Reuse the bounded Meeting owner; diagnostics must not introduce telemetry state.
+pub(super) fn current_outbound_latency_distribution() -> Option<(usize, u64, u64)> {
+    committed_turns::current_outbound_latency_distribution()
+}
 use transcript_export::{
     export_transcript, transcript_export_status, MeetingTranscriptExportResult,
     MeetingTranscriptExportStatus,

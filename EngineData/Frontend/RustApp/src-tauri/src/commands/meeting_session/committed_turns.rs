@@ -184,6 +184,26 @@ impl MeetingCommittedTurnStore {
         }
     }
 
+    // On-demand aggregate over already bounded committed turns. Only
+    // successful outbound playback with a measured first-audio time counts.
+    fn outbound_latency_distribution(&self) -> Option<(usize, u64, u64)> {
+        let mut samples: Vec<u64> = self.turns.iter()
+            .filter(|turn| turn.lane == "you"
+                && turn.delivery_state.as_deref() == Some("output_complete"))
+            .filter_map(|turn| turn.outbound_timing.as_ref()
+                .and_then(|timing| timing.outbound_latency_ms))
+            .collect();
+        if samples.is_empty() {
+            return None;
+        }
+        samples.sort_unstable();
+        let count = samples.len();
+        // Nearest-rank P50/P95 over the already capped rolling turn store.
+        let p50 = samples[(count * 50).div_ceil(100) - 1];
+        let p95 = samples[(count * 95).div_ceil(100) - 1];
+        Some((count, p50, p95))
+    }
+
     fn snapshot(&self) -> MeetingCommittedTurnsSnapshot {
         let mut turns = self.turns.iter().cloned().collect::<Vec<_>>();
         turns.sort_by_key(|turn| turn.sequence);
@@ -439,6 +459,21 @@ pub(super) fn committed_turn_health_counts() -> (usize, u64, bool) {
         .unwrap_or((0, 0, false))
 }
 
+// Diagnostics use only the current application Meeting authority; never
+// return private turns, identities, or wall-clock speech timestamps.
+pub(super) fn current_outbound_latency_distribution() -> Option<(usize, u64, u64)> {
+    let session = latest_runtime_session_state().snapshot?;
+    if session.owner_id != APPLICATION_MEETING_OWNER_ID {
+        return None;
+    }
+    let guard = committed_turn_store().lock().ok()?;
+    let store = guard.as_ref()?;
+    if store.session_id != session.session_id {
+        return None;
+    }
+    store.outbound_latency_distribution()
+}
+
 pub(super) fn current_committed_turn_snapshot() -> MeetingCommittedTurnsSnapshot {
     let session = latest_runtime_session_state().snapshot;
     let Some(session) = session else {
@@ -511,6 +546,33 @@ mod tests {
             delivery_ms: None,
             outbound_latency_ms: None,
         }
+    }
+
+    #[test]
+    fn latency_distribution_excludes_incoming_failed_and_unmeasured_turns() {
+        let mut store = MeetingCommittedTurnStore::new("session-a");
+        assert_eq!(store.outbound_latency_distribution(), None);
+        for (sequence, state, latency) in [
+            (1_u64, "output_complete", Some(10_u64)),
+            (2, "output_failed", Some(900)),
+            (3, "output_complete", Some(20)),
+            (4, "output_complete", None),
+            (5, "output_complete", Some(30)),
+            (6, "interrupted", Some(1000)),
+        ] {
+            let mut observed = timing(u128::from(sequence));
+            observed.outbound_latency_ms = latency;
+            assert!(store.commit_at(
+                "session-a", sequence, Some(9), sequence, "you", "id", "en",
+                "source", "translation", Some(state), Some(observed),
+                u128::from(sequence),
+            ));
+        }
+        assert!(store.commit_at(
+            "session-a", 7, None, 7, "incoming", "en", "id",
+            "message", "pesan", None, None, 7,
+        ));
+        assert_eq!(store.outbound_latency_distribution(), Some((3, 20, 30)));
     }
 
     #[test]

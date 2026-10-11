@@ -224,6 +224,22 @@ Use the measured owner instead of applying speculative architecture changes:
 - **Audio callback/VAD:** revisit callback/buffer work when callback errors, capture instability, abnormal CPU while only listening, or drop/eviction counters reproduce independently of heavy AI inference.
 - **Polling/UI:** optimize only if profiling shows UI/IPC is a measurable contributor; it is not a proxy for Meeting latency.
 
+## Q3 Session-latency distribution interpretation
+
+An explicit redacted support export may include the numeric-only
+`latency_distribution_ms` from the active Meeting's retained, completed outbound
+turns (within the existing 240-turn cap). P50/P95 use nearest-rank selection
+and always include sample count. Failed, interrupted, incoming, pending and
+unmeasured turns are excluded. A null field means no eligible completed
+samples, **not** zero latency. Small samples and a rolling retention window
+are exploratory evidence, not a representative performance SLA.
+
+No raw text, speech, speaker identity or per-turn timestamps are exported
+for this distribution. During future TARGET_WINDOWS acceptance, associate
+the sample window with the exact source/model/voice identity, drop/queue
+counters, device route and resource pressure. Do not optimize from
+source-only metrics or infer a successful native outcome.
+
 ## Completion
 
 This run is complete when one exact SHA has:

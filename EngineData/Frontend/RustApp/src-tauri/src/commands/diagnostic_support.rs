@@ -11,7 +11,9 @@ use super::device_loss_guard::get_device_loss_guard_status;
 use super::helper_bridge::get_helper_bridge_status;
 use super::incident_log::{get_recent_runtime_incidents, without_runtime_incident_recording};
 use super::long_session_health::get_long_session_health_status;
-use super::meeting_session::get_meeting_session_status;
+use super::meeting_session::{
+    current_outbound_latency_distribution, get_meeting_session_status,
+};
 use super::runtime_watchdog::get_runtime_watchdog_status;
 use super::startup_recovery::get_startup_recovery_status;
 use super::virtual_mic_route::get_virtual_mic_route_selection;
@@ -38,7 +40,7 @@ fn sanitized(value: &str) -> String {
 #[tauri::command]
 pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
     let paths = ProjectPaths::discover();
-    let (meeting, helper, watchdog, devices, recovery, long_session, incidents, route) =
+    let (meeting, helper, watchdog, devices, recovery, long_session, incidents, route, latency) =
         without_runtime_incident_recording(|| {
             (
                 get_meeting_session_status(),
@@ -49,6 +51,7 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
                 get_long_session_health_status(),
                 get_recent_runtime_incidents(),
                 get_virtual_mic_route_selection(),
+                current_outbound_latency_distribution(),
             )
         });
 
@@ -121,6 +124,13 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
                     "playback_queue": timing.playback_queue_ms,
                     "delivery": timing.delivery_ms,
                     "outbound_latency": timing.outbound_latency_ms,
+                })),
+                // Numeric-only exploratory distribution, derived on explicit
+                // support export; not persistent telemetry or an SLA.
+                "latency_distribution_ms": latency.map(|(sample_count, p50, p95)| json!({
+                    "sample_count": sample_count,
+                    "p50": p50,
+                    "p95": p95,
                 })),
                 "blocker": sanitized(&meeting.outbound.blocker),
                 "updated_unix_ms": meeting.outbound.updated_unix_ms,

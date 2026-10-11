@@ -145,36 +145,33 @@ def main() -> int:
         assert linked["meeting_trace"]["case_count"] == 1
         assert len(linked["meeting_trace"]["report_sha256"]) == 64
 
-        corrupted = copy.deepcopy(receipt)
-        corrupted["cases"][0]["tts"]["input_text_sha256"] = "e" * 64
-        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
-        blocked = evaluator.evaluate_manifest(manifest_path)
-        assert not blocked["ready_on_declared_quality_evidence"]
-        assert "meeting_trace:negation-001:tts_boundary" in blocked["blockers"]
-
-        corrupted = copy.deepcopy(receipt)
-        corrupted["cases"][0]["meaning_review"]["verdict"] = "critical_error"
-        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
-        blocked = evaluator.evaluate_manifest(manifest_path)
-        assert "meeting_trace:negation-001:meaning_review_incomplete" in blocked["blockers"]
-
-        corrupted = copy.deepcopy(receipt)
-        corrupted["cases"][0]["asr"]["transcript_text"] = "private text"
-        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
-        blocked = evaluator.evaluate_manifest(manifest_path)
-        assert "meeting_trace:negation-001:asr_boundary" in blocked["blockers"]
-
-        corrupted = copy.deepcopy(receipt)
-        corrupted["domain_source_identities"]["asr"] = "different-model"
-        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
-        blocked = evaluator.evaluate_manifest(manifest_path)
-        assert "meeting_trace:domain_identity_mismatch" in blocked["blockers"]
-
-        corrupted = copy.deepcopy(receipt)
-        corrupted["cases"].append(copy.deepcopy(case))
-        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
-        blocked = evaluator.evaluate_manifest(manifest_path)
-        assert "meeting_trace:duplicate_case_id" in blocked["blockers"]
+        # One behavior matrix, rather than one source-shape microtest per field.
+        # These are synthetic metadata-only fixtures, not real quality proof.
+        for label, case_patch, receipt_patch, expected_blocker in [
+            ("tts mismatch", {"tts": {
+                **case["tts"], "input_text_sha256": "e" * 64,
+            }}, {}, "meeting_trace:negation-001:tts_boundary"),
+            ("critical meaning", {"meaning_review": {
+                "verdict": "critical_error", "reviewer_count": 1,
+            }}, {}, "meeting_trace:negation-001:meaning_review_incomplete"),
+            ("private raw text", {"asr": {
+                **case["asr"], "transcript_text": "private text",
+            }}, {}, "meeting_trace:negation-001:asr_boundary"),
+            ("invalid stage", {"tts": []}, {},
+             "meeting_trace:negation-001:invalid_stage_shape"),
+            ("model mismatch", {}, {"domain_source_identities": {
+                **receipt["domain_source_identities"], "asr": "different-model",
+            }}, "meeting_trace:domain_identity_mismatch"),
+            ("duplicate case", {}, {"cases": [case, case]},
+             "meeting_trace:duplicate_case_id"),
+        ]:
+            altered = copy.deepcopy(receipt)
+            altered["cases"][0].update(case_patch)
+            altered.update(receipt_patch)
+            trace_path.write_text(json.dumps(altered), encoding="utf-8")
+            rejected = evaluator.evaluate_manifest(manifest_path)
+            assert not rejected["ready_on_declared_quality_evidence"], label
+            assert expected_blocker in rejected["blockers"], label
 
         trace_path.write_text(json.dumps(receipt), encoding="utf-8")
         manifest["meeting_trace"]["report"] = "../outside.json"
@@ -185,6 +182,14 @@ def main() -> int:
             assert "local JSON filename" in str(exc)
         else:
             raise AssertionError("trace path traversal must fail closed")
+
+        manifest_path.write_text(json.dumps([]), encoding="utf-8")
+        try:
+            evaluator.load_manifest(manifest_path)
+        except ValueError as exc:
+            assert str(exc) == "manifest must be a JSON object"
+        else:
+            raise AssertionError("non-object manifest must fail explicitly")
 
         # Legacy domain-only inputs remain accepted unchanged.
         manifest.pop("meeting_trace")
