@@ -4,6 +4,7 @@
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import {
     deleteMeetingPreset,
+    MAX_MEETING_PRESETS,
     meetingPresetFromSettings,
     readMeetingPresets,
     rememberProviderPreset,
@@ -40,7 +41,11 @@
   });
 
   function saveCurrent(): void {
-    if (locked) return;
+    if (locked || applying) return;
+    if (presets.length >= MAX_MEETING_PRESETS) {
+      onNotice("All Meeting preset slots are filled. Remove a saved preset before adding another.");
+      return;
+    }
     const name = presetName.trim();
     if (!name) { onNotice("Name the preset before saving it."); return; }
     const result = saveMeetingPreset(meetingPresetFromSettings(`preset-${Date.now()}`, name, settings));
@@ -112,7 +117,7 @@
       {:else}
         <div>
           <strong class="block text-[12.5px] font-semibold">Meeting presets</strong>
-          <p class="mb-0 mt-0.5 text-[11px] text-[var(--ti-text-soft)]">Save up to 6 user-driven setups. Devices are validated before switching.</p>
+          <p class="mb-0 mt-0.5 text-[11px] text-[var(--ti-text-soft)]">Save up to {MAX_MEETING_PRESETS} user-driven setups. Devices are validated before switching.</p>
         </div>
       {/if}
     </div>
@@ -133,9 +138,17 @@
     </div>
   </div>
 
+  {#if presets.length >= MAX_MEETING_PRESETS}
+    <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]" role="status">
+      All {MAX_MEETING_PRESETS} preset slots are filled. Remove one to save a new setup.
+    </p>
+  {/if}
   <div class="mt-3 flex flex-wrap items-center gap-2">
     <input class="ti-field min-h-8 w-[200px] px-2.5 text-xs" maxlength="40" placeholder="Preset name" bind:value={presetName} disabled={locked || applying} />
-    <button type="button" class="ti-button ti-button-secondary min-h-8 px-3 text-xs" disabled={locked || applying || !presetName.trim()} onclick={saveCurrent}><Plus size={14} /> Save current</button>
+    <button type="button" class="ti-button ti-button-secondary min-h-8 px-3 text-xs"
+      disabled={locked || applying || presets.length >= MAX_MEETING_PRESETS || !presetName.trim()}
+      title={presets.length >= MAX_MEETING_PRESETS ? "Remove a saved preset to make room." : "Save the current Meeting setup."}
+      onclick={saveCurrent}><Plus size={14} /> Save current</button>
     {#if presets.length > 0}
       <div class="ml-auto flex max-w-full flex-wrap justify-end gap-1.5">
         {#each presets as preset (preset.id)}

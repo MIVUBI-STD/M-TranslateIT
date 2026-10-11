@@ -31,6 +31,8 @@
   let spokenAliases = $state("");
   let saving = $state(false);
   let styleSaving = $state(false);
+  // Full RuntimeSettings writes from this editor must never overlap.
+  const preferencesBusy = $derived(saving || styleSaving);
   let termSearch = $state("");
   // UI disclosure state is transient, independent of term-list mutations.
   let languageToolsOpen = $state(settings.spoken_terms.length > 0 || settings.terminology.length > 0);
@@ -57,7 +59,7 @@
   }));
 
   async function updateTranslationStyle(style: "natural" | "formal"): Promise<void> {
-    if (styleSaving || settings.translation_style === style) return;
+    if (preferencesBusy || settings.translation_style === style) return;
     styleSaving = true;
     const candidate: RuntimeSettings = {
       ...settings,
@@ -81,7 +83,7 @@
   }
 
   async function persist(next: TerminologyEntry[], message: string): Promise<boolean> {
-    if (saving) return false;
+    if (preferencesBusy) return false;
     saving = true;
     const candidate: RuntimeSettings = {
       ...settings,
@@ -107,7 +109,7 @@
   }
 
   async function persistSpokenTerms(next: SpokenTermEntry[], message: string): Promise<boolean> {
-    if (saving) return false;
+    if (preferencesBusy) return false;
     saving = true;
     const candidate: RuntimeSettings = {
       ...settings,
@@ -276,11 +278,11 @@
     <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">Choose how translated wording should sound. Meaning, names, numbers, and preferred terminology stay authoritative.</p>
   </header>
   <div class="grid grid-cols-2 gap-3 p-5">
-    <button type="button" class={`rounded-[10px] border p-4 text-left ${settings.translation_style !== "formal" ? "border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)]" : "border-[var(--ti-border)] bg-[var(--ti-surface)]"}`} disabled={styleSaving} aria-pressed={settings.translation_style !== "formal"} onclick={() => void updateTranslationStyle("natural")}>
+    <button type="button" class={`rounded-[10px] border p-4 text-left ${settings.translation_style !== "formal" ? "border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)]" : "border-[var(--ti-border)] bg-[var(--ti-surface)]"}`} disabled={preferencesBusy} aria-pressed={settings.translation_style !== "formal"} onclick={() => void updateTranslationStyle("natural")}>
       <strong class="block text-[13px] font-semibold">Natural</strong>
       <span class="mt-1 block text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Default · clear, conversational wording that follows the source naturally.</span>
     </button>
-    <button type="button" class={`rounded-[10px] border p-4 text-left ${settings.translation_style === "formal" ? "border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)]" : "border-[var(--ti-border)] bg-[var(--ti-surface)]"}`} disabled={styleSaving} aria-pressed={settings.translation_style === "formal"} onclick={() => void updateTranslationStyle("formal")}>
+    <button type="button" class={`rounded-[10px] border p-4 text-left ${settings.translation_style === "formal" ? "border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)]" : "border-[var(--ti-border)] bg-[var(--ti-surface)]"}`} disabled={preferencesBusy} aria-pressed={settings.translation_style === "formal"} onclick={() => void updateTranslationStyle("formal")}>
       <strong class="block text-[13px] font-semibold">Formal</strong>
       <span class="mt-1 block text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Professional register for client calls, presentations, and formal communication.</span>
     </button>
@@ -310,14 +312,14 @@
   <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-3 p-5">
     <label class="grid gap-2">
       <span class="ti-field-label">Word or name</span>
-      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. MIVUBI" bind:value={spokenTerm} disabled={saving} />
+      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. MIVUBI" bind:value={spokenTerm} disabled={preferencesBusy} />
     </label>
     <label class="grid gap-2">
       <span class="ti-field-label">Optional aliases</span>
-      <input class="ti-field min-h-10 px-3" maxlength="220" placeholder="e.g. mi vu bi, mivubi" bind:value={spokenAliases} disabled={saving} />
+      <input class="ti-field min-h-10 px-3" maxlength="220" placeholder="e.g. mi vu bi, mivubi" bind:value={spokenAliases} disabled={preferencesBusy} />
       <small class="text-[11px] text-[var(--ti-text-soft)]">Comma-separated, up to {MAX_SPOKEN_ALIASES} aliases.</small>
     </label>
-    <button type="button" class="ti-button min-h-10" disabled={saving || !spokenTerm.trim()} onclick={() => void addSpokenTerm()}>
+    <button type="button" class="ti-button min-h-10" disabled={preferencesBusy || !spokenTerm.trim()} onclick={() => void addSpokenTerm()}>
       <Plus size={15} /> Add
     </button>
   </div>
@@ -341,16 +343,16 @@
               <div class="col-span-2 flex flex-wrap items-center justify-end gap-2"
                 role="group" aria-label={`Confirm removal of ${entry.term}`}>
                 <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this spoken term?</span>
-                <button type="button" class="ti-button ti-button-secondary min-h-8" disabled={saving}
+                <button type="button" class="ti-button ti-button-secondary min-h-8" disabled={preferencesBusy}
                   onclick={() => { pendingDelete = null; }}>Cancel</button>
-                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={async () => {
+                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={preferencesBusy} onclick={async () => {
                   if (settings.spoken_terms[index]?.term !== entry.term) return;
                   if (await removeSpokenTerm(index)) pendingDelete = null;
                 }}>Remove</button>
               </div>
             {:else}
               <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5"
-                aria-label={`Remove spoken term ${entry.term}`} disabled={saving}
+                aria-label={`Remove spoken term ${entry.term}`} disabled={preferencesBusy}
                 onclick={() => { pendingDelete = `spoken:${entry.term}`; }}><Trash2 size={14} /></button>
             {/if}
           </div>
@@ -374,13 +376,13 @@
   <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-3 p-5">
     <label class="grid gap-2">
       <span class="ti-field-label">Indonesian</span>
-      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. pemugaran" bind:value={indonesian} disabled={saving} />
+      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. pemugaran" bind:value={indonesian} disabled={preferencesBusy} />
     </label>
     <label class="grid gap-2">
       <span class="ti-field-label">Use this English</span>
-      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. restoration" bind:value={english} disabled={saving} />
+      <input class="ti-field min-h-10 px-3" maxlength="80" placeholder="e.g. restoration" bind:value={english} disabled={preferencesBusy} />
     </label>
-    <button type="button" class="ti-button min-h-10" disabled={saving || !indonesian.trim() || !english.trim()} onclick={() => void addTerm()}>
+    <button type="button" class="ti-button min-h-10" disabled={preferencesBusy || !indonesian.trim() || !english.trim()} onclick={() => void addTerm()}>
       <Plus size={15} /> Add
     </button>
   </div>
@@ -391,8 +393,8 @@
       <input class="ti-field min-h-9 w-full pl-9 pr-3 text-xs" bind:value={termSearch} placeholder="Search preferred words..." aria-label="Search preferred words" />
     </label>
     <span class="text-[10.5px] text-[var(--ti-text-soft)]">{settings.terminology.length}/{MAX_TERMS}</span>
-    <button type="button" class="ti-button ti-button-secondary min-h-9 px-3 text-xs" disabled={saving || settings.terminology.length === 0} onclick={() => void copyTermsCsv()}><Copy size={14} /> Copy CSV</button>
-    <button type="button" class="ti-button ti-button-secondary min-h-9 px-3 text-xs" disabled={saving || settings.terminology.length >= MAX_TERMS} onclick={() => void importTermsCsv()}><Upload size={14} /> Import CSV</button>
+    <button type="button" class="ti-button ti-button-secondary min-h-9 px-3 text-xs" disabled={preferencesBusy || settings.terminology.length === 0} onclick={() => void copyTermsCsv()}><Copy size={14} /> Copy CSV</button>
+    <button type="button" class="ti-button ti-button-secondary min-h-9 px-3 text-xs" disabled={preferencesBusy || settings.terminology.length >= MAX_TERMS} onclick={() => void importTermsCsv()}><Upload size={14} /> Import CSV</button>
   </div>
 
   <div class="border-t border-[var(--ti-border)]">
@@ -413,16 +415,16 @@
               <div class="col-span-4 flex flex-wrap items-center justify-end gap-2"
                 role="group" aria-label={`Confirm removal of ${entry.indonesian}`}>
                 <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this pair?</span>
-                <button type="button" class="ti-button ti-button-secondary min-h-8" disabled={saving}
+                <button type="button" class="ti-button ti-button-secondary min-h-8" disabled={preferencesBusy}
                   onclick={() => { pendingDelete = null; }}>Cancel</button>
-                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={async () => {
+                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={preferencesBusy} onclick={async () => {
                   if (settings.terminology[index]?.indonesian !== entry.indonesian || settings.terminology[index]?.english !== entry.english) return;
                   if (await removeTerm(index)) pendingDelete = null;
                 }}>Remove</button>
               </div>
             {:else}
               <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5"
-                aria-label={`Remove ${entry.indonesian}`} disabled={saving}
+                aria-label={`Remove ${entry.indonesian}`} disabled={preferencesBusy}
                 onclick={() => { pendingDelete = `term:${entry.indonesian}:${entry.english}`; }}><Trash2 size={14} /></button>
             {/if}
           </div>

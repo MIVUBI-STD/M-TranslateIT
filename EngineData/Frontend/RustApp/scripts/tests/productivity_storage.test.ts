@@ -51,12 +51,22 @@ test("Meeting preset storage is bounded and drops malformed persisted entries", 
   assert.deepEqual(readMeetingPresets().map((entry) => entry.name), ["Work"]);
 
   const settings = defaultSettings();
-  for (let index = 0; index < 7; index += 1) {
+  // The earlier valid Work preset plus five new presets reaches the hard cap.
+  for (let index = 0; index < 5; index += 1) {
     assert.equal(saveMeetingPreset(meetingPresetFromSettings(`p-${index}`, `Preset ${index}`, settings)).ok, true);
   }
+  const beforeOverflow = readMeetingPresets();
+  assert.equal(beforeOverflow.length, 6);
+  const blocked = saveMeetingPreset(meetingPresetFromSettings("p-5", "Over limit", settings));
+  assert.equal(blocked.ok, false);
+  assert.deepEqual(blocked.presets, beforeOverflow);
+  assert.deepEqual(readMeetingPresets(), beforeOverflow, "overflow must not silently evict a user preset");
+
+  assert.equal(saveMeetingPreset(meetingPresetFromSettings("p-4", "Revised", settings)).ok, true);
   assert.equal(readMeetingPresets().length, 6);
-  assert.equal(deleteMeetingPreset("p-6").ok, true);
-  assert.equal(readMeetingPresets().some((entry) => entry.id === "p-6"), false);
+  assert.equal(deleteMeetingPreset("p-4").ok, true);
+  assert.equal(saveMeetingPreset(meetingPresetFromSettings("p-5", "New slot", settings)).ok, true);
+  assert.equal(readMeetingPresets().length, 6);
 });
 
 test("Translation feedback is opt-in bounded, sanitizes malformed data, and clears", () => {

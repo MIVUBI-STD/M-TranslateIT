@@ -8,6 +8,12 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## Utility preset capacity and settings-write guards (2026-10-11)
+
+**State: SOURCE-ONLY CORRECTION — EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** Audit of the canonical Meeting preset storage owner confirmed that a seventh save silently evicted the oldest user preset. The save owner now rejects overflow without modifying existing entries, while the current Meeting panel visibly explains capacity and disables Save when all six slots are occupied. Existing storage regression coverage now checks retained data on overflow, explicit replacement, and save after deletion. The Translation Preferences component now excludes concurrent Natural/Formal and terminology/spoken-term full RuntimeSettings writes, avoiding stale same-editor setting snapshots. No new storage, engine, backend command, runtime watcher or framework.
+
+**Proof boundary and next step:** Pinned GitHub source and regression-test authoring only; Node/Svelte/Rust/compiler, rendered UI, Windows audio and models NOT EXECUTED. Next remains the already-defined grouped Windows acceptance on the exact new Local SHA; do not claim zero bugs, dispatch hosted CI, publish or promote main.
+
 ## Utility interaction safety — source admission follow-up (2026-10-11)
 
 **State: BOUNDED SOURCE CORRECTION DELIVERED; COMPILE/RENDERED/NATIVE NOT EXECUTED.** Source review found Start/Stop shared Quick Actions search keywords, allowing search for the opposite operation to expose the active Meeting command. Search terms now depend on the actual Meeting session and keep transient active sessions labelled Stop but disabled. Settings utility targets are one-shot; manual tabs clear the old deep-link focus intent. Terms deletion confirmation stays visible after a failed save and occupies a readable row. Existing owners, storage and My Voice/audio boundaries remain unchanged. One new import-based Node regression checks Start/Stop command scenarios; source-static assertions cover focus-intent and delete-retry contracts. These tests have not been executed.

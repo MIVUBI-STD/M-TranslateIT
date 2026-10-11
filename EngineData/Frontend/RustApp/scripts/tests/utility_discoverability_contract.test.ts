@@ -101,3 +101,13 @@ test("term removal retains confirmation when storage rejects a delete", () => {
   assert.match(preferences, /col-span-2 flex flex-wrap/);
   assert.match(preferences, /col-span-4 flex flex-wrap/);
 });
+
+test("Meeting preset capacity and translation preference mutations stay protected", () => {
+  const storageSource = source("app/runtime/meetingPresetState.ts");
+  assert.match(storageSource, /existing\.length >= MAX_MEETING_PRESETS/);
+  assert.doesNotMatch(storageSource, /\[preset, \.\.\.existing\]\.slice/);
+  assert.match(presets, /presets\.length >= MAX_MEETING_PRESETS/);
+  assert.match(preferences, /const preferencesBusy = \$derived\(saving \|\| styleSaving\)/);
+  assert.match(preferences, /if \(preferencesBusy\) return false/);
+  assert.match(preferences, /if \(preferencesBusy \|\| settings\.translation_style === style\) return/);
+});

@@ -15,7 +15,7 @@ export type MeetingPreset = {
 
 const PRESETS_KEY = "translateit.meeting-presets.v1";
 const PROVIDER_KEY = "translateit.meeting-preset-provider.v1";
-const MAX_PRESETS = 6;
+export const MAX_MEETING_PRESETS = 6;
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -96,13 +96,18 @@ function validPreset(value: unknown): MeetingPreset | null {
 export function readMeetingPresets(): MeetingPreset[] {
   const values = readJson<unknown[]>(PRESETS_KEY, []);
   if (!Array.isArray(values)) return [];
-  return values.map(validPreset).filter((value): value is MeetingPreset => value !== null).slice(0, MAX_PRESETS);
+  return values.map(validPreset).filter((value): value is MeetingPreset => value !== null).slice(0, MAX_MEETING_PRESETS);
 }
 
 export function saveMeetingPreset(preset: MeetingPreset): { ok: boolean; presets: MeetingPreset[] } {
-  const existing = readMeetingPresets().filter((entry) => entry.id !== preset.id);
-  const next = [preset, ...existing].slice(0, MAX_PRESETS);
-  return { ok: writeJson(PRESETS_KEY, next), presets: next };
+  const previous = readMeetingPresets();
+  const existing = previous.filter((entry) => entry.id !== preset.id);
+  // Keep all saved presets intact. A full list may only be changed by
+  // explicitly replacing an existing ID or deleting a chosen preset.
+  if (existing.length >= MAX_MEETING_PRESETS) return { ok: false, presets: previous };
+  const next = [preset, ...existing];
+  const ok = writeJson(PRESETS_KEY, next);
+  return { ok, presets: ok ? next : previous };
 }
 
 function readProviderPresetMap(): Record<string, string> {
