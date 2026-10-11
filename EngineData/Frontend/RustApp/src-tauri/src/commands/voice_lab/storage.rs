@@ -51,6 +51,8 @@ struct CanonicalWavInfo {
 
 
 
+const MAX_NATIVE_RATE_SNAPSHOT_BYTES: u64 = 25 * 1024 * 1024;
+
 static PROMOTION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 fn promotion_lock() -> &'static Mutex<()> {
@@ -130,12 +132,36 @@ pub(super) fn prepare_guided_dataset_at(
     fs::create_dir_all(&storage.build_dataset_dir)
         .map_err(|error| format!("voice_lab:build_dataset_create_failed:{error}"))?;
 
+    // Retain only bounded regular native-rate files in this frozen build,
+    // without changing canonical GPT-SoVITS input or blocking legacy takes.
+    let native_source_root = storage.takes_dir.join("NativeRate");
+    let native_root_valid = fs::symlink_metadata(&native_source_root)
+        .map(|meta| meta.is_dir() && !meta.file_type().is_symlink())
+        .unwrap_or(false);
+    let native_dataset_root = storage.build_dataset_dir.join("NativeRate");
     for take in &manifest.takes {
         let source = storage.takes_dir.join(&take.wav_file);
         let target = storage.build_dataset_dir.join(&take.wav_file);
         fs::copy(&source, &target)
             .map_err(|error| format!("voice_lab:build_take_copy_failed:{error}"))?;
         inspect_canonical_wav(&target)?;
+
+        if native_root_valid {
+            let native = native_source_root.join(&take.wav_file);
+            let native_valid = fs::symlink_metadata(&native)
+                .map(|meta| {
+                    meta.is_file()
+                        && !meta.file_type().is_symlink()
+                        && (44..=MAX_NATIVE_RATE_SNAPSHOT_BYTES).contains(&meta.len())
+                })
+                .unwrap_or(false);
+            if native_valid {
+                fs::create_dir_all(&native_dataset_root)
+                    .map_err(|error| format!("voice_lab:native_dataset_dir_failed:{error}"))?;
+                fs::copy(&native, native_dataset_root.join(&take.wav_file))
+                    .map_err(|error| format!("voice_lab:native_dataset_copy_failed:{error}"))?;
+            }
+        }
     }
 
     let manifest_path = storage.build_dataset_dir.join(DATASET_MANIFEST_FILE);

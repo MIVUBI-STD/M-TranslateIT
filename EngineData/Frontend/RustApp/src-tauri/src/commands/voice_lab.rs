@@ -446,13 +446,55 @@ mod tests {
     }
 
     #[test]
-    fn accepted_dataset_is_frozen_from_canonical_guided_wavs_only() {
+    fn legacy_guided_dataset_remains_valid_without_native_sidecars() {
         let root = test_root("dataset");
         let storage = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
         write_wav(&storage.takes_dir.join(canonical_take_file_name(1)), 1_200);
         let path = prepare_guided_dataset_at(&storage, &dataset()).expect("prepare dataset");
         assert!(path.is_file());
         assert!(storage.build_dataset_dir.join(canonical_take_file_name(1)).is_file());
+        assert!(!storage.build_dataset_dir.join("NativeRate").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn native_rate_sidecars_are_frozen_without_changing_canonical_training_wavs() {
+        let root = test_root("native-dataset");
+        let storage = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        let filename = canonical_take_file_name(1);
+        let accepted = storage.takes_dir.join(&filename);
+        let sidecar = storage.takes_dir.join("NativeRate").join(&filename);
+        write_wav(&accepted, 1_200);
+        // The microphone may itself deliver 32 kHz; the snapshot is format-agnostic.
+        write_wav(&sidecar, 1_200);
+        let canonical_bytes = fs::read(&accepted).expect("read canonical source");
+        let native_bytes = fs::read(&sidecar).expect("read native source");
+
+        prepare_guided_dataset_at(&storage, &dataset()).expect("freeze dataset");
+        let frozen_canonical = storage.build_dataset_dir.join(&filename);
+        let frozen_native = storage.build_dataset_dir.join("NativeRate").join(&filename);
+        assert_eq!(fs::read(&frozen_canonical).unwrap(), canonical_bytes);
+        assert_eq!(fs::read(&frozen_native).unwrap(), native_bytes);
+
+        fs::write(&sidecar, b"source modified after freeze").unwrap();
+        assert_eq!(fs::read(&frozen_native).unwrap(), native_bytes);
+        assert_eq!(fs::read(&frozen_canonical).unwrap(), canonical_bytes);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn malformed_native_rate_sidecar_does_not_block_legacy_training() {
+        let root = test_root("invalid-native");
+        let storage = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        let filename = canonical_take_file_name(1);
+        write_wav(&storage.takes_dir.join(&filename), 1_200);
+        let sidecar = storage.takes_dir.join("NativeRate").join(&filename);
+        fs::create_dir_all(sidecar.parent().unwrap()).unwrap();
+        fs::write(&sidecar, b"invalid").unwrap();
+
+        prepare_guided_dataset_at(&storage, &dataset()).expect("freeze canonical");
+        assert!(storage.build_dataset_dir.join(&filename).is_file());
+        assert!(!storage.build_dataset_dir.join("NativeRate").exists());
         let _ = fs::remove_dir_all(root);
     }
 

@@ -15,6 +15,7 @@ import statistics
 import struct
 import wave
 from pathlib import Path
+from typing import Any
 
 SAMPLE_RATE = 32_000
 FRAME_SAMPLES = 640  # 20 ms at the canonical rate.

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from voice_lab_audio_quality import inspect_take_frames
+from voice_lab_source_pair import inspect_frozen_source_pair
 from voice_lab_gpt_sovits import (
     ENGINE,
     ENGINE_REVISION,
@@ -133,7 +134,13 @@ def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None
             frames = inspect_take_frames(path)
         except ValueError as exc:
             raise BuildError(f"take_frame_analysis_failed:{wav_file}:{exc}") from exc
-        reports.append({"wav_file": wav_file, **frames})
+        reports.append({
+            "wav_file": wav_file,
+            **frames,
+            "source_pair": inspect_frozen_source_pair(
+                path, dataset_dir / "NativeRate" / wav_file
+            ),
+        })
 
     active_rms_values = [item["active_rms"] for item in metrics]
     if len(active_rms_values) >= 2:
