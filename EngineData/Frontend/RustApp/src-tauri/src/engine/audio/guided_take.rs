@@ -23,7 +23,12 @@ pub struct GuidedTakeReview {
 
 pub struct CapturedGuidedTake {
     pub line_id: u32,
+    // GPT-SoVITS keeps its existing canonical 32 kHz PCM16 training input.
     pub samples_mono: Vec<f32>,
+    // Preserve mono input at the device-native rate before FFT resampling.
+    // This is not an untouched multi-channel device stream.
+    pub source_sample_rate_hz: u32,
+    pub native_rate_samples_mono: Vec<f32>,
 }
 
 struct ActiveGuidedTake {
@@ -155,8 +160,9 @@ pub fn take_guided_audio() -> Result<(CapturedGuidedTake, GuidedTakeReview), Str
         return Err("voice_lab:take_has_no_audio".to_string());
     }
 
+    let native_rate_samples_mono = take.samples_mono;
     let samples_mono = resample_mono_fft(
-        &take.samples_mono,
+        &native_rate_samples_mono,
         source_rate,
         GUIDED_TAKE_SAMPLE_RATE_HZ,
     )?;
@@ -171,6 +177,8 @@ pub fn take_guided_audio() -> Result<(CapturedGuidedTake, GuidedTakeReview), Str
         CapturedGuidedTake {
             line_id: take.line_id,
             samples_mono,
+            source_sample_rate_hz: source_rate,
+            native_rate_samples_mono,
         },
         review,
     ))
@@ -307,6 +315,8 @@ mod tests {
         assert!(active_guided_take_line_id().is_none());
         assert_eq!(captured.line_id, 1);
         assert_eq!(captured.samples_mono.len(), 32_000);
+        assert_eq!(captured.source_sample_rate_hz, 48_000);
+        assert_eq!(captured.native_rate_samples_mono.len(), 48_000);
         assert!(review.duration_ms >= 999 && review.duration_ms <= 1_001);
         assert!(review.quality_blocker.is_empty());
     }

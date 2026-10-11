@@ -22,7 +22,7 @@ mod guided_lines;
 mod storage_transaction;
 
 use guided_lines::GUIDED_LINES;
-use storage_transaction::{accept_review_take, discard_review_take};
+use storage_transaction::{accept_review_take_with_native_rate, discard_review_take};
 
 const MAX_REPLAY_WAV_BYTES: u64 = 8 * 1024 * 1024;
 
@@ -51,6 +51,7 @@ pub struct GuidedRecordingActionResult {
 struct PendingDraft {
     line_id: u32,
     path: PathBuf,
+    native_rate_path: PathBuf,
     review: GuidedTakeReview,
 }
 
@@ -84,6 +85,21 @@ fn draft_path(line_id: u32) -> PathBuf {
 
 fn accepted_path(line_id: u32) -> PathBuf {
     storage_paths().takes_dir.join(take_file_name(line_id))
+}
+
+fn draft_native_rate_path(line_id: u32) -> PathBuf {
+    storage_paths()
+        .cache_root
+        .join("Draft")
+        .join("NativeRate")
+        .join(take_file_name(line_id))
+}
+
+fn accepted_native_rate_path(line_id: u32) -> PathBuf {
+    storage_paths()
+        .takes_dir
+        .join("NativeRate")
+        .join(take_file_name(line_id))
 }
 
 fn current_state() -> GuidedRecordingState {
@@ -235,18 +251,33 @@ pub fn stop_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
         return result(false, "line_mismatch", "The recorded audio does not belong to the requested guided line.");
     }
     let draft = draft_path(line_id);
+    let native_rate_draft = draft_native_rate_path(line_id);
+    // Write native-rate mono PCM16 before the canonical 32 kHz review WAV.
+    // Both live in disposable Draft storage until explicit acceptance.
+    if let Err(error) = write_pcm16_wav(
+        &native_rate_draft,
+        captured.source_sample_rate_hz,
+        GUIDED_TAKE_CHANNELS,
+        &captured.native_rate_samples_mono,
+    ) {
+        let _ = fs::remove_file(&native_rate_draft);
+        let _ = fs::remove_file(&draft);
+        return result(false, "draft_write_failed", format!("VoiceLab could not save the native-rate take: {error}"));
+    }
     if let Err(error) = write_pcm16_wav(
         &draft,
         GUIDED_TAKE_SAMPLE_RATE_HZ,
         GUIDED_TAKE_CHANNELS,
         &captured.samples_mono,
     ) {
+        let _ = fs::remove_file(&native_rate_draft);
         let _ = fs::remove_file(&draft);
         return result(false, "draft_write_failed", format!("VoiceLab could not save the review take: {error}"));
     }
     let mut guard = match draft_store().lock() {
         Ok(guard) => guard,
         Err(_) => {
+            let _ = fs::remove_file(&native_rate_draft);
             let _ = fs::remove_file(&draft);
             return result(
                 false,
@@ -255,7 +286,12 @@ pub fn stop_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
             );
         }
     };
-    *guard = Some(PendingDraft { line_id, path: draft, review });
+    *guard = Some(PendingDraft {
+        line_id,
+        path: draft,
+        native_rate_path: native_rate_draft,
+        review,
+    });
     drop(guard);
     result(true, "needs_review", "Recording stopped. Replay the take, then accept it or retry the line.")
 }
@@ -275,6 +311,11 @@ pub fn retry_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult 
         return result(false, "line_mismatch", "The pending review take belongs to another guided line.");
     }
     let path = draft.path.clone();
+    let native_rate_path = draft.native_rate_path.clone();
+    if let Err(error) = discard_review_take(&native_rate_path) {
+        drop(guard);
+        return result(false, "discard_failed", error);
+    }
     if let Err(error) = discard_review_take(&path) {
         drop(guard);
         return result(false, "discard_failed", error);
@@ -312,7 +353,12 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
             return result(false, "save_failed", format!("VoiceLab could not prepare take storage: {error}"));
         }
     }
-    if let Err(error) = accept_review_take(&draft.path, &target) {
+    if let Err(error) = accept_review_take_with_native_rate(
+        &draft.path,
+        &target,
+        &draft.native_rate_path,
+        &accepted_native_rate_path(line_id),
+    ) {
         drop(guard);
         return result(false, "save_failed", error);
     }
