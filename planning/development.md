@@ -234,6 +234,19 @@ Evidence from current Local source:
 - Guided recording UI now uses the existing Rust signal-quality blocker reasons for specific corrective advice. Held-out My Voice approval requires explicit human clarity/naturalness/speaker-resemblance confirmation after listening; Rust enforces it before actor promotion. Rejecting a candidate leaves the existing Meeting voice unchanged; an alternative candidate uses the current build path. Source regression checks authored NOT EXECUTED; quality benefit requires real listening evidence.
 - Quick Preview source, WAV/quality gates, bounded stdin input, status isolation and frontend freshness are wired. Source admission found the R3 Setup resource closure omitted both `voice_lab_quick_preview.py` and its required shared `voice_lab_gpt_sovits_build.py`; the Tauri resource map, exact release contract and required-file gate now include both. Static regression authored NOT EXECUTED; compiler/model/Windows proof remain unknown.
 
+- Recent source-only audio work preserves native-rate mono PCM16 sidecars
+  without changing the existing 32 kHz training WAVs; freezes bounded sidecars
+  into the current build dataset and records a conservative waveform/canonical
+  SHA-256 pair check in the existing `audio_quality.json`. Legacy takes still train.
+- New experimental offline DeepFilterNet3 trial on source-frozen pairs uses
+  upstream v0.5.6 Windows CLI + explicit model, asset SHA-256 checks and an
+  isolated read-only A/B path. It never promotes output to training or Meeting.
+  No official executable SHA-256 is supplied by GitHub release metadata;
+  the binary, model, Windows packaging and fidelity quality remain NOT EXECUTED.
+
+Next active My Voice source decision: require independently verified offline
+denoiser binary/model assets and actual A/B speaker-identity, intelligibility
+and naturalness evidence before any enhanced-audio training admission.
 Paused handoff: prior build/package preparation remains preserved above, but is not active work. The active quality-improvement source direction is defined in Q1–Q3 above; resume one integrated local build/package/native acceptance only on a separate explicit decision. Source-only changes to feature owners remain valid on `Local`, with higher-context proof marked `NOT EXECUTED`.
 
 No benchmark improvement, native inference, installer validation, or runtime PASS is claimed. Branch Local remains development-only; main is reserved for expressly approved final results.
