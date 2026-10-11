@@ -746,11 +746,7 @@ pub fn approve_voice_lab_candidate(
         );
     }
     if !held_out_wavs_intact(&paths, &evaluation) {
-        return result(
-            false,
-            "evaluation_audio_integrity_failed",
-            "A voice sample no longer matches the evaluated audio. Create My Voice again before approving it.",
-        );
+        return result(false, "evaluation_audio_integrity_failed", "Audio changed; rebuild.");
     }
     let project_paths = ProjectPaths::discover();
     match promote_voice_actor_candidate(&project_paths) {
