@@ -1,15 +1,12 @@
 # TranslateIT Development
 
-## Active continuation — integrated local acceptance candidate (2026-10-11)
+## Active continuation — P0 UX correctness source integration (2026-10-12)
 
-**State: SOURCE CORRECTION DELIVERED ON Local; EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** The user approved replacing arbitrary source/document length hard-fail rules with meaningful architecture and behavioral checks. Preserve safety/resource bounds, typed bridge contracts, model/payload provenance, privacy, and session-lifecycle protections. Selectively consolidate pure markup or prop-forwarding wrappers from the prior source-size workaround; retain real feature boundaries. Existing source analyzer capacity now reports unknown/incomplete evidence rather than condemning legitimate source growth. No compiled/rendered/native performance claim is made.
+**State: SOURCE CHANGES ON Local; COMPILE, RENDERED, AND TARGET_WINDOWS PROOF NOT EXECUTED.** Product UI remains English-only with no new mockups. Voice retention and reversible selection were delivered on Local through `3bd13b2`, while Text result provenance is now gated for alternative wording, floating captions, copy, and feedback. A current result must match the latest source and direction/style/terminology settings. Manual edits and review-cued translations remain eligible when their source/settings still match. One pure eligibility policy and focused regression contracts own these rules.
 
-The existing `DEV.cmd` entrypoint now distinguishes doctor, explicit dependency setup, source checking, exact-SHA compile build, Tauri developer run, and controlled signed package. Package requires an explicit genuine Quality Readiness report and retains independent release-signing controls. Developer-mode launch does not establish installed-product readiness.
+**Proof ceiling:** GitHub exact-source/static inspection only, no npm/Cargo, native Windows, audio-device, or model execution. Existing manual-only CI remains inactive. The integrated exact-SHA Windows acceptance phase remains pending after source integration. Do not generate new preview UI, add an app router, or promote main.
 
-**One next step:** run the existing pinned-SHA integrated source/build + developer-mode Windows UI, Meeting, Text and My Voice functional acceptance when real local worker/models/devices are available. Controlled signed package/install acceptance remains separate for release scope only. No hosted CI, incremental PC tests, or `main` promotion.
-
-**Historical context:** all subsequent dated work sections preserve earlier source decisions and evidence at their original revisions. Headings such as `Active` and `Next` within that history are not separate live instructions; the current Local source, this continuation, and the existing acceptance runbook take precedence.
-
+**One next step:** deliver the P0 first-launch task routing so Text can open without completing Meeting setup, while preserving the existing returning-user Meeting default and canonical setup checkpoints.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

@@ -4,13 +4,13 @@
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
   import { publishTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
   import { getCachedTextTranslation, putCachedTextTranslation, textTranslationCacheKey } from "../app/runtime/textTranslationCache";
+  import { canUseCurrentTextResult, type TextResultState } from "../app/runtime/textResultPolicy";
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
   import TranslationFeedback from "../components/text/TranslationFeedback.svelte";
 
   const MAX_MANUAL_TRANSLATION_CHARS = 2000;
-  type TextResultState = "idle" | "translating" | "success" | "stale" | "error";
   type CopyState = "idle" | "copied" | "error";
   type CopyMode = "translation" | "source" | "bilingual";
   type ClearedDraft = {
@@ -19,6 +19,7 @@
     translatedSource: string | null;
     translationSettings: string | null;
     reviewHints: string[];
+    manuallyEdited: boolean;
     result: { state: TextResultState; label: string; message: string };
   };
 
@@ -47,6 +48,7 @@
   let copyMode = $state<CopyMode>("translation");
   let moreActionsOpen = $state(false);
   let reviewHints = $state<string[]>([]);
+  let manuallyEdited = $state(false);
   let alternativeBusy = $state(false);
   let clearedDraft = $state<ClearedDraft | null>(null);
   let targetRevision = 0;
@@ -54,6 +56,14 @@
   const sourceLanguageName = $derived(languageName(settings.source_language));
   const targetLanguageName = $derived(languageName(settings.target_language));
   const currentTextSettingsKey = $derived(textTranslationCacheKey("", settings));
+  const currentResultUsable = $derived(canUseCurrentTextResult({
+    source: sourceText,
+    target: targetText,
+    translatedSource: lastTranslatedSource,
+    translatedSettingsKey: lastTranslatedSettingsKey,
+    currentSettingsKey: currentTextSettingsKey,
+    state: resultState,
+  }));
 
   // A preserved Text workspace must not label old-direction results as current.
   $effect(() => {
@@ -81,9 +91,11 @@
     }
     if (sourceText.trim() === lastTranslatedSource) {
       setResult(
-        reviewHints.length > 0 ? "stale" : "success",
-        reviewHints.length > 0 ? "Check details" : "Translated",
-        reviewHints.length > 0 ? "Translation is ready. Review the noted details before using it." : "Translation is up to date.",
+        manuallyEdited ? "edited" : reviewHints.length > 0 ? "review" : "success",
+        manuallyEdited ? "Edited" : reviewHints.length > 0 ? "Check details" : "Translated",
+        manuallyEdited ? "Review your edited translation before using it."
+          : reviewHints.length > 0 ? "Translation is ready. Review the noted details before using it."
+          : "Translation is up to date.",
       );
       return;
     }
@@ -92,9 +104,16 @@
 
   function handleTargetInput(): void {
     clearedDraft = null;
-    setResult("stale", "Edited", "Translation was edited manually. Review it before copying.");
+    if (lastTranslatedSource !== null
+      && sourceText.trim() === lastTranslatedSource
+      && lastTranslatedSettingsKey === currentTextSettingsKey) {
+      manuallyEdited = true;
+      setResult("edited", "Edited", "Review your edited translation before using it.");
+    } else {
+      setResult("stale", "Needs update", "Translate the current source before using this result.");
+    }
     targetRevision += 1;
-    if (copyState !== "idle") copyState = "idle";
+    copyState = "idle";
   }
 
   function clearWorkspace(): void {
@@ -104,6 +123,7 @@
       translatedSource: lastTranslatedSource,
       translationSettings: lastTranslatedSettingsKey,
       reviewHints: [...reviewHints],
+      manuallyEdited,
       result: { state: resultState, label: resultLabel, message: resultMessage },
     };
     sourceText = "";
@@ -111,6 +131,7 @@
     lastTranslatedSource = null;
     lastTranslatedSettingsKey = null;
     reviewHints = [];
+    manuallyEdited = false;
     copyState = "idle";
     targetRevision += 1;
     setResult("idle", "Ready", "Workspace cleared. Undo is available until the next edit.");
@@ -126,6 +147,7 @@
     lastTranslatedSource = draft.translatedSource;
     lastTranslatedSettingsKey = draft.translationSettings;
     reviewHints = [...draft.reviewHints];
+    manuallyEdited = draft.manuallyEdited;
     targetRevision += 1;
     copyState = "idle";
     setResult(draft.result.state, draft.result.label, draft.result.message);
@@ -159,11 +181,14 @@
     const cached = getCachedTextTranslation(cacheKey);
     if (cached) {
       targetText = cached.translated;
+      targetRevision += 1;
+      copyState = "idle";
       reviewHints = cached.reviewHints;
+      manuallyEdited = false;
       lastTranslatedSource = requestSource;
       lastTranslatedSettingsKey = requestSettingsKey;
       setResult(
-        cached.needsReview ? "stale" : "success",
+        cached.needsReview ? "review" : "success",
         cached.needsReview ? "Check details" : "Translated",
         "Translation restored from this app session.",
       );
@@ -198,7 +223,9 @@
       }
 
       targetText = result.translated;
+      targetRevision += 1;
       reviewHints = result.reviewHints;
+      manuallyEdited = false;
       lastTranslatedSource = requestSource;
       lastTranslatedSettingsKey = requestSettingsKey;
       putCachedTextTranslation({
@@ -209,7 +236,7 @@
       });
       if (sourceText.trim() === requestSource) {
         setResult(
-          result.needsReview ? "stale" : "success",
+          result.needsReview ? "review" : "success",
           result.needsReview ? "Check details" : "Translated",
           result.message,
         );
@@ -229,9 +256,13 @@
   }
 
   async function requestAlternative(): Promise<void> {
+    if (alternativeBusy || translating || settingsSaving) return;
+    if (!currentResultUsable) {
+      onNotice("Translate the current source before requesting another wording.");
+      return;
+    }
     const source = sourceText.trim();
     const current = targetText.trim();
-    if (!source || !current || alternativeBusy || translating) return;
     alternativeBusy = true;
     clearedDraft = null;
     const requestTargetRevision = targetRevision;
@@ -248,9 +279,10 @@
       }
       targetText = result.translated;
       reviewHints = result.reviewHints;
+      manuallyEdited = false;
       targetRevision += 1;
       setResult(
-        result.needsReview ? "stale" : "success",
+        result.needsReview ? "review" : "success",
         result.needsReview ? "Check details" : "Alternative",
         result.message,
       );
@@ -263,21 +295,30 @@
   }
 
   async function showFloatingCaption(): Promise<void> {
-    const text = targetText.trim();
-    if (!text) {
-      onNotice("There is no translated text to show.");
+    if (!currentResultUsable || translating || alternativeBusy || settingsSaving) {
+      onNotice("Translate the current source before showing it in a floating caption.");
       return;
     }
-    const result = await publishTranslationOverlay({
-      text,
-      language: settings.target_language,
-      source: "text",
-      revision: `text:${targetRevision}:${Date.now()}`,
-    }, true);
-    onNotice(result === "shown" ? "Floating caption updated." : "Floating caption is unavailable right now.");
+    try {
+      const result = await publishTranslationOverlay({
+        text: targetText.trim(),
+        // A valid provenance check also verifies the current direction.
+        language: settings.target_language,
+        source: "text",
+        revision: `text:${targetRevision}:${Date.now()}`,
+      }, true);
+      onNotice(result === "shown" ? "Floating caption updated." : "Floating caption is unavailable right now.");
+    } catch {
+      onNotice("Floating caption is unavailable right now.");
+    }
   }
 
   async function copySelection(): Promise<void> {
+    if (copyMode !== "source" && !currentResultUsable) {
+      copyState = "error";
+      onNotice("Translate the current source before copying the result.");
+      return;
+    }
     const source = sourceText.trim();
     const target = targetText.trim();
     const value = copyMode === "source"
@@ -325,6 +366,7 @@
         lastTranslatedSource = null;
         lastTranslatedSettingsKey = null;
         reviewHints = [];
+        manuallyEdited = false;
         copyState = "idle";
         setResult("idle", "Ready", "Previous translation moved to the source side.");
       }
@@ -346,7 +388,7 @@
   function stateClass(state: TextResultState): string {
     if (state === "success") return "text-[var(--ti-success)]";
     if (state === "error") return "text-[var(--ti-danger)]";
-    if (state === "stale") return "text-[var(--ti-warning)]";
+    if (state === "stale" || state === "review") return "text-[var(--ti-warning)]";
     return "text-[var(--ti-text-muted)]";
   }
 </script>
@@ -414,7 +456,7 @@
       </label>
     </div>
 
-    {#if reviewHints.length > 0 && targetText.trim()}
+    {#if reviewHints.length > 0 && currentResultUsable}
       <section class="border-t border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] px-5 py-3.5" aria-live="polite">
         <div class="flex items-start gap-2.5">
           <ShieldAlert size={15} class="mt-0.5 shrink-0 text-[var(--ti-warning)]" />
@@ -433,7 +475,7 @@
       </div>
       <div class="ti-action-row ml-auto">
         <button type="button" class="ti-button min-w-28" disabled={translating || alternativeBusy} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={copyMode === "source" ? !sourceText.trim() : !targetText.trim()} onclick={() => void copySelection()}>
+        <button type="button" class="ti-button ti-button-secondary" disabled={copyMode === "source" ? !sourceText.trim() : !currentResultUsable} onclick={() => void copySelection()}>
           {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
           {copyState === "copied" ? "Copied" : copyMode === "source" ? "Copy source" : copyMode === "bilingual" ? "Copy bilingual" : "Copy translation"}
         </button>
@@ -442,8 +484,8 @@
       <div id="text-secondary-actions" class="ti-text-secondary-actions" hidden={!moreActionsOpen}>
         <button type="button" class="ti-button ti-button-secondary" disabled={translating || alternativeBusy || settingsSaving || (!sourceText && !targetText)} onclick={clearWorkspace}><Eraser size={15} /> Clear</button>
         <button type="button" class="ti-button ti-button-secondary" disabled={!clearedDraft || translating || alternativeBusy || settingsSaving} onclick={undoClear}><Undo2 size={15} /> Undo Clear</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim()} onclick={() => void showFloatingCaption()}><PictureInPicture2 size={15} /> Floating caption</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}><RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}</button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={!currentResultUsable || translating || alternativeBusy || settingsSaving} onclick={() => void showFloatingCaption()}><PictureInPicture2 size={15} /> Floating caption</button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={!currentResultUsable || translating || alternativeBusy || settingsSaving || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}><RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}</button>
         <label class="flex items-center gap-2">
           <span class="text-[12px] text-[var(--ti-text-muted)]">Copy format</span>
           <select class="ti-field min-h-9 w-[126px] px-2 text-[11.5px]" bind:value={copyMode} onchange={() => { copyState = "idle"; }} aria-label="Copy format">
@@ -452,7 +494,7 @@
             <option value="bilingual">Bilingual</option>
           </select>
         </label>
-        <TranslationFeedback source={sourceText.trim()} translation={targetText.trim()} sourceLanguage={settings.source_language} targetLanguage={settings.target_language} {onNotice} />
+        <TranslationFeedback source={currentResultUsable ? sourceText.trim() : ""} translation={currentResultUsable ? targetText.trim() : ""} sourceLanguage={settings.source_language} targetLanguage={settings.target_language} {onNotice} />
       </div>
     </footer>
   </article>
