@@ -8,6 +8,16 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## UI/UX source closure — user-approved (2026-10-11)
+
+**State: SOURCE DEVELOPMENT CLOSED — NATIVE ACCEPTANCE PENDING.** The user explicitly approved closing the bounded TranslateIT UI/UX U1–U4 source-development work. All source changes and source-level regression-contract reconciliation are retained on `Local`; no further speculative UI feature batches, cosmetic re-audits, new UI framework or duplicate state owner are authorized by this closure.
+
+**Proof boundary:** This closes source development only. Svelte/TypeScript compilation, rendered usability, accessibility, Windows high-DPI/monitor behavior, microphone/Meeting audio and My Voice native behavior have **NOT BEEN EXECUTED** on the pinned target host. This is not production readiness, a release or promotion of `main`. All private recordings, preferred terms, user settings and transient transcripts remain under their existing storage/lifecycle owners.
+
+**Reopening policy:** Reopen only for a concrete, reproduced integration defect or a new explicit product decision. Correct the first failing canonical owner and preserve the grouped Windows acceptance gate. No feature-by-feature PC testing or cloud CI.
+
+**Next step (deferred, not started):** At the separately authorized, capable exact-SHA Windows integration phase, use `docs/knowledge/operations/target-windows-performance.md` and `docs/foundation/03-acceptance-scenarios.md` to execute the single grouped build, accessibility/UI and native acceptance. Stop at the first failing owner; do not package or promote `main` without subsequent approval.
+
 ## U4 — Integrated UI/UX acceptance source admission (2026-10-11)
 
 **State: SOURCE ADMISSION PREPARED; EXECUTABLE, RENDERED AND TARGET_WINDOWS ACCEPTANCE NOT EXECUTED.** The user authorized continuation from U3 into integrated U4 acceptance. Current ChatGPT capability remains `REMOTE_GITHUB` only; neither a locked native Windows checkout nor an installed app is accessible, and hosted CI/build is prohibited. Do not represent this as native PASS or as permission to release/promote `main`.
@@ -18,7 +28,7 @@ Actual latency, device routing, audio quality, GPU behavior, and installed-app b
 
 **Source ceiling:** Static GitHub reading confirms ownership and code locations, not Svelte typecheck, bundle validity, Windows DPI fit, screen reader usability, actual voice behavior, or meeting audio/route delivery. The Tauri main window still declares a native 1280×760 minimum; exact fit on high-scale/small screens remains a D5 native acceptance question, not an assumed pass. The build and release packaging state is unchanged.
 
-**One next step:** When a genuine exact-SHA `LOCAL_CODE` plus `TARGET_WINDOWS` environment is available, execute the already-defined single integrated build/acceptance sequence in `docs/knowledge/operations/target-windows-performance.md`, recording failures and stopping at the first failing owner. Do not request per-feature user-PC tests or dispatch hosted CI.
+**Deferred native acceptance:** The closure section above owns the single remaining UI/UX continuation. Run the existing exact-SHA Windows acceptance only in the authorized integrated phase; no per-feature user-PC tests or hosted CI.
 
 ## UI/UX usability iteration — U3 My Voice, captions and Settings (2026-10-11)
 
