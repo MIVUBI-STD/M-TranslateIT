@@ -7,6 +7,7 @@ const overlayCapability = JSON.parse(readFileSync(new URL("../../src-tauri/capab
 const closeRuntime = readFileSync(new URL("../../src/app/runtime/nativeCloseRuntime.ts", import.meta.url), "utf8");
 const overlayRuntime = readFileSync(new URL("../../src/app/runtime/translationOverlayRuntime.ts", import.meta.url), "utf8");
 const overlayPage = readFileSync(new URL("../../src/pages/TranslationOverlay.svelte", import.meta.url), "utf8");
+const meetingLiveController = readFileSync(new URL("../../src/app/runtime/meetingLiveController.ts", import.meta.url), "utf8");
 
 test("floating caption native window keeps readability contract", () => {
   const overlay = tauri.app.windows.find((window) => window.label === "translation-overlay"); assert.ok(overlay);
@@ -54,11 +55,11 @@ test("overlay adapts text bounds and reconciles monitor DPI without global short
   assert.match(overlayPage, /captionText\?\.scrollHeight/);
 });
 
-test("caption payload or clear is sent before exposing the native window", () => {
+test("latest caption is delivered before requesting native Show", () => {
   const publish = overlayRuntime.split("export async function publishTranslationOverlay")[1]?.split("export async function publishLatestMeetingOverlay")[0] ?? "";
   const show = overlayRuntime.split("export async function showTranslationOverlay")[1]?.split("export async function hideTranslationOverlay")[0] ?? "";
-  assert.ok(publish.indexOf("await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, normalized)") < publish.indexOf("await window.show()"));
-  assert.ok(show.indexOf("TRANSLATION_OVERLAY_CLEAR_EVENT") < show.indexOf("await window.show()"));
+  assert.ok(publish.indexOf("await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, normalized)") < publish.indexOf("await requestNativeOverlayVisible(true)"));
+  assert.ok(show.indexOf("TRANSLATION_OVERLAY_CLEAR_EVENT") < show.indexOf("await requestNativeOverlayVisible(true)"));
 });
 
 test("native positioning is serialized, DPI-constrained, and never persists an automatic move", () => {
@@ -110,4 +111,20 @@ test("Hide from the overlay revokes the main window transient caption", () => {
 test("hidden preferences clear stale private overlay content", () => {
   assert.match(overlayPage, /if \(next\.visibility === "hidden"\) \{\s*clearCaption\(\)/);
   assert.match(overlayRuntime, /return \(\) => \{ stopReady\(\); stopHidden\(\); \}/);
+});
+test("native visibility is serialized and coalesces to the latest user intent", () => {
+  assert.match(overlayRuntime, /let pendingNativeVisibility: boolean \| null = null/);
+  assert.match(overlayRuntime, /if \(nativeVisibilityTask\) return nativeVisibilityTask/);
+  assert.match(overlayRuntime, /while \(pendingNativeVisibility !== null\)/);
+  assert.match(overlayRuntime, /readOverlayPreferences\(\)\.visibility !== "hidden"/);
+  assert.match(overlayRuntime, /await requestNativeOverlayVisible\(readOverlayPreferences\(\)\.visibility !== "hidden"\)/);
+});
+
+test("Meeting end and reset revoke the previous caption, never a newer Text overlay", () => {
+  assert.match(meetingLiveController, /void clearLatestMeetingOverlay\(\)/);
+  assert.match(meetingLiveController, /await clearLatestMeetingOverlay\(\)/);
+  assert.match(overlayRuntime, /if \(previous\?\.source !== "meeting"\) return/);
+  assert.match(overlayRuntime, /onlyRevision: previous\.revision/);
+  assert.match(overlayPage, /caption\?\.revision !== onlyRevision && pendingCaption\?\.revision !== onlyRevision/);
+  assert.match(overlayRuntime, /if \(!caption\) \{\s*await clearLatestMeetingOverlay\(\)/);
 });

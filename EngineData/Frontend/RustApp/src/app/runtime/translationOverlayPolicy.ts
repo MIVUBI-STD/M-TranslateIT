@@ -2,6 +2,7 @@ export const TRANSLATION_OVERLAY_EVENT = "translation-overlay:update";
 export const TRANSLATION_OVERLAY_PREFERENCES_EVENT = "translation-overlay:preferences";
 export const TRANSLATION_OVERLAY_READY_EVENT = "translation-overlay:ready";
 export const TRANSLATION_OVERLAY_CLEAR_EVENT = "translation-overlay:clear";
+export type TranslationOverlayClearPayload = { onlyRevision?: string };
 export const TRANSLATION_OVERLAY_HIDDEN_EVENT = "translation-overlay:hidden";
 
 export type TranslationOverlayPayload = {

@@ -26,6 +26,7 @@
     type PhysicalRect,
     type RecentCaptionEntry,
     type TranslationOverlayPayload,
+    type TranslationOverlayClearPayload,
     type TranslationOverlayPreferences,
   } from "../app/runtime/translationOverlayPolicy";
   import { hideTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
@@ -281,8 +282,11 @@
       if (!await track(listen<TranslationOverlayPayload>(TRANSLATION_OVERLAY_EVENT, (event) => {
         if (!disposed) void applyCaption(event.payload);
       }))) return;
-      if (!await track(listen(TRANSLATION_OVERLAY_CLEAR_EVENT, () => {
-        if (!disposed) clearCaption();
+      if (!await track(listen<TranslationOverlayClearPayload>(TRANSLATION_OVERLAY_CLEAR_EVENT, (event) => {
+        if (disposed) return;
+        const onlyRevision = event.payload?.onlyRevision;
+        if (onlyRevision && caption?.revision !== onlyRevision && pendingCaption?.revision !== onlyRevision) return;
+        clearCaption();
       }))) return;
       if (!await track(listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, (event) => {
         if (!disposed) void applyPreferences(event.payload).catch(() => {

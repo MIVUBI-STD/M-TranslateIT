@@ -11,6 +11,7 @@ import {
   normalizeOverlayText,
   mayPresentOverlayCaption,
   type TranslationOverlayPayload,
+  type TranslationOverlayClearPayload,
   type TranslationOverlayPreferences,
 } from "./translationOverlayPolicy";
 import {
@@ -24,6 +25,41 @@ export const OVERLAY_WINDOW_LABEL = "translation-overlay";
 export type OverlayPublishResult = "shown" | "suppressed" | "unavailable";
 // Private in-memory caption, never written to browser storage.
 let latestPresented: TranslationOverlayPayload | null = null;
+
+// Coalesced native visibility reconciliation; one running operation, one latest intent.
+let pendingNativeVisibility: boolean | null = null;
+let nativeVisibilityTask: Promise<void> | null = null;
+
+function requestNativeOverlayVisible(visible: boolean): Promise<void> {
+  pendingNativeVisibility = visible;
+  if (nativeVisibilityTask) return nativeVisibilityTask;
+  nativeVisibilityTask = (async () => {
+    try {
+      while (pendingNativeVisibility !== null) {
+        const requested = pendingNativeVisibility;
+        pendingNativeVisibility = null;
+        const window = await overlayWindow();
+        if (!window) throw new Error("Floating caption window is unavailable.");
+        // Recheck the cross-webview policy after asynchronous window lookup.
+        if (requested && readOverlayPreferences().visibility !== "hidden") await window.show();
+        else await window.hide();
+      }
+    } finally {
+      nativeVisibilityTask = null;
+    }
+  })();
+  return nativeVisibilityTask;
+}
+
+// Meeting termination invalidates its caption without erasing an explicit Text overlay.
+export async function clearLatestMeetingOverlay(): Promise<void> {
+  const previous = latestPresented;
+  if (previous?.source !== "meeting") return;
+  latestPresented = null;
+  const payload: TranslationOverlayClearPayload = { onlyRevision: previous.revision };
+  try { await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, payload); }
+  catch { /* No sensitive payload is logged or persisted. */ }
+}
 
 async function overlayWindow(): Promise<WebviewWindow | null> {
   return WebviewWindow.getByLabel(OVERLAY_WINDOW_LABEL);
@@ -48,7 +84,8 @@ export async function publishTranslationOverlay(payload: TranslationOverlayPaylo
     if (explicitlyRestored) await emitPreferences(preferences);
     // Deliver current content before exposing the window: never flash a previous caption.
     await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, normalized);
-    await window.show();
+    await requestNativeOverlayVisible(true);
+    if (readOverlayPreferences().visibility === "hidden") return "suppressed";
     clearOverlayError();
     return "shown";
   } catch (error) {
@@ -59,7 +96,11 @@ export async function publishTranslationOverlay(payload: TranslationOverlayPaylo
 
 export async function publishLatestMeetingOverlay(turns: MeetingCommittedTurnsSnapshot | null, previousRevision: string): Promise<string> {
   const caption = latestMeetingCaption(turns);
-  if (!caption || caption.revision === previousRevision) return previousRevision;
+  if (!caption) {
+    await clearLatestMeetingOverlay();
+    return "";
+  }
+  if (caption.revision === previousRevision) return previousRevision;
   const result = await publishTranslationOverlay(caption);
   return result === "unavailable" ? previousRevision : caption.revision;
 }
@@ -104,7 +145,8 @@ export async function showTranslationOverlay(): Promise<boolean> {
     await emitPreferences(preferences);
     if (latestPresented) await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, latestPresented);
     else await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {});
-    await window.show();
+    await requestNativeOverlayVisible(true);
+    if (readOverlayPreferences().visibility === "hidden") return false;
     clearOverlayError();
     return true;
   } catch (error) {
@@ -116,13 +158,15 @@ export async function showTranslationOverlay(): Promise<boolean> {
 export async function hideTranslationOverlay(): Promise<void> {
   const prefs = updateOverlayPreferences({ visibility: "hidden" });
   latestPresented = null;
+  try { await requestNativeOverlayVisible(readOverlayPreferences().visibility !== "hidden"); } catch { /* Hide preference remains in force. */ }
   try { await emit(TRANSLATION_OVERLAY_HIDDEN_EVENT); } catch { /* Persisted Hide remains authoritative. */ }
   try { await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_CLEAR_EVENT, {}); } catch { /* Unavailable overlay. */ }
   try { await emitPreferences(prefs); } catch { /* Hiding must not depend on event delivery. */ }
-  try { await (await overlayWindow())?.hide(); } catch { }
 }
 
 export async function destroyTranslationOverlay(): Promise<void> {
   latestPresented = null;
+  pendingNativeVisibility = false;
+  try { await nativeVisibilityTask; } catch { /* Shutdown still owns destruction. */ }
   await (await overlayWindow())?.destroy();
 }

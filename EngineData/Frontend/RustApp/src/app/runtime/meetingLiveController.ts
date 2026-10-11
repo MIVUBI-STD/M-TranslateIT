@@ -3,7 +3,7 @@ import type {
   MeetingSessionStatus,
 } from "../bridge/runtimeApi";
 import { readMeetingReconciliation } from "./meetingReconcileReader";
-import { publishLatestMeetingOverlay } from "./translationOverlayRuntime";
+import { clearLatestMeetingOverlay, publishLatestMeetingOverlay } from "./translationOverlayRuntime";
 
 export type MeetingLiveViewState = {
   turns: MeetingCommittedTurnsSnapshot | null;
@@ -50,6 +50,7 @@ export function createMeetingLiveController(): {
     read: publish,
 
     reset(): MeetingLiveViewState {
+      void clearLatestMeetingOverlay();
       state = {
         ...state,
         turns: null,
@@ -88,7 +89,11 @@ export function createMeetingLiveController(): {
           result.turns,
           state.overlayRevision,
         );
-        if (revision !== state.revision) return publish();
+        if (revision !== state.revision) {
+          // A reset can happen while a previous Meeting caption publication is in flight.
+          await clearLatestMeetingOverlay();
+          return publish();
+        }
 
         state = {
           ...state,
