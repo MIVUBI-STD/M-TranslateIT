@@ -22,7 +22,7 @@
   function presenceDot(): string {
     if (presence === "Live" || presence === "Ready") return "bg-[var(--ti-success)]";
     if (presence === "Unavailable") return "bg-[var(--ti-danger)]";
-    if (presence === "Setup Needed") return "bg-[var(--ti-warning)]";
+    if (presence === "Setup Needed" || presence === "Stop Needed" || presence === "Check Status") return "bg-[var(--ti-warning)]";
     return "bg-[var(--ti-text-soft)]";
   }
 
@@ -32,6 +32,12 @@
     if (presence === "Degraded") return "Text translation ready";
     if (presence === "Setup Needed") return "Setup needed";
     if (presence === "Unavailable") return "Unavailable";
+    if (presence === "Stop Needed") return "Meeting cleanup needed";
+    if (presence === "Starting") return "Starting translation";
+    if (presence === "Stopping") return "Stopping translation";
+    if (presence === "Active") return "Meeting needs attention";
+    if (presence === "Check Status") return "Meeting status unknown";
+    if (presence === "In Use") return "Audio in use";
     return "Checking";
   }
 </script>

@@ -26,6 +26,7 @@ export type ProductCommandContext = {
   meetingHasSession: boolean;
   meetingCanStart: boolean;
   meetingCanStop: boolean;
+  meetingActionLabel: string;
   quickTranslateReady: boolean;
   navigationLocked: boolean;
   navigate: (route: AppRoute) => void;
@@ -54,14 +55,15 @@ export function buildProductCommands(context: ProductCommandContext): ProductCom
     { id: "navigate-settings", group: "Navigation", label: "Open Settings", description: "Adjust Meeting and translation preferences.",
       keywords: ["preferences"], disabled: context.navigationLocked, run: () => context.navigate("settings") },
     { id: "meeting-toggle", group: "Meeting utilities",
-      label: context.meetingHasSession ? "Stop Translation" : "Start Translation",
-      description: context.meetingHasSession
-        ? context.meetingCanStop ? "Stop the current Meeting safely." : "Meeting is changing state. Wait until Stop is available."
-        : context.meetingCanStart ? "Start translation using the current setup." : "Unavailable until Meeting setup is ready.",
+      label: context.meetingActionLabel,
+      description: context.meetingCanStop
+        ? "Stop or finish cleaning up this Meeting safely."
+        : context.meetingCanStart ? "Start translation using the current setup." : "Meeting action is unavailable until its status or setup is ready.",
       // A 'stop' query must never start a Meeting, or vice versa.
-      keywords: context.meetingHasSession ? ["stop", "end", "meeting", "translation"]
-        : ["start", "begin", "meeting", "translation"],
-      disabled: context.meetingHasSession ? !context.meetingCanStop : !context.meetingCanStart,
+      keywords: context.meetingCanStop ? ["stop", "end", "meeting", "translation"]
+        : context.meetingCanStart ? ["start", "begin", "meeting", "translation"]
+        : ["meeting", "status"],
+      disabled: !context.meetingCanStop && !context.meetingCanStart,
       run: context.toggleMeeting },
     jump("meeting-presets", "Meeting utilities", "Meeting Presets",
       context.meetingHasSession ? "Stop the current Meeting to manage presets." : "Save or use an existing Meeting setup.",

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { ProductRuntimeSnapshot } from "../../app/bridge/runtimeProductFacade";
+  import type { MeetingControlState } from "../../app/bridge/productMeetingState";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import { buildProductCommands, type UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import { publishTranslationOverlay } from "../../app/runtime/translationOverlayRuntime";
@@ -10,6 +11,7 @@
 
   let {
     snapshot,
+    meetingControl,
     audioLocked,
     audioOwnerKind,
     voiceBuildActive,
@@ -20,6 +22,7 @@
     onNotice,
   }: {
     snapshot: ProductRuntimeSnapshot;
+    meetingControl: MeetingControlState;
     audioLocked: boolean;
     audioOwnerKind: string;
     voiceBuildActive: boolean;
@@ -35,8 +38,9 @@
 
   const commands = $derived.by(() => buildProductCommands({
     meetingHasSession: snapshot.meeting.hasSession,
-    meetingCanStart: snapshot.meeting.canStart,
-    meetingCanStop: snapshot.meeting.canStop,
+    meetingCanStart: meetingControl.enabled && meetingControl.action === "start",
+    meetingCanStop: meetingControl.enabled && meetingControl.action === "stop",
+    meetingActionLabel: meetingControl.label,
     quickTranslateReady: snapshot.readiness.textReady && !quickTranslateBusy && !myVoiceRecording,
     navigationLocked: myVoiceRecording,
     navigate: onNavigate,

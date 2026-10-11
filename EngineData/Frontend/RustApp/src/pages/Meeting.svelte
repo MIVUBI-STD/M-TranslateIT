@@ -14,6 +14,7 @@
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import { setupStateNeedsResume } from "../app/runtime/setupFlow";
+  import { meetingControlState } from "../app/bridge/productMeetingState";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
   import MeetingPresetPanel from "../components/meeting/MeetingPresetPanel.svelte";
   import MeetingSessionReview from "../components/meeting/MeetingSessionReview.svelte";
@@ -57,6 +58,12 @@
 
   const readiness = $derived(snapshot.readiness);
   const meeting = $derived(snapshot.meeting);
+  const primaryControl = $derived(meetingControlState(
+    meeting,
+    snapshot.readiness.approvedVoiceReady,
+    snapshot.settings.meeting_setup_state,
+    actionBusy,
+  ));
   const meetingVoiceReady = $derived(readiness.approvedVoiceReady);
   const setupDeferred = $derived(setupStateNeedsResume(snapshot.settings.meeting_setup_state));
   const runtimeUnavailable = $derived(readiness.level === "unavailable" || meeting.label === "Unavailable");
@@ -93,27 +100,19 @@
       : "neutral",
   );
   const meetingTone = $derived(
-    runtimeUnavailable
-      ? "danger"
-      : meeting.busy || checking
-        ? "neutral"
-        : meeting.live || readiness.meetingReady
-          ? "good"
-          : "warning",
+    meeting.lifecycle === "cleanup_incomplete" ? "warning"
+      : meeting.hasSession && !meeting.live && !meeting.busy ? "warning"
+      : runtimeUnavailable ? "danger"
+      : meeting.busy || checking ? "neutral"
+      : meeting.live || readiness.meetingReady ? "good"
+      : "warning",
   );
-
-  const primaryLabel = $derived(
-    actionBusy
-      ? meeting.canStop ? "Stopping..." : "Starting..."
-      : meeting.live ? "Stop Translation"
-      : meeting.busy ? meeting.label === "Stopping" ? "Stopping..." : "Starting..."
-      : "Start Translation",
-  );
-  const primaryDisabled = $derived(actionBusy || meeting.busy || (!meeting.canStart && !meeting.canStop));
 
   const readyMessage = $derived(
     resumeError
       ? resumeError
+      : meeting.canStop || meeting.hasSession
+        ? meeting.message
       : setupDeferred
         ? "Setup is not finished. Select Resume Setup before starting a call."
         : runtimeUnavailable
@@ -134,7 +133,7 @@
   );
 
   async function swapListenDirection(): Promise<void> {
-    if (directionSaving || meeting.live || meeting.busy) return;
+    if (directionSaving || meeting.hasSession || meeting.canStop) return;
     directionSaving = true;
     const candidate: RuntimeSettings = {
       ...snapshot.settings,
@@ -247,9 +246,9 @@
           : "Speak Indonesian. Other people in the call hear the English translation."}
       </p>
     </div>
-    {#if meeting.busy || runtimeUnavailable || setupDeferred || !readiness.meetingReady}
+    {#if meeting.busy || meeting.hasSession && !meeting.live || meeting.lifecycle === "cleanup_incomplete" || runtimeUnavailable || setupDeferred || !readiness.meetingReady}
       <StatusBadge
-        label={meeting.busy ? meeting.label : runtimeUnavailable ? "Unavailable" : checking ? "Checking" : "Setup Needed"}
+        label={meeting.busy || meeting.hasSession || meeting.lifecycle === "cleanup_incomplete" ? meeting.label : runtimeUnavailable ? "Unavailable" : checking ? "Checking" : "Setup Needed"}
         tone={meetingTone}
       />
     {/if}
@@ -387,8 +386,8 @@
       <button
         type="button"
         class="ti-button ti-button-secondary min-h-8 px-3 text-xs"
-        disabled={directionSaving || meeting.live || meeting.busy}
-        title={meeting.live || meeting.busy ? "Stop Meeting translation before changing direction." : "Swap listening direction"}
+        disabled={directionSaving || meeting.hasSession || meeting.canStop}
+        title={meeting.hasSession || meeting.canStop ? "Finish stopping Meeting translation before changing direction." : "Swap listening direction"}
         onclick={() => void swapListenDirection()}
       >
         {directionSaving ? "Saving..." : "Swap"}
@@ -398,7 +397,7 @@
     <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
       {#if !activityVisible}
         <div class="flex min-w-0 items-center gap-2.5 text-[12.5px] text-[var(--ti-text-muted)]" aria-live="polite">
-          <span class={`size-1.5 shrink-0 rounded-full ${runtimeUnavailable ? "bg-[var(--ti-danger)]" : readiness.meetingReady && !setupDeferred ? "bg-[var(--ti-success)]" : checking ? "bg-[var(--ti-text-soft)]" : "bg-[var(--ti-warning)]"}`} aria-hidden="true"></span>
+          <span class={`size-1.5 shrink-0 rounded-full ${meeting.canStop || meeting.hasSession ? "bg-[var(--ti-warning)]" : runtimeUnavailable ? "bg-[var(--ti-danger)]" : readiness.meetingReady && !setupDeferred ? "bg-[var(--ti-success)]" : checking ? "bg-[var(--ti-text-soft)]" : "bg-[var(--ti-warning)]"}`} aria-hidden="true"></span>
           <span>{readyMessage}</span>
         </div>
       {:else}
@@ -409,19 +408,19 @@
         <div id="utility-meeting-transcript" tabindex="-1">
         <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
         </div>
-        {#if setupDeferred && !meeting.live && !meeting.busy}
+        {#if setupDeferred && !meeting.hasSession && !meeting.canStop && !meeting.busy}
           <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening..." : "Resume Setup"}</button>
         {:else}
-          {#if !meeting.live && !meeting.busy && !readiness.meetingReady}
+          {#if !meeting.hasSession && !meeting.canStop && !meeting.busy && !readiness.meetingReady}
             <button type="button" class="ti-button ti-button-secondary" onclick={() => void refreshMeetingSetup()}>{runtimeUnavailable ? "Retry Status" : "Check Again"}</button>
             {#if !runtimeUnavailable}
               <button type="button" class="ti-button ti-button-secondary" onclick={onFixSetup}>Repair Setup</button>
             {/if}
           {/if}
-          {#if meetingVoiceReady === false && !meeting.live && !meeting.busy}
+          {#if meetingVoiceReady === false && !meeting.hasSession && !meeting.canStop && !meeting.busy}
             <button type="button" class="ti-button min-w-40" onclick={onOpenMyVoice}>Choose Voice</button>
           {:else}
-            <button type="button" class={`ti-button min-w-40 ${meeting.canStop ? "ti-button-danger" : ""}`} disabled={primaryDisabled || meetingVoiceReady === null} onclick={onMeetingAction}>{primaryLabel}</button>
+            <button type="button" class={`ti-button min-w-40 ${primaryControl.action === "stop" ? "ti-button-danger" : ""}`} disabled={!primaryControl.enabled} onclick={onMeetingAction}>{primaryControl.label}</button>
           {/if}
         {/if}
       </div>

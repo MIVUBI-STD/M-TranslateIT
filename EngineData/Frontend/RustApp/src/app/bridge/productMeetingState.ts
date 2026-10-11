@@ -3,6 +3,51 @@ import { compact } from "../shared/state";
 import { APPLICATION_MEETING_OWNER_ID } from "../shared/types";
 import type { ProductMeetingState } from "./runtimeProductTypes";
 
+export type MeetingControlState = {
+  action: "start" | "stop" | null;
+  label: string;
+  enabled: boolean;
+};
+
+// Product presentation only. Rust owns the lifecycle and action authority.
+export function meetingControlState(
+  meeting: ProductMeetingState,
+  voiceReady: boolean | null,
+  setupState: string,
+  actionBusy = false,
+): MeetingControlState {
+  if (actionBusy) {
+    return { action: null, label: meeting.canStop ? "Stopping..." : "Starting...", enabled: false };
+  }
+  if (meeting.busy) {
+    return { action: null, label: meeting.label === "Stopping" ? "Stopping..." : "Starting...", enabled: false };
+  }
+  // Always prioritize safe cleanup over setup, voice readiness or Start.
+  if (meeting.canStop) {
+    return {
+      action: "stop",
+      label: meeting.lifecycle === "cleanup_incomplete" ? "Retry Stop" : "Stop Translation",
+      enabled: true,
+    };
+  }
+  if (meeting.lifecycle === "unavailable") {
+    return { action: null, label: "Check Status", enabled: false };
+  }
+  if (meeting.hasSession) {
+    return { action: null, label: meeting.label, enabled: false };
+  }
+  if (setupState === "deferred" || setupState === "new") {
+    return { action: null, label: "Resume Setup", enabled: false };
+  }
+  if (voiceReady === null) {
+    return { action: null, label: "Checking...", enabled: false };
+  }
+  if (voiceReady === false) {
+    return { action: null, label: "Choose Voice", enabled: false };
+  }
+  return { action: meeting.canStart ? "start" : null, label: "Start Translation", enabled: meeting.canStart };
+}
+
 export type MeetingPreflightSnapshot = {
   readyForStart: boolean;
   startEligible: boolean;
@@ -53,11 +98,12 @@ export function meetingPreflight(meetingSession: MeetingSessionStatus | null): M
   };
 }
 
-function liveMeetingMessage(stage: string): string {
+function liveMeetingMessage(stage: string, outputActive: boolean): string {
+  if (outputActive) return "Translation is live and playing the English voice into the meeting microphone.";
   if (stage === "transcribing" || stage === "translating" || stage === "synthesizing") {
     return "Translation is live and preparing the English voice for your meeting.";
   }
-  if (stage === "delivering") return "Translation is live and speaking English to your meeting.";
+  if (stage === "delivering") return "Translation is live and playing English into the meeting microphone.";
   if (stage === "attention_needed") {
     return "Translation is live, but the latest phrase needs attention. Check Diagnostics if this continues.";
   }
@@ -71,13 +117,19 @@ export function mapProductMeetingState(status: MeetingSessionStatus | null): Pro
   const applicationOwned = hasSession && status?.owner_id === APPLICATION_MEETING_OWNER_ID;
   const authorityActive = applicationOwned && status?.authority_active === true;
   const rawLifecycle = unavailable ? "unavailable" : compact(status?.lifecycle, hasSession ? "active" : "idle");
-  const lifecycle = unavailable ? "unavailable" : applicationOwned ? rawLifecycle : hasSession ? "runtime_conflict" : "idle";
+  const cleanupWithoutSession = !unavailable && !hasSession && rawLifecycle === "cleanup_incomplete";
+  const ownershipUnknown = hasSession && !unavailable && !status?.owner_id;
+  const lifecycle = unavailable ? "unavailable" : applicationOwned ? rawLifecycle
+    : ownershipUnknown ? "ownership_unknown"
+    : hasSession ? "runtime_conflict" : cleanupWithoutSession ? "cleanup_incomplete" : "idle";
   const live = applicationOwned && authorityActive && lifecycle === "live";
   const starting = applicationOwned && authorityActive && lifecycle === "starting";
   const stopping = applicationOwned && lifecycle === "stopping";
   const busy = starting || stopping;
-  const canStart = !unavailable && !hasSession && preflight.startEligible;
-  const canStop = !unavailable && applicationOwned && hasSession && !starting && !stopping;
+  const canStart = !unavailable && !hasSession && lifecycle === "idle" && preflight.startEligible;
+  const canStop = !unavailable && (
+    (applicationOwned && hasSession && !starting && !stopping) || cleanupWithoutSession
+  );
   const outboundStage = compact(status?.outbound?.stage, unavailable ? "unavailable" : "idle");
   const blocker = compact(
     status?.blocker || preflight.blockers[0],
@@ -95,16 +147,19 @@ export function mapProductMeetingState(status: MeetingSessionStatus | null): Pro
     message = "Meeting status is unavailable. Try the check again when TranslateIT is available.";
   } else if (live) {
     label = "Live";
-    message = liveMeetingMessage(outboundStage);
+    message = liveMeetingMessage(outboundStage, status?.outbound?.output_active === true);
   } else if (starting) {
     label = "Starting";
     message = "Translation is starting.";
   } else if (stopping) {
     label = "Stopping";
     message = "Translation is stopping safely.";
-  } else if (applicationOwned && lifecycle === "cleanup_incomplete") {
+  } else if (lifecycle === "cleanup_incomplete") {
     label = "Stop Needed";
-    message = "Translation output is stopped, but cleanup still needs attention. Try Stop again.";
+    message = "Translation output is stopped, but cleanup still needs attention. Retry Stop.";
+  } else if (ownershipUnknown) {
+    label = "Check Status";
+    message = "Meeting session ownership could not be confirmed. Check its status before starting or stopping.";
   } else if (hasSession && !applicationOwned) {
     label = "In Use";
     message = "Meeting audio is already in use. Finish that operation before starting Translation.";

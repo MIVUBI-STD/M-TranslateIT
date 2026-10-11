@@ -8,6 +8,7 @@ use super::super::virtual_mic_route::get_virtual_mic_route_selection;
 use super::session_state::{
     current_incoming_status, current_outbound_status, current_start_preflight,
 };
+use super::lifecycle::transient_stop_cleanup_pending;
 use super::{
     MeetingSessionActionResult, MeetingSessionPreflightStatus, MeetingSessionStatus,
     APPLICATION_MEETING_OWNER_ID,
@@ -50,6 +51,9 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let meeting_route_ready = route.route_ready;
 
     let mut start_blockers = Vec::new();
+    if transient_stop_cleanup_pending() {
+        start_blockers.push("meeting_session:cleanup_incomplete".to_string());
+    }
     if source_is_virtual_meeting_mic {
         start_blockers.push("meeting_session:physical_input_is_virtual_meeting_microphone".to_string());
     } else if !microphone_ready {
@@ -86,7 +90,9 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
         provider_ready,
         meeting_route_ready,
         blockers,
-        summary: if ready_for_start {
+        summary: if transient_stop_cleanup_pending() {
+            "The previous Meeting Stop still needs cleanup. Retry Stop Translation before starting again.".to_string()
+        } else if ready_for_start {
             "Required outbound Meeting capabilities are functionally verified for the current local worker and current preflight prerequisites are ready. Incoming Meeting Sound remains optional/degradable."
                 .to_string()
         } else if start_eligible {
@@ -109,7 +115,13 @@ pub(super) fn status_from_report(
     MeetingSessionStatus {
         lifecycle: snapshot
             .map(|value| value.phase.clone())
-            .unwrap_or_else(|| "idle".to_string()),
+            .unwrap_or_else(|| {
+                if transient_stop_cleanup_pending() {
+                    "cleanup_incomplete".to_string()
+                } else {
+                    "idle".to_string()
+                }
+            }),
         has_session: report.has_active_session,
         authority_active: snapshot
             .map(|value| value.authority_active)

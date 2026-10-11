@@ -20,6 +20,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     type CloseControllerState,
   } from "./app/runtime/closeController";
   import { compact, defaultSettings } from "./app/shared/state";
+  import { meetingControlState } from "./app/bridge/productMeetingState";
   import {
     createApplicationController,
     type ApplicationControllerState,
@@ -66,8 +67,12 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   const meetingStatus = $derived(snapshot?.meetingSession ?? null);
 
   const presence = $derived(
-    snapshot?.meeting.live
-      ? "Live"
+    snapshot?.meeting.lifecycle === "unavailable"
+      ? "Unavailable"
+      : snapshot?.meeting.live
+        ? "Live"
+        : snapshot?.meeting.hasSession || snapshot?.meeting.canStop
+          ? snapshot.meeting.label
       : snapshot?.readiness.level === "unavailable"
         ? "Unavailable"
         : snapshot?.readiness.meetingReady
@@ -202,28 +207,31 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
 
   async function handleMeetingAction(): Promise<void> {
     if (meetingActionBusy || !snapshot) return;
-    const meeting = snapshot.meeting;
-    const action = meeting.canStop ? "stop" : "start";
-    if (action === "start" && !meeting.canStart) {
-      setNotice(snapshot.readiness.nextAction ?? meeting.message);
+    const control = meetingControlState(
+      snapshot.meeting,
+      snapshot.readiness.approvedVoiceReady,
+      snapshot.settings.meeting_setup_state,
+      meetingActionBusy,
+    );
+    if (!control.enabled || !control.action) {
+      setNotice(snapshot.meeting.canStop ? snapshot.meeting.message : snapshot.readiness.nextAction ?? snapshot.meeting.message);
       return;
     }
-    if (action === "stop" && !meeting.canStop) {
-      setNotice(meeting.message);
-      return;
-    }
+    const action = control.action;
 
     meetingActionBusy = true;
     setNotice(action === "start" ? "Starting translation..." : "Stopping translation...");
     try {
       const result = await runtimeProductFacade.runProductMeetingAction(action);
-      const resultNotice = !result.ok && result.state === "frontend_bridge_error"
-        ? "Meeting status is unknown. Reconnect and retry."
-        : result.ok
-          ? action === "start" ? "Translation is live." : "Translation stopped."
-          : action === "start"
-            ? "Translation couldn't start. Check the setup items and try again."
-            : "Translation couldn't stop. Try again.";
+      const resultNotice = result.meeting.lifecycle === "cleanup_incomplete" || result.state === "cleanup_incomplete"
+        ? "Translation output stopped, but cleanup needs attention. Retry Stop."
+        : result.meeting.lifecycle === "unavailable" || result.state === "frontend_bridge_error"
+          ? "Meeting status is unknown. Check its status before trying another action."
+          : result.ok && action === "start" && result.meeting.live
+            ? "Translation is live."
+            : result.ok && action === "stop" && !result.meeting.hasSession && result.meeting.lifecycle === "idle"
+              ? "Translation stopped."
+              : result.meeting.message;
       applyMeetingStatus(result.status, resultNotice);
       if (!result.status.has_session || action === "start") {
         meetingViewState = meetingLiveController.reset();
@@ -436,6 +444,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
         {snapshot}
         {route}
         {notice}
+        meetingActionBusy={meetingActionBusy}
         {myVoiceRecording}
         onNavigate={navigate}
         onOpenUtility={openUtility}

@@ -1,12 +1,12 @@
 # TranslateIT Development
 
-## Active continuation — P0 UX first-launch task routing (2026-10-12)
+## Active continuation — Meeting lifecycle UX correctness (2026-10-12)
 
-**State: SOURCE CHANGE DELIVERED ON Local; NODE/SVELTE BUILD, RENDERED AND TARGET_WINDOWS PROOF NOT EXECUTED.** First launch now offers Text or Meeting directly within the existing FirstSetup screen. Choosing Text persists `meeting_setup_state=deferred` and the existing Meeting checkpoint; it never claims completed Meeting readiness, and Text still relies on independent runtime translation capability. The existing Meeting wizard, later `Set Up Later`, four top-level navigation destinations and returning-user Meeting default remain intact. No new dashboard, router, UI locale, or visual mockup was introduced.
+**State: SOURCE CHANGE ON Local; COMPILATION, EXECUTABLE TESTS, RENDERED/NATIVE PROOF NOT EXECUTED.** The Meeting page, handler, global header and Quick Actions now use one product action resolver. Stop and Retry Stop take precedence over voice/setup readiness; Starting/Stopping and unavailable ownership do not offer an inappropriate Start action. Global presence no longer presents cleanup as Ready/green. A no-session transient Stop cleanup failure remains Rust-owned and visible until an idempotent Stop succeeds; preflight blocks Start during the pending cleanup. Existing event-first runtime and one selected Meeting owner remain intact.
 
-**Proof ceiling:** GitHub exact-source/static review and added setup-flow source contract tests only; executable tests and Windows behavior remain UNKNOWN / NOT EXECUTED. Manual-only hosted CI remains inactive; `main` is unchanged. The integrated acceptance gate remains one grouped exact-SHA local run.
+**Proof ceiling:** exact Local source/static contract inspection only. New targeted lifecycle regression tests are included but Node/Cargo/Svelte and actual Windows/meeting playback were not executed. No hosted CI, branch promotion or visual redesign was performed. Validate these changes with the integrated exact-SHA local acceptance after remaining source integration.
 
-**One next step:** correct Meeting action labels and lifecycle states so Start, Stop, cleanup incomplete, and unknown runtime never present a misleading action.
+**One next step:** review and simplify normal Meeting Ready/Live information hierarchy without changing the established runtime contracts, and stage the integrated Windows acceptance criteria for Start/Stop, recovery and accessible global controls.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

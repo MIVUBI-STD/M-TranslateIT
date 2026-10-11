@@ -1,4 +1,5 @@
 use serde_json::json;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::engine::audio::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, clear_finalized_meeting_sequence,
@@ -56,6 +57,14 @@ use super::suppression::{
 use super::{
     generation_is_starting, MeetingSessionActionResult, APPLICATION_MEETING_OWNER_ID,
 };
+
+// A no-session Stop can still fail to clear transient audio/transcript resources.
+// Keep that native fact visible to preflight and the UI until Stop succeeds.
+static STOP_CLEANUP_PENDING: AtomicBool = AtomicBool::new(false);
+
+pub(super) fn transient_stop_cleanup_pending() -> bool {
+    STOP_CLEANUP_PENDING.load(Ordering::Acquire)
+}
 
 fn rollback_starting_meeting_resources(
     generation: u64,
@@ -130,6 +139,13 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
             "active_session_conflict",
             "Another runtime session already owns Meeting resources. Stop it before starting a new Translation session."
                 .to_string(),
+        );
+    }
+
+    if transient_stop_cleanup_pending() {
+        return blocked_result(
+            "cleanup_incomplete",
+            "The previous Meeting Stop still needs cleanup. Retry Stop Translation before starting a new session.".to_string(),
         );
     }
 
@@ -442,6 +458,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_outbound_status();
         clear_incoming_status();
         if !incoming_capture_stop.ok || deferred_cleanup.is_err() || !transcript_cleanup_ok {
+            STOP_CLEANUP_PENDING.store(true, Ordering::Release);
             return MeetingSessionActionResult {
                 ok: false,
                 state: "cleanup_incomplete".to_string(),
@@ -456,6 +473,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
                 status: status_from_report(current, build_preflight()),
             };
         }
+        STOP_CLEANUP_PENDING.store(false, Ordering::Release);
         return MeetingSessionActionResult {
             ok: true,
             state: "already_stopped".to_string(),
@@ -595,6 +613,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         || cleared.snapshot.is_some()
         || cleared.blocker != "runtime_session:cleared"
     {
+        STOP_CLEANUP_PENDING.store(true, Ordering::Release);
         return MeetingSessionActionResult {
             ok: false,
             state: "cleanup_incomplete".to_string(),
@@ -605,6 +624,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     }
 
     clear_start_preflight_for_generation(generation);
+    STOP_CLEANUP_PENDING.store(false, Ordering::Release);
 
     MeetingSessionActionResult {
         ok: true,

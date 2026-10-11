@@ -125,7 +125,8 @@ export function mapProductReadiness(input: {
     preflightReady: meeting.readyForStart,
     selectedVoiceReady: approvedVoiceReady,
   });
-  const meetingReady = voiceGate.meetingReady;
+  const meetingReady = voiceGate.meetingReady
+    && (productMeeting.live || (!productMeeting.hasSession && productMeeting.lifecycle === "idle"));
   const recording = productMeeting.captureActive;
   const blockers = collectBlockers({
     helper,
@@ -153,6 +154,8 @@ export function mapProductReadiness(input: {
     ? "TranslateIT is unavailable right now. Try the status check again before using translation."
     : productMeeting.live
       ? "Translation is live. Stop the Meeting session when you are finished."
+      : productMeeting.hasSession || productMeeting.lifecycle === "cleanup_incomplete"
+        ? productMeeting.message
       : voiceGate.nextAction
         ? voiceGate.nextAction
         : meeting.readyForStart
@@ -168,6 +171,8 @@ export function mapProductReadiness(input: {
     ? "TranslateIT is unavailable right now. Try the status check again."
     : productMeeting.live
       ? "Meeting Translation is live."
+      : productMeeting.hasSession || productMeeting.lifecycle === "cleanup_incomplete"
+        ? productMeeting.message
       : voiceGate.summary
         ? voiceGate.summary
         : meeting.readyForStart
@@ -230,13 +235,9 @@ export function mapProductReadiness(input: {
       : microphoneReady && providerReady
         ? "Required local outbound AI capabilities available"
         : "Local voice runtime needs setup",
-    meetingStatus: productMeeting.label === "Unavailable"
-      ? "Unavailable"
-      : productMeeting.live
-        ? "Live"
-        : productMeeting.busy
-          ? productMeeting.label
-          : meeting.readyForStart
+    meetingStatus: productMeeting.lifecycle !== "idle" || productMeeting.hasSession
+      ? productMeeting.label
+      : meeting.readyForStart
             ? voiceGate.status
             : level === "checking"
               ? "Checking"
