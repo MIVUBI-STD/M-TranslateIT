@@ -8,6 +8,12 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## Paused Work — Integrated Build / Packaging
+
+**State: PAUSED (2026-10-11, user decision).** Source development already committed on `Local` is retained; the current build/packaging/release candidate is **not** approved, published, compiled, packaged, or native-validated. FFmpeg release provenance was reconciled in `46b8b94bb1acaf08c9a8a9e18eb0a5b1223ae3fd`, but its archive, model/runtime assets, quality receipts, installer signatures and Windows audio behavior remain unverified. Preserve all locks, sources, acceptance contracts and accumulated evidence; do **not** run packaging, hosted CI, sign artifacts or promote `main`.
+
+**Next active direction:** new feature development to be specified by the user. The existing `docs/knowledge/operations/target-windows-performance.md` is the canonical integration/acceptance runbook **when packaging is explicitly resumed**; do not treat its sequence as the next task now. For a new feature, recover current `Local` HEAD and follow normal owner-first development discipline; no unrelated packaging or repeated incremental testing.
+
 ## Active Boundary
 
 Preserve:
@@ -67,6 +73,6 @@ Evidence from current Local source:
 - Guided recording UI now uses the existing Rust signal-quality blocker reasons for specific corrective advice. Held-out My Voice approval requires explicit human clarity/naturalness/speaker-resemblance confirmation after listening; Rust enforces it before actor promotion. Rejecting a candidate leaves the existing Meeting voice unchanged; an alternative candidate uses the current build path. Source regression checks authored NOT EXECUTED; quality benefit requires real listening evidence.
 - Quick Preview source, WAV/quality gates, bounded stdin input, status isolation and frontend freshness are wired. Source admission found the R3 Setup resource closure omitted both `voice_lab_quick_preview.py` and its required shared `voice_lab_gpt_sovits_build.py`; the Tauri resource map, exact release contract and required-file gate now include both. Static regression authored NOT EXECUTED; compiler/model/Windows proof remain unknown.
 
-Next action: the canonical single integrated gate is now detailed in `docs/knowledge/operations/target-windows-performance.md` for Text, Meeting, Settings, My Voice and the offline R3 pair. The existing local Cargo helper now records a clean source SHA, rejects an explicitly pinned `TRANSLATEIT_EXPECTED_SHA` mismatch, always rebuilds frontend to avoid stale `dist`, and runs `cargo check --locked`. This is SOURCE_WIRED only; actual toolchain tests, release-quality evidence, signing, package creation, GPU/audio and installed Windows acceptance are NOT EXECUTED. Do not run hosted CI, promote `main`, fabricate a quality receipt, or request incremental user-PC testing.
+Paused handoff: prior build/package preparation remains preserved above, but is not active work. Await the user's feature specification; resume one integrated local build/package/native acceptance only on a separate explicit decision. Source-only changes to feature owners remain valid on `Local`, with higher-context proof marked `NOT EXECUTED`.
 
 No benchmark improvement, native inference, installer validation, or runtime PASS is claimed. Branch Local remains development-only; main is reserved for expressly approved final results.
