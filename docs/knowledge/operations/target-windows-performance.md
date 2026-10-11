@@ -293,3 +293,7 @@ This section is an acceptance procedure, not target-Windows evidence. It covers 
 5. Confirm normal physical speaker output and virtual microphone are distinct. Endpoint-wide WASAPI incoming may capture unrelated PC audio; do not claim process-specific isolation or actual Zoom/Meet reception from a source-only validation.
 
 No OS or meeting application checks were executed here. Test the complete path, repeated session generations, physical device loss and long-session resources in the existing grouped exact-SHA Windows acceptance.
+
+## Supported virtual provider / no silent fallback (2026-10-11 source candidate)
+
+Confirm the native Windows audio-route discovery allows **only the standard** VB-CABLE playback/recording matched pair (CABLE Input / CABLE Output, VB-Audio Virtual Cable). Test a host with Voicemeeter, VB-CABLE A+B and/or other virtual cables **without the standard pair**: Meeting preflight must report missing virtual route rather than silently selecting those devices. With the standard pair installed alongside other providers, the standard pair alone must be selected. Keep packaging under the standard VB-CABLE license/provenance policy; do not add a second provider/driver. A functional CPAL output callback and actual meeting-app audio reception remain separate native checks, not consequences of static name matching.

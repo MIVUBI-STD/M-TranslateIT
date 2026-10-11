@@ -1,5 +1,12 @@
 # TranslateIT Development
 
+## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
+
+**State: SOURCE CORRECTION ON Local; COMPILATION/NATIVE ACCEPTANCE NOT EXECUTED.** Source admission found that the virtual-route resolver would automatically choose any single matched Voicemeeter or generic virtual cable when the supported VB-CABLE pair was absent, despite the controlled provider policy for the standard VB-CABLE Package45. Auto-routing is now restricted to one positively matched standard CABLE Input/CABLE Output pair. Foreign mixer/cable providers never become silent fallbacks. The existing ambiguity guard, name collision reporting, generation-bound output and Start blocking remain in place. Regression tests cover the standard pair, Voicemeeter, alternate cable A, and generic virtual cable. The pre-existing virtual-route source validator now checks this boundary rather than merely the presence of a paired-device helper.
+
+**Capability and remaining evidence:** GitHub source review only, with no Cargo/Node execution and no Windows/driver/meeting-app test. This source tightening may intentionally require installing the standard VB-CABLE when only other virtual mixers were previously available. Per-device real endpoint IDs, process-isolated capture, stream callback performance and persistent playback remain native evidence decisions. One next step: existing integrated exact-SHA Windows source/build/package + VB-CABLE route, real meeting delivery and long-session acceptance; no hosted CI or main promotion.
+
+
 ## Audio routing isolation: source integration candidate (2026-10-11)
 
 **State: SOURCE PREPARED; COMPILER, DEVICE AND MEETING APP ACCEPTANCE NOT EXECUTED.** This user-authorized routing cleanup addresses a mismatch between device discovery and runtime use: the original name-deduplicated inventory incorrectly hid collisions that the native stream selector rejects. Audio discovery now explicitly reports collision names, virtual-route readiness refuses an ambiguous selected pair, and Settings disables ambiguous choices. Meeting preflight rejects using the virtual recording mic as the spoken physical source; optional Meeting Sound refuses capturing from the TTS virtual render endpoint. The UI now distinguishes microphone you speak into, microphone sent to the call, and where the calling app plays sound. The canonical generation-bound Rust Meeting owner, required outbound versus optional incoming isolation and VB-CABLE packaging policy are unchanged.

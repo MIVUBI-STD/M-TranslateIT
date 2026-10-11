@@ -98,6 +98,14 @@ requireMarkers(source.route, "matched read-only Meeting route", [
   "pub fn get_virtual_mic_route_contract_status()",
   "fn matched_pair_identity(",
   "fn matched_pair_candidates(",
+  "fn primary_vb_cable_pair(",
+  "fn reject_ambiguous_pair(",
+  "let selected = if primary.len() == 1",
+]);
+forbidMarkers(source.route, "unexpected virtual provider auto-fallback", [
+  'normalized.contains("voicemeeter")',
+  '|| normalized.contains("virtual cable")',
+  "else if candidates.len() == 1",
 ]);
 forbidMarkers(source.route, "unowned persisted route preference/stub", [
   "VirtualMicRoutePreference",

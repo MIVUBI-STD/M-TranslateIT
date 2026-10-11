@@ -83,10 +83,14 @@ fn named_device_exists(devices: &[AudioDeviceSummary], name: &str) -> bool {
 }
 
 fn supported_virtual_pair_provider(name: &str) -> bool {
+    // The current packaged route is the *standard* VB-CABLE, not VB-CABLE
+    // A+B/C+D, Voicemeeter's mixer buses, or a different virtual-audio driver.
+    // Those providers have distinct drivers/topologies and must never become
+    // an implicit fallback simply because a playback/recording name matches.
     let normalized = name.to_ascii_lowercase();
-    normalized.contains("vb-audio")
-        || normalized.contains("voicemeeter")
-        || normalized.contains("virtual cable")
+    normalized.contains("vb-audio virtual cable")
+        && (normalized.starts_with("cable input")
+            || normalized.starts_with("cable output"))
 }
 
 fn endpoint_pair_identity(name: &str, expected_role: &str) -> Option<String> {
@@ -183,10 +187,11 @@ fn select_route_pair(
         .iter()
         .filter(|candidate| primary_vb_cable_pair(candidate))
         .collect::<Vec<_>>();
+    // Only the standard VB-CABLE pair is automatically supported.
+    // Never activate a different mixer/cable if the installed standard pair is
+    // absent or ambiguous.
     let selected = if primary.len() == 1 {
         primary.first().copied()
-    } else if candidates.len() == 1 {
-        candidates.first()
     } else {
         None
     };
@@ -208,7 +213,7 @@ fn select_route_pair(
         selected_input_device: None,
         output_device_found: false,
         input_device_found: false,
-        blocker: if candidates.is_empty() {
+        blocker: if primary.is_empty() {
             "virtual_mic:matched_route_pair_missing".to_string()
         } else {
             "virtual_mic:matched_route_pair_ambiguous".to_string()
@@ -493,8 +498,35 @@ pub fn get_virtual_mic_route_contract_status() -> VirtualMicRouteContractStatus 
 
 #[cfg(test)]
 mod b3_route_hot_path_tests {
-    use super::{reject_ambiguous_pair, status_from_selection, RouteSelection};
+    use super::{
+        reject_ambiguous_pair, select_route_pair, status_from_selection, RouteSelection,
+    };
     use crate::commands::audio::{AudioDeviceListReport, AudioDeviceSummary};
+
+    #[test]
+    fn automatic_route_accepts_only_the_standard_vb_cable_pair() {
+        let make = |name: &str| AudioDeviceSummary {
+            id: name.to_string(),
+            name: name.to_string(),
+            is_default: false,
+        };
+        let standard = select_route_pair(
+            &[make("CABLE Input (VB-Audio Virtual Cable)")],
+            &[make("CABLE Output (VB-Audio Virtual Cable)")],
+        );
+        assert!(standard.blocker.is_empty());
+        assert!(standard.route_pair_id.is_some());
+
+        for (playback, recording) in [
+            ("Voicemeeter Input (VB-Audio Voicemeeter VAIO)", "Voicemeeter Output (VB-Audio Voicemeeter VAIO)"),
+            ("CABLE-A Input (VB-Audio Cable A)", "CABLE-A Output (VB-Audio Cable A)"),
+            ("Virtual Cable Input", "Virtual Cable Output"),
+        ] {
+            let not_standard = select_route_pair(&[make(playback)], &[make(recording)]);
+            assert_eq!(not_standard.blocker, "virtual_mic:matched_route_pair_missing");
+            assert!(not_standard.route_pair_id.is_none());
+        }
+    }
 
     #[test]
     fn duplicate_virtual_output_name_cannot_claim_route_ready() {
