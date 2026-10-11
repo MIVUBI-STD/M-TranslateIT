@@ -275,8 +275,8 @@
   });
 </script>
 
-<main class="grid min-h-screen place-items-center overflow-y-auto bg-[var(--ti-bg)] px-8 py-10" aria-label="TranslateIT Setup">
-  <section class="ti-panel w-full max-w-[900px] overflow-hidden">
+<main class="flex h-screen min-h-0 items-start justify-center overflow-y-auto bg-[var(--ti-bg)] px-8 py-10" aria-label="TranslateIT Setup">
+  <section class="ti-panel w-full max-w-[900px] shrink-0 overflow-hidden">
     <header class="flex items-center gap-3 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-7 py-5">
       <div class="grid size-10 place-items-center rounded-[12px] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] text-base font-bold">T</div>
       <div>

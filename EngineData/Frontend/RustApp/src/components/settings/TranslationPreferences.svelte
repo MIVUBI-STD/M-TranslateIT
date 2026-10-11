@@ -26,6 +26,8 @@
   let saving = $state(false);
   let styleSaving = $state(false);
   let termSearch = $state("");
+  // UI disclosure state is transient, independent of term-list mutations.
+  let languageToolsOpen = $state(settings.spoken_terms.length > 0 || settings.terminology.length > 0);
   const filteredTerms = $derived(settings.terminology.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
     const q = termSearch.trim().toLowerCase();
     return !q || entry.indonesian.toLowerCase().includes(q) || entry.english.toLowerCase().includes(q);
@@ -258,7 +260,7 @@
 
 <FloatingCaptionPreferences {onNotice} />
 
-<details class="ti-panel overflow-hidden" open={settings.spoken_terms.length > 0 || settings.terminology.length > 0}>
+<details class="ti-panel overflow-hidden" bind:open={languageToolsOpen}>
   <summary class="cursor-pointer bg-[var(--ti-surface-soft)] px-5 py-4 text-left">
     <strong class="block text-[15px] font-semibold">Language tools and feedback</strong>
     <span class="mt-1 block text-[12px] leading-5 text-[var(--ti-text-muted)]">

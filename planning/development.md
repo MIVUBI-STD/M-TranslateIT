@@ -8,13 +8,23 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## U4 — Integrated UI/UX acceptance source admission (2026-10-11)
+
+**State: SOURCE ADMISSION PREPARED; EXECUTABLE, RENDERED AND TARGET_WINDOWS ACCEPTANCE NOT EXECUTED.** The user authorized continuation from U3 into integrated U4 acceptance. Current ChatGPT capability remains `REMOTE_GITHUB` only; neither a locked native Windows checkout nor an installed app is accessible, and hosted CI/build is prohibited. Do not represent this as native PASS or as permission to release/promote `main`.
+
+**Source findings and remedy:** Fixed First Setup's viewport-scroll container so its four-step content is scrollable rather than extending beneath the body overflow boundary on short/high-DPI windows; preserved its setup state, device readiness and persistence. Changed optional Translation Settings' `details` to local `bind:open` UI state initialized from existing term counts, preventing the editor from unexpectedly closing when the final term is deleted without touching user data. Extended the existing Windows performance acceptance runbook with an explicit U1–U3 UI interaction matrix and privacy/STOP evidence rules; no new harness, cloud job, model, runtime, package or source-of-truth document.
+
+**Source ceiling:** Static GitHub reading confirms ownership and code locations, not Svelte typecheck, bundle validity, Windows DPI fit, screen reader usability, actual voice behavior, or meeting audio/route delivery. The Tauri main window still declares a native 1280×760 minimum; exact fit on high-scale/small screens remains a D5 native acceptance question, not an assumed pass. The build and release packaging state is unchanged.
+
+**One next step:** When a genuine exact-SHA `LOCAL_CODE` plus `TARGET_WINDOWS` environment is available, execute the already-defined single integrated build/acceptance sequence in `docs/knowledge/operations/target-windows-performance.md`, recording failures and stopping at the first failing owner. Do not request per-feature user-PC tests or dispatch hosted CI.
+
 ## UI/UX usability iteration — U3 My Voice, captions and Settings (2026-10-11)
 
 **State: SOURCE IMPLEMENTED; EXECUTABLE/RENDERED/NATIVE PROOF NOT EXECUTED.** Existing Svelte UI owners were reused. The My Voice page now explains the three-stage optional journey, surfaces accepted sample-line progress, marks the selected line accessibly, and clears the built-in voice preview busy indicator on missing audio. The canonical My Voice build and approval lifecycle remains mounted, with the training-only Quick Preview controls in a reversible disclosure; an active preview remains visible and stoppable. Floating caption settings now include sample-only text/width/contrast preview using the canonical overlay sizing policy, with explicit limits on Windows-DPI and calling-app behavior. Translation Settings groups optional terminology and opt-in feedback in a native disclosure, initially expanded for users with saved terms. No alternative runtime, controller, cache, transcript retention, personal-voice migration, or dependency was added.
 
 **Safety / scope:** Quick Preview never becomes an approved Meeting voice; training, cancellation, listening and explicit human approval are unchanged. Personal recordings and preferred terms stay with their existing owners. New illustration is hard-coded public sample text, not a display of private captions. This is not a claim that high-contrast rendering or keyboard/screen reader behavior has been tested on Windows.
 
-**Next step:** Keep Q4 paused unless integrated Windows acceptance is explicitly authorized; its single batch must check frontend compilation, component keyboard navigation/announcements, caption settings vs native 100–200% scaling, My Voice sample recording/build/approval paths, privacy lifecycle and full Meeting functionality on one pinned `Local` SHA. Do not repeat feature-level PC checks or begin packaging by default.
+**Continuation:** U4 source admission is recorded above. Native acceptance and release remain unexecuted.
 
 ## UI/UX usability iteration — U2 First Setup and Meeting (2026-10-11)
 

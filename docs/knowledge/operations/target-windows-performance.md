@@ -42,6 +42,24 @@ This is a **read-only admission review**, not proof of native behavior or releas
 
 If source admission is not met, continue GitHub repository work and keep execution `UNKNOWN / NOT EXECUTED`. No hosted fallback and no repeated local requests. Actual Windows build/package/device acceptance is required before declaring a finished application.
 
+## U4 — integrated desktop UI/UX acceptance (U1–U3)
+
+**Execution context:** source inspection may establish only `REMOTE_GITHUB` admission; this section records no actual run results. Conduct the UI checks **within** the single planned locked-SHA Windows session below, after its existing compilation/source admission succeeds. Do not dispatch hosted CI, create a second UI verification framework, or ask for incremental user-PC tests. The existing [acceptance scenarios](../../foundation/03-acceptance-scenarios.md) remain authoritative for D1–D5, A9, B1/B5 and Meeting C0/C4/C5. Keep Q4 packaging separately gated by the existing candidate admission decisions.
+
+| Area and existing scenario | Exact interaction to observe | Failure/STOP signal |
+| --- | --- | --- |
+| U1 Text · D5 | Translate Indonesian→English and English→Indonesian; copy Translation/Source/Bilingual; open and close More options; Clear and Undo Clear; edit draft, navigate away/back, and change settings during a pending translation | Any lost draft without explicit action, stale result presented as current, missing secondary action, clipped/focus-inaccessible Copy or Translate |
+| U2 First Setup · D1/D3/D5 | Change microphone without saving: Continue stays blocked; save/check new selection; revisit an unavailable device; verify 4-step resume and deferred setup after relaunch | Continue enabled for an unsaved/unverified selected microphone, silent device fallback, checkpoint loss, unavailable recovery |
+| U2 Meeting · D3/B5/C0/C4 | Observe checking, missing input, missing virtual route, missing voice, ready, live and stopped states; recover via existing Check Again/Repair Setup/Choose Voice; verify the calling app separately selects the virtual device | A Ready claim from Windows device availability alone, misleading blocker, Start bypassing canonical readiness, broken Stop |
+| U3 built-in and My Voice · A9/D5 | Preview Built-in Male/Female including missing-audio recovery; select, record, Replay/Retry/Accept; retain samples; expand/collapse Quick Preview, cancel when active; listen to every evaluation sample and explicitly approve before use | Preview button remains locked; ongoing build/cancel/approval becomes inaccessible; approval bypass, sample loss, unintended voice switch |
+| U3 Floating Caption · D4/D5 | Change size/width/contrast in Settings; compare public-sample preview to actual overlay at 100%, 125%, 150%, 200% display scaling and multi-monitor changes; Hide/Show, click-through escape, keyboard/focus and long captions | Private text restored on Show/Hide, overlay inaccessible/off-screen, text clipped without recovery, incorrect claim that preview proves native layout |
+| U3 Translation Settings · D1/D2/D5 | Expand terminology/feedback; add/remove final term while disclosure stays open by user choice; navigate away/back, verify saved entries; confirm no feedback export/clear without user action | Disclosure unexpectedly collapses on term-list updates, lost term, unintended export/clear, private feedback leakage |
+| Cross-page accessibility · D5 | Keyboard-only tab order, labelled controls, screen-reader announcements, reduced motion/high contrast, disabled/loading/error states at supported 1280×760 minimum and high-DPI effective viewport | Unreachable critical action, trapped focus, unreadable warning, lack of usable scrolling, click-through without recovery |
+
+**Evidence & safety:** record the pinned 40-character SHA, toolchain/build results, Windows/display dimensions and DPI, scenario ID, pass/fail/unknown, and a reproducible non-private symptom. Do not record or commit user speech, microphone recordings, private translated text, approved My Voice assets or unredacted user paths. A screenshot with personal data must not enter GitHub. An `UNKNOWN` for an unobservable application setting remains unknown; do not infer it from Tauri device presence.
+
+**Stop rule:** if the pinned source fails typechecking, frontend tests, bundle contract or Tauri/Rust compilation, STOP before native UI evidence. If native UI behavior fails, capture the **first wrong owner**, do not bypass readiness/privacy checks or weaken the gate. No PASS or completion claim until actual executable/rendered/Windows evidence is recorded.
+
 ## One integrated candidate execution sequence
 
 This is an **execution plan**, not a request to use the user's PC now. Keep it in the existing runbook; do not create a separate release harness or hosted job. Follow `docs/foundation/03-acceptance-scenarios.md` as the sole scenario authority.
