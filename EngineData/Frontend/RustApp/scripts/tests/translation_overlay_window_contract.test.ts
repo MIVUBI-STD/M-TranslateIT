@@ -128,3 +128,9 @@ test("Meeting end and reset revoke the previous caption, never a newer Text over
   assert.match(overlayPage, /caption\?\.revision !== onlyRevision && pendingCaption\?\.revision !== onlyRevision/);
   assert.match(overlayRuntime, /if \(!caption\) \{\s*await clearLatestMeetingOverlay\(\)/);
 });
+
+test("out-of-order preferences events reconcile from the current persisted state", () => {
+  assert.match(overlayPage, /TRANSLATION_OVERLAY_PREFERENCES_EVENT, \(\) =>/);
+  assert.match(overlayPage, /applyPreferences\(readOverlayPreferences\(\)\)/);
+  assert.doesNotMatch(overlayPage, /applyPreferences\(event\.payload\)/);
+});

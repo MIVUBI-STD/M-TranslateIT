@@ -288,8 +288,9 @@
         if (onlyRevision && caption?.revision !== onlyRevision && pendingCaption?.revision !== onlyRevision) return;
         clearCaption();
       }))) return;
-      if (!await track(listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, (event) => {
-        if (!disposed) void applyPreferences(event.payload).catch(() => {
+      if (!await track(listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, () => {
+        // Notification payloads can arrive out of order. Persistent preferences own truth.
+        if (!disposed) void applyPreferences(readOverlayPreferences()).catch(() => {
           if (!disposed) recordOverlayError("Floating caption preferences could not be applied.");
         });
       }))) return;
