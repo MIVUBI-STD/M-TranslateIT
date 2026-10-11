@@ -269,3 +269,15 @@ This run is complete when one exact SHA has:
 5. a named first bottleneck, or evidence that no additional source optimization is currently justified.
 
 Return only the measured first bottleneck to development. Do not reopen every previously considered optimization at once.
+
+## Audio endpoint ambiguity and capture-progress acceptance (2026-10-11 candidate)
+
+This is a future TARGET_WINDOWS acceptance procedure, not a completed test receipt. It verifies the fail-closed endpoint-name selector and native-frame progress check introduced on Local.
+
+1. With a uniquely named physical mic, Meeting Sound output and one installed VB-CABLE pair, verify explicit preferences, functional Mic Test, actual Zoom/Meet microphone delivery, Stop and repeated Start without raw-mic or physical-speaker fallback.
+2. Reproduce duplicate-name Windows endpoints where hardware permits. Pinned capture, optional incoming and required translated playback must refuse ambiguous matches. If duplicate names cannot be reproduced, mark NOT EXECUTED, not PASS.
+3. Keep the mic powered and silent for 30 seconds: `frames_received` must advance and the guard must not falsely flag a stall. If possible, simulate a native stream that stays nominally active but stops producing callback frames. Sustained no-progress across health observations must report `device_loss:microphone_callback_stalled` after 24 seconds.
+4. Stop, new Meeting generation and new capture-start identity must reset liveness observations. Loss of Meeting Sound remains optional, without automatic outbound mic swap or TTS replay.
+5. Include cases in the single exact-SHA integrated source/toolchain/package/long-session matrix, measuring handle, memory and dropout growth rather than treating unit contracts as native proof.
+
+This revision does not supply Windows MMDevice endpoint IDs, process-specific loopback or persistent playback. Those require separate dependency/API and Windows evidence gates. Maintain the existing VB-CABLE policy and no silent audio fallback.

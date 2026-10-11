@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use crate::engine::audio::device_selection::resolve_unique_named_device;
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
 #[path = "meeting_output_runtime/audio_format.rs"]
@@ -82,12 +83,9 @@ fn find_output_device(requested_name: &str) -> Result<cpal::Device, String> {
     let devices = host
         .output_devices()
         .map_err(|_| "meeting_output:output_device_enumeration_failed".to_string())?;
-    for device in devices {
-        if device.name().ok().as_deref() == Some(requested_name) {
-            return Ok(device);
-        }
-    }
-    Err("meeting_output:selected_output_device_unavailable".to_string())
+    resolve_unique_named_device(devices, requested_name, |device| device.name().ok())
+        .map_err(|_| "meeting_output:selected_output_device_ambiguous".to_string())?
+        .ok_or_else(|| "meeting_output:selected_output_device_unavailable".to_string())
 }
 
 pub fn prepare_meeting_output_device(requested_name: &str) -> Result<(), String> {

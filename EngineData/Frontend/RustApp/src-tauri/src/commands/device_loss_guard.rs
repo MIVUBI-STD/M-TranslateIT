@@ -1,5 +1,6 @@
 use serde::Serialize;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::audio::live_capture::live_capture_status;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
@@ -22,6 +23,61 @@ pub struct DeviceLossGuardStatus {
     pub blocker: String,
     pub note: String,
     pub updated_unix_ms: u128,
+}
+
+const CAPTURE_STALL_THRESHOLD: Duration = Duration::from_secs(24);
+
+#[derive(Debug)]
+struct CaptureProgress {
+    session_id: String,
+    stream_started_unix_ms: u128,
+    frames_received: u64,
+    last_progress: Instant,
+}
+
+static CAPTURE_PROGRESS: OnceLock<Mutex<Option<CaptureProgress>>> = OnceLock::new();
+
+fn capture_progress_store() -> &'static Mutex<Option<CaptureProgress>> {
+    CAPTURE_PROGRESS.get_or_init(|| Mutex::new(None))
+}
+
+// Native PCM frames progress even while a user is silent. No timestamps are
+// acquired on the realtime audio callback; only the slow health reader samples.
+fn capture_frames_stalled(
+    state: &mut Option<CaptureProgress>,
+    session_id: &str,
+    started_unix_ms: u128,
+    frames_received: u64,
+    now: Instant,
+) -> bool {
+    let reset = match state {
+        Some(previous) => previous.session_id != session_id
+            || previous.stream_started_unix_ms != started_unix_ms
+            || frames_received < previous.frames_received,
+        None => true,
+    };
+    if reset {
+        *state = Some(CaptureProgress {
+            session_id: session_id.to_string(),
+            stream_started_unix_ms: started_unix_ms,
+            frames_received,
+            last_progress: now,
+        });
+        return false;
+    }
+    let previous = state.as_mut().expect("progress state was initialized");
+    if frames_received > previous.frames_received {
+        previous.frames_received = frames_received;
+        previous.last_progress = now;
+        return false;
+    }
+    now.saturating_duration_since(previous.last_progress) >= CAPTURE_STALL_THRESHOLD
+}
+
+fn clear_capture_progress() {
+    if let Ok(mut state) = capture_progress_store().lock() {
+        *state = None;
+    }
 }
 
 fn unix_ms() -> u128 {
@@ -79,6 +135,7 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
     if !meeting.has_session
         || meeting.owner_id.as_deref() != Some(APPLICATION_MEETING_OWNER_ID)
     {
+        clear_capture_progress();
         return record_if_needed(status(
             "idle",
             true,
@@ -119,6 +176,37 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
             "microphone",
             "device_loss:microphone_callback_error",
             "The required microphone stream reported a native callback error. TranslateIT will not silently switch devices; stop Translation before recovery.",
+        ));
+    }
+
+    // A native stream can stall with no CPAL callback error.
+    if let (Some(session_id), Some(started)) =
+        (live.session_id.as_deref(), live.started_unix_ms)
+    {
+        let stalled = match capture_progress_store().lock() {
+            Ok(mut state) => capture_frames_stalled(
+                &mut state, session_id, started, live.frames_received, Instant::now(),
+            ),
+            Err(_) => {
+                return record_if_needed(status(
+                    "unverified", false, true, true, false, "microphone",
+                    "device_loss:microphone_progress_unavailable",
+                    "Microphone callback progress could not be inspected safely.",
+                ));
+            }
+        };
+        if stalled {
+            return record_if_needed(status(
+                "required_device_lost", false, true, true, false, "microphone",
+                "device_loss:microphone_callback_stalled",
+                "The microphone stream is open but native frames have stopped for at least 24 seconds. Stop Translation and recover the selected microphone; no fallback was chosen.",
+            ));
+        }
+    } else {
+        return record_if_needed(status(
+            "unverified", false, true, true, false, "microphone",
+            "device_loss:microphone_progress_identity_missing",
+            "Active microphone capture is missing its session/start identity.",
         ));
     }
 
@@ -211,7 +299,42 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::selected_device_present;
+    use super::{capture_frames_stalled, selected_device_present, CaptureProgress, CAPTURE_STALL_THRESHOLD};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn silent_pcm_counts_as_callback_progress_but_no_frames_stalls() {
+        let now = Instant::now();
+        let mut state: Option<CaptureProgress> = None;
+        assert!(!capture_frames_stalled(&mut state, "session-a", 100, 0, now));
+        assert!(!capture_frames_stalled(
+            &mut state, "session-a", 100, 48_000, now + Duration::from_secs(8),
+        ));
+        assert!(!capture_frames_stalled(
+            &mut state, "session-a", 100, 48_000,
+            now + Duration::from_secs(8) + CAPTURE_STALL_THRESHOLD - Duration::from_millis(1),
+        ));
+        assert!(capture_frames_stalled(
+            &mut state, "session-a", 100, 48_000,
+            now + Duration::from_secs(8) + CAPTURE_STALL_THRESHOLD,
+        ));
+        assert!(!capture_frames_stalled(
+            &mut state, "session-a", 100, 48_001, now + Duration::from_secs(40),
+        ));
+    }
+
+    #[test]
+    fn new_session_and_new_stream_reset_liveness_tracking() {
+        let now = Instant::now();
+        let mut state: Option<CaptureProgress> = None;
+        assert!(!capture_frames_stalled(&mut state, "a", 100, 500, now));
+        assert!(!capture_frames_stalled(
+            &mut state, "b", 100, 0, now + Duration::from_secs(60),
+        ));
+        assert!(!capture_frames_stalled(
+            &mut state, "b", 200, 0, now + Duration::from_secs(120),
+        ));
+    }
 
     #[test]
     fn default_device_selection_does_not_require_name_identity() {

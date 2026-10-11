@@ -2,6 +2,7 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use serde::Serialize;
 
 use crate::engine;
+use crate::engine::audio::device_selection::resolve_unique_named_device;
 use crate::engine::audio::input::{probe_input_device_functionally, InputPreparationStatus};
 use crate::engine::audio::live_audio_buffer::live_audio_buffer_status;
 
@@ -214,12 +215,11 @@ fn find_output_device(
         .filter(|value| !value.is_empty())
     {
         let devices = host.output_devices().map_err(|error| error.to_string())?;
-        for device in devices {
-            if device_name(&device).as_deref() == Some(requested_name) {
-                return Ok((device, false));
-            }
-        }
-        return Err("The selected Meeting sound device is not available. The Windows default device was not substituted.".to_string());
+        let resolved = resolve_unique_named_device(devices, requested_name, device_name)
+            .map_err(|_| "The selected Meeting Sound name is ambiguous across multiple Windows endpoints. No fallback was made.".to_string())?;
+        return resolved.map(|device| (device, false)).ok_or_else(|| {
+            "The selected Meeting sound device is not available. The Windows default device was not substituted.".to_string()
+        });
     }
 
     host.default_output_device()

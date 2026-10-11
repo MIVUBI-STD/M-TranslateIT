@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
+use super::device_selection::resolve_unique_named_device;
 use super::{TARGET_CHANNELS, TARGET_SAMPLE_RATE_HZ};
 
 const MAX_INPUT_DEVICE_NAME_CHARS: usize = 160;
@@ -286,12 +287,8 @@ fn find_named_input_device(
     requested_name: &str,
 ) -> Result<Option<cpal::Device>, String> {
     let devices = host.input_devices().map_err(|error| error.to_string())?;
-    for device in devices {
-        if safe_device_name(&device).as_deref() == Some(requested_name) {
-            return Ok(Some(device));
-        }
-    }
-    Ok(None)
+    resolve_unique_named_device(devices, requested_name, safe_device_name)
+        .map_err(|_| "Several microphones have the selected name; no microphone was substituted.".to_string())
 }
 
 fn is_unsafe_input_name_character(character: char) -> bool {

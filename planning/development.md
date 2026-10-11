@@ -1,5 +1,14 @@
 # TranslateIT Development
 
+## Audio route/device reliability hardening (2026-10-11)
+
+**State: SOURCE CANDIDATE ON Local; COMPILE AND TARGET_WINDOWS NOT EXECUTED.** Under the user's high-end stability request, one shared Rust name selector now rejects duplicate Windows endpoint display names for explicitly pinned microphone, Meeting Sound, and VB-CABLE playback routing instead of choosing the first matching endpoint. The Meeting device-loss monitor now detects native mic frame starvation after 24 seconds across status observations without confusing quiet speech/silent PCM for missing native callbacks. Tracking resets across session/stream identity changes. There is no new driver, cloud runtime, alternate audio engine or automatic fallback. The existing bounded Meeting playback and generation authority remain unchanged.
+
+**Limits:** CPAL 0.15 in this repository still selects by name, not Windows MMDevice Endpoint ID; duplicates fail closed instead of providing stable identity. Incoming still uses endpoint-wide loopback. Persistent output and process-specific loopback require target Windows measurement/compatibility validation before changing the live audio path. Source presence is not native delivery proof.
+
+**Proof and next step:** Exact GitHub source and Rust regression contract additions; compiler, installed driver, meeting application, Windows frame liveness and multi-hour tests NOT EXECUTED. Next is the existing exact-SHA grouped local build/package and TARGET_WINDOWS acceptance phase in docs/knowledge/operations/target-windows-performance.md. Do not dispatch hosted CI or modify main.
+
+
 ## Current Status
 
 `Local` owns active development, source, governance, verification planning, continuation, and release-source validation. The GitHub default branch `main` remains reserved for a finalized, separately approved result; it is not a target for unfinished changes.

@@ -1,3 +1,4 @@
+pub(crate) mod device_selection;
 pub mod evidence;
 pub mod finalized_utterance;
 pub mod guided_take;
