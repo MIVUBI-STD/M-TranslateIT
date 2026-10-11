@@ -60,3 +60,19 @@ test("caption payload or clear is sent before exposing the native window", () =>
   assert.ok(publish.indexOf("await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_EVENT, normalized)") < publish.indexOf("await window.show()"));
   assert.ok(show.indexOf("TRANSLATION_OVERLAY_CLEAR_EVENT") < show.indexOf("await window.show()"));
 });
+
+test("native positioning is serialized, DPI-constrained, and never persists an automatic move", () => {
+  assert.match(overlayPage, /layoutQueue = layoutQueue\.then\(\(\) => restorePosition\(\)\)/);
+  assert.match(overlayPage, /fitOverlayHeight\(currentHeight/);
+  assert.match(overlayPage, /isProgrammaticOverlayMove\(payload, lastAutomaticPosition\)/);
+  assert.match(overlayPage, /new PhysicalPosition\(next\.x, next\.y\)/);
+});
+
+test("caption resize and native subscriptions have bounded lifecycle ownership", () => {
+  assert.match(overlayPage, /new ResizeObserver/);
+  assert.match(overlayPage, /observer\.disconnect\(\)/);
+  assert.match(overlayPage, /const track = async/);
+  assert.match(overlayPage, /if \(disposed\) \{ unlisten\(\); return false; \}/);
+  assert.match(overlayPage, /for \(const unlisten of unlisteners\) unlisten\(\)/);
+  assert.match(overlayPage, /recordOverlayError\("Floating caption setup is unavailable\."\)/);
+});

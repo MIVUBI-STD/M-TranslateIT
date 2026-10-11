@@ -98,6 +98,21 @@ export function fitOverlayWidth(desiredLogicalWidth: number, physicalWorkAreaWid
   return Math.max(260, Math.min(desiredLogicalWidth, Math.floor(physicalWorkAreaWidth / scaleFactor) - 32));
 }
 
+// Work areas are physical pixels; native window sizing uses logical pixels.
+// A compact screen can force scrolling, but we never shrink text to fit.
+export function fitOverlayHeight(desiredLogicalHeight: number, workAreaPhysicalHeight: number, scaleFactor: number): number {
+  if (!Number.isFinite(scaleFactor) || scaleFactor <= 0 || !Number.isFinite(workAreaPhysicalHeight) || workAreaPhysicalHeight <= 0) {
+    return desiredLogicalHeight;
+  }
+  return Math.max(64, Math.min(desiredLogicalHeight, Math.floor(workAreaPhysicalHeight / scaleFactor) - 32));
+}
+
+export function isProgrammaticOverlayMove(position: PhysicalPoint, lastAutomaticPosition: PhysicalPoint | null): boolean {
+  return lastAutomaticPosition !== null
+    && Math.abs(position.x - lastAutomaticPosition.x) <= 2
+    && Math.abs(position.y - lastAutomaticPosition.y) <= 2;
+}
+
 export function overlayFontSize(size: OverlayTextSize): number {
   if (size === "small") return 18;
   if (size === "large") return 26;

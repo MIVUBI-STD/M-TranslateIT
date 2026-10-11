@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -58,4 +58,19 @@ test("overlay width accounts for physical pixels at mixed DPI", () => {
   assert.equal(fitOverlayWidth(760, 900, 1.5), 568);
   assert.equal(fitOverlayWidth(760, 500, 1), 468);
   assert.equal(fitOverlayWidth(620, 1200, Number.NaN), 620);
+});
+
+test("work area height bounds long captions without lowering font size", () => {
+  assert.equal(fitOverlayHeight(420, 450, 1), 418);
+  assert.equal(fitOverlayHeight(420, 900, 2), 418);
+  assert.equal(fitOverlayHeight(180, 800, 1.25), 180);
+  assert.equal(fitOverlayHeight(420, 200, 2), 68);
+  assert.equal(fitOverlayHeight(420, 0, 1), 420);
+});
+
+test("automatic overlay placement events do not overwrite intentional position", () => {
+  assert.equal(isProgrammaticOverlayMove({ x: 650, y: 700 }, { x: 650, y: 700 }), true);
+  assert.equal(isProgrammaticOverlayMove({ x: 649, y: 702 }, { x: 650, y: 700 }), true);
+  assert.equal(isProgrammaticOverlayMove({ x: 550, y: 700 }, { x: 650, y: 700 }), false);
+  assert.equal(isProgrammaticOverlayMove({ x: 650, y: 700 }, null), false);
 });

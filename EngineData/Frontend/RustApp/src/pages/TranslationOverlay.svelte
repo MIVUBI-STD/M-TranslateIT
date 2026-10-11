@@ -16,6 +16,8 @@
     defaultBottomCenterPosition,
     captionHeightForContent,
     fitOverlayWidth,
+    fitOverlayHeight,
+    isProgrammaticOverlayMove,
     overlayFontSize,
     overlayWidth,
     recentMeetingCaptions,
@@ -29,6 +31,7 @@
     readOverlayPosition,
     readOverlayPreferences,
     discardLegacyOverlayCaption,
+    recordOverlayError,
     updateOverlayPreferences,
     writeOverlayPosition,
   } from "../app/runtime/translationOverlayState";
@@ -40,6 +43,9 @@
   let captionBody = $state<HTMLDivElement | null>(null);
   let captionText = $state<HTMLParagraphElement | null>(null);
   let measuredCaptionHeight = $state(0);
+  let disposed = false;
+  let lastAutomaticPosition: { x: number; y: number } | null = null;
+  let layoutQueue: Promise<void> = Promise.resolve();
   let historyOpen = $state(false);
   let historyLoading = $state(false);
   let historyEntries = $state<RecentCaptionEntry[]>([]);
@@ -62,42 +68,66 @@
     return { x: monitor.workArea.position.x, y: monitor.workArea.position.y, width: monitor.workArea.size.width, height: monitor.workArea.size.height };
   }
 
+  // Serialize native moves/resizes: stale async layout requests cannot race ahead of newer UI state.
+  function scheduleLayout(): Promise<void> {
+    layoutQueue = layoutQueue.then(() => restorePosition()).catch(() => {
+      if (!disposed) recordOverlayError("Floating caption position could not be updated.");
+    });
+    return layoutQueue;
+  }
+
   async function restorePosition(): Promise<void> {
+    if (disposed) return;
     const nativeWindow = getCurrentWindow();
     const monitors = await availableMonitors();
+    if (disposed) return;
     const stored = readOverlayPosition();
     const candidates = monitors.map((monitor) => {
       const workArea = workAreaRect(monitor)!;
-      return { workArea, width: fitOverlayWidth(currentWidth, workArea.width, monitor.scaleFactor), scale: monitor.scaleFactor };
+      const scale = monitor.scaleFactor;
+      const width = fitOverlayWidth(currentWidth, workArea.width, scale);
+      const height = fitOverlayHeight(currentHeight, workArea.height, scale);
+      return { workArea, width, height, scale };
     });
-    const selected = stored ? candidates.map((candidate) => ({ ...candidate, overlap: intersectionArea(
-      { x: stored.x, y: stored.y, width: candidate.width * candidate.scale, height: currentHeight * candidate.scale },
-      candidate.workArea,
-    ) })).sort((a, b) => b.overlap - a.overlap)[0] : null;
+    const selected = stored ? candidates.map((candidate) => ({
+      ...candidate,
+      overlap: intersectionArea({
+        x: stored.x, y: stored.y,
+        width: candidate.width * candidate.scale,
+        height: candidate.height * candidate.scale,
+      }, candidate.workArea),
+    })).sort((a, b) => b.overlap - a.overlap)[0] : null;
     const primary = await primaryMonitor();
+    if (disposed) return;
     const fallback = primary ? {
       workArea: workAreaRect(primary)!,
       width: fitOverlayWidth(currentWidth, primary.workArea.size.width, primary.scaleFactor),
+      height: fitOverlayHeight(currentHeight, primary.workArea.size.height, primary.scaleFactor),
       scale: primary.scaleFactor,
     } : candidates[0];
     const target = selected && selected.overlap > 0 ? selected : fallback;
     if (!target) return;
-    await nativeWindow.setSize(new LogicalSize(target.width, currentHeight));
     const physicalWidth = target.width * target.scale;
-    const physicalHeight = currentHeight * target.scale;
-    const next = stored && selected && selected.overlap > 0
+    const physicalHeight = target.height * target.scale;
+    const position = stored && selected && selected.overlap > 0
       ? clampPositionToWorkArea(stored, physicalWidth, physicalHeight, target.workArea)
       : defaultBottomCenterPosition(physicalWidth, physicalHeight, target.workArea, 72 * target.scale);
-    await nativeWindow.setPosition(new PhysicalPosition(Math.round(next.x), Math.round(next.y)));
+    const next = { x: Math.round(position.x), y: Math.round(position.y) };
+    if (disposed) return;
+    lastAutomaticPosition = next;
+    // Move first so LogicalSize is interpreted using the destination monitor's DPI.
+    await nativeWindow.setPosition(new PhysicalPosition(next.x, next.y));
+    if (disposed) return;
+    await nativeWindow.setSize(new LogicalSize(target.width, target.height));
   }
 
   async function resizeCaption(): Promise<void> {
     await tick();
-    if (historyOpen || collapsed) return;
+    if (disposed || historyOpen || collapsed) return;
     const measured = captionText?.scrollHeight ?? 0;
     if (measured === measuredCaptionHeight) return;
     measuredCaptionHeight = measured;
-    await restorePosition();
+    await scheduleLayout();
   }
 
   async function applyPreferences(next: TranslationOverlayPreferences): Promise<void> {
@@ -108,7 +138,7 @@
       return;
     }
     if (next.visibility === "collapsed") historyOpen = false;
-    await restorePosition();
+    await scheduleLayout();
     await resizeCaption();
     try { await getCurrentWindow().setIgnoreCursorEvents(next.clickThrough); }
     catch { preferences = updateOverlayPreferences({ clickThrough: false }); }
@@ -129,12 +159,12 @@
       historyEntries = recentMeetingCaptions(snapshot, 20);
       historyMessage = historyEntries.length === 0 ? "No recent committed translations yet." : "";
       historyOpen = true;
-      await restorePosition();
+      await scheduleLayout();
     } catch {
       historyEntries = [];
       historyMessage = "Recent translations are unavailable right now.";
       historyOpen = true;
-      await restorePosition();
+      await scheduleLayout();
     } finally {
       historyLoading = false;
     }
@@ -143,7 +173,7 @@
   async function closeRecentHistory(): Promise<void> {
     historyOpen = false;
     historyMessage = "";
-    await restorePosition();
+    await scheduleLayout();
     await resizeCaption();
   }
 
@@ -167,7 +197,7 @@
     historyOpen = false;
     captionsPaused = false;
     measuredCaptionHeight = 0;
-    void restorePosition();
+    void scheduleLayout();
   }
 
   function onOverlayKeydown(event: KeyboardEvent): void {
@@ -188,37 +218,58 @@
     captionsPaused = true;
   }
 
+  // Observe actual wrap changes after DPI, language/font and native window width updates.
+  $effect(() => {
+    const node = captionText;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => { if (!disposed) void resizeCaption(); });
+    observer.observe(node);
+    return () => observer.disconnect();
+  });
+
   onMount(() => {
-    let disposed = false;
-    let unlistenCaption: UnlistenFn | null = null;
-    let unlistenClear: UnlistenFn | null = null;
-    let unlistenScale: UnlistenFn | null = null;
-    let unlistenPreferences: UnlistenFn | null = null;
-    let unlistenMoved: UnlistenFn | null = null;
+    disposed = false;
+    const unlisteners: UnlistenFn[] = [];
+    const onFocus = () => { if (!disposed) void scheduleLayout(); };
+    const track = async (registration: Promise<UnlistenFn>): Promise<boolean> => {
+      const unlisten = await registration;
+      if (disposed) { unlisten(); return false; }
+      unlisteners.push(unlisten);
+      return true;
+    };
     const initialize = async () => {
-      unlistenCaption = await listen<TranslationOverlayPayload>(TRANSLATION_OVERLAY_EVENT, (event) => {
+      if (!await track(listen<TranslationOverlayPayload>(TRANSLATION_OVERLAY_EVENT, (event) => {
         if (!disposed) void applyCaption(event.payload);
-      });
-      unlistenClear = await listen(TRANSLATION_OVERLAY_CLEAR_EVENT, () => { if (!disposed) clearCaption(); });
-      unlistenPreferences = await listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, (event) => {
+      }))) return;
+      if (!await track(listen(TRANSLATION_OVERLAY_CLEAR_EVENT, () => {
+        if (!disposed) clearCaption();
+      }))) return;
+      if (!await track(listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, (event) => {
         if (!disposed) void applyPreferences(event.payload);
-      });
+      }))) return;
       discardLegacyOverlayCaption();
       preferences = readOverlayPreferences();
       await applyPreferences(preferences);
-      unlistenMoved = await getCurrentWindow().onMoved(({ payload }) => writeOverlayPosition({ x: payload.x, y: payload.y }));
-      unlistenScale = await getCurrentWindow().onScaleChanged(() => { if (!disposed) void restorePosition(); });
-      window.addEventListener("focus", onFocus);
+      if (disposed) return;
+      if (!await track(getCurrentWindow().onMoved(({ payload }) => {
+        if (disposed || isProgrammaticOverlayMove(payload, lastAutomaticPosition)) return;
+        writeOverlayPosition({ x: payload.x, y: payload.y });
+      }))) return;
+      if (!await track(getCurrentWindow().onScaleChanged(() => {
+        if (!disposed) void scheduleLayout();
+      }))) return;
       if (!disposed) await emit(TRANSLATION_OVERLAY_READY_EVENT);
     };
-    const onFocus = () => { if (!disposed) void restorePosition(); };
+    window.addEventListener("focus", onFocus);
     window.addEventListener("keydown", onOverlayKeydown);
-    void initialize();
+    void initialize().catch(() => {
+      if (!disposed) recordOverlayError("Floating caption setup is unavailable.");
+    });
     return () => {
       disposed = true;
-      window.removeEventListener("keydown", onOverlayKeydown);
       window.removeEventListener("focus", onFocus);
-      unlistenCaption?.(); unlistenClear?.(); unlistenPreferences?.(); unlistenMoved?.(); unlistenScale?.();
+      window.removeEventListener("keydown", onOverlayKeydown);
+      for (const unlisten of unlisteners) unlisten();
     };
   });
 </script>
