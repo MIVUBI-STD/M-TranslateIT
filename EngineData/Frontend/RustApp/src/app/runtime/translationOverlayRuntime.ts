@@ -92,7 +92,8 @@ export async function showTranslationOverlay(): Promise<boolean> {
 export async function hideTranslationOverlay(): Promise<void> {
   const prefs = updateOverlayPreferences({ visibility: "hidden" });
   latestPresented = null;
-  try { await emitPreferences(prefs); await (await overlayWindow())?.hide(); } catch { }
+  try { await emitPreferences(prefs); } catch { /* Hiding must not depend on event delivery. */ }
+  try { await (await overlayWindow())?.hide(); } catch { }
 }
 
 export async function destroyTranslationOverlay(): Promise<void> {
