@@ -177,7 +177,7 @@
     diagnosticsOpen = target === "settings-diagnostics";
     // Translation-specific navigation belongs to TranslationPreferences,
     // which opens its collapsed details before focusing the actual control.
-    if (tab === "translation") return;
+    if (["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)) return;
     const anchor = target === "settings-diagnostics" ? "utility-diagnostics" : "utility-microphone";
     void tick().then(() => {
       if (utilityRequest !== request || utilityTarget !== target) return;

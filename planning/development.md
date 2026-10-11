@@ -8,6 +8,10 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## Utility source admission correction — follow-up (2026-10-11)
+
+**State: SOURCE BLOCKERS CORRECTED, EXECUTABLE VERIFICATION NOT EXECUTED.** Post-write inspection identified a missing `return false` in both `Promise<boolean>` persistence catch branches, plus an accidental Settings effect dependency on the reactive tab that could reset manual tab selection. Both are corrected at their original owners; static test assertions guard the invariants. This supersedes the earlier source-only admission, without claiming compilation or rendered/native success.
+
 ## Utility integration corrections — follow-up (2026-10-11)
 
 **State: SOURCE CORRECTED; EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** Static follow-up found Meeting Presets could be searched while hidden during a live Meeting, and both terminology editors cleared unsaved drafts after a failed persistence call. The implementation now disables the unavailable preset shortcut with an explanation, preserves input drafts unless persistence succeeds, and routes spoken-term versus preferred-word searches directly to the respective editor. Translation-owned focus waits for the optional disclosure to open; utility jumps no longer compete with palette focus restoration. The earlier Tab assertion was stale and is aligned with the implementation. Canonical storage, runtime and privacy owners remain unchanged.

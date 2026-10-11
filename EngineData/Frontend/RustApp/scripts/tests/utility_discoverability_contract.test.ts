@@ -20,6 +20,7 @@ test("Quick Actions locates canonical tools without adding background watchers o
   assert.doesNotMatch(commands, /localStorage|setInterval|addEventListener/);
   assert.match(app, /utilityRequest \+= 1/);
   assert.match(settings, /utilityTarget/);
+  assert.doesNotMatch(settings, /if \(tab === "translation"\) return;/);
   assert.match(commands, /context\.meetingHasSession/);
   assert.match(commands, /settings-spoken-terms/);
   assert.match(commands, /settings-preferred-words/);
@@ -44,6 +45,8 @@ test("destructive utility actions have reversible decision before persistent mut
   assert.match(presets, /Remove preset</);
   assert.match(preferences, /pendingDelete/);
   assert.match(preferences, /Promise<boolean>/);
+  assert.match(preferences, /Preferred words couldn't be saved\. Try again\."\);\s*return false;/);
+  assert.match(preferences, /Spoken terms couldn't be saved\. Try again\."\);\s*return false;/);
   assert.match(preferences, /if \(await persistSpokenTerms/);
   assert.match(preferences, /if \(await persist\(/);
   assert.match(preferences, /Remove this spoken term/);

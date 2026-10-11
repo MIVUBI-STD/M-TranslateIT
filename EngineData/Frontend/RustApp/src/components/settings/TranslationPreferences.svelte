@@ -100,6 +100,7 @@
       return true;
     } catch {
       onNotice("Preferred words couldn't be saved. Try again.");
+      return false;
     } finally {
       saving = false;
     }
@@ -125,6 +126,7 @@
       return true;
     } catch {
       onNotice("Spoken terms couldn't be saved. Try again.");
+      return false;
     } finally {
       saving = false;
     }
