@@ -26,16 +26,15 @@ test("conversation rendering uses committed language metadata", () => {
   assert.match(activity, /lang=\{turn\.target_language\}/);
 });
 
-test("meeting quick direction is locked while meeting owns live or busy runtime", () => {
-  assert.match(meeting, /directionSaving \|\| meeting\.live \|\| meeting\.busy/);
-  assert.match(meeting, /Stop Meeting translation before changing direction/);
+test("meeting quick direction stays locked while any Meeting session or cleanup remains", () => {
+  assert.match(meeting, /directionSaving \|\| meeting\.hasSession \|\| meeting\.canStop/);
+  assert.match(meeting, /Finish stopping Meeting translation before changing direction/);
 });
 
-test("meeting header is derived from configured outbound language direction", () => {
-  assert.match(meeting, /outboundSourceName/);
-  assert.match(meeting, /outboundTargetName/);
-  assert.doesNotMatch(meeting, />Indonesian<\/strong>/);
-  assert.doesNotMatch(meeting, />English voice<\/strong>/);
+test("Meeting outbound direction is not changed by the Text language swap", () => {
+  assert.match(meeting, /const outboundSourceName = "Indonesian"/);
+  assert.match(meeting, /const outboundTargetName = "English"/);
+  assert.doesNotMatch(meeting, /outboundSourceName = \$derived\(languageName\(snapshot\.settings\.source_language\)\)/);
 });
 
 test("committed turn language metadata reaches overlay policy", () => {

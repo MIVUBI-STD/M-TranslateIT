@@ -1,12 +1,12 @@
 # TranslateIT Development
 
-## Active continuation — Meeting lifecycle UX correctness (2026-10-12)
+## Active continuation — Meeting Ready/Live progressive disclosure (2026-10-12)
 
-**State: SOURCE CHANGE ON Local; COMPILATION, EXECUTABLE TESTS, RENDERED/NATIVE PROOF NOT EXECUTED.** The Meeting page, handler, global header and Quick Actions now use one product action resolver. Stop and Retry Stop take precedence over voice/setup readiness; Starting/Stopping and unavailable ownership do not offer an inappropriate Start action. Global presence no longer presents cleanup as Ready/green. A no-session transient Stop cleanup failure remains Rust-owned and visible until an idempotent Stop succeeds; preflight blocks Start during the pending cleanup. Existing event-first runtime and one selected Meeting owner remain intact.
+**State: SOURCE CANDIDATE ON Local; TYPECHECK, FRONTEND TESTS, RENDERED UI, AND TARGET_WINDOWS PROOF NOT EXECUTED.** Meeting Ready now prioritizes Indonesian speech → English voice, the selected microphone and voice, and one runtime-authorized Start/Stop action. The fixed Meeting direction no longer reflects Text's swapped source/target settings. Meeting detection remains advisory. Device routing, optional incoming captions, saved presets and transcript export are preserved in user-expanded Meeting options, with Quick Actions automatically opening and focusing the target. Live shows one stage grounded in the outbound runtime's output_active/stage signals, with contextual transcript tools, local playback labels, copy feedback, smart follow and an explicit Jump to latest. Last-session review stays collapsed until the user opens it. No new UI framework, prompt controls or normal-surface technical telemetry was introduced.
 
-**Proof ceiling:** exact Local source/static contract inspection only. New targeted lifecycle regression tests are included but Node/Cargo/Svelte and actual Windows/meeting playback were not executed. No hosted CI, branch promotion or visual redesign was performed. Validate these changes with the integrated exact-SHA local acceptance after remaining source integration.
+**Proof ceiling:** GitHub source and cross-file static review only. Targeted source/contract tests added and stale Meeting-direction assertions corrected but executable typecheck/frontend tests, visual layouts at Windows DPI, real audio/playback, and installed-product tests have not run. Hosted CI remains inactive and `main` unchanged. The existing integrated Windows acceptance runbook now names the exact U2 behaviors to observe.
 
-**One next step:** review and simplify normal Meeting Ready/Live information hierarchy without changing the established runtime contracts, and stage the integrated Windows acceptance criteria for Start/Stop, recovery and accessible global controls.
+**One next step:** perform an exact-Local-SHA source integration admission review across Meeting, Text, My Voice, Settings and startup, resolving any source-contract blockers before one coordinated native build-and-Windows acceptance.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

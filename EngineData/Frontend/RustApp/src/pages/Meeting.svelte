@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowRight, AudioLines, Languages, Mic, Radio } from "@lucide/svelte";
+  import { ArrowRight, AudioLines, Mic } from "@lucide/svelte";
   import { onMount, tick } from "svelte";
   import type { UtilityDestination } from "../app/runtime/productCommandRegistry";
   import {
@@ -7,7 +7,6 @@
     type MeetingCommittedTurnsSnapshot,
     type MeetingSessionStatus,
     type MeetingAppDetection,
-    type AudioQualityReport,
     type VirtualMicRouteContractStatus,
   } from "../app/bridge/runtimeApi";
   import type { ProductRuntimeSnapshot } from "../app/bridge/runtimeProductFacade";
@@ -49,12 +48,11 @@
 
   let routeStatus = $state<VirtualMicRouteContractStatus | null>(null);
   let meetingDetection = $state<MeetingAppDetection | null>(null);
-  let audioQuality = $state<AudioQualityReport | null>(null);
   let detectionInFlight = false;
-  let audioQualityInFlight = false;
   let resumeBusy = $state(false);
   let directionSaving = $state(false);
   let resumeError = $state("");
+  let optionsOpen = $state(false);
 
   const readiness = $derived(snapshot.readiness);
   const meeting = $derived(snapshot.meeting);
@@ -73,63 +71,42 @@
   );
   const meetingSound = $derived(String(snapshot.settings.audio.output_device_id ?? "").trim() || "Windows Default");
   const meetingMicrophoneDevice = $derived(
-    String(routeStatus?.selected_input_device ?? "").trim()
-      || (readiness.meetingRouteReady ? "Device name unavailable — check Settings" : "TranslateIT microphone not ready"),
+    routeStatus?.ok === false ? "Unable to check in Windows"
+      : String(routeStatus?.selected_input_device ?? "").trim()
+        || (readiness.meetingRouteReady ? "Check device name in Settings" : "Not available in Windows"),
   );
-  const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.hasSession && (meeting.live || meeting.busy)));
-  const outboundSourceName = $derived(languageName(snapshot.settings.source_language));
-  const outboundTargetName = $derived(languageName(snapshot.settings.target_language));
+  const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.live));
+  // Meeting outbound is always Indonesian speech to English voice. Swapping
+  // Text's shared source/target preferences must not alter the Meeting label.
+  const outboundSourceName = "Indonesian";
+  const outboundTargetName = "English";
   const listenSourceName = $derived(languageName(snapshot.settings.meeting_listen_source_language));
   const listenTargetName = $derived(languageName(snapshot.settings.meeting_listen_target_language));
   const meetingDetectionAdvisory = "Meeting detection is advisory. Translation will only start when you choose Start Translation.";
 
-  function statusTone(ready: boolean, pending = false, unavailable = false): Tone {
-    if (unavailable) return "danger";
-    if (ready) return "good";
-    if (pending) return "neutral";
-    return "warning";
-  }
-
-  const microphoneUnavailable = $derived(readiness.microphoneStatus === "Unavailable");
-  const microphoneTone = $derived(statusTone(readiness.microphoneReady, checking, microphoneUnavailable));
-  const routeTone = $derived(statusTone(readiness.meetingRouteReady, checking, runtimeUnavailable));
-  const audioQualityTone = $derived<Tone>(
-    audioQuality?.quality === "good" ? "good"
-      : audioQuality?.quality === "clipping" ? "danger"
-      : audioQuality?.available ? "warning"
-      : "neutral",
-  );
-  const meetingTone = $derived(
-    meeting.lifecycle === "cleanup_incomplete" ? "warning"
-      : meeting.hasSession && !meeting.live && !meeting.busy ? "warning"
+  const meetingTone = $derived<Tone>(
+    meeting.lifecycle === "cleanup_incomplete" || meeting.hasSession && !meeting.live && !meeting.busy ? "warning"
       : runtimeUnavailable ? "danger"
       : meeting.busy || checking ? "neutral"
       : meeting.live || readiness.meetingReady ? "good"
       : "warning",
   );
-
+  const healthyReady = $derived(
+    !meeting.hasSession && !meeting.canStop && !setupDeferred
+    && !runtimeUnavailable && readiness.meetingReady && meetingVoiceReady === true,
+  );
   const readyMessage = $derived(
-    resumeError
-      ? resumeError
-      : meeting.canStop || meeting.hasSession
-        ? meeting.message
-      : setupDeferred
-        ? "Setup is not finished. Select Resume Setup before starting a call."
-        : runtimeUnavailable
-          ? "The local translation runtime is unavailable. Choose Retry Status; if it stays unavailable, open Help in Settings."
-          : checking || meetingVoiceReady === null
-            ? "Checking your microphone, Meeting voice, and local translation readiness..."
-            : !readiness.microphoneReady
-              ? "Your input microphone is not ready. Check it in Settings, or choose Repair Setup."
-              : !readiness.meetingRouteReady
-                ? "The TranslateIT microphone is unavailable in Windows. Choose Repair Setup, then select it in your calling app."
-                : meetingVoiceReady === false
-                  ? "Choose Voice to select the English voice others will hear."
-                  : readiness.meetingReady
-                    ? "TranslateIT is ready. Select its microphone inside your calling app, then start translation."
-                    : meeting.canStart
-                      ? "Start Translation will perform a final readiness check."
-                      : "The local translation check is incomplete. Choose Check Again, then Repair Setup if needed.",
+    resumeError || (
+      meeting.canStop || meeting.hasSession ? meeting.message
+      : setupDeferred ? "Meeting setup is not finished. Resume setup before starting a call."
+      : runtimeUnavailable ? "Meeting status is unavailable. Check status before starting."
+      : checking || meetingVoiceReady === null ? "Checking microphone, voice and translation readiness..."
+      : !readiness.microphoneReady ? "Microphone unavailable. Check your device in Settings."
+      : !readiness.meetingRouteReady ? "TranslateIT microphone is not available in Windows. Repair setup before starting."
+      : meetingVoiceReady === false ? "Choose an English Meeting voice before starting."
+      : readiness.meetingReady ? ""
+      : "Meeting needs a readiness check. Check again or repair setup."
+    ),
   );
 
   async function swapListenDirection(): Promise<void> {
@@ -153,18 +130,6 @@
       await onRefresh("Couldn't change the Meeting listening direction. Try again.");
     } finally {
       directionSaving = false;
-    }
-  }
-
-  async function refreshAudioQuality(): Promise<void> {
-    if (audioQualityInFlight) return;
-    audioQualityInFlight = true;
-    try {
-      audioQuality = await runtimeApi.getAudioQuality();
-    } catch {
-      audioQuality = null;
-    } finally {
-      audioQualityInFlight = false;
     }
   }
 
@@ -221,6 +186,7 @@
     const target = utilityTarget;
     const request = utilityRequest;
     if (target !== "meeting-presets" && target !== "meeting-transcript") return;
+    optionsOpen = true;
     void tick().then(() => {
       if (utilityTarget !== target || utilityRequest !== request) return;
       const element = document.getElementById(target === "meeting-presets" ? "utility-meeting-presets" : "utility-meeting-transcript");
@@ -232,23 +198,18 @@
   onMount(() => {
     void refreshRouteStatus();
     void refreshMeetingDetection();
-    void refreshAudioQuality();
   });
 </script>
 
-<section class="ti-page ti-page-wide">
+<section class="ti-page ti-page-wide" style="margin-inline: 0; max-width: 1080px;">
   <header class="ti-page-header">
     <div>
       <h2 class="ti-page-title">Meeting</h2>
-      <p class="ti-page-copy">
-        {activityVisible
-          ? "Speak normally. Finished phrases are translated and spoken into your meeting."
-          : "Speak Indonesian. Other people in the call hear the English translation."}
-      </p>
+      <p class="ti-page-copy">{outboundSourceName} speech → {outboundTargetName} voice</p>
     </div>
-    {#if meeting.busy || meeting.hasSession && !meeting.live || meeting.lifecycle === "cleanup_incomplete" || runtimeUnavailable || setupDeferred || !readiness.meetingReady}
+    {#if !activityVisible && (meeting.busy || meeting.canStop || meeting.hasSession || runtimeUnavailable || setupDeferred || !readiness.meetingReady)}
       <StatusBadge
-        label={meeting.busy || meeting.hasSession || meeting.lifecycle === "cleanup_incomplete" ? meeting.label : runtimeUnavailable ? "Unavailable" : checking ? "Checking" : "Setup Needed"}
+        label={meeting.busy || meeting.canStop || meeting.hasSession ? meeting.label : runtimeUnavailable ? "Unavailable" : checking ? "Checking" : "Setup Needed"}
         tone={meetingTone}
       />
     {/if}
@@ -256,171 +217,115 @@
 
   <article class="ti-panel overflow-hidden">
     {#if activityVisible && meetingStatus}
-      <div class="p-5">
+      <div class="px-6 py-5">
         <MeetingActivity status={meetingStatus} turns={meetingTurns} />
       </div>
     {:else}
-      <div class="flex items-center justify-between gap-6 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-        <div class="flex min-w-0 items-center gap-4">
-          <div class="min-w-0">
-            <span class="ti-field-label">You speak</span>
-            <strong class="mt-1 block text-[15px] font-semibold">{outboundSourceName}</strong>
-          </div>
-          <div class="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--ti-border)] bg-[var(--ti-surface)] text-[var(--ti-text-soft)]" aria-hidden="true">
-            <ArrowRight size={15} />
-          </div>
-          <div class="min-w-0">
-            <span class="ti-field-label">Others hear</span>
-            <strong class="mt-1 block text-[15px] font-semibold">{outboundTargetName} voice</strong>
-          </div>
-        </div>
-      </div>
-
-      <div id="utility-meeting-presets" tabindex="-1">
-      <MeetingPresetPanel
-        detection={meetingDetection}
-        settings={snapshot.settings}
-        locked={meeting.hasSession}
-        advisoryCopy={meetingDetectionAdvisory}
-        {onRefresh}
-        onNotice={(message) => void onRefresh(message)}
-      />
-      </div>
-
-      {#if readiness.meetingReady && meetingVoiceReady && !setupDeferred && !runtimeUnavailable}
-        <section class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
-          <div class="min-w-0 p-5">
-            <span class="ti-field-label">Microphone</span>
-            <strong class="mt-1.5 block truncate text-[13px] font-semibold" title={microphone}>{microphone}</strong>
-          </div>
-          <button type="button" class="min-w-0 p-5 text-left transition-colors hover:bg-[var(--ti-surface-soft)]" aria-label="Choose or change Meeting voice" onclick={onOpenMyVoice}>
-            <span class="ti-field-label">Meeting voice</span>
-            <strong class="mt-1.5 block text-[13px] font-semibold">Ready for calls</strong>
-          </button>
-          <div class="min-w-0 p-5">
-            <span class="ti-field-label">TranslateIT microphone</span>
-            <strong class="mt-1.5 block truncate text-[13px] font-semibold" title={meetingMicrophoneDevice}>{meetingMicrophoneDevice}</strong>
-          </div>
-        </section>
-      {:else}
-      <div class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
-        <section class="min-w-0 p-5">
-          <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
-            <Mic size={15} strokeWidth={1.8} />
-            <span class="ti-field-label">Your microphone</span>
-          </div>
-          <strong class="mt-2 block break-words text-[13px] font-semibold leading-5">{microphone}</strong>
-          <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">The microphone you speak into.</p>
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            <StatusBadge label={audioQuality?.label ?? "Checking audio"} tone={audioQualityTone} />
-            {#if audioQuality?.available}
-              <span class="text-[10.5px] text-[var(--ti-text-soft)]" title={audioQuality.note}>
-                Audio diagnostics available
-              </span>
-            {/if}
-          </div>
-          {#if !readiness.microphoneReady}
-            <div class="mt-3">
-              <StatusBadge
-                label={microphoneUnavailable ? "Unavailable" : checking ? "Checking" : "Setup Needed"}
-                tone={microphoneTone}
-              />
-            </div>
-          {/if}
-        </section>
-
-        <section class="min-w-0 p-5">
-          <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
-            <AudioLines size={15} strokeWidth={1.8} />
-            <span class="ti-field-label">Meeting voice</span>
-          </div>
-          <strong class="mt-2 block text-[13px] font-semibold leading-5">{meetingVoiceReady ? "Ready for calls" : meetingVoiceReady === null ? "Checking..." : "Choose a voice"}</strong>
-          <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">
-            {meetingVoiceReady ? "Your selected English Meeting voice." : "Choose Built-in Male/Female or create My Voice before starting."}
-          </p>
-          {#if !meetingVoiceReady}
-            <div class="mt-3 flex flex-wrap items-center gap-2">
-              <StatusBadge label={meetingVoiceReady === null ? "Checking" : "Setup Needed"} tone={meetingVoiceReady === null ? "neutral" : "warning"} />
-              {#if meetingVoiceReady === false && !setupDeferred}
-                <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5 text-xs" onclick={onOpenMyVoice}>Choose Voice</button>
-              {/if}
-            </div>
-          {/if}
-        </section>
-
-        <section class="min-w-0 p-5">
-          <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
-            <Radio size={15} strokeWidth={1.8} />
-            <span class="ti-field-label">TranslateIT microphone</span>
-          </div>
-          <strong class="mt-2 block break-words text-[13px] font-semibold leading-5">{meetingMicrophoneDevice}</strong>
-          <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">
-            {readiness.meetingRouteReady
-              ? "Available in Windows. Select it in your calling app."
-              : "TranslateIT microphone setup is required before you start."}
-          </p>
-          {#if !readiness.meetingRouteReady}
-            <div class="mt-3">
-              <StatusBadge
-                label={runtimeUnavailable ? "Unavailable" : checking ? "Checking" : "Setup Needed"}
-                tone={routeTone}
-              />
-            </div>
-          {:else}
-            <div class="mt-3"><StatusBadge label="Available in Windows" tone="good" /></div>
-          {/if}
-        </section>
-      </div>
+      {#if readyMessage}
+        <p class="m-0 border-b border-[var(--ti-border)] px-6 py-4 text-sm leading-6 text-[var(--ti-text-muted)]" aria-live="polite">
+          {readyMessage}
+        </p>
       {/if}
-
+      <div class="grid gap-0 lg:grid-cols-2">
+        <div class="min-w-0 px-6 py-5 lg:border-r border-[var(--ti-border)]">
+          <div class="flex items-center gap-2 text-[var(--ti-text-muted)]">
+            <Mic size={17} aria-hidden="true" />
+            <span class="text-sm font-medium">Microphone</span>
+          </div>
+          <strong class="mt-2 block break-words text-base font-semibold">{microphone}</strong>
+        </div>
+        <button type="button" class="min-w-0 border-t border-[var(--ti-border)] px-6 py-5 text-left hover:bg-[var(--ti-surface-soft)] lg:border-t-0"
+          disabled={meeting.hasSession || meeting.canStop || meeting.busy} onclick={onOpenMyVoice}>
+          <span class="flex items-center gap-2 text-sm font-medium text-[var(--ti-text-muted)]">
+            <AudioLines size={17} aria-hidden="true" /> Meeting voice
+          </span>
+          <span class="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <strong class="text-base font-semibold">{meetingVoiceReady === true ? "Selected" : meetingVoiceReady === null ? "Checking..." : "Choose a voice"}</strong>
+            <span class="text-sm text-[var(--ti-text-muted)]">Change voice <ArrowRight size={14} class="inline" aria-hidden="true" /></span>
+          </span>
+        </button>
+      </div>
     {/if}
 
-    <section class="flex items-center justify-between gap-5 border-t border-[var(--ti-border)] px-5 py-3.5">
-      <div class="flex min-w-0 items-center gap-3">
-        <Languages size={15} strokeWidth={1.8} class="shrink-0 text-[var(--ti-text-muted)]" />
-        <div class="min-w-0">
-          <strong class="block text-[12.5px] font-semibold">Translate what you hear: {listenSourceName} → {listenTargetName}</strong>
-          <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional captions · listens to {meetingSound}; use this same speaker output inside your calling app.</p>
+    <details bind:open={optionsOpen} class="border-t border-[var(--ti-border)]">
+      <summary class="cursor-pointer px-6 py-3.5 text-sm font-medium text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)] hover:text-[var(--ti-text)]">
+        Meeting options
+        <span class="ml-2 text-xs font-normal text-[var(--ti-text-soft)]">Device routing, captions, presets and export</span>
+      </summary>
+      <div class="border-t border-[var(--ti-border)]">
+        <section class="flex flex-wrap items-start justify-between gap-3 px-6 py-4">
+          <div class="min-w-0">
+            <h3 class="m-0 text-sm font-semibold">Set up your calling app</h3>
+            {#if routeStatus?.ok === false}
+              <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">Couldn't check the TranslateIT microphone in Windows. Check Settings before configuring your calling app.</p>
+            {:else if readiness.meetingRouteReady}
+              <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">
+                Select <strong class="font-medium text-[var(--ti-text)]">{meetingMicrophoneDevice}</strong> as the microphone input in your calling app.
+              </p>
+              <p class="mb-0 mt-1 text-xs text-[var(--ti-text-soft)]">Available in Windows; TranslateIT cannot verify your calling app's input selection.</p>
+            {:else}
+              <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">The TranslateIT microphone isn't ready. Open Settings and repair the setup before starting a call.</p>
+            {/if}
+          </div>
+        </section>
+
+        <section class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ti-border)] px-6 py-4">
+          <div class="min-w-0">
+            <h3 class="m-0 text-sm font-semibold">Translate what you hear: {listenSourceName} → {listenTargetName}</h3>
+            <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">Optional incoming captions · Meeting sound: {meetingSound}</p>
+          </div>
+          <button
+            type="button"
+            class="ti-button ti-button-secondary min-h-9"
+            disabled={directionSaving || meeting.hasSession || meeting.canStop}
+            title={meeting.hasSession || meeting.canStop ? "Finish stopping Meeting translation before changing direction." : "Swap listening direction"}
+            onclick={() => void swapListenDirection()}
+          >{directionSaving ? "Saving..." : "Swap"}</button>
+        </section>
+
+        <div id="utility-meeting-presets" tabindex="-1" class="border-t border-[var(--ti-border)]">
+          <MeetingPresetPanel
+            detection={meetingDetection}
+            settings={snapshot.settings}
+            locked={meeting.hasSession || meeting.canStop}
+            advisoryCopy={meetingDetectionAdvisory}
+            {onRefresh}
+            onNotice={(message) => void onRefresh(message)}
+          />
+        </div>
+        <div id="utility-meeting-transcript" tabindex="-1" class="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--ti-border)] px-6 py-4">
+          <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
         </div>
       </div>
-      <button
-        type="button"
-        class="ti-button ti-button-secondary min-h-8 px-3 text-xs"
-        disabled={directionSaving || meeting.hasSession || meeting.canStop}
-        title={meeting.hasSession || meeting.canStop ? "Finish stopping Meeting translation before changing direction." : "Swap listening direction"}
-        onclick={() => void swapListenDirection()}
-      >
-        {directionSaving ? "Saving..." : "Swap"}
-      </button>
-    </section>
+    </details>
 
-    <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-      {#if !activityVisible}
-        <div class="flex min-w-0 items-center gap-2.5 text-[12.5px] text-[var(--ti-text-muted)]" aria-live="polite">
-          <span class={`size-1.5 shrink-0 rounded-full ${meeting.canStop || meeting.hasSession ? "bg-[var(--ti-warning)]" : runtimeUnavailable ? "bg-[var(--ti-danger)]" : readiness.meetingReady && !setupDeferred ? "bg-[var(--ti-success)]" : checking ? "bg-[var(--ti-text-soft)]" : "bg-[var(--ti-warning)]"}`} aria-hidden="true"></span>
-          <span>{readyMessage}</span>
-        </div>
-      {:else}
-        <div class="text-[12.5px] text-[var(--ti-text-muted)]">Translation stays on until you choose Stop Translation.</div>
-      {/if}
-
+    <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] px-6 py-4">
+      <p class="m-0 min-w-0 flex-1 text-sm text-[var(--ti-text-muted)]">
+        {activityVisible ? "Translation is on until you stop it." : healthyReady ? "Ready to translate." : ""}
+      </p>
       <div class="ti-action-row ml-auto">
-        <div id="utility-meeting-transcript" tabindex="-1">
-        <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
-        </div>
         {#if setupDeferred && !meeting.hasSession && !meeting.canStop && !meeting.busy}
-          <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening..." : "Resume Setup"}</button>
+          <button type="button" class="ti-button" disabled={resumeBusy} onclick={() => void resumeSetup()}>
+            {resumeBusy ? "Opening..." : "Resume Setup"}
+          </button>
         {:else}
           {#if !meeting.hasSession && !meeting.canStop && !meeting.busy && !readiness.meetingReady}
-            <button type="button" class="ti-button ti-button-secondary" onclick={() => void refreshMeetingSetup()}>{runtimeUnavailable ? "Retry Status" : "Check Again"}</button>
-            {#if !runtimeUnavailable}
+            <button type="button" class="ti-button ti-button-secondary" onclick={() => void refreshMeetingSetup()}>
+              {runtimeUnavailable ? "Retry Status" : "Check Again"}
+            </button>
+            {#if !runtimeUnavailable && !checking}
               <button type="button" class="ti-button ti-button-secondary" onclick={onFixSetup}>Repair Setup</button>
             {/if}
           {/if}
           {#if meetingVoiceReady === false && !meeting.hasSession && !meeting.canStop && !meeting.busy}
-            <button type="button" class="ti-button min-w-40" onclick={onOpenMyVoice}>Choose Voice</button>
-          {:else}
-            <button type="button" class={`ti-button min-w-40 ${primaryControl.action === "stop" ? "ti-button-danger" : ""}`} disabled={!primaryControl.enabled} onclick={onMeetingAction}>{primaryControl.label}</button>
+            <button type="button" class="ti-button" onclick={onOpenMyVoice}>Choose Voice</button>
+          {:else if primaryControl.action !== null || meeting.busy || actionBusy}
+            <button
+              type="button"
+              class={`ti-button min-w-40 ${primaryControl.action === "stop" ? "ti-button-danger" : ""}`}
+              disabled={!primaryControl.enabled}
+              onclick={onMeetingAction}
+            >{primaryControl.label}</button>
           {/if}
         {/if}
       </div>
