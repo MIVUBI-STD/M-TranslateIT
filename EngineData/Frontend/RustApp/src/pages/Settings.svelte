@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import type { UtilityDestination } from "../app/runtime/productCommandRegistry";
   import { runtimeApi, type VirtualMicRouteContractStatus } from "../app/bridge/runtimeApi";
   import {
     runtimeProductFacade,
@@ -18,6 +19,8 @@
   type SettingsTab = "meeting" | "translation" | "advanced";
 
   let {
+    utilityTarget = null,
+    utilityRequest = 0,
     snapshot,
     settings,
     setupBusy = false,
@@ -29,6 +32,8 @@
     onMicTest,
     onNotice,
   }: {
+    utilityTarget?: UtilityDestination | null;
+    utilityRequest?: number;
     snapshot: ProductRuntimeSnapshot;
     settings: RuntimeSettings;
     setupBusy?: boolean;
@@ -163,6 +168,26 @@
     }
   }
 
+  $effect(() => {
+    const target = utilityTarget;
+    const request = utilityRequest;
+    if (!target || !target.startsWith("settings-")) return;
+    tab = ["settings-captions", "settings-terms", "settings-feedback"].includes(target)
+      ? "translation" : target === "settings-diagnostics" ? "advanced" : "meeting";
+    diagnosticsOpen = target === "settings-diagnostics";
+    const anchor = target === "settings-captions" ? "utility-captions"
+      : target === "settings-terms" ? "utility-terms"
+      : target === "settings-feedback" ? "utility-feedback"
+      : target === "settings-diagnostics" ? "utility-diagnostics"
+      : "utility-microphone";
+    void tick().then(() => {
+      if (utilityRequest !== request || utilityTarget !== target) return;
+      const element = document.getElementById(anchor);
+      element?.scrollIntoView({ block: "start" });
+      element?.focus({ preventScroll: true });
+    });
+  });
+
   onMount(() => {
     void loadDevices();
     void loadRouteStatus();
@@ -200,7 +225,7 @@
     </header>
 
     {#if tab === "meeting"}
-      <article class="ti-panel overflow-hidden">
+      <article id="utility-microphone" tabindex="-1" class="ti-panel overflow-hidden">
         <header class="flex items-start justify-between gap-5 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
           <div>
             <h3 class="m-0 text-[15px] font-semibold tracking-[-0.015em]">Meeting audio</h3>
@@ -277,7 +302,7 @@
         </footer>
       </article>
     {:else if tab === "translation"}
-      <TranslationPreferences {settings} {onSettingsChange} {onNotice} />
+      <TranslationPreferences {settings} {onSettingsChange} {onNotice} {utilityTarget} {utilityRequest} />
     {:else if !diagnosticsOpen}
       <article class="ti-panel overflow-hidden">
         <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
@@ -307,6 +332,7 @@
         </footer>
       </article>
     {:else}
+      <div id="utility-diagnostics" tabindex="-1">
       <SettingsDiagnostics
         {snapshot}
         {setupBusy}
@@ -316,6 +342,7 @@
         {onSetupAction}
         onBack={() => { diagnosticsOpen = false; }}
       />
+      </div>
     {/if}
   </div>
 </section>

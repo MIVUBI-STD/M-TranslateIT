@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ArrowRight, AudioLines, Languages, Mic, Radio } from "@lucide/svelte";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+  import type { UtilityDestination } from "../app/runtime/productCommandRegistry";
   import {
     runtimeApi,
     type MeetingCommittedTurnsSnapshot,
@@ -22,6 +23,8 @@
   type Tone = "neutral" | "good" | "warning" | "danger";
 
   let {
+    utilityTarget = null,
+    utilityRequest = 0,
     snapshot,
     meetingStatus,
     meetingTurns,
@@ -31,6 +34,8 @@
     onFixSetup,
     onOpenMyVoice,
   }: {
+    utilityTarget?: UtilityDestination | null;
+    utilityRequest?: number;
     snapshot: ProductRuntimeSnapshot;
     meetingStatus: MeetingSessionStatus | null;
     meetingTurns: MeetingCommittedTurnsSnapshot | null;
@@ -213,6 +218,18 @@
     }
   }
 
+  $effect(() => {
+    const target = utilityTarget;
+    const request = utilityRequest;
+    if (target !== "meeting-presets" && target !== "meeting-transcript") return;
+    void tick().then(() => {
+      if (utilityTarget !== target || utilityRequest !== request) return;
+      const element = document.getElementById(target === "meeting-presets" ? "utility-meeting-presets" : "utility-meeting-transcript");
+      element?.scrollIntoView({ block: "center" });
+      element?.focus({ preventScroll: true });
+    });
+  });
+
   onMount(() => {
     void refreshRouteStatus();
     void refreshMeetingDetection();
@@ -260,6 +277,7 @@
         </div>
       </div>
 
+      <div id="utility-meeting-presets" tabindex="-1">
       <MeetingPresetPanel
         detection={meetingDetection}
         settings={snapshot.settings}
@@ -268,6 +286,7 @@
         {onRefresh}
         onNotice={(message) => void onRefresh(message)}
       />
+      </div>
 
       {#if readiness.meetingReady && meetingVoiceReady && !setupDeferred && !runtimeUnavailable}
         <section class="grid grid-cols-3 divide-x divide-[var(--ti-border)]">
@@ -387,7 +406,9 @@
       {/if}
 
       <div class="ti-action-row ml-auto">
+        <div id="utility-meeting-transcript" tabindex="-1">
         <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
+        </div>
         {#if setupDeferred && !meeting.live && !meeting.busy}
           <button type="button" class="ti-button min-w-40" disabled={resumeBusy} onclick={() => void resumeSetup()}>{resumeBusy ? "Opening..." : "Resume Setup"}</button>
         {:else}

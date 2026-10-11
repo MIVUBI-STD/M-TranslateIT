@@ -33,6 +33,7 @@
   let presets = $state<MeetingPreset[]>(readMeetingPresets());
   let presetName = $state("");
   let applying = $state(false);
+  let pendingRemovalId = $state<string | null>(null);
   const suggested = $derived.by(() => {
     presets;
     return suggestedPresetForProvider(detection?.detected ? detection.provider : null);
@@ -53,13 +54,14 @@
   }
 
   function removePreset(id: string): void {
-    if (applying) return;
+    if (applying || pendingRemovalId !== id || !presets.some(preset => preset.id === id)) return;
     const result = deleteMeetingPreset(id);
     if (!result.ok) {
       onNotice("Meeting preset couldn't be removed from local storage.");
       return;
     }
     presets = result.presets;
+    pendingRemovalId = null;
     onNotice("Meeting preset removed.");
   }
 
@@ -137,11 +139,21 @@
     {#if presets.length > 0}
       <div class="ml-auto flex max-w-full flex-wrap justify-end gap-1.5">
         {#each presets as preset (preset.id)}
-          <button type="button" class="ti-pill flex items-center gap-1.5" title={`Remove ${preset.name}`} disabled={applying} onclick={() => removePreset(preset.id)}>
+          <button type="button" class="ti-pill flex items-center gap-1.5" title={`Remove ${preset.name}`} disabled={applying} aria-label={`Remove preset ${preset.name}`} onclick={() => { pendingRemovalId = preset.id; }}>
             {preset.name}<Trash2 size={11} />
           </button>
         {/each}
       </div>
     {/if}
   </div>
+  {#if pendingRemovalId && presets.some(preset => preset.id === pendingRemovalId)}
+    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-4 py-3"
+      role="group" aria-label="Confirm preset removal">
+      <p class="m-0 text-xs">Remove “{presets.find(preset => preset.id === pendingRemovalId)?.name}”? This cannot be undone.</p>
+      <div class="flex gap-2">
+        <button type="button" class="ti-button ti-button-secondary min-h-8" onclick={() => { pendingRemovalId = null; }}>Cancel</button>
+        <button type="button" class="ti-button ti-button-danger min-h-8" disabled={applying} onclick={() => { if (pendingRemovalId) removePreset(pendingRemovalId); }}>Remove preset</button>
+      </div>
+    </div>
+  {/if}
 </section>

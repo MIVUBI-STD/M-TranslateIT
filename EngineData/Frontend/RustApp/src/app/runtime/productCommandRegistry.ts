@@ -1,7 +1,17 @@
 import type { AppRoute } from "../shared/types";
 
+export type UtilityDestination =
+  | "meeting-presets"
+  | "meeting-transcript"
+  | "settings-microphone"
+  | "settings-captions"
+  | "settings-terms"
+  | "settings-feedback"
+  | "settings-diagnostics";
+
 export type ProductCommand = {
   id: string;
+  group: "Navigation" | "Meeting utilities" | "Text utilities" | "Settings & support";
   label: string;
   description: string;
   keywords: string[];
@@ -15,57 +25,60 @@ export type ProductCommandContext = {
   meetingCanStop: boolean;
   quickTranslateReady: boolean;
   navigate: (route: AppRoute) => void;
+  openUtility: (destination: UtilityDestination) => void;
   toggleMeeting: () => void | Promise<void>;
   quickTranslateClipboard: () => void | Promise<void>;
 };
 
+// Search indexes existing product owners: no duplicate storage, translation path or new runtime commands.
 export function buildProductCommands(context: ProductCommandContext): ProductCommand[] {
+  const jump = (id: string, group: ProductCommand["group"], label: string, description: string,
+    keywords: string[], destination: UtilityDestination): ProductCommand => ({
+      id, group, label, description, keywords, run: () => context.openUtility(destination),
+    });
   return [
-    {
-      id: "navigate-meeting",
-      label: "Open Meeting",
-      description: "Go to live meeting translation.",
-      keywords: ["meeting", "call", "voice"],
-      run: () => context.navigate("meeting"),
-    },
-    {
-      id: "navigate-text",
-      label: "Open Text",
-      description: "Go to Indonesian ↔ English text translation.",
-      keywords: ["text", "translate", "written"],
-      run: () => context.navigate("text"),
-    },
-    {
-      id: "navigate-my-voice",
-      label: "Open My Voice",
-      description: "Choose or manage the voice other people hear.",
-      keywords: ["voice", "speaker", "tts"],
-      run: () => context.navigate("my-voice"),
-    },
-    {
-      id: "navigate-settings",
-      label: "Open Settings",
-      description: "Open meeting, translation, and diagnostic settings.",
-      keywords: ["settings", "audio", "diagnostics"],
-      run: () => context.navigate("settings"),
-    },
-    {
-      id: "quick-translate-clipboard",
-      label: "Quick Translate Clipboard",
-      description: "Translate clipboard text and show it in the floating caption.",
-      keywords: ["quick", "clipboard", "overlay", "caption"],
-      disabled: !context.quickTranslateReady,
-      run: context.quickTranslateClipboard,
-    },
-    {
-      id: "meeting-toggle",
+    { id: "navigate-meeting", group: "Navigation", label: "Open Meeting", description: "Go to live meeting translation.",
+      keywords: ["call", "speech"], run: () => context.navigate("meeting") },
+    { id: "navigate-text", group: "Navigation", label: "Open Text", description: "Go to written translation.",
+      keywords: ["translate", "written"], run: () => context.navigate("text") },
+    { id: "navigate-my-voice", group: "Navigation", label: "Open My Voice", description: "Choose or create your Meeting voice.",
+      keywords: ["voice", "speaker"], run: () => context.navigate("my-voice") },
+    { id: "navigate-settings", group: "Navigation", label: "Open Settings", description: "Adjust Meeting and translation preferences.",
+      keywords: ["preferences"], run: () => context.navigate("settings") },
+    { id: "meeting-toggle", group: "Meeting utilities",
       label: context.meetingCanStop ? "Stop Translation" : "Start Translation",
-      description: context.meetingCanStop
-        ? "Stop the current Meeting translation safely."
-        : "Start Meeting translation using the current setup.",
+      description: context.meetingCanStop ? "Stop the current Meeting safely."
+        : context.meetingCanStart ? "Start translation using the current setup." : "Unavailable until Meeting setup is ready.",
       keywords: ["start", "stop", "meeting", "translation"],
       disabled: context.meetingHasSession ? !context.meetingCanStop : !context.meetingCanStart,
-      run: context.toggleMeeting,
-    },
+      run: context.toggleMeeting },
+    jump("meeting-presets", "Meeting utilities", "Meeting Presets", "Save or use an existing Meeting setup.",
+      ["saved", "devices", "configuration"], "meeting-presets"),
+    jump("meeting-transcript", "Meeting utilities", "Export Meeting Transcript",
+      "Open the Meeting transcript export controls. Requires a recorded session.",
+      ["history", "export", "markdown", "txt", "notes"], "meeting-transcript"),
+    { id: "quick-translate-clipboard", group: "Text utilities", label: "Translate Clipboard",
+      description: context.quickTranslateReady ? "Translate copied text and show it in floating captions."
+        : "Unavailable until Text translation is ready.",
+      keywords: ["quick", "paste", "copy", "overlay", "caption"], disabled: !context.quickTranslateReady,
+      run: context.quickTranslateClipboard },
+    jump("floating-captions", "Text utilities", "Floating Caption Settings",
+      "Show, resize, or change the appearance of translated captions.",
+      ["subtitle", "overlay", "size", "contrast", "click through"], "settings-captions"),
+    jump("meeting-microphone", "Settings & support", "Microphone & Mic Test",
+      "Choose an input device, test the mic, or repair audio setup.",
+      ["audio", "device", "sound", "repair"], "settings-microphone"),
+    jump("spoken-terms", "Settings & support", "Manage Spoken Terms",
+      "Help speech recognition identify names and uncommon words.",
+      ["hotwords", "asr", "aliases", "vocabulary"], "settings-terms"),
+    jump("preferred-words", "Settings & support", "Manage Preferred Translations",
+      "Choose how specific Indonesian and English terms are translated.",
+      ["terminology", "glossary", "csv"], "settings-terms"),
+    jump("translation-feedback", "Settings & support", "Translation Feedback",
+      "Review and export locally reported translation issues.",
+      ["report", "quality", "issues"], "settings-feedback"),
+    jump("diagnostics", "Settings & support", "Open Diagnostics",
+      "Troubleshoot the runtime and export redacted support details.",
+      ["status", "performance", "watchdog", "help"], "settings-diagnostics"),
   ];
 }

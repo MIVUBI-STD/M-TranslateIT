@@ -8,6 +8,16 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## Utility access and keyboard safety — authorized narrow reopening (2026-10-11)
+
+**State: SOURCE IMPLEMENTED ON LOCAL; EXECUTABLE/RENDERED/TARGET_WINDOWS PROOF NOT EXECUTED.** The user authorized one constrained UX improvement after the earlier source closure. This work improves access to existing features only, not product scope or runtime architecture. The existing four routes, Settings owners, Meeting presets/transcripts, Text, My Voice, Python worker and privacy policies are unchanged. No new persistent transcript, audio handler, backend command, cloud operation, or global shortcut.
+
+**Source delivery:** Quick Actions indexes named existing utilities; section requests navigate to actual Settings/Meeting controls, including previously collapsed terminology tools. The keyboard dialog uses native button activation, bounded arrow navigation, Tab containment and focus restoration. Preset, terminology and feedback deletion now use explicit in-place confirmation. Existing labels distinguish spoken recognition terms from preferred translation wording. Short help remains contextual, with no new parallel help/command system.
+
+**Source-only hazards still requiring runtime proof:** compiled Svelte event/props wiring, actual focus behavior in Tauri WebView, aria/modal screen-reader interaction, scrolling after route mounts, narrow/high-DPI layouts, and localStorage permissions. No compiler, test suite, GPU, mic, audio-route, package, rendered UI or native behavior executed from REMOTE_GITHUB. This delivery does not reopen speculative UI redesign or grant main/release promotion.
+
+**One next step:** During the already-planned, separately authorized exact-SHA grouped Windows integration, run the existing source/keyboard/UI and device acceptance matrix, including Quick Actions, deep links, protected deletions and preferences persistence. Do not ask for per-feature PC tests or dispatch cloud CI.
+
 ## UI/UX source closure — user-approved (2026-10-11)
 
 **State: SOURCE DEVELOPMENT CLOSED — NATIVE ACCEPTANCE PENDING.** The user explicitly approved closing the bounded TranslateIT UI/UX U1–U4 source-development work. All source changes and source-level regression-contract reconciliation are retained on `Local`; no further speculative UI feature batches, cosmetic re-audits, new UI framework or duplicate state owner are authorized by this closure.

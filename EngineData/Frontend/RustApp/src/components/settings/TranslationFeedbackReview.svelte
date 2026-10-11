@@ -9,6 +9,7 @@
   let { onNotice }: { onNotice: (message: string) => void } = $props();
 
   let entries = $state<TranslationFeedbackEntry[]>(readTranslationFeedback());
+  let confirmClear = $state(false);
 
   function categoryLabel(value: TranslationFeedbackEntry["category"]): string {
     switch (value) {
@@ -36,6 +37,7 @@
       return;
     }
     entries = [];
+    confirmClear = false;
     onNotice("Translation feedback cleared.");
   }
 </script>
@@ -70,7 +72,16 @@
     </div>
     <footer class="flex justify-end gap-2 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-3.5">
       <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={() => void copyForReview()}><ClipboardCopy size={14} /> Copy review data</button>
-      <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={clearAll}><Trash2 size={14} /> Clear</button>
+      <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={() => { confirmClear = true; }}><Trash2 size={14} /> Clear</button>
     </footer>
+    {#if confirmClear}
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ti-border)] px-5 py-4" role="group" aria-label="Confirm clearing translation feedback">
+        <p class="m-0 text-xs">Permanently clear all {entries.length} local translation issue reports?</p>
+        <div class="flex gap-2">
+          <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={() => { confirmClear = false; }}>Cancel</button>
+          <button type="button" class="ti-button ti-button-danger min-h-9" onclick={clearAll}>Clear reports</button>
+        </div>
+      </div>
+    {/if}
   {/if}
 </article>

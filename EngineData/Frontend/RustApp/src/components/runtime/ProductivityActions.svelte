@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import type { ProductRuntimeSnapshot } from "../../app/bridge/runtimeProductFacade";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
-  import { buildProductCommands } from "../../app/runtime/productCommandRegistry";
+  import { buildProductCommands, type UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import { publishTranslationOverlay } from "../../app/runtime/translationOverlayRuntime";
   import type { AppRoute } from "../../app/shared/types";
   import CommandPalette from "./CommandPalette.svelte";
@@ -15,6 +15,7 @@
     voiceBuildActive,
     myVoiceRecording,
     onNavigate,
+    onOpenUtility,
     onToggleMeeting,
     onNotice,
   }: {
@@ -24,6 +25,7 @@
     voiceBuildActive: boolean;
     myVoiceRecording: boolean;
     onNavigate: (route: AppRoute) => void;
+    onOpenUtility: (destination: UtilityDestination) => void;
     onToggleMeeting: () => void | Promise<void>;
     onNotice: (message: string) => void;
   } = $props();
@@ -37,6 +39,7 @@
     meetingCanStop: snapshot.meeting.canStop,
     quickTranslateReady: snapshot.readiness.textReady && !quickTranslateBusy,
     navigate: onNavigate,
+    openUtility: onOpenUtility,
     toggleMeeting: onToggleMeeting,
     quickTranslateClipboard,
   }));

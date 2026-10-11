@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ProductRuntimeSnapshot } from "../../app/bridge/runtimeProductFacade";
   import type { AppRoute } from "../../app/shared/types";
+  import type { UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import ProductivityActions from "../runtime/ProductivityActions.svelte";
 
   let {
@@ -9,6 +10,7 @@
     notice,
     myVoiceRecording,
     onNavigate,
+    onOpenUtility,
     onToggleMeeting,
     onNotice,
   }: {
@@ -17,6 +19,7 @@
     notice: string;
     myVoiceRecording: boolean;
     onNavigate: (route: AppRoute) => void;
+    onOpenUtility: (destination: UtilityDestination) => void;
     onToggleMeeting: () => void | Promise<void>;
     onNotice: (message: string) => void;
   } = $props();
@@ -48,6 +51,7 @@
     voiceBuildActive={snapshot.voiceBuildActive}
     {myVoiceRecording}
     {onNavigate}
+    {onOpenUtility}
     {onToggleMeeting}
     {onNotice}
   />

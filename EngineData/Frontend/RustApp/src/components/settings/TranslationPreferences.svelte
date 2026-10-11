@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Copy, Plus, Search, Trash2, Upload } from "@lucide/svelte";
+  import type { UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
   import FloatingCaptionPreferences from "./FloatingCaptionPreferences.svelte";
@@ -10,10 +11,14 @@
   const MAX_SPOKEN_ALIASES = 4;
 
   let {
+    utilityTarget = null,
+    utilityRequest = 0,
     settings,
     onSettingsChange,
     onNotice,
   }: {
+    utilityTarget?: UtilityDestination | null;
+    utilityRequest?: number;
     settings: RuntimeSettings;
     onSettingsChange: (settings: RuntimeSettings) => void | Promise<void>;
     onNotice: (message: string) => void;
@@ -28,6 +33,11 @@
   let termSearch = $state("");
   // UI disclosure state is transient, independent of term-list mutations.
   let languageToolsOpen = $state(settings.spoken_terms.length > 0 || settings.terminology.length > 0);
+  let pendingDelete = $state<string | null>(null);
+  $effect(() => {
+    utilityRequest;
+    if (utilityTarget === "settings-terms" || utilityTarget === "settings-feedback") languageToolsOpen = true;
+  });
   const filteredTerms = $derived(settings.terminology.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
     const q = termSearch.trim().toLowerCase();
     return !q || entry.indonesian.toLowerCase().includes(q) || entry.english.toLowerCase().includes(q);
@@ -258,17 +268,17 @@
   </div>
 </article>
 
-<FloatingCaptionPreferences {onNotice} />
+<div id="utility-captions" tabindex="-1"><FloatingCaptionPreferences {onNotice} /></div>
 
-<details class="ti-panel overflow-hidden" bind:open={languageToolsOpen}>
+<details id="utility-terms" tabindex="-1" class="ti-panel overflow-hidden" bind:open={languageToolsOpen}>
   <summary class="cursor-pointer bg-[var(--ti-surface-soft)] px-5 py-4 text-left">
-    <strong class="block text-[15px] font-semibold">Language tools and feedback</strong>
+    <strong class="block text-[15px] font-semibold">Spoken terms, preferred translations &amp; feedback</strong>
     <span class="mt-1 block text-[12px] leading-5 text-[var(--ti-text-muted)]">
-      Optional · {settings.spoken_terms.length} spoken terms, {settings.terminology.length} preferred translations · Expand to manage.
+      Speech recognition uses spoken terms; translation uses preferred words. {settings.spoken_terms.length} spoken terms and {settings.terminology.length} preferred translations saved.
     </span>
   </summary>
   <div class="grid gap-4 border-t border-[var(--ti-border)] p-4">
-    <TranslationFeedbackReview {onNotice} />
+    <div id="utility-feedback" tabindex="-1"><TranslationFeedbackReview {onNotice} /></div>
 
 <article class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
@@ -308,9 +318,19 @@
                 <span class="mt-1 block truncate text-[11.5px] text-[var(--ti-text-soft)]">Aliases: {entry.aliases.join(", ")}</span>
               {/if}
             </div>
-            <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5" aria-label={`Remove spoken term ${entry.term}`} disabled={saving} onclick={() => void removeSpokenTerm(index)}>
-              <Trash2 size={14} />
-            </button>
+            {#if pendingDelete === `spoken:${entry.term}`}
+              <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this spoken term?</span>
+              <button type="button" class="ti-button ti-button-secondary min-h-8" onclick={() => { pendingDelete = null; }}>Cancel</button>
+              <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={() => {
+                if (settings.spoken_terms[index]?.term !== entry.term) return;
+                pendingDelete = null;
+                void removeSpokenTerm(index);
+              }}>Remove</button>
+            {:else}
+              <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5"
+                aria-label={`Remove spoken term ${entry.term}`} disabled={saving}
+                onclick={() => { pendingDelete = `spoken:${entry.term}`; }}><Trash2 size={14} /></button>
+            {/if}
           </div>
         {/each}
       </div>
@@ -367,9 +387,21 @@
             <strong class="min-w-0 truncate text-[13px] font-semibold">{entry.indonesian}</strong>
             <span class="text-[var(--ti-text-soft)]">→</span>
             <span class="min-w-0 truncate text-[13px] text-[var(--ti-text-muted)]">{entry.english}</span>
-            <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5" aria-label={`Remove ${entry.indonesian}`} disabled={saving} onclick={() => void removeTerm(index)}>
-              <Trash2 size={14} />
-            </button>
+            {#if pendingDelete === `term:${entry.indonesian}:${entry.english}`}
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this pair?</span>
+                <button type="button" class="ti-button ti-button-secondary min-h-8" onclick={() => { pendingDelete = null; }}>Cancel</button>
+                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={() => {
+                  if (settings.terminology[index]?.indonesian !== entry.indonesian || settings.terminology[index]?.english !== entry.english) return;
+                  pendingDelete = null;
+                  void removeTerm(index);
+                }}>Remove</button>
+              </div>
+            {:else}
+              <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5"
+                aria-label={`Remove ${entry.indonesian}`} disabled={saving}
+                onclick={() => { pendingDelete = `term:${entry.indonesian}:${entry.english}`; }}><Trash2 size={14} /></button>
+            {/if}
           </div>
         {/each}
       </div>
