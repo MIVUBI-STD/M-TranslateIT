@@ -46,16 +46,16 @@
         };
       case "delivering":
         return {
-          label: "Speaking",
-          title: "Speaking the English translation",
-          detail: "Other people in the call are hearing the English translation.",
+          label: "Sending",
+          title: "Sending the English translation",
+          detail: "TranslateIT is sending translated audio to the selected call microphone.",
           tone: "good",
         };
       case "attention_needed":
         return {
           label: "Needs attention",
-          title: "The last phrase could not be translated",
-          detail: "You can keep the meeting open. If this keeps happening, open Help in Settings.",
+          title: "The last phrase could not be completed",
+          detail: "Try speaking again. If this continues, open Help in Settings.",
           tone: "warning",
         };
       case "listening":

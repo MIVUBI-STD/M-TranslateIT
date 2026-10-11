@@ -80,6 +80,14 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   );
 
   const closePrimaryLabel = $derived(closeState.action === "retry" ? "Try Again" : closeState.busy ? "Stopping..." : "Stop & Close");
+  // Stable boolean dependencies avoid restarting listeners on each refreshed session snapshot.
+  const meetingMonitorsActive = $derived(
+    !booting && !setupRequired &&
+    (snapshot?.resources.owner_kind === "meeting" || closeState.closeAfterExistingStop),
+  );
+  const meetingReliabilityEnabled = $derived(
+    Boolean(snapshot?.meeting.applicationOwned && snapshot.meeting.hasSession),
+  );
 
   function setNotice(message: string): void {
     notice = compact(message, "Status unavailable.", 220);
@@ -222,6 +230,8 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     try {
       const message = await runtimeProductFacade.runProductSetupAction(action);
       await refreshSnapshot(message);
+    } catch {
+      setNotice("The setup check could not finish. Open Help or try again.");
     } finally {
       setupActionBusy = false;
     }
@@ -234,6 +244,8 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     try {
       const message = await runtimeProductFacade.runProductRecoveryAction("fix-setup");
       await refreshSnapshot(message);
+    } catch {
+      setNotice("Repair Setup could not finish. Check your devices and try again.");
     } finally {
       setupActionBusy = false;
     }
@@ -275,22 +287,26 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   }
 
   async function pollMeeting(forceTurns = false): Promise<void> {
-    meetingViewState = await meetingLiveController.reconcile(
-      {
-        ownerKind: snapshot?.resources.owner_kind ?? null,
-        booting,
-        setupRequired,
-        closeAfterExistingStop: closeState.closeAfterExistingStop,
-      },
-      {
-        onStatus: (status) => applyMeetingStatus(status),
-        onNotice: setNotice,
-        onStoppedForClose: async () => {
-          closeState = await closeController.closeWindow();
+    try {
+      meetingViewState = await meetingLiveController.reconcile(
+        {
+          ownerKind: snapshot?.resources.owner_kind ?? null,
+          booting,
+          setupRequired,
+          closeAfterExistingStop: closeState.closeAfterExistingStop,
         },
-      },
-      forceTurns,
-    );
+        {
+          onStatus: (status) => applyMeetingStatus(status),
+          onNotice: setNotice,
+          onStoppedForClose: async () => {
+            closeState = await closeController.closeWindow();
+          },
+        },
+        forceTurns,
+      );
+    } catch {
+      setNotice("Couldn't refresh the meeting display. Translation status is unknown; open Help if this continues.");
+    }
   }
 
   async function inspectNativeCloseRequest(): Promise<void> {
@@ -326,6 +342,8 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
         if (loadedSettings.meeting_setup_state !== "new") {
           await refreshSnapshot(undefined, loadedSettings);
         }
+      } catch {
+        if (!disposed) setNotice("Could not load your settings. Select Try Again to check the desktop runtime.");
       } finally {
         if (!disposed) booting = false;
       }
@@ -376,11 +394,11 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   });
 
   $effect(() =>
-    !booting && !setupRequired && (snapshot?.resources.owner_kind === "meeting" || closeState.closeAfterExistingStop)
+    meetingMonitorsActive
       ? startMeetingRuntimeMonitors(
           pollMeeting,
           setNotice,
-          Boolean(snapshot?.meeting.applicationOwned && snapshot.meeting.hasSession),
+          meetingReliabilityEnabled,
         )
       : undefined,
   );

@@ -31,6 +31,7 @@
   let audioUrl: string | null = null;
   let builtinPendingId = $state<BuiltinVoiceId | null>(null);
   let builtinPreviewing = $state<BuiltinVoiceId | null>(null);
+  let disposed = false;
 
   const currentLine = $derived(recordingState.lines.find((line) => line.line_id === selectedLineId) ?? null);
   const isRecording = $derived(recordingState.recording_line_id !== null);
@@ -46,6 +47,7 @@
     builtinPreviewing = voiceId;
     try {
       const bytes = await myVoiceBuildApi.getBuiltinPreviewAudio(voiceId);
+      if (disposed) return;
       if (!bytes) {
         builtinPreviewing = null;
         onNotice("This built-in voice preview is unavailable.");
@@ -78,6 +80,7 @@
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectBuiltin(voiceId, confirmed);
+      if (disposed) return;
       if (result.state === "approval_required") {
         builtinPendingId = voiceId;
         onNotice(`Confirm before replacing the current Meeting voice with ${builtinLabel(voiceId)}.`);
@@ -90,6 +93,8 @@
       } else {
         onNotice(result.message);
       }
+    } catch {
+      if (!disposed) onNotice("Couldn't change the Meeting voice. Check My Voice status and try again.");
     } finally {
       busy = false;
     }
@@ -115,6 +120,7 @@
   }
 
   function applyState(next: GuidedRecordingState): void {
+    if (disposed) return;
     recordingState = next;
     chooseDefaultLine(next);
     onRecordingChange(next.recording_line_id !== null);
@@ -180,12 +186,18 @@
   }
 
   function applyResult(result: GuidedRecordingActionResult): void {
+    if (disposed) return;
     applyState(result.recording);
     onNotice(productMessage(result));
   }
 
   async function refresh(): Promise<void> {
-    applyState(await myVoiceApi.getState());
+    try {
+      const next = await myVoiceApi.getState();
+      if (!disposed) applyState(next);
+    } catch {
+      if (!disposed) onNotice("Couldn't check your recordings. Open My Voice again or try another action.");
+    }
   }
 
   async function startRecording(): Promise<void> {
@@ -197,6 +209,11 @@
     busy = true;
     try {
       applyResult(await myVoiceApi.startTake(selectedLineId, authorized));
+    } catch {
+      if (!disposed) {
+        onNotice("Couldn't confirm whether recording started. Check the recording status.");
+        await refresh();
+      }
     } finally {
       busy = false;
     }
@@ -207,6 +224,11 @@
     busy = true;
     try {
       applyResult(await myVoiceApi.stopTake(recordingState.recording_line_id));
+    } catch {
+      if (!disposed) {
+        onNotice("Couldn't confirm whether recording stopped. Check the recording status.");
+        await refresh();
+      }
     } finally {
       busy = false;
     }
@@ -218,6 +240,8 @@
     busy = true;
     try {
       applyResult(await myVoiceApi.retryTake(pendingLineId));
+    } catch {
+      if (!disposed) onNotice("Couldn't retry this recording. Try again.");
     } finally {
       busy = false;
     }
@@ -234,6 +258,8 @@
         buildRefreshRevision += 1;
         selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
       }
+    } catch {
+      if (!disposed) onNotice("Couldn't confirm that this recording was saved. Check your recordings before trying again.");
     } finally {
       busy = false;
     }
@@ -267,9 +293,16 @@
 
   async function replayTake(): Promise<void> {
     if (busy || replaying || selectedLineId === null) return;
-    const bytes = await myVoiceApi.getTakeAudio(selectedLineId);
+    let bytes: ArrayBuffer | null;
+    try {
+      bytes = await myVoiceApi.getTakeAudio(selectedLineId);
+    } catch {
+      if (!disposed) onNotice("This recording couldn't be loaded.");
+      return;
+    }
+    if (disposed) return;
     if (!bytes) {
-      onNotice("This take isn't available for replay yet.");
+      onNotice("This recording isn't available for replay yet.");
       return;
     }
     stopReplay();
@@ -292,8 +325,10 @@
   }
 
   onMount(() => {
+    disposed = false;
     void refresh();
     return () => {
+      disposed = true;
       stopReplay();
       onRecordingChange(false);
     };
@@ -303,7 +338,7 @@
 <section class="ti-page ti-page-wide">
   <header class="ti-page-header">
     <div>
-      <h2 class="ti-page-title">Voice for meetings</h2>
+      <h2 class="ti-page-title">My Voice</h2>
       <p class="ti-page-copy">Choose a voice to use immediately, or record and create a personalized voice later.</p>
       <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">1. Choose a voice · 2. Record samples (optional) · 3. Create and review My Voice (optional)</p>
     </div>
@@ -377,7 +412,7 @@
 
         {#if recordingState.pending_review && pendingLineId === currentLine.line_id}
           <div class="mt-5 border-l-2 border-[var(--ti-border-strong)] pl-4">
-            <strong class="text-sm font-semibold">Review this take</strong>
+            <strong class="text-sm font-semibold">Review this recording</strong>
             <p class={`mb-0 mt-1 text-sm leading-5 ${recordingState.pending_review.quality_blocker ? "text-[var(--ti-danger)]" : "text-[var(--ti-text-muted)]"}`}>
               {recordingState.pending_review.quality_blocker
                 ? recordingQualityGuidance(recordingState.pending_review.quality_blocker)

@@ -47,7 +47,7 @@
       {settings.audio.noise_suppression === "off" ? "Off" : "Auto · recommended"}
     </strong>
     <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-      Auto lightly reduces low-level background floor on finalized speech before ASR. Speech detection still uses the original audio.
+      Auto reduces faint background noise after a phrase is detected, before recognizing its words. It does not remove all noise or change the sound of your call directly.
     </p>
   </div>
   <select

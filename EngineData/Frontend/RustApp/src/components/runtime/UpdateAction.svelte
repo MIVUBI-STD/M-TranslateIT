@@ -65,6 +65,8 @@
       }
       onNotice(result.message);
       if (result.installed) update = null;
+    } catch {
+      onNotice("Couldn't confirm the update result. Check your app version before trying again.");
     } finally {
       busy = false;
     }

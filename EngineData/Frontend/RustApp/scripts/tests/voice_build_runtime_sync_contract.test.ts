@@ -41,3 +41,13 @@ test("combined runtime subscription suppresses callbacks after unsubscribe", () 
   assert.match(api, /getApplicationSnapshot\(\)\.then\(\(snapshot\) => \{\s*if \(disposed\) return;/);
   assert.match(api, /return \(\) => \{\s*disposed = true;\s*applicationStop\(\);\s*voiceBuildStop\(\);/);
 });
+
+test("My Voice polling and audio reads cannot resume after view disposal", () => {
+  const build = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  assert.ok(build.includes("if (disposed || !build.active) return;"));
+  assert.match(build, /disposed = true;\s*if \(timer\) clearTimeout\(timer\);/);
+  assert.ok(build.includes("if (disposed || reviewId !== build.evaluation_review_id) return;"));
+  assert.ok(page.includes("if (disposed) return;"));
+  assert.match(page, /disposed = true;\s*stopReplay\(\);/);
+});

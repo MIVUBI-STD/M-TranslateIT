@@ -85,3 +85,9 @@ test("external runtime payload is preserved only when installed runtime is compa
   assert.match(helper, /asr_revision/);
   assert.match(helper, /voice_revision/);
 });
+
+test("failed update attempts surface an actionable status", () => {
+  const action = read("src/components/runtime/UpdateAction.svelte");
+  assert.ok(action.includes("Couldn't confirm the update result. Check your app version before trying again."));
+  assert.match(action, /\} catch \{[\s\S]*?\} finally \{\s*busy = false;/);
+});

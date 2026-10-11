@@ -59,6 +59,11 @@ function startMeetingReliabilityMonitor(
         lastKey = notice.key;
         onNotice(notice.message);
       }
+    } catch {
+      if (!disposed && lastKey !== "reliability_unavailable") {
+        lastKey = "reliability_unavailable";
+        onNotice("Meeting health could not be checked. Open Help if this continues.");
+      }
     } finally {
       inFlight = false;
     }
@@ -91,6 +96,11 @@ function startMeetingReliabilityMonitor(
         }
       } else {
         lastLongSessionState = "";
+      }
+    } catch {
+      if (!disposed && lastLongSessionState !== "long_session_unavailable") {
+        lastLongSessionState = "long_session_unavailable";
+        onNotice("Session health could not be checked. Open Help if this continues.");
       }
     } finally {
       longSessionInFlight = false;

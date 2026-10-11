@@ -52,6 +52,7 @@
         type="button"
         class={`ti-nav-item group grid min-h-11 grid-cols-[20px_1fr] items-center gap-2.5 rounded-[var(--ti-radius-md)] border px-3 text-left transition-colors ${active === item.route ? "is-active border-[var(--ti-border)] bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "border-transparent text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)] hover:text-[var(--ti-text)]"}`}
         aria-current={active === item.route ? "page" : undefined}
+        aria-label={item.label}
         title={item.description}
         onclick={() => onNavigate(item.route)}
       >

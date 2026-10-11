@@ -43,6 +43,8 @@
   let playingLineId = $state<number | null>(null);
   let seenRefreshRevision = refreshRevision;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let disposed = false;
+  let statusCheckUnavailable = $state(false);
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
   let reviewedLineIds = $state<number[]>([]);
@@ -78,11 +80,12 @@
   function schedulePoll(): void {
     if (timer) clearTimeout(timer);
     timer = null;
-    if (!build.active) return;
+    if (disposed || !build.active) return;
     timer = setTimeout(() => void refresh(), 1400);
   }
 
   function applyStatus(next: MyVoiceBuildStatus): void {
+    if (disposed) return;
     if (build.evaluation_review_id !== next.evaluation_review_id) {
       reviewedLineIds = [];
       qualityConfirmed = false;
@@ -185,12 +188,23 @@
   }
 
   function applyResult(result: MyVoiceBuildActionResult): void {
+    if (disposed) return;
     applyStatus(result.build);
     onNotice(productMessage(result));
   }
 
   async function refresh(): Promise<void> {
-    applyStatus(await myVoiceBuildApi.getStatus());
+    try {
+      const next = await myVoiceBuildApi.getStatus();
+      if (disposed) return;
+      statusCheckUnavailable = false;
+      applyStatus(next);
+    } catch {
+      if (disposed) return;
+      if (!statusCheckUnavailable) onNotice("Couldn't check My Voice progress. Select Retry status.");
+      statusCheckUnavailable = true;
+      schedulePoll();
+    }
   }
 
   async function generateQuickPreview(): Promise<void> {
@@ -212,14 +226,26 @@
 
   async function cancelQuickPreview(): Promise<void> {
     if (!quickPreviewBusy && !build.preview_active) return;
-    const result = await myVoiceBuildApi.cancelQuickPreview();
-    onNotice(result.message);
-    await refresh();
+    try {
+      const result = await myVoiceBuildApi.cancelQuickPreview();
+      if (!disposed) onNotice(result.message);
+    } catch {
+      if (!disposed) onNotice("Couldn't stop Quick Preview. Check its status and try again.");
+    } finally {
+      await refresh();
+    }
   }
 
   async function playQuickPreview(): Promise<void> {
     if (busy || quickPreviewBusy || !quickPreviewReady || quickPreviewPlaying) return;
-    const bytes = await myVoiceBuildApi.getQuickPreviewAudio();
+    let bytes: ArrayBuffer | null;
+    try {
+      bytes = await myVoiceBuildApi.getQuickPreviewAudio();
+    } catch {
+      if (!disposed) onNotice("Quick Preview audio couldn't be loaded.");
+      return;
+    }
+    if (disposed) return;
     if (!bytes) {
       quickPreviewReady = false;
       onNotice("Quick Preview audio is unavailable.");
@@ -250,6 +276,8 @@
     busy = true;
     try {
       applyResult(await myVoiceBuildApi.start(authorized));
+    } catch {
+      if (!disposed) onNotice("My Voice creation couldn't start. Check the recording status and try again.");
     } finally {
       busy = false;
     }
@@ -260,6 +288,8 @@
     busy = true;
     try {
       applyResult(await myVoiceBuildApi.cancel());
+    } catch {
+      if (!disposed) onNotice("Couldn't confirm that My Voice creation stopped. Check its status.");
     } finally {
       busy = false;
     }
@@ -275,6 +305,8 @@
       if (result.ok && result.state === "approved") {
         await onMeetingVoiceChanged(productMessage(result));
       }
+    } catch {
+      if (!disposed) onNotice("Couldn't confirm My Voice approval. Check its status before trying again.");
     } finally {
       busy = false;
     }
@@ -285,8 +317,14 @@
     const reviewId = build.evaluation_review_id;
     const expectedSha256 = build.evaluation_samples.find((sample) => sample.line_id === lineId)?.sha256;
     if (!reviewId || !expectedSha256) return;
-    const bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId, expectedSha256);
-    if (reviewId !== build.evaluation_review_id) return;
+    let bytes: ArrayBuffer | null;
+    try {
+      bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId, expectedSha256);
+    } catch {
+      if (!disposed) onNotice("This My Voice sample couldn't be loaded. Try again.");
+      return;
+    }
+    if (disposed || reviewId !== build.evaluation_review_id) return;
     if (!bytes) {
       onNotice("This My Voice preview is unavailable or failed its integrity check.");
       return;
@@ -326,14 +364,23 @@
   });
 
   onMount(() => {
+    disposed = false;
     return () => {
+      disposed = true;
       if (timer) clearTimeout(timer);
+      timer = null;
       stopAudio();
     };
   });
 </script>
 
 <section class="ti-panel p-6" aria-busy={build.active || busy || quickPreviewBusy}>
+  {#if statusCheckUnavailable}
+    <div role="alert" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] p-3">
+      <span class="text-sm">My Voice status is unavailable. The previous progress may be outdated.</span>
+      <button type="button" class="ti-button ti-button-secondary" disabled={busy || quickPreviewBusy} onclick={() => void refresh()}>Retry status</button>
+    </div>
+  {/if}
   <div class="flex items-start justify-between gap-5">
     <div>
       <span class="ti-kicker">My Voice</span>
@@ -431,7 +478,7 @@
   <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <strong class="text-sm font-semibold">Quick Voice Preview · Training only</strong>
+        <strong class="text-sm font-semibold">Quick Preview · Not for meetings</strong>
         <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Optional temporary preview; never usable in Meeting.</p>
       </div>
       <button

@@ -73,3 +73,13 @@ test("completed reliability reads cannot notify after Meeting monitor disposal",
   );
   assert.match(monitor, /return \(\) => \{\s*disposed = true;\s*window.clearInterval\(timer\);/);
 });
+
+test("Meeting monitor lifetime is stable across status-only snapshot refreshes", () => {
+  assert.ok(app.includes("const meetingMonitorsActive = $derived("));
+  assert.ok(app.includes("const meetingReliabilityEnabled = $derived("));
+  assert.match(app, /\$effect\(\(\) =>\s*meetingMonitorsActive/);
+  assert.match(app, /startMeetingRuntimeMonitors\(\s*pollMeeting,\s*setNotice,\s*meetingReliabilityEnabled/);
+  assert.ok(monitor.includes('lastKey !== "reliability_unavailable"'));
+  assert.ok(monitor.includes('lastLongSessionState !== "long_session_unavailable"'));
+  assert.ok(app.includes("Couldn't refresh the meeting display"));
+});
