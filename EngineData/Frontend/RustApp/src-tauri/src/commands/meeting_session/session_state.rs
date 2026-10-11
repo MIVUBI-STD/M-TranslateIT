@@ -113,6 +113,16 @@ pub(super) fn current_outbound_status() -> MeetingOutboundRuntimeStatus {
         .unwrap_or_else(|_| idle_outbound_status())
 }
 
+// A failed self-output suppression permanently disables optional incoming
+// for this Meeting session. Delayed worker/capture completion may not replace
+// that decision; the next session resets the canonical status owner.
+fn incoming_status_update_allowed(
+    status: &MeetingIncomingRuntimeStatus,
+    session_id: &str,
+) -> bool {
+    !(status.session_id.as_deref() == Some(session_id) && status.stage == "disabled")
+}
+
 pub(super) fn incoming_lane_enabled(session_id: &str) -> bool {
     incoming_status_store()
         .lock()
@@ -299,10 +309,12 @@ pub(super) fn update_incoming_status(
     blocker: &str,
     note: &str,
 ) {
-    if degraded && !blocker.is_empty() {
-        let _ = record_runtime_incident("meeting_incoming", stage, blocker, note);
-    }
-    if let Ok(mut status) = incoming_status_store().lock() {
+    let applied = if let Ok(mut status) = incoming_status_store().lock() {
+        // The status mutation and terminal-state check must share this lock:
+        // an in-flight ASR/translation cannot resurrect disabled incoming.
+        if !incoming_status_update_allowed(&status, session_id) {
+            return;
+        }
         let capture = meeting_sound_capture_status();
         *status = MeetingIncomingRuntimeStatus {
             session_id: Some(session_id.to_string()),
@@ -317,6 +329,13 @@ pub(super) fn update_incoming_status(
                 "meeting_incoming_optional_lane_source_contract_not_windows_runtime_proof"
                     .to_string(),
         };
+        true
+    } else {
+        false
+    };
+    // Rejected stale statuses must not create misleading new incidents.
+    if applied && degraded && !blocker.is_empty() {
+        let _ = record_runtime_incident("meeting_incoming", stage, blocker, note);
     }
 }
 
@@ -350,5 +369,34 @@ pub(super) fn mark_incoming_cleanup_incomplete_status(
             runtime_claim: "meeting_incoming_cleanup_incomplete_resource_release_not_confirmed"
                 .to_string(),
         };
+    }
+}
+
+#[cfg(test)]
+mod incoming_status_terminal_tests {
+    use super::{idle_incoming_status, incoming_status_update_allowed};
+
+    #[test]
+    fn disabled_incoming_rejects_late_statuses_until_session_reset() {
+        let mut status = idle_incoming_status();
+        status.session_id = Some("session-a".to_string());
+        status.stage = "disabled".to_string();
+
+        // All old-session completions, including a late suppression guard,
+        // must leave the incoming lane disabled.
+        for late_stage in ["listening", "transcribing", "translating", "suppressed", "degraded"] {
+            assert!(
+                !incoming_status_update_allowed(&status, "session-a"),
+                "late {late_stage} must not revive disabled incoming"
+            );
+        }
+        assert!(
+            incoming_status_update_allowed(&status, "session-b"),
+            "a different Meeting session must be independently eligible"
+        );
+
+        // The canonical lifecycle reset explicitly removes the terminal state.
+        let reset = idle_incoming_status();
+        assert!(incoming_status_update_allowed(&reset, "session-a"));
     }
 }
