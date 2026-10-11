@@ -8,13 +8,21 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## UI/UX usability iteration — U3 My Voice, captions and Settings (2026-10-11)
+
+**State: SOURCE IMPLEMENTED; EXECUTABLE/RENDERED/NATIVE PROOF NOT EXECUTED.** Existing Svelte UI owners were reused. The My Voice page now explains the three-stage optional journey, surfaces accepted sample-line progress, marks the selected line accessibly, and clears the built-in voice preview busy indicator on missing audio. The canonical My Voice build and approval lifecycle remains mounted, with the training-only Quick Preview controls in a reversible disclosure; an active preview remains visible and stoppable. Floating caption settings now include sample-only text/width/contrast preview using the canonical overlay sizing policy, with explicit limits on Windows-DPI and calling-app behavior. Translation Settings groups optional terminology and opt-in feedback in a native disclosure, initially expanded for users with saved terms. No alternative runtime, controller, cache, transcript retention, personal-voice migration, or dependency was added.
+
+**Safety / scope:** Quick Preview never becomes an approved Meeting voice; training, cancellation, listening and explicit human approval are unchanged. Personal recordings and preferred terms stay with their existing owners. New illustration is hard-coded public sample text, not a display of private captions. This is not a claim that high-contrast rendering or keyboard/screen reader behavior has been tested on Windows.
+
+**Next step:** Keep Q4 paused unless integrated Windows acceptance is explicitly authorized; its single batch must check frontend compilation, component keyboard navigation/announcements, caption settings vs native 100–200% scaling, My Voice sample recording/build/approval paths, privacy lifecycle and full Meeting functionality on one pinned `Local` SHA. Do not repeat feature-level PC checks or begin packaging by default.
+
 ## UI/UX usability iteration — U2 First Setup and Meeting (2026-10-11)
 
 **State: SOURCE IMPLEMENTED; COMPILER, RENDERED AND TARGET_WINDOWS PROOF NOT EXECUTED.** Continue on `Local` using the existing Svelte owners. First Setup now distinguishes a newly selected (unsaved/unverified) input device from the saved microphone; step-2 Continue is disabled until the device choice is saved and readiness confirms it. The Meeting app step explicitly separates Windows virtual microphone availability from selection inside Zoom/Meet/Discord, which TranslateIT cannot attest. Final setup adds current-snapshot-based recovery guidance for missing microphone, route, voice and translation readiness. Meeting gives actionable reason-specific recovery text while preserving its existing Start/Stop, repair, refresh and voice-selection handlers; a route-display fallback no longer contradicts an already-ready snapshot. No new persistence, backend calls, audio owner, synthetic readiness, or alternative setup workflow.
 
 **Acceptance boundary:** Inspect actual UI at the supported Windows native minimum, high scaling, keyboard focus and disabled step progression in the existing grouped Windows acceptance, with one pinned `Local` SHA. Source delivery and static checks alone do not prove compiled/rendered/native behavior. `main`, hosted CI and Q4 package/native acceptance remain untouched and paused.
 
-**Next UX batch:** U3 simplify My Voice and Settings progressive disclosure (plus existing caption preference clarity), preserving voice approval, data security and canonical Svelte/Tauri owners. Do not start microtest cycles or native packaging ahead of the integrated gate.
+**Continuation:** U3 source delivery is recorded above; U2 remains source-only until integrated acceptance.
 
 ## UI/UX usability iteration — U1 source delivery (2026-10-11)
 
@@ -22,7 +30,7 @@ Actual latency, device routing, audio quality, GPU behavior, and installed-app b
 
 **Limits:** Native main window retains 1280×760 minimum until wider rendered layouts are demonstrated. ProductRuntimeSnapshot does not expose the exact selected Meeting voice; UI must not invent or duplicate that backend identity. Static/source checks cannot prove compilation, keyboard/screen-reader usability, DPI rendering or Windows behavior.
 
-**Next UX batch:** Improve First Setup hierarchy and Meeting recovery UX within existing UI owners. Keep Q4 grouped Windows acceptance and packaging paused.
+**Continuation:** U2 and U3 source deliveries are recorded above; Q4 remains paused.
 
 ## UI / Text Overlay — source closeout candidate (2026-10-11)
 

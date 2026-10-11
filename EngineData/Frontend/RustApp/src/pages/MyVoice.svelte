@@ -47,6 +47,7 @@
     try {
       const bytes = await myVoiceBuildApi.getBuiltinPreviewAudio(voiceId);
       if (!bytes) {
+        builtinPreviewing = null;
         onNotice("This built-in voice preview is unavailable.");
         return;
       }
@@ -303,13 +304,14 @@
   <header class="ti-page-header">
     <div>
       <h2 class="ti-page-title">Voice for meetings</h2>
-      <p class="ti-page-copy">Choose what other people hear when TranslateIT speaks the English translation.</p>
+      <p class="ti-page-copy">Choose a voice to use immediately, or record and create a personalized voice later.</p>
+      <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">1. Choose a voice · 2. Record samples (optional) · 3. Create and review My Voice (optional)</p>
     </div>
   </header>
 
   <section class="ti-panel mb-6 p-5">
     <span class="ti-kicker">Ready now</span>
-    <strong class="mt-2 block text-base font-semibold">Choose a ready-made voice</strong>
+    <strong class="mt-2 block text-base font-semibold">Step 1 · Choose a ready-made voice</strong>
     <p class="mb-0 mt-1.5 max-w-[720px] text-sm leading-6 text-[var(--ti-text-muted)]">Pick one of these to start immediately. You can make a personalized voice later.</p>
     <div class="mt-4 grid grid-cols-2 gap-3">
       {#each [
@@ -343,8 +345,8 @@
 
   <div class="mb-5 border-t border-[var(--ti-border)] pt-5">
     <span class="ti-kicker">Optional</span>
-    <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Create a voice that sounds like you</h3>
-    <p class="mb-0 mt-1.5 text-sm leading-6 text-[var(--ti-text-muted)]">Record a few English lines so TranslateIT can create your personalized meeting voice.</p>
+    <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Personalize your voice (optional)</h3>
+    <p class="mb-0 mt-1.5 text-sm leading-6 text-[var(--ti-text-muted)]">Record varied English lines to prepare a personalized voice. Your accepted recordings remain on this computer, and you review the result before using it.</p>
   </div>
 
   <div class="grid grid-cols-[minmax(0,1fr)_300px] gap-5">
@@ -352,7 +354,7 @@
       <div class="flex items-start justify-between gap-4">
         <div>
           <span class="ti-kicker">My Voice</span>
-          <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Record the sample lines</h3>
+          <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 2 · Record the sample lines</h3>
           <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read each line naturally. You can skip any line and return to it later.</p>
         </div>
       </div>
@@ -426,6 +428,7 @@
     <aside class="ti-panel overflow-hidden">
       <div class="border-b border-[var(--ti-border)] px-4 py-3.5">
         <strong class="text-sm font-semibold">Your sample lines</strong>
+        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">{recordingState.lines.filter((line) => line.accepted).length} of {recordingState.lines.length} accepted · Select a line to record or replay.</p>
       </div>
       <div class="max-h-[590px] overflow-y-auto p-2">
         {#each recordingState.lines as line}
@@ -433,6 +436,7 @@
             type="button"
             class={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2.5 text-left text-sm transition-colors ${selectedLineId === line.line_id ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}`}
             disabled={isRecording || recordingState.pending_review !== null}
+            aria-pressed={selectedLineId === line.line_id}
             onclick={() => { selectedLineId = line.line_id; }}
           >
             {#if line.accepted}

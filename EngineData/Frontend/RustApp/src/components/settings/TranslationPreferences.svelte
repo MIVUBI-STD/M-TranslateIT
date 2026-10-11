@@ -258,7 +258,15 @@
 
 <FloatingCaptionPreferences {onNotice} />
 
-<TranslationFeedbackReview {onNotice} />
+<details class="ti-panel overflow-hidden" open={settings.spoken_terms.length > 0 || settings.terminology.length > 0}>
+  <summary class="cursor-pointer bg-[var(--ti-surface-soft)] px-5 py-4 text-left">
+    <strong class="block text-[15px] font-semibold">Language tools and feedback</strong>
+    <span class="mt-1 block text-[12px] leading-5 text-[var(--ti-text-muted)]">
+      Optional · {settings.spoken_terms.length} spoken terms, {settings.terminology.length} preferred translations · Expand to manage.
+    </span>
+  </summary>
+  <div class="grid gap-4 border-t border-[var(--ti-border)] p-4">
+    <TranslationFeedbackReview {onNotice} />
 
 <article class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
@@ -372,4 +380,6 @@
     </p>
   </footer>
 </article>
+  </div>
+</details>
 </section>

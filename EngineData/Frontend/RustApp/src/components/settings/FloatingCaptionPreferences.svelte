@@ -9,6 +9,7 @@
     readOverlayPreferences,
     updateOverlayPreferences,
   } from "../../app/runtime/translationOverlayState";
+  import { overlayFontSize, overlayWidth } from "../../app/runtime/translationOverlayPolicy";
   import type {
     OverlayContrast,
     OverlayTextSize,
@@ -51,7 +52,7 @@
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
     <h3 class="m-0 text-[15px] font-semibold">Floating captions</h3>
     <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">
-      Keep translated speech readable above other windows without turning the caption into a styling panel.
+      Adjust the text you read during meetings. The preview below uses sample text, not your conversation.
     </p>
   </header>
 
@@ -112,11 +113,29 @@
       </label>
     </div>
 
+    <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <strong class="text-[13px] font-semibold">Reading preview</strong>
+        <span class="text-[11.5px] text-[var(--ti-text-muted)]">Sample only · not live translation</span>
+      </div>
+      <div class="mt-3 overflow-hidden rounded-[var(--ti-radius-md)] bg-[#282c32] p-3">
+        <div
+          role="img"
+          aria-label="Example floating caption: Good morning, the meeting will begin shortly"
+          class="mx-auto break-words rounded-[12px] px-4 py-4 text-center leading-[1.45] text-[#f7f8fa]"
+          class:border-2={preferences.contrast === "high"}
+          class:border-white={preferences.contrast === "high"}
+          style={`max-width: ${overlayWidth(preferences.width)}px; font-size: ${overlayFontSize(preferences.textSize)}px; background-color: ${preferences.contrast === "high" ? "#000" : "#101316"};`}
+        >Good morning. The meeting will begin shortly.</div>
+      </div>
+      <p class="mb-0 mt-2 text-[11.5px] leading-5 text-[var(--ti-text-muted)]">Actual size and placement also depend on your screen and Windows scaling.</p>
+    </div>
+
     <label class="flex items-start justify-between gap-5">
       <span>
         <strong class="block text-[13px] font-semibold">Allow clicks through caption</strong>
         <small class="mt-1 block text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-          Work in windows behind the caption. Turn this off here to interact with caption controls again.
+          Lets you click windows behind the caption. Return here to disable it before using caption buttons again.
         </small>
       </span>
       <input type="checkbox" class="mt-1 size-4" checked={preferences.clickThrough} onchange={(event) => void update({ clickThrough: (event.currentTarget as HTMLInputElement).checked })} />
@@ -124,9 +143,11 @@
 
     <div>
       <button type="button" class="ti-button ti-button-secondary" onclick={() => void show()}>
-        <Eye size={15} /> Show floating caption
+        <Eye size={15} /> Show caption window
       </button>
     </div>
+
+    <p class="m-0 text-[11.5px] leading-5 text-[var(--ti-text-muted)]">Showing the caption window does not start Meeting translation. Previous private caption text is not restored.</p>
 
     {#if diagnostic}
       <p class="m-0 text-[11.5px] leading-5 text-[var(--ti-warning)]">
