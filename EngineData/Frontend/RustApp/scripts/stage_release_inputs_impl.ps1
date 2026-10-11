@@ -239,13 +239,16 @@ foreach ($item in $nltkPackages) {
 @('source_kind=nltk_data', 'repository=nltk/nltk_data', "revision=$nltkRevision") + $nltkRecords | Set-Content -LiteralPath (Join-Path $VoiceSource 'NLTK_DATA_SOURCE.txt') -Encoding ascii
 
 Write-Host '[release-stage] Stage pinned FFmpeg n8.1 LGPL executable from BtbN'
-$ffmpegReleaseTag = 'autobuild-2026-09-20-13-11'
-$ffmpegReleaseId = '384189644'
-$ffmpegReleaseName = 'Auto-Build 2026-09-07 15:39'
-$ffmpegReleasePublishedAt = '2026-09-07T15:40:02Z'
-$ffmpegAssetId = '549007162'
-$ffmpegAssetName = 'ffmpeg-n8.1.2-267-gb2f422d306-win64-lgpl-8.1.zip'
-$ffmpegArchiveSha = 'e0e82ba6babc8abc4530e3d018ef563fd24c93be0db731d9bf771379d2b363ac'
+# Month-end BtbN release pin; the GitHub release/asset API supplies this
+# identity and archive SHA. The staged archive/executable/license still must
+# pass local integrity and LGPL build-option checks before packaging.
+$ffmpegReleaseTag = 'autobuild-2026-09-30-13-08'
+$ffmpegReleaseId = '400057568'
+$ffmpegReleaseName = 'Auto-Build 2026-09-30 13:08'
+$ffmpegReleasePublishedAt = '2026-09-30T13:09:24Z'
+$ffmpegAssetId = '600950502'
+$ffmpegAssetName = 'ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-8.1.zip'
+$ffmpegArchiveSha = '4a7642b2264c03e8a0ce8a3825b933ee5580656f45695a086fe7e294045ffc0a'
 $ffmpegDownloadUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$ffmpegReleaseTag/$ffmpegAssetName"
 $ffmpegArchive = Join-Path $Temp 'ffmpeg.zip'
 Invoke-Download $ffmpegDownloadUrl $ffmpegArchive
