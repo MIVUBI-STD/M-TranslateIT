@@ -70,7 +70,8 @@ def replay_declared_routing(cases: list[dict[str, Any]], root: Path = ROOT) -> d
                 and result["knownImpact"] is None
                 and result["rankedKnowledge"] is None
                 and result["writePreflight"]["status"] == "NOT_REQUESTED"
-                and len(required) <= 5
+                and "AGENTS.md" in required
+                and "GITHUB_RULES.md" in required
                 and len(required) == len(set(required))
                 and len({p["path"] for p in conditional}) == len(conditional)
                 and (mode not in {"plan", "context-recovery"} or not actual_skills)
@@ -135,16 +136,20 @@ def check_source_impact(root: Path, *, extended: bool = False) -> dict[str, Any]
     if extended:
         impacted = plan_impacted([SOURCE_IMPACT], root=root)
         graph = impacted["sourceDependencyGraph"]
-        if (graph is None or graph["fullClosureProven"] is not False
-                or impacted["proof"] != "PLANNING_ONLY_NOT_EXECUTED"
-                or impacted["ciTriggered"]):
+        if impacted["sourceAnalysisStatus"] == "UNKNOWN_CAPACITY":
+            if not impacted["reviewRequired"] or not impacted["capacityWarnings"]:
+                issues.append("source analysis capacity was not reported as missing proof")
+        elif graph is None or graph["fullClosureProven"] is not False:
             issues.append("cross-language affected proof is not conservatively bounded")
+        if impacted["proof"] != "PLANNING_ONLY_NOT_EXECUTED" or impacted["ciTriggered"]:
+            issues.append("cross-language impact claimed unexecuted proof")
         source = {
             "path": SOURCE_IMPACT,
             "domains": impacted["domains"],
             "knownConsumers": len(graph["affectedSourceConsumers"]) if graph else None,
             "unknownImports": len(graph["affectedUnknownImports"]) if graph else None,
             "fullClosureProven": False,
+            "analysisStatus": impacted["sourceAnalysisStatus"],
         }
     return {
         "documentOnly": {

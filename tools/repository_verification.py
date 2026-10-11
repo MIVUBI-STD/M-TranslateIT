@@ -47,7 +47,6 @@ VALIDATORS = {
     "validate:dependency-usage": "validate_dependency_usage.mjs",
     "validate:rust-dependency-usage": "validate_rust_dependency_usage.mjs",
     "validate:test-references": "validate_test_reference_reachability.mjs",
-    "validate:source-size": "validate_source_size_budget.mjs",
 }
 AST_SCRIPT = (
     "import ast,sys;from pathlib import Path;"
@@ -210,6 +209,8 @@ def plan_verification(
     residuals = []
     if impact["reviewRequired"]:
         residuals.append("UNPROVEN_SOURCE_DEPENDENCY_CLOSURE")
+    if impact.get("capacityWarnings"):
+        residuals.append("SOURCE_ANALYSIS_CAPACITY_UNKNOWN")
     if impact["sourceDependencyGraph"] is not None:
         residuals.append("PARTIAL_IMPORT_GRAPH_NOT_COMPILER_PROOF")
     if rust_changed and not include_offline_rust:

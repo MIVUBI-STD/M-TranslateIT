@@ -33,16 +33,14 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     RuntimeSettings,
   } from "./app/shared/types";
   import type { UtilityDestination } from "./app/runtime/productCommandRegistry";
-
+  import Sidebar from "./components/layout/Sidebar.svelte";
   import NativeCloseDialog from "./components/runtime/NativeCloseDialog.svelte";
-
+  import AppHeader from "./components/layout/AppHeader.svelte";
   import FirstSetup from "./pages/FirstSetup.svelte";
-  import ProductWorkspace from "./components/layout/ProductWorkspace.svelte";
-  import StartupStatus from "./components/layout/StartupStatus.svelte";
-
-
-
-
+  import Meeting from "./pages/Meeting.svelte";
+  import MyVoice from "./pages/MyVoice.svelte";
+  import Settings from "./pages/Settings.svelte";
+  import Text from "./pages/Text.svelte";
 
   const applicationController = createApplicationController(defaultSettings());
   const meetingLiveController = createMeetingLiveController();
@@ -407,37 +405,89 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
 </script>
 
 {#if booting}
-  <StartupStatus loading message={notice} onRetry={() => void refreshSnapshot()} />
+  <main class="grid min-h-screen place-items-center bg-[var(--ti-bg)] p-8">
+    <section class="w-full max-w-[560px] text-center">
+      <div class="mx-auto grid size-12 place-items-center rounded-[14px] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] text-lg font-bold">T</div>
+      <h1 class="mb-0 mt-5 text-2xl font-semibold tracking-[-0.03em]">Getting TranslateIT ready</h1>
+      <p class="mb-0 mt-2 text-sm leading-6 text-[var(--ti-text-muted)]">Checking your saved setup.</p>
+    </section>
+  </main>
 {:else if setupRequired}
   <FirstSetup initialSettings={setupSettings} onComplete={finishFirstSetup} onOpenMyVoice={openMyVoiceFromSetup} />
 {:else if snapshot}
-  <ProductWorkspace
-    {snapshot}
-    {route}
-    {presence}
-    {notice}
-    {myVoiceRecording}
-    {meetingStatus}
-    meetingTurns={meetingViewState.turns}
-    {utilityTarget}
-    {utilityRequest}
-    {meetingActionBusy}
-    {setupActionBusy}
-    {micTestBusy}
-    onNavigate={navigate}
-    onOpenUtility={openUtility}
-    onToggleMeeting={handleMeetingAction}
-    onRefresh={refreshSnapshot}
-    onFixSetup={fixSetup}
-    onSettingsChange={applySettings}
-    onSetupAction={runSetupAction}
-    onMicTest={toggleMicTest}
-    onRecordingChange={(recording) => { myVoiceRecording = recording; }}
-    onMeetingVoiceChanged={syncMeetingVoice}
-    onNotice={setNotice}
-  />
+  <main class="flex h-screen min-h-0 bg-[var(--ti-bg)]">
+    <Sidebar active={route} {presence} onNavigate={navigate} />
+
+    <section class="flex min-w-0 flex-1 flex-col">
+      <AppHeader
+        {snapshot}
+        {route}
+        {notice}
+        {myVoiceRecording}
+        onNavigate={navigate}
+        onOpenUtility={openUtility}
+        onToggleMeeting={handleMeetingAction}
+        onNotice={setNotice}
+      />
+
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        {#if route === "meeting"}
+          <Meeting
+            {snapshot}
+            {meetingStatus}
+            meetingTurns={meetingViewState.turns}
+            {utilityTarget}
+            {utilityRequest}
+            actionBusy={meetingActionBusy}
+            onMeetingAction={handleMeetingAction}
+            onRefresh={refreshSnapshot}
+            onFixSetup={fixSetup}
+            onOpenMyVoice={() => navigate("my-voice")}
+          />
+        {:else if route === "text"}
+          <!-- Text workspace stays mounted below during navigation. -->
+        {:else if route === "my-voice"}
+          <MyVoice
+            onNotice={setNotice}
+            onMeetingVoiceChanged={syncMeetingVoice}
+            onRecordingChange={(recording) => { myVoiceRecording = recording; }}
+          />
+        {:else}
+          <Settings
+            {utilityTarget}
+            {utilityRequest}
+            {snapshot}
+            settings={snapshot.settings}
+            setupBusy={setupActionBusy}
+            {micTestBusy}
+            onSettingsChange={applySettings}
+            onRefresh={refreshSnapshot}
+            onSetupAction={runSetupAction}
+            onFixSetup={fixSetup}
+            onMicTest={toggleMicTest}
+            onNotice={setNotice}
+          />
+        {/if}
+        <div class={route === "text" ? "" : "hidden"}>
+          <Text
+            settings={snapshot.settings}
+            textStatus={snapshot.readiness.textStatus}
+            onSettingsChange={applySettings}
+            onNotice={setNotice}
+          />
+        </div>
+      </div>
+    </section>
+  </main>
 {:else}
-  <StartupStatus loading={false} message={notice} onRetry={() => { setNotice("Checking again..."); void refreshSnapshot(); }} />
+  <main class="grid min-h-screen place-items-center bg-[var(--ti-bg)] p-8">
+    <section class="ti-panel w-full max-w-[560px] p-7">
+      <span class="ti-kicker">TranslateIT</span>
+      <h1 class="mb-0 mt-3 text-2xl font-semibold">TranslateIT isn't ready yet</h1>
+      <p class="mb-0 mt-3 text-sm leading-6 text-[var(--ti-text-muted)]">{notice}</p>
+      <button type="button" class="ti-button mt-5" onclick={() => { setNotice("Checking again..."); void refreshSnapshot(); }}>Try Again</button>
+    </section>
+  </main>
 {/if}
 
 <NativeCloseDialog

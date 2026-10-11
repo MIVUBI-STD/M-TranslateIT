@@ -16,7 +16,8 @@ from typing import Any
 from repository_contracts import verify_contracts
 from repository_dependencies import (
     FRONT as FRONT_SOURCE_ROOT, RUST as RUST_SOURCE_ROOT, WORKER as PYTHON_SOURCE_ROOT,
-    affected_consumers, build_source_graph, relevant_unknown_imports,
+    SourceGraphCapacityExceeded, affected_consumers, build_source_graph,
+    relevant_unknown_imports,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,7 +110,7 @@ def _literal_test_edges(root: Path) -> dict[str, set[str]]:
     """Bounded read of the canonical frontend regression owner, not a repo scan."""
     tests = sorted((root / FRONT / "scripts/tests").glob("*.test.ts"))
     if len(tests) > 200:
-        raise ValueError("frontend regression inventory exceeded bounded scan budget")
+        raise SourceGraphCapacityExceeded("frontend regression reference scan capacity exceeded")
     referenced: dict[str, set[str]] = {}
     for test in tests:
         test_path = test.relative_to(root).as_posix()
@@ -144,10 +145,20 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
     domains: set[str] = set()
     risks: list[str] = []
     entries: list[dict] = []
-    refs = _literal_test_edges(root) if any(p.startswith("EngineData/") for p in changed) else {}
+    capacity_warnings: list[str] = []
+    try:
+        refs = _literal_test_edges(root) if any(p.startswith("EngineData/") for p in changed) else {}
+    except SourceGraphCapacityExceeded as exc:
+        refs = {}
+        capacity_warnings.append(str(exc))
     source_paths = tuple((FRONT_SOURCE_ROOT + "src/", FRONT_SOURCE_ROOT + "scripts/tests/",
                           RUST_SOURCE_ROOT, PYTHON_SOURCE_ROOT))
-    graph = build_source_graph(root) if any(p.startswith(source_paths) for p in changed) else None
+    source_graph_requested = any(p.startswith(source_paths) for p in changed)
+    try:
+        graph = build_source_graph(root) if source_graph_requested else None
+    except SourceGraphCapacityExceeded as exc:
+        graph = None
+        capacity_warnings.append(str(exc))
     all_consumers: set[str] = set()
     graph_unknown: list[dict[str, str]] = []
     for path in changed:
@@ -156,11 +167,17 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
         linked_tests = set(refs.get(path, set()))
         source_consumers: list[str] = []
         unknown: list[dict[str, str]] = []
+        projected = {path}
         if graph is not None and path.startswith(source_paths):
             if path not in graph["indexed"]:
                 risks.append(path)  # Removed/moved/unknown source: fail open is forbidden.
             else:
-                source_consumers = affected_consumers(graph, path)
+                try:
+                    source_consumers = affected_consumers(graph, path)
+                except SourceGraphCapacityExceeded as exc:
+                    capacity_warnings.append(f"{path}: {exc}")
+                    risks.append(path)
+                    source_consumers = []
                 projected = {path, *source_consumers}
                 unknown = relevant_unknown_imports(graph, projected)
                 graph_unknown.extend(unknown)
@@ -174,8 +191,8 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
                     ):
                         linked_tests.add(consumer)
                 all_consumers.update(source_consumers)
-        else:
-            projected = {path}
+        elif source_graph_requested and path.startswith(source_paths):
+            risks.append(path)  # The capacity ceiling is unknown proof, never source invalidity.
         for contract in registry["contracts"]:
             endpoints = {contract["owner"], *contract["consumers"], *contract["tests"]}
             if not projected.isdisjoint(endpoints):
@@ -195,7 +212,7 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
                 base_domains.add("python")
             tests.update(linked_tests)
         domains.update(base_domains)
-        if (conservative and not matched) or unknown:
+        if (conservative and not matched) or unknown or capacity_warnings:
             risks.append(path)
         entries.append({
             "path": path,
@@ -211,6 +228,8 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
             ),
             "conservative": conservative and not matched,
         })
+    if capacity_warnings:
+        risks.extend(path for path in changed if path.startswith(source_paths))
     manual_workflows = sorted({WORKFLOWS[d] for d in domains})
     app_scripts = json.loads((root / FRONT / "package.json").read_text(encoding="utf-8"))["scripts"]
     candidate_frontend_scripts = [
@@ -227,9 +246,15 @@ def plan_impacted(changed_paths: list[str], root: Path = ROOT) -> dict[str, Any]
         "existingFrontendValidators": sorted(validators),
         "candidateFrontendScripts": candidate_frontend_scripts,
         "manualWorkflowCandidates": manual_workflows,
-        "reviewRequired": bool(risks),
+        "reviewRequired": bool(risks or capacity_warnings),
         "unprovenClosures": sorted(set(risks)),
+        "capacityWarnings": sorted(set(capacity_warnings)),
+        "sourceAnalysisStatus": (
+            "UNKNOWN_CAPACITY" if capacity_warnings else
+            "PARTIAL" if graph else "NOT_REQUESTED"
+        ),
         "dependencyCoverage": (
+            "UNKNOWN_CAPACITY" if capacity_warnings else
             "CONSERVATIVE" if risks else
             "REGISTERED_BOUNDARY_PLUS_PARTIAL_IMPORTS" if graph else "REGISTERED_BOUNDARY_ONLY"
         ),
@@ -265,6 +290,11 @@ def verify_impact(root: Path = ROOT) -> list[str]:
                 issues.append(f"{paths}: missing conservative impacted domains: {sorted(required)}")
             if plan["proof"] != "PLANNING_ONLY_NOT_EXECUTED" or plan["ciTriggered"]:
                 issues.append(f"{paths}: impact plan overstated proof")
+            if plan["sourceAnalysisStatus"] == "UNKNOWN_CAPACITY":
+                # Governance validates honest limitation reporting, not complete graph availability.
+                if not plan["reviewRequired"] or not plan["capacityWarnings"]:
+                    issues.append(f"{paths}: capacity limit was reported without conservative review")
+                continue
             if any(p.startswith(FRONT + "src/") or p.startswith(WORKER) for p in paths):
                 graph = plan["sourceDependencyGraph"]
                 if graph is None or graph["fullClosureProven"] is not False:

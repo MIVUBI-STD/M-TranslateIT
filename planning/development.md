@@ -1,5 +1,14 @@
 # TranslateIT Development
 
+## Active continuation — source-design correction (2026-10-11)
+
+**State: APPROVED IMPLEMENTATION ON Local; EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** The user approved replacing arbitrary source/document length hard-fail rules with meaningful architecture and behavioral checks. Preserve safety/resource bounds, typed bridge contracts, model/payload provenance, privacy, and session-lifecycle protections. Selectively consolidate pure markup or prop-forwarding wrappers from the prior source-size workaround; retain real feature boundaries. Existing source analyzer capacity now reports unknown/incomplete evidence rather than condemning legitimate source growth. No compiled/rendered/native performance claim is made.
+
+**One next step after source delivery:** run the existing pinned-SHA integrated build/package/Windows UI, Meeting, Text, and My Voice acceptance (only when its controlled prerequisites are available). No hosted CI, incremental PC tests, or `main` promotion.
+
+**Historical context:** all subsequent dated work sections preserve earlier source decisions and evidence at their original revisions. Headings such as `Active` and `Next` within that history are not separate live instructions; the current Local source, this continuation, and the existing acceptance runbook take precedence.
+
+
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 
 **State: SOURCE CORRECTION ON Local; COMPILATION/NATIVE ACCEPTANCE NOT EXECUTED.** Source admission found that the virtual-route resolver would automatically choose any single matched Voicemeeter or generic virtual cable when the supported VB-CABLE pair was absent, despite the controlled provider policy for the standard VB-CABLE Package45. Auto-routing is now restricted to one positively matched standard CABLE Input/CABLE Output pair. Foreign mixer/cable providers never become silent fallbacks. The existing ambiguity guard, name collision reporting, generation-bound output and Start blocking remain in place. Regression tests cover the standard pair, Voicemeeter, alternate cable A, and generic virtual cable. The pre-existing virtual-route source validator now checks this boundary rather than merely the presence of a paired-device helper.

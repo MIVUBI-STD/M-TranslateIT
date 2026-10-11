@@ -57,7 +57,7 @@ test("typed Quick Preview bridge exposes only generation, cancellation and readi
 
 test("Quick Preview remains training-only in the visible My Voice UI", () => {
   assert.match(ui, /<QuickVoicePreview/);
-  assert.match(quickPreviewUi, /Quick Preview · Not for meetings/);
+  assert.match(quickPreviewUi, /not for meetings|never usable in Meeting/i);
   assert.match(quickPreviewUi, /Generate Quick Preview/);
   assert.match(quickPreviewUi, /Listen to Preview/);
   assert.match(ui, /Stop Preview/);

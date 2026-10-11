@@ -26,6 +26,10 @@ MAX_FILES = 360
 MAX_BYTES = 4_000_000
 MAX_SOURCE_BYTES = 100_000
 MAX_AFFECTED = 360
+
+class SourceGraphCapacityExceeded(ValueError):
+    """The read-only analyzer's resource ceiling; not a source quality failure."""
+
 JS_IMPORT = re.compile(
     r"""(?:\bfrom\s*|\bimport\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)["'](\.[^"']+)["']"""
 )
@@ -57,13 +61,13 @@ def _sources(root: Path) -> dict[str, str]:
                 raise ValueError("source graph contains a symlinked source")
             files.append((path.relative_to(root).as_posix(), path))
             if len(files) > MAX_FILES:
-                raise ValueError("source graph exceeds bounded file count")
+                raise SourceGraphCapacityExceeded("source graph file scan capacity exceeded")
     if sum(path.stat().st_size for _, path in files) > MAX_BYTES:
-        raise ValueError("source graph exceeds bounded source-byte budget")
+        raise SourceGraphCapacityExceeded("source graph aggregate read capacity exceeded")
     results = {}
     for relative, path in files:
         if path.stat().st_size > MAX_SOURCE_BYTES:
-            raise ValueError(f"source graph owner exceeds per-file budget: {relative}")
+            raise SourceGraphCapacityExceeded(f"source graph single-file read capacity exceeded: {relative}")
         results[relative] = path.read_text(encoding="utf-8")
     return results
 
@@ -276,7 +280,7 @@ def affected_consumers(graph: dict, changed: str) -> list[str]:
                 continue
             reached.add(consumer)
             if len(reached) > MAX_AFFECTED:
-                raise ValueError("affected source expansion exceeded bounded budget")
+                raise SourceGraphCapacityExceeded("affected source traversal capacity exceeded")
             pending.append(consumer)
     return sorted(reached)
 

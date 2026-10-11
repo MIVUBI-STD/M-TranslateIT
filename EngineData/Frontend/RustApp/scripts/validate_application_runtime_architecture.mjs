@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,16 +20,11 @@ const files = readdirSync(runtimeRoot)
   .map((name) => join(runtimeRoot, name));
 
 const failures = [];
-const maxModuleBytes = 9_000;
 
 for (const path of files) {
   const name = path.split(/[\\/]/).at(-1);
   const body = readFileSync(path, "utf8");
-  const size = statSync(path).size;
 
-  if (size > maxModuleBytes) {
-    failures.push(`${name}: ${size} bytes exceeds application-runtime module budget ${maxModuleBytes}`);
-  }
   if (/serde_json::(?:Value|json)/.test(body)) {
     failures.push(`${name}: application runtime must use typed contracts, not serde_json::Value/json`);
   }

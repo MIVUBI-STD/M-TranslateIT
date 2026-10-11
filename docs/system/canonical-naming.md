@@ -47,6 +47,8 @@ A rename is a migration: identify its semantic owner and external/internal consu
 
 ## File and module decisions
 
+Use size and dependency counts only as signals for focused review, never automatic blockers or targets. Split by independent feature responsibility, state/lifecycle ownership, or a proven reuse boundary. Keep simple presentation next to its existing owner when extracting it would only increase props, imports, and tests. Rejoining an artificial wrapper is a maintenance correction, not a naming migration.
+
 Use precise names identifying the thing owned; avoid `common`, `utils`, `manager`, `service` or alias-only wrappers unless consumers establish a genuinely shared boundary. Extend an existing semantic owner before adding a new file. For Rust/TS/Python bridge contracts, [source ownership](../knowledge/source-ownership.md) identifies the owner; [verification](../knowledge/current-validation.md) identifies the claim-specific proof.
 
 A generated artifact, test fixture, external license/reference, signed package and runtime user data each retain their own identity and lifecycle. Never confuse them with canonical source.

@@ -98,7 +98,6 @@ REQUIRED_PATHS = (
     "EngineData/Frontend/RustApp/scripts/validate_runtime_api_usage.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_test_reference_reachability.mjs",
     "EngineData/Frontend/RustApp/scripts/validate_test_ci_routing.mjs",
-    "EngineData/Frontend/RustApp/scripts/validate_source_size_budget.mjs",
     "EngineData/Frontend/RustApp/scripts/tests/code_health_proof_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/workflow_proof_surfaces_contract.test.ts",
     "EngineData/Frontend/RustApp/scripts/tests/tauri_capability_contract.test.ts",
@@ -222,21 +221,6 @@ def check_structure(errors: list[str]) -> None:
             fail(errors, f"invalid agent skill registry: {exc}")
     else:
         fail(errors, "missing .agents/skill-registry.json")
-
-
-def check_compactness(errors: list[str]) -> None:
-    budgets = {
-        "AGENTS.md": 14_000,
-        "GITHUB_RULES.md": 26_000,
-        "CONTEXT.md": 9_000,
-        "planning/development.md": 3_000,
-        "docs/knowledge/current-validation.md": 7_000,
-        "docs/knowledge/source-ownership.md": 9_000,
-    }
-    for rel, maximum in budgets.items():
-        path = ROOT / rel
-        if path.is_file() and path.stat().st_size > maximum:
-            fail(errors, f"{rel} exceeds compactness budget: {path.stat().st_size} > {maximum}")
 
 
 def check_development_foundation(errors: list[str]) -> None:
@@ -504,7 +488,6 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
         '"validate:bridge-contract"',
         '"validate:tauri-command-args"',
         '"validate:application-runtime"',
-        '"validate:source-size"',
         '"validate:reachability"',
         '"validate:runtime-api-usage"',
         '"validate:test-references"',
@@ -512,6 +495,8 @@ def check_ci_efficiency_contract(errors: list[str]) -> None:
     ):
         if marker not in package:
             fail(errors, f"frontend package lost canonical source-validation entrypoint: {marker}")
+    if '"validate:source-size"' in package:
+        fail(errors, "file-size-only validator must not block source admission")
 
 
 def check_tauri_security_contract(errors: list[str]) -> None:
@@ -788,7 +773,6 @@ def main() -> int:
     check_document_ownership_separation(errors)
     check_agent_permission_policy(errors)
     check_agent_skill_evaluations(errors)
-    check_compactness(errors)
     check_development_foundation(errors)
     check_chatgpt_execution_policy(errors)
     check_branch_authority(errors)

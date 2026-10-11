@@ -120,6 +120,14 @@ For non-trivial mutation:
 
 Context selection is explicit and bounded: `tools/repository_context.py` may project minimal owner/skill/doc dependencies but is not a second agent router, approval or executable proof. A proposed handoff never activates another scope. Prefer targeted checks during iteration. Do not run broad verification repeatedly for reassurance. When changed-source dependencies cross Rust/TypeScript/Python owners, `tools/repository_impact.py --changed <path>` derives bounded imports via `repository_dependencies.py` and registered contract edges for conservative candidate tests; partial graphs and UNKNOWN closures never authorize skipping evidence. Full manual CI is separate and never dispatched by this planner. `tools/repository_verification.py` is a separate opt-in executor of existing bounded checks: explicit `--execute`, a clean pinned `Local` SHA, approved development mode/scope, fixed no-shell commands, offline defaults, and fail-fast results are required. Selected test PASS does not resolve unknown source edges, unselected regressions or native proof.
 
+## Architecture quality and verification boundaries
+
+Modularity is judged by cohesive responsibility, clear state ownership, dependency direction, direct consumers, and the cost of changing a feature. **Bytes, line counts, file counts, document length, and a fixed number of context files are not source-quality pass/fail gates.** Do not split code, add forwarding components, or shrink documentation merely to satisfy such proxies. A larger cohesive owner can be simpler than multiple prop-forwarding wrappers.
+
+Preserve enforceable contracts: compiler/type errors, missing imports, unsafe/unapproved actions, Rust/TypeScript/Python protocol drift, runtime resource limits, bounded queues, cancellation, privacy, release provenance, and required execution proof. Product/user-facing wording is a hard contract only when its meaning or accessibility is explicitly required; tests should target behavior or stable APIs, not incidental markup and implementation ordering.
+
+Tool **resource** limits remain valid for safe analysis of large or untrusted inputs. If an on-demand source graph or regression-reference scan exceeds its tool capacity, report `UNKNOWN_CAPACITY` and required follow-up coverage; never label the repository itself invalid or silently report full test coverage. A limited regression selection is partial evidence, not a full-suite PASS. Source inspection still cannot prove build, UI rendering, Windows audio, or long-session performance.
+
 ## Test readiness and native escalation
 
 - **Every source change:** inspect its canonical owner and consumers on GitHub; perform source/static review only. Do not dispatch hosted CI or add a cloud runner. Source inspection is not executable PASS.

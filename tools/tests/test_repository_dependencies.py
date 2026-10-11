@@ -8,7 +8,8 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from repository_dependencies import (  # noqa: E402
-    FRONT, RUST, WORKER, affected_consumers, build_source_graph, relevant_unknown_imports,
+    FRONT, RUST, WORKER, SourceGraphCapacityExceeded, affected_consumers,
+    build_source_graph, relevant_unknown_imports,
 )
 
 
@@ -96,7 +97,7 @@ class DerivedDependenciesTests(unittest.TestCase):
 
     def test_source_file_budget_is_bounded_without_modifying_source(self):
         with patch("repository_dependencies.MAX_FILES", 2):
-            with self.assertRaises(ValueError):
+            with self.assertRaises(SourceGraphCapacityExceeded):
                 build_source_graph(self.root)
 
     def test_reverse_cycles_terminate_without_duplicate_consumers(self):

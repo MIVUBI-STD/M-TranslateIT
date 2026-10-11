@@ -51,6 +51,12 @@ A benchmark must count **correctly scoped outcomes and truthful evidence** rathe
 
 Positive cases alone cannot demonstrate conformance. Compare counterexamples (ambiguous owner, missing dependency, invalid permission, native-only claim). An executable source test, model-run trace, performance measurement and target Windows acceptance are separate proof levels. **Implementation:** `tools/repository_benchmark.py` replays *declared* routing cases through the explicit context planner, compares the existing permission corpus, checks document routing and conservative impact, and reports context-file counts and source-proof ceilings. `python tools/repository_benchmark.py --check --summary` is an optional source-level command; `--extended` explicitly opts into one source dependency graph. It never invokes a model, CI, real audio, installer, or Windows runtime and never saves a second benchmark database. Successful source replay is not observed agent accuracy or measured speedup.
 
+## Architectural quality versus tool limits
+
+Source-size and documentation-size targets are not correctness gates. Where a source analyzer has a bounded read/traversal budget, reaching that budget yields incomplete evidence (`UNKNOWN_CAPACITY`) and a conservative review requirement, not a malformed application. Selected-test ceilings similarly require explicit residual proof; no omitted check is treated as PASS. Safety-critical runtime limits, Tauri permissions, input validation, queue caps, and release-signing gates remain enforceable.
+
+For a proposed refactor, prefer the lowest-coupling change that preserves one canonical owner. A one-use forwarding component is not automatically more modular than a cohesive parent. Avoid both forced fragmentation and indiscriminate consolidation.
+
 ## STOP and escalation
 
 After the requested source outcome and proportionate evidence, STOP. Only request more context/proof when it changes a material decision. An unverified claim is an explicit bounded residue, not a task for the user's PC or reason to add unrelated framework code.

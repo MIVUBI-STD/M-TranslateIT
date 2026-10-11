@@ -51,7 +51,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run build:frontend
       - run: npm run test:frontend-runtime
-      - run: npm run validate:source-size
       - run: npm run validate:bridge-contract
       - run: npm run validate:tauri-command-args
       - run: npm run validate:application-runtime

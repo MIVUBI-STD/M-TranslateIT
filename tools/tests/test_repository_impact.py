@@ -1,11 +1,13 @@
 """Conservative affected-proof planning: no unsafe skip, no CI dispatch."""
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from repository_impact import plan_impacted, verify_impact  # noqa: E402
+from repository_dependencies import SourceGraphCapacityExceeded  # noqa: E402
 
 FRONT = "EngineData/Frontend/RustApp/"
 WORKER = "EngineData/Backend/LocalWorker/WorkerRuntime/"
@@ -75,6 +77,47 @@ class ImpactPlanningTests(unittest.TestCase):
         plan = plan_impacted(["NewProductionDomain/kernel.rs"])
         self.assertTrue(plan["reviewRequired"])
         self.assertTrue({"frontend", "rust", "python", "release", "repository"}.issubset(plan["domains"]))
+
+    def test_analysis_capacity_is_explicit_unknown_not_bad_source(self):
+        changed = FRONT + "src/app/bridge/applicationRuntimeApi.ts"
+        with patch("repository_impact.build_source_graph",
+                   side_effect=SourceGraphCapacityExceeded("bounded source-read capacity")):
+            plan = plan_impacted([changed])
+        self.assertTrue(plan["reviewRequired"])
+        self.assertEqual(plan["sourceAnalysisStatus"], "UNKNOWN_CAPACITY")
+        self.assertEqual(plan["dependencyCoverage"], "UNKNOWN_CAPACITY")
+        self.assertIsNone(plan["sourceDependencyGraph"])
+        self.assertIn(changed, plan["unprovenClosures"])
+        self.assertIn("bounded source-read capacity", plan["capacityWarnings"])
+        self.assertFalse(plan["ciTriggered"])
+
+    def test_reference_scan_capacity_is_not_mistaken_for_clean_test_coverage(self):
+        changed = FRONT + "src/app/bridge/applicationRuntimeApi.ts"
+        with patch("repository_impact._literal_test_edges",
+                   side_effect=SourceGraphCapacityExceeded("bounded test-reference scan")):
+            plan = plan_impacted([changed])
+        self.assertTrue(plan["reviewRequired"])
+        self.assertEqual(plan["sourceAnalysisStatus"], "UNKNOWN_CAPACITY")
+        self.assertIn("bounded test-reference scan", plan["capacityWarnings"])
+        self.assertFalse(plan["ciTriggered"])
+
+    def test_affected_traversal_capacity_keeps_changes_unproven(self):
+        changed = FRONT + "src/app/bridge/applicationRuntimeApi.ts"
+        with patch("repository_impact.affected_consumers",
+                   side_effect=SourceGraphCapacityExceeded("bounded reverse-import traversal")):
+            plan = plan_impacted([changed])
+        self.assertEqual(plan["sourceAnalysisStatus"], "UNKNOWN_CAPACITY")
+        self.assertTrue(plan["reviewRequired"])
+        self.assertIn(changed, plan["unprovenClosures"])
+        self.assertIn(changed + ": bounded reverse-import traversal", plan["capacityWarnings"])
+
+    def test_deleted_source_module_remains_reviewable_not_a_planner_crash(self):
+        missing = FRONT + "src/components/layout/DeletedView.svelte"
+        plan = plan_impacted([missing])
+        self.assertTrue(plan["reviewRequired"])
+        self.assertIn(missing, plan["unprovenClosures"])
+        self.assertEqual(plan["paths"][0]["affectedSourceConsumers"], [])
+        self.assertFalse(plan["ciTriggered"])
 
     def test_input_does_not_allow_path_escape_or_aliases(self):
         for bad in ("../secret", "/etc/passwd", "docs/../../AGENTS.md", r"docs\README.md", "", "docs/a//b"):
