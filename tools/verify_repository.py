@@ -242,7 +242,7 @@ def check_development_foundation(errors: list[str]) -> None:
     for marker in ('"major": 22', '"version": "3.12.10"', '"minimum": "1.88.0"', '"minimum": "0.12.0"'):
         if marker not in toolchain:
             fail(errors, f"toolchain.json missing repository-derived policy: {marker}")
-    for marker in ('"doctor"', '"setup"', '"check"', '"build"', '"test"', '"package"'):
+    for marker in ('"doctor"', '"setup"', '"check"', '"build"', '"run"', '"test"', '"package"'):
         if marker not in dev:
             fail(errors, f"developer router missing command: {marker}")
     if "doctorMustNotInstallOrRepairAutomatically" not in toolchain or "No installation or repair was performed." not in dev:
@@ -601,7 +601,7 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
         "docs/knowledge/current-validation.md": ("not an incremental user-PC request",
                                                  "UNKNOWN / NOT EXECUTED"),
         "docs/knowledge/operations/target-windows-performance.md": ("## Candidate admission",
-                                                                    "Build/package candidate",
+                                                                    "Signed package/install acceptance",
                                                                     "No hosted fallback"),
         "docs/knowledge/decisions/README.md": ("D-046 — No-cloud execution",
                                                "GitHub is source control only"),

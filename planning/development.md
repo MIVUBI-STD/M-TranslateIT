@@ -1,10 +1,12 @@
 # TranslateIT Development
 
-## Active continuation — source-design correction (2026-10-11)
+## Active continuation — integrated local acceptance candidate (2026-10-11)
 
-**State: APPROVED IMPLEMENTATION ON Local; EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** The user approved replacing arbitrary source/document length hard-fail rules with meaningful architecture and behavioral checks. Preserve safety/resource bounds, typed bridge contracts, model/payload provenance, privacy, and session-lifecycle protections. Selectively consolidate pure markup or prop-forwarding wrappers from the prior source-size workaround; retain real feature boundaries. Existing source analyzer capacity now reports unknown/incomplete evidence rather than condemning legitimate source growth. No compiled/rendered/native performance claim is made.
+**State: SOURCE CORRECTION DELIVERED ON Local; EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** The user approved replacing arbitrary source/document length hard-fail rules with meaningful architecture and behavioral checks. Preserve safety/resource bounds, typed bridge contracts, model/payload provenance, privacy, and session-lifecycle protections. Selectively consolidate pure markup or prop-forwarding wrappers from the prior source-size workaround; retain real feature boundaries. Existing source analyzer capacity now reports unknown/incomplete evidence rather than condemning legitimate source growth. No compiled/rendered/native performance claim is made.
 
-**One next step after source delivery:** run the existing pinned-SHA integrated build/package/Windows UI, Meeting, Text, and My Voice acceptance (only when its controlled prerequisites are available). No hosted CI, incremental PC tests, or `main` promotion.
+The existing `DEV.cmd` entrypoint now distinguishes doctor, explicit dependency setup, source checking, exact-SHA compile build, Tauri developer run, and controlled signed package. Package requires an explicit genuine Quality Readiness report and retains independent release-signing controls. Developer-mode launch does not establish installed-product readiness.
+
+**One next step:** run the existing pinned-SHA integrated source/build + developer-mode Windows UI, Meeting, Text and My Voice functional acceptance when real local worker/models/devices are available. Controlled signed package/install acceptance remains separate for release scope only. No hosted CI, incremental PC tests, or `main` promotion.
 
 **Historical context:** all subsequent dated work sections preserve earlier source decisions and evidence at their original revisions. Headings such as `Active` and `Next` within that history are not separate live instructions; the current Local source, this continuation, and the existing acceptance runbook take precedence.
 

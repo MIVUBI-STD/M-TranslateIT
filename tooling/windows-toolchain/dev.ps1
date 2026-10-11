@@ -1,7 +1,9 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "doctor", "setup", "check", "build", "test", "package")]
-    [string]$Command = "help"
+    [ValidateSet("help", "doctor", "setup", "check", "build", "run", "test", "package")]
+    [string]$Command = "help",
+    [Parameter(Position = 1)]
+    [string]$QualityReadinessEvidence
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,9 +34,10 @@ function Show-Help {
     Write-Host "  DEV.cmd doctor   Check required toolchain; never installs or repairs"
     Write-Host "  DEV.cmd setup    Install locked frontend + worker development dependencies"
     Write-Host "  DEV.cmd check    Run repository + quick frontend + worker source checks"
-    Write-Host "  DEV.cmd build    Build frontend and compile-check Rust"
+    Write-Host "  DEV.cmd build    Build frontend and compile-check Rust on one clean source SHA"
+    Write-Host "  DEV.cmd run      Start the local Tauri development app; no release signing"
     Write-Host "  DEV.cmd test     Run frontend, Rust, and worker tests"
-    Write-Host "  DEV.cmd package  Delegate to the existing release owner"
+    Write-Host '  DEV.cmd package "<quality-evidence.json>"  Build controlled signed release only'
 }
 
 function Invoke-Doctor {
@@ -58,7 +61,9 @@ function Invoke-Doctor {
     }
 
     $policyPath = Join-Path $Root "toolchain.json"
-    $minimumRust = [Version]::Parse([string](Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json).rust.minimum)
+    $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
+    $minimumRust = [Version]::Parse([string]$policy.rust.minimum)
+    $minimumUv = [Version]::Parse([string]$policy.uv.minimum)
     $rustMatch = [regex]::Match($rustVersion, '^rustc\s+(\d+\.\d+\.\d+)(?:\s|$)')
     if (-not $rustMatch.Success) {
         throw "Could not read rustc semantic version: $rustVersion"
@@ -68,10 +73,19 @@ function Invoke-Doctor {
         throw "Rust $minimumRust or newer required by the locked dependency baseline; found $rustVersion"
     }
 
+    $uvMatch = [regex]::Match($uvVersion, '^uv\s+(\d+\.\d+\.\d+)(?:\s|$)')
+    if (-not $uvMatch.Success) {
+        throw "Could not read uv semantic version: $uvVersion"
+    }
+    $installedUv = [Version]::Parse($uvMatch.Groups[1].Value)
+    if ($installedUv -lt $minimumUv) {
+        throw "uv $minimumUv or newer required by the locked worker environment; found $uvVersion"
+    }
+
     Write-Host "Node:   $nodeVersion"
     Write-Host "Python: $pythonVersion"
     Write-Host "Rust:   $rustVersion (minimum $minimumRust)"
-    Write-Host "uv:     $uvVersion (pyproject minimum 0.12.0)"
+    Write-Host "uv:     $uvVersion (minimum $minimumUv)"
     Write-Host "Doctor passed. No installation or repair was performed."
 }
 
@@ -90,26 +104,41 @@ switch ($Command) {
         Invoke-Step "Frontend quick validation" { Set-Location $Frontend; npm run validate:quick }
         Invoke-Step "Worker compile/static/tests" {
             Set-Location $Worker
-            uv run python -m compileall -q .
+            uv run --frozen --no-sync python -m compileall -q .
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            uv run ruff check .
+            uv run --frozen --no-sync ruff check .
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            uv run pytest -q
+            uv run --frozen --no-sync pytest -q
         }
     }
     "build" {
-        Invoke-Step "Frontend production build" { Set-Location $Frontend; npm run build:frontend }
-        Invoke-Step "Rust compile check" { Set-Location (Join-Path $Frontend "src-tauri"); cargo check --locked }
+        Invoke-Step "Pinned frontend and Rust compile check" {
+            Set-Location $Frontend
+            npm run check:tauri-rust-local
+        }
+    }
+    "run" {
+        Invoke-Step "Local Tauri development app" {
+            Set-Location $Frontend
+            npm run dev:app
+        }
     }
     "test" {
         Invoke-Step "Frontend runtime tests" { Set-Location $Frontend; npm run test:frontend-runtime }
         Invoke-Step "Rust unit tests" { Set-Location (Join-Path $Frontend "src-tauri"); cargo test --locked }
-        Invoke-Step "Worker tests" { Set-Location $Worker; uv run pytest -q }
+        Invoke-Step "Worker tests" { Set-Location $Worker; uv run --frozen --no-sync pytest -q }
     }
     "package" {
-        Invoke-Step "Existing TranslateIT release pipeline" {
+        if ([string]::IsNullOrWhiteSpace($QualityReadinessEvidence)) {
+            throw 'Signed release requires an explicit Quality Readiness report. Usage: DEV.cmd package "<quality-evidence.json>"'
+        }
+        if (-not (Test-Path -LiteralPath $QualityReadinessEvidence -PathType Leaf)) {
+            throw "Quality Readiness evidence file was not found: $QualityReadinessEvidence"
+        }
+        $EvidenceFile = (Resolve-Path -LiteralPath $QualityReadinessEvidence).Path
+        Invoke-Step "Existing controlled signed TranslateIT release pipeline" {
             Set-Location $Frontend
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build_release.ps1"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\scripts\build_release.ps1" -QualityReadinessEvidence $EvidenceFile
         }
     }
 }
