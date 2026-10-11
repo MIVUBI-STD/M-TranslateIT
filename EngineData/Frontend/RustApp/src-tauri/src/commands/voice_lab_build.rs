@@ -18,7 +18,8 @@ use super::voice_lab::{
     approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
     finish_voice_lab_build, prepare_guided_dataset, promote_voice_actor_candidate,
     request_voice_lab_build_cancel,
-    voice_lab_build_blocks_meeting, GuidedDatasetManifest, GuidedTakeContract,
+    voice_lab_build_blocks_meeting, archive_selected_personal_voice,
+    activate_stored_personal_voice, selected_voice_info, GuidedDatasetManifest, GuidedTakeContract,
     VoiceLabStoragePaths, MAX_REFERENCE_MS, MIN_REFERENCE_MS, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
@@ -39,6 +40,12 @@ use evaluation::{
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
 const CANCEL_WAIT: Duration = Duration::from_secs(10);
+
+// Guard select/approve on the shared worker actor path. No parallel promotion.
+static VOICE_SELECTION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+fn voice_selection_guard() -> Result<std::sync::MutexGuard<'static, ()>, ()> {
+    VOICE_SELECTION_LOCK.get_or_init(|| Mutex::new(())).lock().map_err(|_| ())
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct TrainingCoverageGroup {
@@ -107,6 +114,9 @@ pub struct VoiceLabBuildStatus {
     pub evaluation_review_id: Option<String>,
     pub evaluation_samples: Vec<VoiceLabEvaluationSample>,
     pub approved_voice_ready: bool,
+    pub selected_voice_kind: String,
+    pub selected_builtin_voice_id: Option<String>,
+    pub saved_personal_voice_available: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -304,6 +314,7 @@ fn current_status() -> VoiceLabBuildStatus {
     let preview_active = super::voice_lab_preview::quick_voice_preview_active();
     let child = if preview_active { None } else { child_status(&paths) };
     let approved_ready = approved_voice_actor_ready(&paths);
+    let selected_voice = selected_voice_info(&paths);
     let terminal_message = process_store()
         .0
         .lock()
@@ -376,6 +387,9 @@ fn current_status() -> VoiceLabBuildStatus {
         evaluation_review_id: evaluation.as_ref().map(|value| value.review_id.clone()),
         evaluation_samples: evaluation.map(|value| value.samples).unwrap_or_default(),
         approved_voice_ready: approved_ready,
+        selected_voice_kind: selected_voice.kind,
+        selected_builtin_voice_id: selected_voice.builtin_id,
+        saved_personal_voice_available: selected_voice.personal_available,
     }
 }
 
@@ -655,9 +669,8 @@ pub fn get_builtin_voice_preview_audio(voice_id: String) -> Result<tauri::ipc::R
     Ok(tauri::ipc::Response::new(bytes))
 }
 
-// A built-in selection replaces the canonical active actor directory. Until a
-// durable personal-actor archive and restoration path is admitted, never allow
-// that replacement to discard an approved personal voice or recovery artifact.
+// Built-in selection replaces the canonical selected actor. Preserve any
+// approved personal actor in a verified, separate store before replacing it.
 fn confirmed_builtin_actor(actor_dir: &Path) -> bool {
     let Ok(bytes) = fs::read(actor_dir.join("actor.json")) else {
         return false;
@@ -691,13 +704,13 @@ pub fn select_builtin_voice(
             "Stop Meeting translation before changing the Meeting voice.",
         );
     }
-    if voice_lab_build_blocks_meeting() {
-        return result(
-            false,
-            "build_active",
-            "Wait for My Voice creation to finish before changing the Meeting voice.",
-        );
+    if voice_lab_build_blocks_meeting() || voice_lab_recording_active() {
+        return result(false, "voice_busy", "Finish the current My Voice action before switching voices.");
     }
+    let _selection_guard = match voice_selection_guard() {
+        Ok(guard) => guard,
+        Err(()) => return result(false, "voice_selection_unavailable", "Voice selection is busy. Try again."),
+    };
 
     let project_paths = ProjectPaths::discover();
     let storage = VoiceLabStoragePaths::from_project_paths(&project_paths);
@@ -709,12 +722,9 @@ pub fn select_builtin_voice(
             "Voice switching is unavailable while a previous voice may need recovery. Your saved files were kept.",
         );
     }
-    if target.exists() && (!approved_voice_actor_ready(&storage) || !confirmed_builtin_actor(&target)) {
-        return result(
-            false,
-            "personal_voice_preserved",
-            "Your current Meeting voice may be a personal voice. Switching to a built-in voice would replace it, so nothing was changed.",
-        );
+    if target.exists() && !approved_voice_actor_ready(&storage) {
+        return result(false, "voice_unverified",
+            "The current Meeting voice could not be verified. No voice was replaced.");
     }
     if target.join("actor.json").is_file() && !authorized_voice_confirmed {
         return result(
@@ -724,6 +734,12 @@ pub fn select_builtin_voice(
         );
     }
 
+    if target.exists() && !confirmed_builtin_actor(&target) {
+        if archive_selected_personal_voice(&storage).is_err() {
+            return result(false, "personal_voice_protection_failed",
+                "Your personal voice could not be safely saved. The current voice was kept.");
+        }
+    }
     match install_builtin_voice(&project_paths, &voice_id, &target, VOICE_ACTOR_ENGINE_REVISION) {
         Ok(()) => {
             invalidate_required_outbound_readiness_for_voice_change();
@@ -738,11 +754,41 @@ pub fn select_builtin_voice(
     }
 }
 
+pub fn select_stored_personal_voice() -> VoiceLabBuildActionResult {
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active", "Stop Meeting translation before switching voices.");
+    }
+    if voice_lab_build_blocks_meeting() || voice_lab_recording_active() {
+        return result(false, "voice_busy", "Finish the current My Voice action before switching voices.");
+    }
+    let _guard = match voice_selection_guard() {
+        Ok(guard) => guard,
+        Err(()) => return result(false, "voice_selection_unavailable", "Voice selection is busy. Try again."),
+    };
+    let paths = storage();
+    if voice_selection_recovery_pending(&paths.saved_root) {
+        return result(false, "voice_recovery_required",
+            "An earlier voice change needs recovery. The saved voice was not replaced.");
+    }
+    match activate_stored_personal_voice(&paths) {
+        Ok(()) => {
+            invalidate_required_outbound_readiness_for_voice_change();
+            result(true, "selected", "Your saved My Voice is selected for Meeting.")
+        }
+        Err(_) => result(false, "saved_voice_unavailable",
+            "Your saved My Voice could not be selected. The current voice was kept."),
+    }
+}
+
 pub fn approve_voice_lab_candidate(
     reviewed_line_ids: Vec<u32>,
     quality_confirmed: bool,
     review_id: String,
 ) -> VoiceLabBuildActionResult {
+    let _guard = match voice_selection_guard() {
+        Ok(guard) => guard,
+        Err(()) => return result(false, "voice_selection_unavailable", "Voice selection is busy. Try again."),
+    };
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
     }
@@ -790,13 +836,16 @@ pub fn approve_voice_lab_candidate(
             invalidate_required_outbound_readiness_for_voice_change();
             let paths = VoiceLabStoragePaths::from_project_paths(&project_paths);
             clear_build_terminal_message();
-            match cleanup_approved_build_workspace(&paths) {
-                Ok(()) => result(true, "approved", "My Voice was approved and saved on this device."),
-                Err(_error) => result(
-                    true,
-                    "approved_cleanup_attention",
-                    "My Voice was saved, but some temporary build files could not be cleared yet.",
-                ),
+            let archive = archive_selected_personal_voice(&paths);
+            let cleanup = cleanup_approved_build_workspace(&paths);
+            if archive.is_err() {
+                result(true, "approved_archive_attention",
+                    "My Voice is selected, but its separate saved copy could not be verified. Switching voices remains blocked until it is preserved.")
+            } else if cleanup.is_err() {
+                result(true, "approved_cleanup_attention",
+                    "My Voice was saved, but some temporary build files could not be cleared yet.")
+            } else {
+                result(true, "approved", "My Voice was approved, saved, and selected for Meeting.")
             }
         }
         Err(error) => result(false, "approval_failed", error),

@@ -170,7 +170,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   }
 
   async function syncMeetingVoice(message?: string): Promise<void> {
-    setNotice(message ?? "Meeting voice updated.");
+    await refreshSnapshot(message ?? "Meeting voice updated.");
   }
 
   async function finishFirstSetup(next: RuntimeSettings): Promise<void> {
@@ -448,6 +448,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
           <!-- Text workspace stays mounted below during navigation. -->
         {:else if route === "my-voice"}
           <MyVoice
+            voiceChangesLocked={snapshot.resources.audio_locked || snapshot.voiceBuildActive}
             onNotice={setNotice}
             onMeetingVoiceChanged={syncMeetingVoice}
             onRecordingChange={(recording) => { myVoiceRecording = recording; }}

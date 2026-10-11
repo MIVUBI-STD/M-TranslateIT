@@ -23,6 +23,7 @@ pub struct VoiceLabStoragePaths {
     pub candidate_actor_dir: PathBuf,
     pub saved_root: PathBuf,
     pub approved_actor_dir: PathBuf,
+    pub stored_personal_actor_dir: PathBuf,
 }
 
 impl VoiceLabStoragePaths {
@@ -38,10 +39,161 @@ impl VoiceLabStoragePaths {
             build_dataset_dir: cache_root.join("Build").join("Dataset"),
             candidate_actor_dir: cache_root.join("Candidate"),
             approved_actor_dir: saved_root.join("MyVoice"),
+            stored_personal_actor_dir: saved_root.join("PersonalVoice"),
             cache_root,
             saved_root,
         }
     }
+}
+
+// The worker keeps using the canonical MyVoice path. A separate validated
+// PersonalVoice copy preserves an approved actor across built-in selection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ActorKind {
+    Missing,
+    Builtin(Option<String>),
+    Personal,
+    Unverified,
+}
+
+pub(crate) struct SelectedVoiceInfo {
+    pub kind: String,
+    pub builtin_id: Option<String>,
+    pub personal_available: bool,
+}
+
+fn actor_kind(path: &Path) -> ActorKind {
+    if !path.exists() { return ActorKind::Missing; }
+    if validate_actor_package(path).is_err() { return ActorKind::Unverified; }
+    let Ok(bytes) = fs::read(path.join(ACTOR_MANIFEST_FILE)) else {
+        return ActorKind::Unverified;
+    };
+    let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return ActorKind::Unverified;
+    };
+    if json.get("builtin_voice").and_then(serde_json::Value::as_bool) == Some(true) {
+        let id = json.get("builtin_voice_id").and_then(serde_json::Value::as_str)
+            .filter(|id| matches!(*id, "MaleVoice" | "FemaleVoice"))
+            .map(str::to_string);
+        ActorKind::Builtin(id)
+    } else {
+        // Legacy approved voices have no built-in marker; keep them as personal.
+        ActorKind::Personal
+    }
+}
+
+fn personal_next(paths: &VoiceLabStoragePaths) -> PathBuf {
+    paths.saved_root.join(".PersonalVoice.next")
+}
+fn personal_previous(paths: &VoiceLabStoragePaths) -> PathBuf {
+    paths.saved_root.join(".PersonalVoice.previous")
+}
+
+fn recover_personal_archive(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    let current = &paths.stored_personal_actor_dir;
+    let prev = personal_previous(paths);
+    let next = personal_next(paths);
+    if current.exists() && !matches!(actor_kind(current), ActorKind::Personal) {
+        return Err("voice_lab:personal_archive_unverified".to_string());
+    }
+    if prev.exists() {
+        if !matches!(actor_kind(&prev), ActorKind::Personal) {
+            return Err("voice_lab:personal_archive_previous_unverified".to_string());
+        }
+        if current.exists() {
+            // A complete destination supersedes an older validated backup.
+            fs::remove_dir_all(&prev)
+                .map_err(|e| format!("voice_lab:archive_previous_cleanup_failed:{e}"))?;
+        } else {
+            // Interrupted rename: restore the previous complete personal actor.
+            fs::rename(&prev, current)
+                .map_err(|e| format!("voice_lab:archive_recovery_failed:{e}"))?;
+        }
+    }
+    if next.exists() {
+        // .next never became authoritative. The selected/previous copy survives.
+        fs::remove_dir_all(&next)
+            .map_err(|e| format!("voice_lab:archive_stage_cleanup_failed:{e}"))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn selected_voice_info(paths: &VoiceLabStoragePaths) -> SelectedVoiceInfo {
+    let active = actor_kind(&paths.approved_actor_dir);
+    let stored = actor_kind(&paths.stored_personal_actor_dir);
+    let pending = actor_kind(&personal_previous(paths));
+    let personal_available = matches!(active, ActorKind::Personal)
+        || matches!(stored, ActorKind::Personal)
+        || matches!(pending, ActorKind::Personal);
+    let (kind, builtin_id) = match active {
+        ActorKind::Builtin(id) => ("built_in".to_string(), id),
+        ActorKind::Personal => ("personal".to_string(), None),
+        ActorKind::Missing => ("none".to_string(), None),
+        ActorKind::Unverified => ("unknown".to_string(), None),
+    };
+    SelectedVoiceInfo { kind, builtin_id, personal_available }
+}
+
+fn copy_actor_files(source: &Path, target: &Path) -> Result<(), String> {
+    validate_actor_package(source)?;
+    fs::create_dir_all(target)
+        .map_err(|e| format!("voice_lab:actor_stage_create_failed:{e}"))?;
+    for name in [ACTOR_MANIFEST_FILE, GPT_WEIGHT_FILE, SOVITS_WEIGHT_FILE, REFERENCE_WAV_FILE] {
+        fs::copy(source.join(name), target.join(name))
+            .map_err(|e| format!("voice_lab:actor_stage_copy_failed:{e}"))?;
+    }
+    validate_actor_package(target)?;
+    Ok(())
+}
+
+pub(crate) fn archive_selected_personal_voice(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    match actor_kind(&paths.approved_actor_dir) {
+        ActorKind::Missing | ActorKind::Builtin(_) => return Ok(()),
+        ActorKind::Unverified => return Err("voice_lab:selected_actor_unverified".to_string()),
+        ActorKind::Personal => {}
+    }
+    fs::create_dir_all(&paths.saved_root)
+        .map_err(|e| format!("voice_lab:archive_root_unavailable:{e}"))?;
+    recover_personal_archive(paths)?;
+    let current = &paths.stored_personal_actor_dir;
+    let next = personal_next(paths);
+    let prev = personal_previous(paths);
+    if let Err(error) = copy_actor_files(&paths.approved_actor_dir, &next) {
+        let _ = fs::remove_dir_all(&next);
+        return Err(error);
+    }
+    if current.exists() {
+        fs::rename(current, &prev)
+            .map_err(|e| format!("voice_lab:archive_backup_failed:{e}"))?;
+    }
+    if let Err(error) = fs::rename(&next, current) {
+        if prev.exists() && !current.exists() {
+            fs::rename(&prev, current)
+                .map_err(|e| format!("voice_lab:archive_commit_failed:{error};rollback_failed:{e}"))?;
+        }
+        return Err(format!("voice_lab:archive_commit_failed:{error}"));
+    }
+    // The staged actor was validated before the rename.
+    if prev.exists() { let _ = fs::remove_dir_all(prev); }
+    Ok(())
+}
+
+pub(crate) fn activate_stored_personal_voice(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    match actor_kind(&paths.approved_actor_dir) {
+        ActorKind::Personal => return Ok(()),
+        ActorKind::Unverified => return Err("voice_lab:selected_actor_unverified".to_string()),
+        ActorKind::Missing | ActorKind::Builtin(_) => {}
+    }
+    recover_personal_archive(paths)?;
+    let source = &paths.stored_personal_actor_dir;
+    if !matches!(actor_kind(source), ActorKind::Personal) {
+        return Err("voice_lab:personal_actor_not_available".to_string());
+    }
+    // Copy to the legacy active actor path without consuming the saved copy.
+    super::super::builtin_voice::replace_directory_atomically(
+        &paths.approved_actor_dir,
+        |staging| copy_actor_files(source, staging),
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

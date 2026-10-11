@@ -8,6 +8,7 @@ use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEE
 mod storage;
 
 pub use storage::VoiceLabStoragePaths;
+pub(crate) use storage::{activate_stored_personal_voice, archive_selected_personal_voice, selected_voice_info};
 use storage::{prepare_guided_dataset_at, promote_voice_actor_candidate_at, validate_actor_package};
 #[cfg(test)]
 use storage::{
@@ -410,6 +411,61 @@ mod tests {
         fs::write(dir.join(SOVITS_WEIGHT_FILE), marker).expect("sovits weight");
         write_wav(&dir.join(REFERENCE_WAV_FILE), 4_000);
         write_json(&dir.join(ACTOR_MANIFEST_FILE), &actor_manifest(4_000)).expect("manifest");
+    }
+
+    #[test]
+    fn legacy_personal_voice_survives_builtin_selection_and_is_restored() {
+        let root = test_root("personal-switch");
+        let paths = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        write_actor(&paths.approved_actor_dir, b"my-custom-model");
+        assert_eq!(selected_voice_info(&paths).kind, "personal");
+        archive_selected_personal_voice(&paths).expect("archive legacy custom");
+        assert_eq!(fs::read(paths.stored_personal_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"my-custom-model");
+
+        write_actor(&paths.approved_actor_dir, b"builtin-model");
+        let manifest_path = paths.approved_actor_dir.join(ACTOR_MANIFEST_FILE);
+        let mut manifest: serde_json::Value = serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        manifest["builtin_voice"] = serde_json::json!(true);
+        manifest["builtin_voice_id"] = serde_json::json!("FemaleVoice");
+        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        let selected = selected_voice_info(&paths);
+        assert_eq!(selected.kind, "built_in");
+        assert_eq!(selected.builtin_id.as_deref(), Some("FemaleVoice"));
+        assert!(selected.personal_available);
+
+        activate_stored_personal_voice(&paths).expect("restore personal voice");
+        assert_eq!(selected_voice_info(&paths).kind, "personal");
+        assert_eq!(fs::read(paths.approved_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"my-custom-model");
+        assert!(paths.stored_personal_actor_dir.join(ACTOR_MANIFEST_FILE).exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn interrupted_archive_restores_verified_personal_copy() {
+        let root = test_root("personal-recovery");
+        let paths = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        write_actor(&paths.approved_actor_dir, b"latest-custom");
+        write_actor(&paths.saved_root.join(".PersonalVoice.previous"), b"old-custom");
+        fs::create_dir_all(paths.saved_root.join(".PersonalVoice.next")).unwrap();
+        fs::write(paths.saved_root.join(".PersonalVoice.next").join("partial"), b"temp").unwrap();
+        archive_selected_personal_voice(&paths).expect("recover before overwrite");
+        assert_eq!(fs::read(paths.stored_personal_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"latest-custom");
+        assert!(!paths.saved_root.join(".PersonalVoice.previous").exists());
+        assert!(!paths.saved_root.join(".PersonalVoice.next").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn invalid_archive_never_overwrites_user_voice() {
+        let root = test_root("personal-guard");
+        let paths = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        write_actor(&paths.approved_actor_dir, b"preserve-custom");
+        fs::create_dir_all(&paths.stored_personal_actor_dir).unwrap();
+        fs::write(paths.stored_personal_actor_dir.join(ACTOR_MANIFEST_FILE), b"invalid").unwrap();
+        assert!(archive_selected_personal_voice(&paths).is_err());
+        assert_eq!(fs::read(paths.approved_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"preserve-custom");
+        assert_eq!(fs::read(paths.stored_personal_actor_dir.join(ACTOR_MANIFEST_FILE)).unwrap(), b"invalid");
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

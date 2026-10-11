@@ -16,10 +16,12 @@
     onNotice,
     onRecordingChange,
     onMeetingVoiceChanged,
+    voiceChangesLocked = false,
   }: {
     onNotice: (message: string) => void;
     onRecordingChange: (recording: boolean) => void;
     onMeetingVoiceChanged: (message?: string) => void | Promise<void>;
+    voiceChangesLocked?: boolean;
   } = $props();
 
   let recordingState = $state<GuidedRecordingState>({ recording_line_id: null, pending_review: null, lines: [] });
@@ -33,6 +35,24 @@
   let builtinPendingId = $state<BuiltinVoiceId | null>(null);
   let builtinPreviewing = $state<BuiltinVoiceId | null>(null);
   let disposed = false;
+  let selectedVoiceKind = $state("unknown");
+  let selectedBuiltinVoiceId = $state<string | null>(null);
+  let savedPersonalVoiceAvailable = $state(false);
+  let selectedVoiceVerified = $state(false);
+
+  async function refreshVoiceSelection(): Promise<void> {
+    try {
+      const status = await myVoiceBuildApi.getStatus();
+      if (disposed) return;
+      selectedVoiceVerified = status.phase !== "unavailable";
+      if (!selectedVoiceVerified) return;
+      selectedVoiceKind = status.selected_voice_kind;
+      selectedBuiltinVoiceId = status.selected_builtin_voice_id;
+      savedPersonalVoiceAvailable = status.saved_personal_voice_available;
+    } catch {
+      if (!disposed) selectedVoiceVerified = false;
+    }
+  }
 
   const currentLine = $derived(recordingState.lines.find((line) => line.line_id === selectedLineId) ?? null);
   const isRecording = $derived(recordingState.recording_line_id !== null);
@@ -77,7 +97,7 @@
   }
 
   async function selectBuiltin(voiceId: BuiltinVoiceId, confirmed = false): Promise<void> {
-    if (busy) return;
+    if (busy || voiceChangesLocked || isRecording || pendingLineId !== null) return;
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectBuiltin(voiceId, confirmed);
@@ -90,6 +110,7 @@
       builtinPendingId = null;
       if (result.ok) {
         buildRefreshRevision++;
+        await refreshVoiceSelection();
         await onMeetingVoiceChanged(result.message);
       } else {
         onNotice(result.message);
@@ -105,6 +126,26 @@
     const voiceId = builtinPendingId;
     if (!voiceId) return;
     await selectBuiltin(voiceId, true);
+  }
+
+  async function selectStoredPersonalVoice(): Promise<void> {
+    if (busy || voiceChangesLocked || isRecording || pendingLineId !== null) return;
+    busy = true;
+    try {
+      const result = await myVoiceBuildApi.selectSavedPersonalVoice();
+      if (disposed) return;
+      if (result.ok) {
+        buildRefreshRevision++;
+        await refreshVoiceSelection();
+        await onMeetingVoiceChanged(result.message);
+      } else {
+        onNotice(result.message);
+      }
+    } catch {
+      if (!disposed) onNotice("Could not switch to your saved My Voice. Try again.");
+    } finally {
+      busy = false;
+    }
   }
 
   function chooseDefaultLine(next: GuidedRecordingState): void {
@@ -328,6 +369,7 @@
   onMount(() => {
     disposed = false;
     void refresh();
+    void refreshVoiceSelection();
     return () => {
       disposed = true;
       stopReplay();
@@ -349,8 +391,14 @@
     {busy}
     {builtinPreviewing}
     {builtinPendingId}
+    {selectedVoiceKind}
+    {selectedBuiltinVoiceId}
+    {savedPersonalVoiceAvailable}
+    {selectedVoiceVerified}
+    voiceChangesLocked={voiceChangesLocked || isRecording || pendingLineId !== null}
     onPreview={previewBuiltin}
     onSelect={selectBuiltin}
+    onSelectPersonal={selectStoredPersonalVoice}
     onConfirm={confirmPendingBuiltin}
     onCancel={() => { builtinPendingId = null; }}
   />
@@ -463,5 +511,10 @@
     </aside>
   </div>
 
-  <MyVoiceBuild {onNotice} {onMeetingVoiceChanged} refreshRevision={buildRefreshRevision} />
+  <MyVoiceBuild {onNotice}
+    onMeetingVoiceChanged={async (message) => {
+      await refreshVoiceSelection();
+      await onMeetingVoiceChanged(message);
+    }}
+    refreshRevision={buildRefreshRevision} />
 </section>

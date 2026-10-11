@@ -91,6 +91,15 @@ pub fn select_product_builtin_voice(
 
 
 #[tauri::command]
+pub fn select_product_saved_personal_voice(
+    app: tauri::AppHandle,
+) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
+    emit_after(&app, "select_saved_personal_voice", || {
+        super::super::voice_lab_build::select_stored_personal_voice()
+    })
+}
+
+#[tauri::command]
 pub fn save_product_settings(
     app: tauri::AppHandle,
     settings: crate::engine::settings::RuntimeSettings,

@@ -149,6 +149,7 @@ fn provision_builtin_voice(
         "reference_duration_ms": duration_ms,
         "held_out_evaluation_complete": true,
         "builtin_voice": true,
+        "builtin_voice_id": voice_id,
     });
     fs::write(
         target_dir.join("actor.json"),

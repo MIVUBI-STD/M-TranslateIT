@@ -33,6 +33,9 @@
     evaluation_review_id: null,
     evaluation_samples: [],
     approved_voice_ready: false,
+    selected_voice_kind: "unknown",
+    selected_builtin_voice_id: null,
+    saved_personal_voice_available: false,
   });
   let authorized = $state(false);
   let previewAuthorized = $state(false);
@@ -190,7 +193,11 @@
 
   function applyResult(result: MyVoiceBuildActionResult): void {
     if (disposed) return;
-    applyStatus(result.build);
+    if (result.build.phase === "unavailable") {
+      statusCheckUnavailable = true;
+    } else {
+      applyStatus(result.build);
+    }
     onNotice(productMessage(result));
   }
 
@@ -198,6 +205,10 @@
     try {
       const next = await myVoiceBuildApi.getStatus();
       if (disposed) return;
+      if (next.phase === "unavailable") {
+        statusCheckUnavailable = true;
+        return;
+      }
       statusCheckUnavailable = false;
       applyStatus(next);
     } catch {
@@ -303,7 +314,7 @@
     try {
       const result = await myVoiceBuildApi.approve(reviewedLineIds, qualityConfirmed, build.evaluation_review_id);
       applyResult(result);
-      if (result.ok && result.state === "approved") {
+      if (result.ok && ["approved", "approved_cleanup_attention", "approved_archive_attention"].includes(result.state)) {
         await onMeetingVoiceChanged(productMessage(result));
       }
     } catch {
@@ -388,8 +399,10 @@
       <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 3 · Create and review My Voice</h3>
       <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use your accepted recordings to create a personalized English voice. You can listen before choosing it.</p>
     </div>
-    {#if build.approved_voice_ready}
-      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />My Voice ready</span>
+    {#if build.saved_personal_voice_available}
+      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Personal voice saved</span>
+    {:else if build.approved_voice_ready}
+      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Meeting voice ready</span>
     {/if}
   </div>
 

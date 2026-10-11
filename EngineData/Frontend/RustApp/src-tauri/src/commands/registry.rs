@@ -13,6 +13,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::application_runtime::mutations::cancel_product_voice_build,
         crate::commands::application_runtime::mutations::approve_product_voice_candidate,
         crate::commands::application_runtime::mutations::select_product_builtin_voice,
+        crate::commands::application_runtime::mutations::select_product_saved_personal_voice,
         crate::commands::runtime_watchdog::get_runtime_watchdog_status,
         crate::commands::reliability_snapshot::get_meeting_reliability_snapshot,
         crate::commands::device_loss_guard::get_device_loss_guard_status,

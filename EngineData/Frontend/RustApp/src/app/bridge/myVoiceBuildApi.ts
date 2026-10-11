@@ -39,6 +39,9 @@ export type MyVoiceBuildStatus = {
   evaluation_review_id: string | null;
   evaluation_samples: MyVoiceEvaluationSample[];
   approved_voice_ready: boolean;
+  selected_voice_kind: "built_in" | "personal" | "none" | "unknown";
+  selected_builtin_voice_id: "MaleVoice" | "FemaleVoice" | null;
+  saved_personal_voice_available: boolean;
 };
 
 export type MyVoiceBuildActionResult = {
@@ -70,6 +73,9 @@ function unavailableStatus(): MyVoiceBuildStatus {
     evaluation_review_id: null,
     evaluation_samples: [],
     approved_voice_ready: false,
+    selected_voice_kind: "unknown",
+    selected_builtin_voice_id: null,
+    saved_personal_voice_available: false,
   };
 }
 
@@ -153,6 +159,11 @@ export const myVoiceBuildApi = {
       authorizedVoiceConfirmed,
     });
     return action ? normalizeAction(action) : unavailableAction("My Voice could not switch to that built-in voice.");
+  },
+
+  async selectSavedPersonalVoice(): Promise<MyVoiceBuildActionResult> {
+    const action = await runCommand<MyVoiceBuildActionResult>("select_product_saved_personal_voice");
+    return action ? normalizeAction(action) : unavailableAction("Could not select your saved My Voice.");
   },
 
   async getEvaluationAudio(lineId: number, reviewId: string, expectedSha256: string): Promise<ArrayBuffer | null> {
