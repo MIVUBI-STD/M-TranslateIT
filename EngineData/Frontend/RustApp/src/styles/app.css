@@ -215,6 +215,25 @@
     background: var(--ti-surface);
   }
 
+  .ti-text-editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ti-text-secondary-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ti-border);
+  }
+
+  .ti-text-secondary-actions[hidden] {
+    display: none;
+  }
+
   .ti-editor-pane {
     min-width: 0;
     background: var(--ti-surface);
@@ -274,7 +293,7 @@
 
   .ti-field-label {
     color: var(--ti-text-muted);
-    font-size: 0.72rem;
+    font-size: 0.77rem;
     font-weight: 600;
   }
 
@@ -291,6 +310,21 @@
     width: 2px;
     border-radius: 999px;
     background: var(--ti-accent);
+  }
+}
+
+@media (max-width: 1100px) {
+  .ti-text-editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ti-text-editor-grid .ti-editor-pane:first-child {
+    border-right: 0;
+    border-bottom: 1px solid var(--ti-border);
+  }
+
+  .ti-text-editor-grid .ti-editor {
+    min-height: 175px;
   }
 }
 

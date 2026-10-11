@@ -45,6 +45,7 @@
   let lastTranslatedSettingsKey = $state<string | null>(null);
   let copyState = $state<CopyState>("idle");
   let copyMode = $state<CopyMode>("translation");
+  let moreActionsOpen = $state(false);
   let reviewHints = $state<string[]>([]);
   let alternativeBusy = $state(false);
   let clearedDraft = $state<ClearedDraft | null>(null);
@@ -381,7 +382,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2">
+    <div class="ti-text-editor-grid">
       <label class="ti-editor-pane grid gap-3 border-r border-[var(--ti-border)]">
         <div class="flex items-center justify-between gap-3">
           <span class="ti-field-label">Enter text</span>
@@ -426,44 +427,32 @@
     {/if}
 
     <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-      <div class="min-w-0">
+      <div class="min-w-0 flex-1">
         <p class="m-0 text-[12.5px] text-[var(--ti-text-muted)]" aria-live="polite">{resultMessage}</p>
         <p class="mb-0 mt-1 text-[11px] text-[var(--ti-text-soft)]">Ctrl + Enter to translate</p>
       </div>
-      <div class="ti-action-row shrink-0">
+      <div class="ti-action-row ml-auto">
+        <button type="button" class="ti-button min-w-28" disabled={translating || alternativeBusy} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={copyMode === "source" ? !sourceText.trim() : !targetText.trim()} onclick={() => void copySelection()}>
+          {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
+          {copyState === "copied" ? "Copied" : copyMode === "source" ? "Copy source" : copyMode === "bilingual" ? "Copy bilingual" : "Copy translation"}
+        </button>
+        <button type="button" class="ti-button ti-button-secondary" aria-expanded={moreActionsOpen} aria-controls="text-secondary-actions" onclick={() => { moreActionsOpen = !moreActionsOpen; }}>{moreActionsOpen ? "Fewer options" : "More options"}</button>
+      </div>
+      <div id="text-secondary-actions" class="ti-text-secondary-actions" hidden={!moreActionsOpen}>
         <button type="button" class="ti-button ti-button-secondary" disabled={translating || alternativeBusy || settingsSaving || (!sourceText && !targetText)} onclick={clearWorkspace}><Eraser size={15} /> Clear</button>
         <button type="button" class="ti-button ti-button-secondary" disabled={!clearedDraft || translating || alternativeBusy || settingsSaving} onclick={undoClear}><Undo2 size={15} /> Undo Clear</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim()} onclick={() => void showFloatingCaption()}>
-          <PictureInPicture2 size={15} /> Floating caption
-        </button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}>
-          <RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}
-        </button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim()} onclick={() => void showFloatingCaption()}><PictureInPicture2 size={15} /> Floating caption</button>
+        <button type="button" class="ti-button ti-button-secondary" disabled={!targetText.trim() || translating || alternativeBusy || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}><RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}</button>
         <label class="flex items-center gap-2">
-          <span class="sr-only">Copy format</span>
-          <select
-            class="ti-field min-h-9 w-[126px] px-2 text-[11.5px]"
-            bind:value={copyMode}
-            onchange={() => { copyState = "idle"; }}
-            aria-label="Copy format"
-          >
+          <span class="text-[12px] text-[var(--ti-text-muted)]">Copy format</span>
+          <select class="ti-field min-h-9 w-[126px] px-2 text-[11.5px]" bind:value={copyMode} onchange={() => { copyState = "idle"; }} aria-label="Copy format">
             <option value="translation">Translation</option>
             <option value="source">Source</option>
             <option value="bilingual">Bilingual</option>
           </select>
         </label>
-        <button type="button" class="ti-button ti-button-secondary min-w-24" disabled={copyMode === "source" ? !sourceText.trim() : !targetText.trim()} onclick={() => void copySelection()}>
-          {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
-          {copyState === "copied" ? "Copied" : "Copy"}
-        </button>
-        <TranslationFeedback
-          source={sourceText.trim()}
-          translation={targetText.trim()}
-          sourceLanguage={settings.source_language}
-          targetLanguage={settings.target_language}
-          {onNotice}
-        />
-        <button type="button" class="ti-button min-w-28" disabled={translating || alternativeBusy} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
+        <TranslationFeedback source={sourceText.trim()} translation={targetText.trim()} sourceLanguage={settings.source_language} targetLanguage={settings.target_language} {onNotice} />
       </div>
     </footer>
   </article>

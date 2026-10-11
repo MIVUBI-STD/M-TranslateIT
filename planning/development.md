@@ -8,6 +8,14 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## UI/UX usability iteration — U1 source delivery (2026-10-11)
+
+**State: SOURCE IMPLEMENTED; EXECUTABLE AND NATIVE ACCEPTANCE NOT EXECUTED.** The user explicitly reauthorized staged UI usability work after the previous overlay source closeout. Existing Svelte/Tauri owners improve semantic small-text contrast and label hierarchy; prepare a narrow Text editor layout; keep Translate and selected-format Copy prominent while grouping all prior secondary actions with accessible, reversible disclosure; and clarify Meeting voice readiness and navigation. No new UI framework, worker, service, database, or persistent personal-data store.
+
+**Limits:** Native main window retains 1280×760 minimum until wider rendered layouts are demonstrated. ProductRuntimeSnapshot does not expose the exact selected Meeting voice; UI must not invent or duplicate that backend identity. Static/source checks cannot prove compilation, keyboard/screen-reader usability, DPI rendering or Windows behavior.
+
+**Next UX batch:** Improve First Setup hierarchy and Meeting recovery UX within existing UI owners. Keep Q4 grouped Windows acceptance and packaging paused.
+
 ## UI / Text Overlay — source closeout candidate (2026-10-11)
 
 **Status: SOURCE SCOPE COMPLETE CANDIDATE; EXECUTABLE/NATIVE ACCEPTANCE NOT EXECUTED.** All work is on the GitHub `Local` source branch, with no new UI framework, runtime, translator, dependency or persisted transcript. The existing Tauri/Svelte overlay and Text owners cover: draft preservation and bounded Undo Clear; source/settings-stale text result rejection; persistent-caption retirement; transient cross-webview event delivery; explicit Hide revocation; separate Meeting- vs Text-caption ownership; session- and revision-scoped committed-turn review; layout coalescing, physical-vs-logical DPI bounds, bounded caption height/overflow and user-position safety; keyboard focus, screen-reader regions and contrast presets. The final source correction coalesces native Show/Hide to the latest visibility request, prevents older Show operations from undoing newer Hide, and clears an obsolete Meeting caption on ended/unavailable session or controller reset without clearing a newer explicit Text caption. Existing source contracts cover these owners but **have not been executed**. This is a source completion declaration, not a build PASS, installed-app proof, screen-reader verification, or release approval.

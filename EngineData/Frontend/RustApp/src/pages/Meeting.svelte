@@ -270,9 +270,9 @@
             <span class="ti-field-label">Microphone</span>
             <strong class="mt-1.5 block truncate text-[13px] font-semibold" title={microphone}>{microphone}</strong>
           </div>
-          <button type="button" class="min-w-0 p-5 text-left transition-colors hover:bg-[var(--ti-surface-soft)]" onclick={onOpenMyVoice}>
+          <button type="button" class="min-w-0 p-5 text-left transition-colors hover:bg-[var(--ti-surface-soft)]" aria-label="Choose or change Meeting voice" onclick={onOpenMyVoice}>
             <span class="ti-field-label">Meeting voice</span>
-            <strong class="mt-1.5 block text-[13px] font-semibold">Selected</strong>
+            <strong class="mt-1.5 block text-[13px] font-semibold">Ready for calls</strong>
           </button>
           <div class="min-w-0 p-5">
             <span class="ti-field-label">TranslateIT microphone</span>
@@ -311,7 +311,7 @@
             <AudioLines size={15} strokeWidth={1.8} />
             <span class="ti-field-label">Meeting voice</span>
           </div>
-          <strong class="mt-2 block text-[13px] font-semibold leading-5">{meetingVoiceReady ? "Selected" : meetingVoiceReady === null ? "Checking..." : "Not selected"}</strong>
+          <strong class="mt-2 block text-[13px] font-semibold leading-5">{meetingVoiceReady ? "Ready for calls" : meetingVoiceReady === null ? "Checking..." : "Choose a voice"}</strong>
           <p class="mb-0 mt-1.5 text-[11.5px] leading-[1.55] text-[var(--ti-text-soft)]">
             {meetingVoiceReady ? "Your selected English Meeting voice." : "Choose Built-in Male/Female or create My Voice before starting."}
           </p>
