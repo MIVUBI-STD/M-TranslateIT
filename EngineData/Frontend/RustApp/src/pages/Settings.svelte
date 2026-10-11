@@ -172,14 +172,13 @@
     const target = utilityTarget;
     const request = utilityRequest;
     if (!target || !target.startsWith("settings-")) return;
-    tab = ["settings-captions", "settings-terms", "settings-feedback"].includes(target)
+    tab = ["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)
       ? "translation" : target === "settings-diagnostics" ? "advanced" : "meeting";
     diagnosticsOpen = target === "settings-diagnostics";
-    const anchor = target === "settings-captions" ? "utility-captions"
-      : target === "settings-terms" ? "utility-terms"
-      : target === "settings-feedback" ? "utility-feedback"
-      : target === "settings-diagnostics" ? "utility-diagnostics"
-      : "utility-microphone";
+    // Translation-specific navigation belongs to TranslationPreferences,
+    // which opens its collapsed details before focusing the actual control.
+    if (tab === "translation") return;
+    const anchor = target === "settings-diagnostics" ? "utility-diagnostics" : "utility-microphone";
     void tick().then(() => {
       if (utilityRequest !== request || utilityTarget !== target) return;
       const element = document.getElementById(anchor);

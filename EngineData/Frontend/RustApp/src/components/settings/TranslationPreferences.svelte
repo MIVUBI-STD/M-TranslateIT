@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Copy, Plus, Search, Trash2, Upload } from "@lucide/svelte";
+  import { tick } from "svelte";
   import type { UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
@@ -35,8 +36,20 @@
   let languageToolsOpen = $state(settings.spoken_terms.length > 0 || settings.terminology.length > 0);
   let pendingDelete = $state<string | null>(null);
   $effect(() => {
-    utilityRequest;
-    if (utilityTarget === "settings-terms" || utilityTarget === "settings-feedback") languageToolsOpen = true;
+    const request = utilityRequest;
+    const target = utilityTarget;
+    if (!target || !["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)) return;
+    if (target !== "settings-captions") languageToolsOpen = true;
+    const id = target === "settings-captions" ? "utility-captions"
+      : target === "settings-spoken-terms" ? "utility-spoken-terms"
+      : target === "settings-preferred-words" ? "utility-preferred-words"
+      : "utility-feedback";
+    void tick().then(() => {
+      if (utilityRequest !== request || utilityTarget !== target) return;
+      const element = document.getElementById(id);
+      element?.scrollIntoView({ block: "start" });
+      element?.focus({ preventScroll: true });
+    });
   });
   const filteredTerms = $derived(settings.terminology.map((entry, index) => ({ entry, index })).filter(({ entry }) => {
     const q = termSearch.trim().toLowerCase();
@@ -67,8 +80,8 @@
     }
   }
 
-  async function persist(next: TerminologyEntry[], message: string): Promise<void> {
-    if (saving) return;
+  async function persist(next: TerminologyEntry[], message: string): Promise<boolean> {
+    if (saving) return false;
     saving = true;
     const candidate: RuntimeSettings = {
       ...settings,
@@ -79,11 +92,12 @@
       const result = await runtimeApi.saveSettings(candidate);
       if (!result.ok) {
         onNotice(result.message || "Preferred words couldn't be saved.");
-        return;
+        return false;
       }
       const saved = (await runtimeApi.loadSettings()) ?? candidate;
       await onSettingsChange(saved);
       onNotice(message);
+      return true;
     } catch {
       onNotice("Preferred words couldn't be saved. Try again.");
     } finally {
@@ -91,8 +105,8 @@
     }
   }
 
-  async function persistSpokenTerms(next: SpokenTermEntry[], message: string): Promise<void> {
-    if (saving) return;
+  async function persistSpokenTerms(next: SpokenTermEntry[], message: string): Promise<boolean> {
+    if (saving) return false;
     saving = true;
     const candidate: RuntimeSettings = {
       ...settings,
@@ -103,11 +117,12 @@
       const result = await runtimeApi.saveSettings(candidate);
       if (!result.ok) {
         onNotice(result.message || "Spoken terms couldn't be saved.");
-        return;
+        return false;
       }
       const saved = (await runtimeApi.loadSettings()) ?? candidate;
       await onSettingsChange(saved);
       onNotice(message);
+      return true;
     } catch {
       onNotice("Spoken terms couldn't be saved. Try again.");
     } finally {
@@ -142,9 +157,10 @@
       return;
     }
 
-    await persistSpokenTerms([...settings.spoken_terms, { term, aliases }], "Spoken term saved.");
-    spokenTerm = "";
-    spokenAliases = "";
+    if (await persistSpokenTerms([...settings.spoken_terms, { term, aliases }], "Spoken term saved.")) {
+      spokenTerm = "";
+      spokenAliases = "";
+    }
   }
 
   async function removeSpokenTerm(index: number): Promise<void> {
@@ -174,9 +190,10 @@
       onNotice("That word is already saved. Remove the existing pair before adding a different translation.");
       return;
     }
-    await persist([...settings.terminology, { indonesian: id, english: en }], "Preferred word saved.");
-    indonesian = "";
-    english = "";
+    if (await persist([...settings.terminology, { indonesian: id, english: en }], "Preferred word saved.")) {
+      indonesian = "";
+      english = "";
+    }
   }
 
   async function removeTerm(index: number): Promise<void> {
@@ -280,7 +297,7 @@
   <div class="grid gap-4 border-t border-[var(--ti-border)] p-4">
     <div id="utility-feedback" tabindex="-1"><TranslationFeedbackReview {onNotice} /></div>
 
-<article class="ti-panel overflow-hidden">
+<article id="utility-spoken-terms" tabindex="-1" class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
     <h3 class="m-0 text-[15px] font-semibold">Spoken terms</h3>
     <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">
@@ -341,7 +358,7 @@
   </footer>
 </article>
 
-<article class="ti-panel overflow-hidden">
+<article id="utility-preferred-words" tabindex="-1" class="ti-panel overflow-hidden">
   <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
     <h3 class="m-0 text-[15px] font-semibold">Preferred words</h3>
     <p class="mb-0 mt-1 text-[12px] leading-5 text-[var(--ti-text-muted)]">

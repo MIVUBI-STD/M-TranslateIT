@@ -8,6 +8,12 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## Utility integration corrections — follow-up (2026-10-11)
+
+**State: SOURCE CORRECTED; EXECUTABLE AND TARGET_WINDOWS PROOF NOT EXECUTED.** Static follow-up found Meeting Presets could be searched while hidden during a live Meeting, and both terminology editors cleared unsaved drafts after a failed persistence call. The implementation now disables the unavailable preset shortcut with an explanation, preserves input drafts unless persistence succeeds, and routes spoken-term versus preferred-word searches directly to the respective editor. Translation-owned focus waits for the optional disclosure to open; utility jumps no longer compete with palette focus restoration. The earlier Tab assertion was stale and is aligned with the implementation. Canonical storage, runtime and privacy owners remain unchanged.
+
+**Proof boundary:** Pinned Remote GitHub source and targeted static contract edits only; compiled/rendered/source-test and native-device acceptance are NOT EXECUTED. No cloud CI. Next: one existing grouped exact-SHA Windows acceptance with keyboard, persistence failure, navigation and real audio/UI checks before release.
+
 ## Utility access and keyboard safety — authorized narrow reopening (2026-10-11)
 
 **State: SOURCE IMPLEMENTED ON LOCAL; EXECUTABLE/RENDERED/TARGET_WINDOWS PROOF NOT EXECUTED.** The user authorized one constrained UX improvement after the earlier source closure. This work improves access to existing features only, not product scope or runtime architecture. The existing four routes, Settings owners, Meeting presets/transcripts, Text, My Voice, Python worker and privacy policies are unchanged. No new persistent transcript, audio handler, backend command, cloud operation, or global shortcut.

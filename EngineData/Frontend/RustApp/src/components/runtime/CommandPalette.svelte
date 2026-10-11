@@ -22,6 +22,9 @@
 
   async function run(command: ProductCommand): Promise<void> {
     if (command.disabled) return;
+    // Destination components own focus after a utility jump. Do not race
+    // their focus with the palette trigger restoration.
+    if (command.handsOffFocus) previousFocus = null;
     open = false;
     query = "";
     await command.run();
