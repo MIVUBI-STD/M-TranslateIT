@@ -205,6 +205,15 @@ mod tests {
         }
     }
 
+    // Each queue scenario mutates the same process-global deferred queue and
+    // drop counters. Run them sequentially rather than as parallel Rust tests.
+    #[test]
+    fn deferred_queue_state_contracts_are_serialized() {
+        deferred_admission_serializes_with_cleanup();
+        deferred_retry_preserves_first_deferral_age_budget();
+        deferred_queue_caps_evicts_expired_and_respects_session();
+    }
+
     #[test]
     fn incoming_asr_deferral_is_classified_before_missing_transcript() {
         let response = HelperBridgeWorkerResponse {
@@ -230,7 +239,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn deferred_admission_serializes_with_cleanup() {
         clear_deferred_incoming_queue().expect("clear deferred queue");
         let rejected = enqueue_with_admission(
@@ -257,7 +265,6 @@ mod tests {
         assert_eq!(deferred_incoming_health_counts().0, 0);
     }
 
-    #[test]
     fn deferred_retry_preserves_first_deferral_age_budget() {
         clear_deferred_incoming_queue().expect("clear deferred queue");
         let first_deferred_unix_ms = 10_000;
@@ -283,7 +290,6 @@ mod tests {
         clear_deferred_incoming_queue().expect("clear deferred queue");
     }
 
-    #[test]
     fn deferred_queue_caps_evicts_expired_and_respects_session() {
         clear_deferred_incoming_queue().expect("clear deferred queue");
         assert!(deferred_incoming_queue().lock().unwrap().is_empty());

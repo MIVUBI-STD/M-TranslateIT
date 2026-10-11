@@ -186,7 +186,9 @@ Confirm:
 - required outbound remains responsive and takes scheduler priority;
 - incoming may defer/degrade without breaking outbound;
 - TranslateIT's own English TTS is not re-consumed as incoming translation;
-- stale incoming backlog does not grow unbounded.
+- stale incoming backlog does not grow unbounded;
+- when incoming ASR/translation defers during outbound, the existing incoming consumer retries (or expires) the bounded work without requiring new incoming speech; record the observed result, not a synthetic PASS;
+- if suppression fails or Stop occurs with a deferred item, no late completion refills the cleared queue or re-enables the disabled incoming lane; confirm the optional-lane failure never breaks required outbound.
 
 ### 7. C4 — Stop lifecycle
 
