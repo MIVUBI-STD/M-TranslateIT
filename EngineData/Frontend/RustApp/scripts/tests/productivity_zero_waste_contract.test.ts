@@ -42,3 +42,10 @@ test("Text workspace remains mounted across navigation without disk persistence"
   assert.match(app, /class=\{route === "text" \? "" : "hidden"\}/);
   assert.match(app, /<Text\s+settings=\{snapshot\.settings\}/);
 });
+
+test("retained Text results become stale when translation settings change", () => {
+  const textPage = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
+  assert.match(textPage, /lastTranslatedSettingsKey/);
+  assert.match(textPage, /currentTextSettingsKey !== requestSettingsKey/);
+  assert.match(textPage, /Translation settings changed/);
+});

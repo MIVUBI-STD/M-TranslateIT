@@ -3,7 +3,6 @@ import type {
   OverlayTextSize,
   OverlayVisibility,
   OverlayWidth,
-  TranslationOverlayPayload,
   TranslationOverlayPreferences,
 } from "./translationOverlayPolicy";
 const DEFAULT_OVERLAY_PREFERENCES: TranslationOverlayPreferences = {

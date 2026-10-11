@@ -34,6 +34,7 @@
   let resultLabel = $state("Ready");
   let resultMessage = $state("Enter text, then choose Translate.");
   let lastTranslatedSource = $state<string | null>(null);
+  let lastTranslatedSettingsKey = $state<string | null>(null);
   let copyState = $state<CopyState>("idle");
   let copyMode = $state<CopyMode>("translation");
   let reviewHints = $state<string[]>([]);
@@ -42,6 +43,15 @@
 
   const sourceLanguageName = $derived(languageName(settings.source_language));
   const targetLanguageName = $derived(languageName(settings.target_language));
+  const currentTextSettingsKey = $derived(textTranslationCacheKey("", settings));
+
+  // A preserved Text workspace must not label old-direction results as current.
+  $effect(() => {
+    if (lastTranslatedSource !== null && lastTranslatedSettingsKey !== null
+      && lastTranslatedSettingsKey !== currentTextSettingsKey && !translating) {
+      setResult("stale", "Needs update", "Translation settings changed. Translate again to update the result.");
+    }
+  });
 
   function setResult(state: TextResultState, label: string, message: string): void {
     resultState = state;
@@ -52,6 +62,10 @@
   function handleSourceInput(): void {
     if (lastTranslatedSource === null) {
       if (resultState === "error") setResult("idle", "Ready", "Enter text, then choose Translate.");
+      return;
+    }
+    if (lastTranslatedSettingsKey !== currentTextSettingsKey) {
+      setResult("stale", "Needs update", "Translation settings changed. Translate again.");
       return;
     }
     if (sourceText.trim() === lastTranslatedSource) {
@@ -89,11 +103,13 @@
     const requestTargetRevision = targetRevision;
     const previousTarget = targetText;
     const cacheKey = textTranslationCacheKey(requestSource, settings);
+    const requestSettingsKey = currentTextSettingsKey;
     const cached = getCachedTextTranslation(cacheKey);
     if (cached) {
       targetText = cached.translated;
       reviewHints = cached.reviewHints;
       lastTranslatedSource = requestSource;
+      lastTranslatedSettingsKey = requestSettingsKey;
       setResult(
         cached.needsReview ? "stale" : "success",
         cached.needsReview ? "Check details" : "Translated",
@@ -111,6 +127,11 @@
     try {
       const result = await runtimeProductFacade.runProductTranslation(requestSource);
       const userEditedTargetWhileRunning = targetRevision !== requestTargetRevision;
+      if (currentTextSettingsKey !== requestSettingsKey) {
+        setResult("stale", "Settings changed", "Translation finished with previous settings. Translate again.");
+        onNotice("Translation settings changed; the previous result was not applied.");
+        return;
+      }
       if (!result.ok) {
         if (!userEditedTargetWhileRunning) targetText = previousTarget;
         setResult("error", "Couldn't translate", result.message);
@@ -127,6 +148,7 @@
       targetText = result.translated;
       reviewHints = result.reviewHints;
       lastTranslatedSource = requestSource;
+      lastTranslatedSettingsKey = requestSettingsKey;
       putCachedTextTranslation({
         key: cacheKey,
         translated: result.translated,
@@ -160,13 +182,14 @@
     if (!source || !current || alternativeBusy || translating) return;
     alternativeBusy = true;
     const requestTargetRevision = targetRevision;
+    const requestSettingsKey = currentTextSettingsKey;
     try {
       const result = await runtimeProductFacade.runProductTranslationAlternative(source, current);
       if (!result.ok) {
         onNotice(result.message);
         return;
       }
-      if (targetRevision !== requestTargetRevision || sourceText.trim() !== source) {
+      if (targetRevision !== requestTargetRevision || sourceText.trim() !== source || currentTextSettingsKey !== requestSettingsKey) {
         onNotice("Try another wording finished, but your newer edit was kept.");
         return;
       }
@@ -246,6 +269,7 @@
         targetText = "";
         targetRevision += 1;
         lastTranslatedSource = null;
+        lastTranslatedSettingsKey = null;
         reviewHints = [];
         copyState = "idle";
         setResult("idle", "Ready", "Previous translation moved to the source side.");
