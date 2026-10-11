@@ -18,6 +18,7 @@
     fitOverlayWidth,
     fitOverlayHeight,
     isProgrammaticOverlayMove,
+    overlayMeetingSession,
     overlayFontSize,
     overlayWidth,
     recentMeetingCaptions,
@@ -42,10 +43,14 @@
   let preferences = $state<TranslationOverlayPreferences>(readOverlayPreferences());
   let captionBody = $state<HTMLDivElement | null>(null);
   let captionText = $state<HTMLParagraphElement | null>(null);
+  let historyBody = $state<HTMLDivElement | null>(null);
+  let historyButton = $state<HTMLButtonElement | null>(null);
   let measuredCaptionHeight = $state(0);
   let disposed = false;
   let lastAutomaticPosition: { x: number; y: number } | null = null;
   let layoutQueue: Promise<void> = Promise.resolve();
+  let layoutPending = false;
+  let historyRequestId = 0;
   let historyOpen = $state(false);
   let historyLoading = $state(false);
   let historyEntries = $state<RecentCaptionEntry[]>([]);
@@ -68,9 +73,15 @@
     return { x: monitor.workArea.position.x, y: monitor.workArea.position.y, width: monitor.workArea.size.width, height: monitor.workArea.size.height };
   }
 
-  // Serialize native moves/resizes: stale async layout requests cannot race ahead of newer UI state.
+  // Serialize native moves, coalescing repetitive ResizeObserver/DPI requests.
+  // At most one queued layout follows the one currently executing.
   function scheduleLayout(): Promise<void> {
-    layoutQueue = layoutQueue.then(() => restorePosition()).catch(() => {
+    if (disposed || layoutPending) return layoutQueue;
+    layoutPending = true;
+    layoutQueue = layoutQueue.then(async () => {
+      layoutPending = false;
+      if (!disposed) await restorePosition();
+    }).catch(() => {
       if (!disposed) recordOverlayError("Floating caption position could not be updated.");
     });
     return layoutQueue;
@@ -144,41 +155,64 @@
     catch { preferences = updateOverlayPreferences({ clickThrough: false }); }
   }
   async function setVisibility(visibility: "expanded" | "collapsed"): Promise<void> {
-    await applyPreferences(updateOverlayPreferences({ visibility }));
+    const previous = readOverlayPreferences().visibility;
+    try { await applyPreferences(updateOverlayPreferences({ visibility })); }
+    catch {
+      preferences = updateOverlayPreferences({ visibility: previous });
+      recordOverlayError("Floating caption size could not be changed.");
+    }
   }
   async function hide(): Promise<void> {
+    clearCaption();
     await hideTranslationOverlay();
     preferences = readOverlayPreferences();
   }
   async function openRecentHistory(): Promise<void> {
-    if (historyLoading || caption?.source !== "meeting") return;
+    const requestedSession = overlayMeetingSession(caption);
+    if (historyLoading || !requestedSession || preferences.visibility === "hidden") return;
+    const requestId = ++historyRequestId;
     historyLoading = true;
-    historyMessage = "";
-    try {
-      const snapshot = await runtimeApi.getMeetingCommittedTurns();
+    let snapshot: Awaited<ReturnType<typeof runtimeApi.getMeetingCommittedTurns>> | null = null;
+    try { snapshot = await runtimeApi.getMeetingCommittedTurns(); }
+    catch { /* Only a generic availability message is shown. */ }
+    if (requestId === historyRequestId) historyLoading = false;
+    // The native request can finish after Hide, session rollover, or a newer review request.
+    if (disposed || requestId !== historyRequestId || preferences.visibility === "hidden"
+      || overlayMeetingSession(caption) !== requestedSession) return;
+    if (snapshot?.ok && snapshot.has_session && snapshot.session_id === requestedSession) {
       historyEntries = recentMeetingCaptions(snapshot, 20);
       historyMessage = historyEntries.length === 0 ? "No recent committed translations yet." : "";
-      historyOpen = true;
-      await scheduleLayout();
-    } catch {
+    } else {
       historyEntries = [];
       historyMessage = "Recent translations are unavailable right now.";
-      historyOpen = true;
-      await scheduleLayout();
-    } finally {
-      historyLoading = false;
     }
+    historyOpen = true;
+    await scheduleLayout();
+    await tick();
+    if (!disposed && historyOpen) historyBody?.focus();
   }
 
   async function closeRecentHistory(): Promise<void> {
+    historyRequestId += 1;
     historyOpen = false;
     historyMessage = "";
+    historyEntries = [];
     await scheduleLayout();
     await resizeCaption();
+    await tick();
+    if (!disposed) historyButton?.focus();
   }
 
   async function applyCaption(next: TranslationOverlayPayload): Promise<void> {
-    if (!shouldAcceptOverlayCaption(pendingCaption ?? caption, next)) return;
+    if (disposed || !shouldAcceptOverlayCaption(pendingCaption ?? caption, next)) return;
+    if (overlayMeetingSession(caption) !== overlayMeetingSession(next)) {
+      historyRequestId += 1;
+      historyOpen = false;
+      historyEntries = [];
+      historyMessage = "";
+      captionsPaused = false;
+      pendingCaption = null;
+    }
     if (captionsPaused && next.source === "meeting") {
       pendingCaption = next;
       return;
@@ -191,6 +225,8 @@
   }
 
   function clearCaption(): void {
+    historyRequestId += 1;
+    historyLoading = false;
     caption = null;
     pendingCaption = null;
     historyEntries = [];
@@ -245,7 +281,9 @@
         if (!disposed) clearCaption();
       }))) return;
       if (!await track(listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, (event) => {
-        if (!disposed) void applyPreferences(event.payload);
+        if (!disposed) void applyPreferences(event.payload).catch(() => {
+          if (!disposed) recordOverlayError("Floating caption preferences could not be applied.");
+        });
       }))) return;
       discardLegacyOverlayCaption();
       preferences = readOverlayPreferences();
@@ -300,7 +338,7 @@
           >
             {#if captionsPaused}<Play size={15} />{:else}<Pause size={15} />{/if}
           </button>
-          <button type="button" class="caption-control" aria-label="Show recent translations" title="Recent translations" disabled={historyLoading} onclick={() => void openRecentHistory()}><History size={15} /></button>
+          <button type="button" bind:this={historyButton} class="caption-control" aria-label="Show recent translations" title="Recent translations" disabled={historyLoading} onclick={() => void openRecentHistory()}><History size={15} /></button>
         {/if}
         <button type="button" class="caption-control" aria-label={collapsed ? "Expand floating caption" : "Collapse floating caption"} title={collapsed ? "Expand" : "Collapse"} onclick={() => void setVisibility(collapsed ? "expanded" : "collapsed")}>
           {#if collapsed}<Maximize2 size={15} />{:else}<Minus size={16} />{/if}
@@ -310,7 +348,7 @@
     </header>
     {#if !collapsed}
       {#if historyOpen}
-        <div class="history-body" aria-label="Recent committed translations">
+        <div class="history-body" bind:this={historyBody} role="region" tabindex="0" aria-label="Recent committed translations">
           {#if historyMessage}
             <p class="history-empty">{historyMessage}</p>
           {:else}
@@ -328,7 +366,7 @@
           {/if}
         </div>
       {:else}
-        <div class="caption-body" bind:this={captionBody} aria-live="polite" aria-atomic="true">
+        <div class="caption-body" bind:this={captionBody} role="region" tabindex="0" aria-label="Current translation" aria-live={captionsPaused ? "off" : "polite"} aria-atomic="true">
           {#if caption}<p lang={caption.language} bind:this={captionText}>{caption.text}</p>{:else}<p class="caption-placeholder">Your latest translation will appear here.</p>{/if}
         </div>
       {/if}
@@ -351,7 +389,7 @@
   .caption-controls { display: flex; align-items: center; gap: 2px; }
   .caption-control { display: grid; width: 30px; height: 28px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 8px; background: transparent; color: rgb(242 245 248 / 0.72); }
   .caption-control:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
-  .caption-control:focus-visible { outline: 2px solid rgb(255 255 255 / 0.88); outline-offset: 1px; }
+  .caption-control:focus-visible, .caption-body:focus-visible, .history-body:focus-visible { outline: 2px solid rgb(255 255 255 / 0.88); outline-offset: -2px; }
   .caption-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 22px 18px; user-select: text; }
   .caption-body p { margin: 0; color: #f7f8fa; font-size: var(--caption-font-size); font-weight: 560; line-height: 1.45; letter-spacing: -0.012em; overflow-wrap: anywhere; }
   .caption-body .caption-placeholder { color: rgb(232 237 242 / 0.52); font-weight: 500; }

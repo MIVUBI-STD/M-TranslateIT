@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove, overlayMeetingSession } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -73,4 +73,11 @@ test("automatic overlay placement events do not overwrite intentional position",
   assert.equal(isProgrammaticOverlayMove({ x: 649, y: 702 }, { x: 650, y: 700 }), true);
   assert.equal(isProgrammaticOverlayMove({ x: 550, y: 700 }, { x: 650, y: 700 }), false);
   assert.equal(isProgrammaticOverlayMove({ x: 650, y: 700 }, null), false);
+});
+
+test("Meeting revision parsing retains compound session IDs and rejects malformed sequences", () => {
+  assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "meeting", revision: "meeting:s:20" }), "meeting:s");
+  assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "meeting", revision: "meeting:s:bad" }), null);
+  assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "text", revision: "meeting:s:20" }), null);
+  assert.equal(overlayMeetingSession(null), null);
 });

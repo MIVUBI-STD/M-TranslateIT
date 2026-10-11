@@ -62,7 +62,8 @@ test("caption payload or clear is sent before exposing the native window", () =>
 });
 
 test("native positioning is serialized, DPI-constrained, and never persists an automatic move", () => {
-  assert.match(overlayPage, /layoutQueue = layoutQueue\.then\(\(\) => restorePosition\(\)\)/);
+  assert.match(overlayPage, /layoutQueue = layoutQueue\.then\(async \(\) =>/);
+  assert.match(overlayPage, /if \(disposed \|\| layoutPending\) return layoutQueue/);
   assert.match(overlayPage, /fitOverlayHeight\(currentHeight/);
   assert.match(overlayPage, /isProgrammaticOverlayMove\(payload, lastAutomaticPosition\)/);
   assert.match(overlayPage, /new PhysicalPosition\(next\.x, next\.y\)/);
@@ -75,4 +76,26 @@ test("caption resize and native subscriptions have bounded lifecycle ownership",
   assert.match(overlayPage, /if \(disposed\) \{ unlisten\(\); return false; \}/);
   assert.match(overlayPage, /for \(const unlisten of unlisteners\) unlisten\(\)/);
   assert.match(overlayPage, /recordOverlayError\("Floating caption setup is unavailable\."\)/);
+});
+
+test("screen-reader caption and bounded transcript regions are keyboard reachable", () => {
+  assert.match(overlayPage, /role="region" tabindex="0" aria-label="Current translation"/);
+  assert.match(overlayPage, /role="region" tabindex="0" aria-label="Recent committed translations"/);
+  assert.match(overlayPage, /aria-live=\{captionsPaused \? "off" : "polite"\}/);
+  assert.match(overlayPage, /historyBody\?\.focus\(\)/);
+  assert.match(overlayPage, /historyButton\?\.focus\(\)/);
+});
+
+test("stale Meeting review responses cannot restore private text after Hide or session rollover", () => {
+  assert.match(overlayPage, /requestedSession = overlayMeetingSession\(caption\)/);
+  assert.match(overlayPage, /requestId !== historyRequestId/);
+  assert.match(overlayPage, /snapshot\.session_id === requestedSession/);
+  assert.match(overlayPage, /historyRequestId \+= 1/);
+  assert.match(overlayPage, /clearCaption\(\);\s*await hideTranslationOverlay\(\)/);
+});
+
+test("native preference delivery errors remain bounded and user recoverable", () => {
+  assert.match(overlayPage, /Floating caption preferences could not be applied/);
+  assert.match(overlayPage, /Floating caption size could not be changed/);
+  assert.match(overlayPage, /recordOverlayError/);
 });

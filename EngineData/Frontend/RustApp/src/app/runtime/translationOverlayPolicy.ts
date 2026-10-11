@@ -38,6 +38,17 @@ export function shouldAcceptOverlayCaption(current: TranslationOverlayPayload | 
   return !Number.isSafeInteger(previous) || !Number.isSafeInteger(upcoming) || upcoming > previous;
 }
 
+// Meeting captions carry a session-specific revision (session id + committed sequence).
+// This identity is used only to guard temporary review data, never as persistent history.
+export function overlayMeetingSession(payload: TranslationOverlayPayload | null): string | null {
+  if (payload?.source !== "meeting") return null;
+  const separator = payload.revision.lastIndexOf(":");
+  if (separator <= 0) return null;
+  const sequence = Number(payload.revision.slice(separator + 1));
+  if (!Number.isSafeInteger(sequence) || sequence < 0) return null;
+  return payload.revision.slice(0, separator);
+}
+
 export type PhysicalPoint = { x: number; y: number };
 export type PhysicalRect = { x: number; y: number; width: number; height: number };
 
