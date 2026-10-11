@@ -42,10 +42,12 @@ test("overlay includes high contrast, work area placement and explicit hide", ()
   assert.match(overlayPage, /forced-colors: active/); assert.match(overlayPage, /Hide floating caption/); assert.match(overlayPage, /monitor\.workArea/);
 });
 
-test("Hide/Show cannot retain old private caption content", () => {
+test("Hide/Show clears private captions with the canonical bounded listener lifecycle", () => {
   assert.match(overlayRuntime, /TRANSLATION_OVERLAY_CLEAR_EVENT/);
   assert.match(overlayPage, /function clearCaption\(\)/);
-  assert.match(overlayPage, /unlistenClear/);
+  assert.match(overlayPage, /listen<TranslationOverlayClearPayload>\(TRANSLATION_OVERLAY_CLEAR_EVENT/);
+  assert.match(overlayPage, /if \(disposed\) \{ unlisten\(\); return false; \}/);
+  assert.match(overlayPage, /for \(const unlisten of unlisteners\) unlisten\(\)/);
 });
 
 test("overlay adapts text bounds and reconciles monitor DPI without global shortcuts", () => {
