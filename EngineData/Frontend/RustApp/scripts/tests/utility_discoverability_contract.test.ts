@@ -54,3 +54,50 @@ test("destructive utility actions have reversible decision before persistent mut
   assert.match(feedback, /confirmClear/);
   assert.match(feedback, /Clear reports/);
 });
+
+test("Meeting command searches never invert Start and Stop actions", async () => {
+  const { buildProductCommands } = await import("../../src/app/runtime/productCommandRegistry.ts");
+  const scenarios = [
+    { meetingHasSession: false, meetingCanStart: true, meetingCanStop: false,
+      expected: "Start Translation", included: "start", excluded: "stop", disabled: false },
+    { meetingHasSession: true, meetingCanStart: false, meetingCanStop: true,
+      expected: "Stop Translation", included: "stop", excluded: "start", disabled: false },
+    { meetingHasSession: true, meetingCanStart: false, meetingCanStop: false,
+      expected: "Stop Translation", included: "stop", excluded: "start", disabled: true },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const commands = buildProductCommands({
+      meetingHasSession: scenario.meetingHasSession,
+      meetingCanStart: scenario.meetingCanStart,
+      meetingCanStop: scenario.meetingCanStop,
+      navigationLocked: false,
+      quickTranslateReady: true,
+      navigate: () => {},
+      openUtility: () => {},
+      toggleMeeting: () => {},
+      quickTranslateClipboard: () => {},
+    });
+    const action = commands.find(command => command.id === "meeting-toggle");
+    assert.ok(action);
+    assert.equal(action.label, scenario.expected);
+    assert.equal(action.keywords.includes(scenario.included), true);
+    assert.equal(action.keywords.includes(scenario.excluded), false);
+    assert.equal(Boolean(action.disabled), scenario.disabled);
+  }
+});
+
+test("manual Settings tab changes consume stale Quick Actions focus intent", () => {
+  assert.match(settings, /let activeUtility = \$state<UtilityDestination \| null>\(null\)/);
+  assert.match(settings, /utilityTarget=\{activeUtility\}/);
+  for (const tab of ["meeting", "translation", "advanced"]) {
+    assert.ok(settings.includes(`activeUtility = null; tab = "${tab}"`));
+  }
+});
+
+test("term removal retains confirmation when storage rejects a delete", () => {
+  assert.match(preferences, /if \(await removeSpokenTerm\(index\)\) pendingDelete = null/);
+  assert.match(preferences, /if \(await removeTerm\(index\)\) pendingDelete = null/);
+  assert.match(preferences, /col-span-2 flex flex-wrap/);
+  assert.match(preferences, /col-span-4 flex flex-wrap/);
+});

@@ -47,6 +47,8 @@
   } = $props();
 
   let tab = $state<SettingsTab>("meeting");
+  // A Quick Actions destination is a one-shot request, not a persistent tab preference.
+  let activeUtility = $state<UtilityDestination | null>(null);
   let diagnosticsOpen = $state(false);
   let diagnosticsLoading = $state(false);
   let diagnosticsRefreshRevision = $state(0);
@@ -172,6 +174,7 @@
     const target = utilityTarget;
     const request = utilityRequest;
     if (!target || !target.startsWith("settings-")) return;
+    activeUtility = target;
     tab = ["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)
       ? "translation" : target === "settings-diagnostics" ? "advanced" : "meeting";
     diagnosticsOpen = target === "settings-diagnostics";
@@ -180,7 +183,7 @@
     if (["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)) return;
     const anchor = target === "settings-diagnostics" ? "utility-diagnostics" : "utility-microphone";
     void tick().then(() => {
-      if (utilityRequest !== request || utilityTarget !== target) return;
+      if (utilityRequest !== request || utilityTarget !== target || activeUtility !== target) return;
       const element = document.getElementById(anchor);
       element?.scrollIntoView({ block: "start" });
       element?.focus({ preventScroll: true });
@@ -206,19 +209,19 @@
           type="button"
           class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "meeting" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
           aria-current={tab === "meeting" ? "page" : undefined}
-          onclick={() => { tab = "meeting"; diagnosticsOpen = false; }}
+          onclick={() => { activeUtility = null; tab = "meeting"; diagnosticsOpen = false; }}
         >Meeting</button>
         <button
           type="button"
           class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "translation" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
           aria-current={tab === "translation" ? "page" : undefined}
-          onclick={() => { tab = "translation"; diagnosticsOpen = false; }}
+          onclick={() => { activeUtility = null; tab = "translation"; diagnosticsOpen = false; }}
         >Translation</button>
         <button
           type="button"
           class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "advanced" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
           aria-current={tab === "advanced" ? "page" : undefined}
-          onclick={() => { tab = "advanced"; diagnosticsOpen = false; }}
+          onclick={() => { activeUtility = null; tab = "advanced"; diagnosticsOpen = false; }}
         >Help</button>
       </nav>
     </header>
@@ -301,7 +304,7 @@
         </footer>
       </article>
     {:else if tab === "translation"}
-      <TranslationPreferences {settings} {onSettingsChange} {onNotice} {utilityTarget} {utilityRequest} />
+      <TranslationPreferences {settings} {onSettingsChange} {onNotice} utilityTarget={activeUtility} {utilityRequest} />
     {:else if !diagnosticsOpen}
       <article class="ti-panel overflow-hidden">
         <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">

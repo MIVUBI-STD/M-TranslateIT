@@ -165,8 +165,8 @@
     }
   }
 
-  async function removeSpokenTerm(index: number): Promise<void> {
-    await persistSpokenTerms(
+  async function removeSpokenTerm(index: number): Promise<boolean> {
+    return persistSpokenTerms(
       settings.spoken_terms.filter((_, itemIndex) => itemIndex !== index),
       "Spoken term removed.",
     );
@@ -198,8 +198,8 @@
     }
   }
 
-  async function removeTerm(index: number): Promise<void> {
-    await persist(
+  async function removeTerm(index: number): Promise<boolean> {
+    return persist(
       settings.terminology.filter((_, itemIndex) => itemIndex !== index),
       "Preferred word removed.",
     );
@@ -338,13 +338,16 @@
               {/if}
             </div>
             {#if pendingDelete === `spoken:${entry.term}`}
-              <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this spoken term?</span>
-              <button type="button" class="ti-button ti-button-secondary min-h-8" onclick={() => { pendingDelete = null; }}>Cancel</button>
-              <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={() => {
-                if (settings.spoken_terms[index]?.term !== entry.term) return;
-                pendingDelete = null;
-                void removeSpokenTerm(index);
-              }}>Remove</button>
+              <div class="col-span-2 flex flex-wrap items-center justify-end gap-2"
+                role="group" aria-label={`Confirm removal of ${entry.term}`}>
+                <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this spoken term?</span>
+                <button type="button" class="ti-button ti-button-secondary min-h-8" disabled={saving}
+                  onclick={() => { pendingDelete = null; }}>Cancel</button>
+                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={async () => {
+                  if (settings.spoken_terms[index]?.term !== entry.term) return;
+                  if (await removeSpokenTerm(index)) pendingDelete = null;
+                }}>Remove</button>
+              </div>
             {:else}
               <button type="button" class="ti-button ti-button-secondary min-h-8 px-2.5"
                 aria-label={`Remove spoken term ${entry.term}`} disabled={saving}
@@ -407,13 +410,14 @@
             <span class="text-[var(--ti-text-soft)]">→</span>
             <span class="min-w-0 truncate text-[13px] text-[var(--ti-text-muted)]">{entry.english}</span>
             {#if pendingDelete === `term:${entry.indonesian}:${entry.english}`}
-              <div class="flex flex-wrap items-center gap-1.5">
+              <div class="col-span-4 flex flex-wrap items-center justify-end gap-2"
+                role="group" aria-label={`Confirm removal of ${entry.indonesian}`}>
                 <span class="text-[11px] text-[var(--ti-text-muted)]">Remove this pair?</span>
-                <button type="button" class="ti-button ti-button-secondary min-h-8" onclick={() => { pendingDelete = null; }}>Cancel</button>
-                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={() => {
+                <button type="button" class="ti-button ti-button-secondary min-h-8" disabled={saving}
+                  onclick={() => { pendingDelete = null; }}>Cancel</button>
+                <button type="button" class="ti-button ti-button-danger min-h-8" disabled={saving} onclick={async () => {
                   if (settings.terminology[index]?.indonesian !== entry.indonesian || settings.terminology[index]?.english !== entry.english) return;
-                  pendingDelete = null;
-                  void removeTerm(index);
+                  if (await removeTerm(index)) pendingDelete = null;
                 }}>Remove</button>
               </div>
             {:else}

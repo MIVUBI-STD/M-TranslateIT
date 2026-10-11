@@ -54,10 +54,13 @@ export function buildProductCommands(context: ProductCommandContext): ProductCom
     { id: "navigate-settings", group: "Navigation", label: "Open Settings", description: "Adjust Meeting and translation preferences.",
       keywords: ["preferences"], disabled: context.navigationLocked, run: () => context.navigate("settings") },
     { id: "meeting-toggle", group: "Meeting utilities",
-      label: context.meetingCanStop ? "Stop Translation" : "Start Translation",
-      description: context.meetingCanStop ? "Stop the current Meeting safely."
+      label: context.meetingHasSession ? "Stop Translation" : "Start Translation",
+      description: context.meetingHasSession
+        ? context.meetingCanStop ? "Stop the current Meeting safely." : "Meeting is changing state. Wait until Stop is available."
         : context.meetingCanStart ? "Start translation using the current setup." : "Unavailable until Meeting setup is ready.",
-      keywords: ["start", "stop", "meeting", "translation"],
+      // A 'stop' query must never start a Meeting, or vice versa.
+      keywords: context.meetingHasSession ? ["stop", "end", "meeting", "translation"]
+        : ["start", "begin", "meeting", "translation"],
       disabled: context.meetingHasSession ? !context.meetingCanStop : !context.meetingCanStart,
       run: context.toggleMeeting },
     jump("meeting-presets", "Meeting utilities", "Meeting Presets",

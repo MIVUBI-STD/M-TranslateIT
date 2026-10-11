@@ -8,6 +8,12 @@ Remote source work is source-complete for the current scope: bounded productivit
 
 Actual latency, device routing, audio quality, GPU behavior, and installed-app behavior remain TARGET_WINDOWS evidence.
 
+## Utility interaction safety — source admission follow-up (2026-10-11)
+
+**State: BOUNDED SOURCE CORRECTION DELIVERED; COMPILE/RENDERED/NATIVE NOT EXECUTED.** Source review found Start/Stop shared Quick Actions search keywords, allowing search for the opposite operation to expose the active Meeting command. Search terms now depend on the actual Meeting session and keep transient active sessions labelled Stop but disabled. Settings utility targets are one-shot; manual tabs clear the old deep-link focus intent. Terms deletion confirmation stays visible after a failed save and occupies a readable row. Existing owners, storage and My Voice/audio boundaries remain unchanged. One new import-based Node regression checks Start/Stop command scenarios; source-static assertions cover focus-intent and delete-retry contracts. These tests have not been executed.
+
+**Next:** the single pinned-SHA grouped Windows source compile / UI / physical-device acceptance from the existing canonical runbook. Do not dispatch cloud CI, claim native PASS or promote main.
+
 ## Utility source admission correction — follow-up (2026-10-11)
 
 **State: SOURCE BLOCKERS CORRECTED, EXECUTABLE VERIFICATION NOT EXECUTED.** Post-write inspection identified a missing `return false` in both `Promise<boolean>` persistence catch branches, plus an accidental Settings effect dependency on the reactive tab that could reset manual tab selection. Both are corrected at their original owners; static test assertions guard the invariants. This supersedes the earlier source-only admission, without claiming compilation or rendered/native success.
