@@ -93,6 +93,8 @@ export type AudioDeviceListReport = {
   ok: boolean;
   input_devices: AudioDeviceSummary[];
   output_devices: AudioDeviceSummary[];
+  ambiguous_input_names: string[];
+  ambiguous_output_names: string[];
   blocker: string;
   note: string;
 };

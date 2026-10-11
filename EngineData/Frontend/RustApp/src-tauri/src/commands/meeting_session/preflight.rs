@@ -13,6 +13,16 @@ use super::{
     APPLICATION_MEETING_OWNER_ID,
 };
 
+// Transcribing the same virtual recording endpoint that carries TTS out
+// would create an audio feedback loop.
+fn microphone_conflicts_with_virtual_recording(
+    source_name: Option<&str>,
+    virtual_recording_name: Option<&str>,
+) -> bool {
+    matches!((source_name, virtual_recording_name),
+        (Some(source), Some(virtual_mic)) if source == virtual_mic)
+}
+
 #[cfg(test)]
 fn helper_start_recoverable(state: &str, last_error: Option<&str>) -> bool {
     state == "stopped"
@@ -24,7 +34,11 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let helper = get_helper_bridge_status();
     let route = get_virtual_mic_route_selection();
 
-    let microphone_ready = input.prepared;
+    let source_is_virtual_meeting_mic = microphone_conflicts_with_virtual_recording(
+        input.input_device_name.as_deref(),
+        route.selected_input_device.as_deref(),
+    );
+    let microphone_ready = input.prepared && !source_is_virtual_meeting_mic;
     let helper_ready = helper.state == "ready";
     let provider_ready = helper.provider_ready;
     let functional_outbound_ready = helper.functional_outbound_ready;
@@ -36,7 +50,9 @@ pub(super) fn build_preflight() -> MeetingSessionPreflightStatus {
     let meeting_route_ready = route.route_ready;
 
     let mut start_blockers = Vec::new();
-    if !microphone_ready {
+    if source_is_virtual_meeting_mic {
+        start_blockers.push("meeting_session:physical_input_is_virtual_meeting_microphone".to_string());
+    } else if !microphone_ready {
         start_blockers.push("meeting_session:microphone_not_ready".to_string());
     }
     if !models_ready {
@@ -145,7 +161,19 @@ pub(super) fn blocked_result(state: &str, message: String) -> MeetingSessionActi
 
 #[cfg(test)]
 mod recovery_eligibility_tests {
-    use super::helper_start_recoverable;
+    use super::{helper_start_recoverable, microphone_conflicts_with_virtual_recording};
+
+    #[test]
+    fn outbound_source_cannot_equal_virtual_recording_endpoint() {
+        assert!(microphone_conflicts_with_virtual_recording(
+            Some("CABLE Output (VB-Audio Virtual Cable)"),
+            Some("CABLE Output (VB-Audio Virtual Cable)"),
+        ));
+        assert!(!microphone_conflicts_with_virtual_recording(
+            Some("USB Microphone"),
+            Some("CABLE Output (VB-Audio Virtual Cable)"),
+        ));
+    }
 
     #[test]
     fn only_intentional_meeting_hard_cancel_is_start_recoverable() {

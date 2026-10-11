@@ -381,7 +381,7 @@
         <Languages size={15} strokeWidth={1.8} class="shrink-0 text-[var(--ti-text-muted)]" />
         <div class="min-w-0">
           <strong class="block text-[12.5px] font-semibold">Translate what you hear: {listenSourceName} → {listenTargetName}</strong>
-          <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional · listens to {meetingSound}</p>
+          <p class="mb-0 mt-0.5 truncate text-[11px] text-[var(--ti-text-soft)]">Optional captions · listens to {meetingSound}; use this same speaker output inside your calling app.</p>
         </div>
       </div>
       <button

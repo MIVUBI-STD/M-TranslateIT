@@ -73,6 +73,9 @@
   const meetingMicrophoneDevice = $derived(
     String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
   );
+  const virtualMicrophoneReady = $derived(
+    routeStatus?.route_ready ?? snapshot.readiness.meetingRouteReady,
+  );
 
 
   function currentDevice(kind: ProductAudioDeviceKind): string {
@@ -231,7 +234,7 @@
         <header class="flex items-start justify-between gap-5 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
           <div>
             <h3 class="m-0 text-[15px] font-semibold tracking-[-0.015em]">Meeting audio</h3>
-            <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Choose the microphone you speak into and the sound device TranslateIT listens to.</p>
+            <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Your spoken microphone, the incoming meeting sound device, and the virtual microphone sent to the call are three separate routes.</p>
           </div>
           {#if meetingResourcesLocked}
             <StatusBadge label="In Use" tone="neutral" />
@@ -246,13 +249,13 @@
             <select class="ti-field min-h-10 px-3" disabled={meetingResourcesLocked || devicesLoading || deviceSaving} value={currentDevice("microphone")} onchange={(event) => void changeDevice("microphone", selectValue(event))}>
               <option value="">Windows Default</option>
               {#each devices?.input_devices ?? [] as device (deviceId(device))}
-                <option value={deviceId(device)}>{device.name}{device.is_default ? " · Windows default" : ""}</option>
+                <option value={deviceId(device)} disabled={devices?.ambiguous_input_names.includes(device.name) || routeStatus?.selected_input_device === device.name}>{device.name}{devices?.ambiguous_input_names.includes(device.name) ? " · ambiguous" : routeStatus?.selected_input_device === device.name ? " · virtual output (not a spoken mic)" : device.is_default ? " · Windows default" : ""}</option>
               {/each}
               {#if deviceMissing("microphone")}
                 <option value={currentDevice("microphone")}>{currentDevice("microphone")} · unavailable</option>
               {/if}
             </select>
-            <small class="text-[11.5px] leading-5 text-[var(--ti-text-soft)]">The microphone you speak into.</small>
+            <small class="text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Your actual microphone, not CABLE Output. This feeds speech recognition, not the calling app directly.</small>
           </label>
 
           <label class="grid min-w-0 gap-2">
@@ -260,15 +263,21 @@
             <select class="ti-field min-h-10 px-3" disabled={meetingResourcesLocked || devicesLoading || deviceSaving} value={currentDevice("meeting-sound")} onchange={(event) => void changeDevice("meeting-sound", selectValue(event))}>
               <option value="">Windows Default</option>
               {#each devices?.output_devices ?? [] as device (deviceId(device))}
-                <option value={deviceId(device)}>{device.name}{device.is_default ? " · Windows default" : ""}</option>
+                <option value={deviceId(device)} disabled={devices?.ambiguous_output_names.includes(device.name) || routeStatus?.selected_output_device === device.name}>{device.name}{devices?.ambiguous_output_names.includes(device.name) ? " · ambiguous" : routeStatus?.selected_output_device === device.name ? " · virtual TTS output (not meeting sound)" : device.is_default ? " · Windows default" : ""}</option>
               {/each}
               {#if deviceMissing("meeting-sound")}
                 <option value={currentDevice("meeting-sound")}>{currentDevice("meeting-sound")} · unavailable</option>
               {/if}
             </select>
-            <small class="text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Choose where you hear the call if you want TranslateIT to translate incoming speech.</small>
+            <small class="text-[11.5px] leading-5 text-[var(--ti-text-soft)]">For optional incoming captions, choose the same physical speaker/headset output selected in your calling app. TranslateIT does not change its speaker setting.</small>
           </label>
         </div>
+
+        {#if (devices?.ambiguous_input_names.length ?? 0) > 0 || (devices?.ambiguous_output_names.length ?? 0) > 0}
+          <p class="mx-5 mb-4 mt-0 text-[12px] leading-5 text-[var(--ti-text-muted)]" role="status">
+            Multiple Windows audio endpoints have identical names. Those selections are disabled to prevent accidental routing to the wrong device.
+          </p>
+        {/if}
 
         <MeetingNoiseSuppression
           {settings}
@@ -282,12 +291,12 @@
             <span class="ti-field-label">TranslateIT microphone</span>
             <strong class="mt-1.5 block break-words text-[13px] font-semibold leading-5">{meetingMicrophoneDevice}</strong>
             <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-              {snapshot.readiness.meetingRouteReady
-                ? "Select this microphone in Zoom, Google Meet, Discord, or your calling app."
-                : "TranslateIT microphone isn't ready yet. Run Repair Setup before starting Meeting translation."}
+              {virtualMicrophoneReady
+                ? "Choose this as the calling app's microphone INPUT. Its speaker OUTPUT should remain your physical headset or speakers."
+                : "TranslateIT's virtual microphone route is not ready. Check VB-CABLE or run Repair Setup before Meeting translation."}
             </p>
           </div>
-          {#if !snapshot.readiness.meetingRouteReady}
+          {#if !virtualMicrophoneReady}
             <StatusBadge
               label={snapshot.readiness.level === "unavailable" ? "Unavailable" : "Setup Needed"}
               tone={snapshot.readiness.level === "unavailable" ? "danger" : "warning"}

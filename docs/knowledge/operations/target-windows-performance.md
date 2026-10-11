@@ -281,3 +281,15 @@ This is a future TARGET_WINDOWS acceptance procedure, not a completed test recei
 5. Include cases in the single exact-SHA integrated source/toolchain/package/long-session matrix, measuring handle, memory and dropout growth rather than treating unit contracts as native proof.
 
 This revision does not supply Windows MMDevice endpoint IDs, process-specific loopback or persistent playback. Those require separate dependency/API and Windows evidence gates. Maintain the existing VB-CABLE policy and no silent audio fallback.
+
+## Route isolation and name-collision parity — source candidate 2026-10-11
+
+This section is an acceptance procedure, not target-Windows evidence. It covers new explicit separation between the spoken microphone, virtual TTS input/meeting recording output, and incoming meeting output loopback.
+
+1. Select a uniquely named physical microphone as TranslateIT's spoken mic. Set the calling app's microphone INPUT to CABLE Output (VB-Audio Virtual Cable), and the calling app's speaker OUTPUT to the physical headset. TranslateIT Meeting Sound must select the same physical headset only for optional incoming captions. Verify raw Indonesian voice is not sent directly to the calling app.
+2. Intentionally select CABLE Output as the TranslateIT spoken microphone, first pinned and then as Windows Default. Required Meeting Start must reject the feedback topology.
+3. Intentionally select CABLE Input as optional Meeting Sound, first pinned and then as Windows Default. Incoming must degrade with an explicit blocker; translated outbound speech continues.
+4. With two Windows endpoints sharing the same visible name, check that the Settings option is marked ambiguous and disabled; with duplicate virtual endpoints, Meeting route discovery must not claim ready. Repeat for duplicate physical microphone/output names as available.
+5. Confirm normal physical speaker output and virtual microphone are distinct. Endpoint-wide WASAPI incoming may capture unrelated PC audio; do not claim process-specific isolation or actual Zoom/Meet reception from a source-only validation.
+
+No OS or meeting application checks were executed here. Test the complete path, repeated session generations, physical device loss and long-session resources in the existing grouped exact-SHA Windows acceptance.

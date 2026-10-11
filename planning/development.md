@@ -1,5 +1,14 @@
 # TranslateIT Development
 
+## Audio routing isolation: source integration candidate (2026-10-11)
+
+**State: SOURCE PREPARED; COMPILER, DEVICE AND MEETING APP ACCEPTANCE NOT EXECUTED.** This user-authorized routing cleanup addresses a mismatch between device discovery and runtime use: the original name-deduplicated inventory incorrectly hid collisions that the native stream selector rejects. Audio discovery now explicitly reports collision names, virtual-route readiness refuses an ambiguous selected pair, and Settings disables ambiguous choices. Meeting preflight rejects using the virtual recording mic as the spoken physical source; optional Meeting Sound refuses capturing from the TTS virtual render endpoint. The UI now distinguishes microphone you speak into, microphone sent to the call, and where the calling app plays sound. The canonical generation-bound Rust Meeting owner, required outbound versus optional incoming isolation and VB-CABLE packaging policy are unchanged.
+
+**References and boundaries:** OBS Studio win-wasapi (device selection/lifecycle), Microsoft Core Audio (endpoint identity and process loopback) and RustAudio CPAL (host API). CPAL pinned 0.15 remains name-based here; a later stable device-ID migration needs native dependency/lockfile/build work. Basic Windows endpoint IDs may change on driver updates; Windows 11 24H2 StableId is not universally present. Process-specific capture, advanced recovery and persistent TTS playback are not implemented or claimed proven by this source change.
+
+**Proof / next:** Exact-source changes and Rust source-side regression contracts only, NOT EXECUTED. Next one grouped exact-Local-SHA Windows build, package and real audio/device/meeting app/long-session acceptance via docs/knowledge/operations/target-windows-performance.md. Do not run cloud CI or promote main.
+
+
 ## Audio route/device reliability hardening (2026-10-11)
 
 **State: SOURCE CANDIDATE ON Local; COMPILE AND TARGET_WINDOWS NOT EXECUTED.** Under the user's high-end stability request, one shared Rust name selector now rejects duplicate Windows endpoint display names for explicitly pinned microphone, Meeting Sound, and VB-CABLE playback routing instead of choosing the first matching endpoint. The Meeting device-loss monitor now detects native mic frame starvation after 24 seconds across status observations without confusing quiet speech/silent PCM for missing native callbacks. Tracking resets across session/stream identity changes. There is no new driver, cloud runtime, alternate audio engine or automatic fallback. The existing bounded Meeting playback and generation authority remain unchanged.

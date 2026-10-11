@@ -210,6 +210,33 @@ Indonesian speech
 
 ## 9. Windows audio
 
+### Canonical Meeting audio topology
+
+```text
+REQUIRED OUTBOUND
+Physical spoken microphone (selected Windows capture endpoint)
+  -> TranslateIT mic capture / finalized speech / local ID->EN AI
+  -> selected English Meeting voice TTS
+  -> Rust playback to CABLE Input (VB-Audio playback endpoint)
+  -> paired CABLE Output (VB-Audio recording endpoint)
+  -> meeting application's microphone INPUT
+
+OPTIONAL INCOMING (text captions only)
+Meeting application's physical speaker/headset OUTPUT
+  -> Windows endpoint loopback capture (same selected Meeting Sound endpoint)
+  -> finalized English speech / local EN->ID translation
+  -> text captions (not an output microphone)
+
+INDEPENDENT SETTINGS
+TranslateIT Microphone = spoken physical input to AI
+TranslateIT Meeting Sound = optional capture of existing meeting-app speaker output
+Meeting-app Microphone = CABLE Output (must be chosen inside the calling app)
+Meeting-app Speaker = physical headset/speakers (chosen inside the calling app)
+```
+
+Neither TranslateIT's Meeting Sound selector nor its virtual microphone route changes the calling application's speaker setting. VB-CABLE device names are inverted relative to the application: CABLE Input is a Windows playback/render endpoint, and CABLE Output is a Windows recording/capture endpoint. Required and optional audio lanes never exchange raw buffers or become fallback devices for one another. Existing endpoint-wide loopback is not process-only capture and may include other applications' sound.
+
+
 ### PR-070 — Outbound content
 **MUST:** Meeting output contain translated English speech from the selected Meeting voice, never raw Indonesian mic audio or a silent fallback voice.
 
@@ -233,6 +260,12 @@ Indonesian speech
 
 ### PR-077 — Incoming freshness
 **MUST:** Prefer current comprehension over unbounded old subtitle backlog. Automatic mid-session default-device rebind remains outside current scope.
+
+### PR-078 — Audio lane isolation
+**MUST:** Meeting Start reject a resolved spoken microphone that is the same Windows recording endpoint carrying the translated virtual Meeting Microphone. Optional incoming capture **MUST NOT** bind to the virtual TTS playback endpoint, including when it is the Windows default speaker. Losing optional incoming must never cancel otherwise healthy outbound translation.
+
+### PR-079 — Display-name collision safety
+**MUST:** In the pinned CPAL name-based runtime, audio discovery and stream preparation agree: duplicate endpoint display names cannot be treated as one usable pinned device. Never silently choose the first same-named input, meeting-sound output or virtual playback endpoint. Stable Windows endpoint-ID migration remains a separate native compatibility and dependency decision.
 
 ## 10. Text
 

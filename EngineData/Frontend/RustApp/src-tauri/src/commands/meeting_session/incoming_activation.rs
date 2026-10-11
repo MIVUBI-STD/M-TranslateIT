@@ -8,6 +8,7 @@ use super::consumer_runtime::{
     start_meeting_incoming_consumer, stop_meeting_incoming_consumer,
 };
 use super::session_state::update_incoming_status;
+use super::super::virtual_mic_route::get_virtual_mic_route_selection;
 use super::suppression::suppression_handle_for_session;
 use super::incoming_session_is_eligible;
 
@@ -27,7 +28,24 @@ fn start_optional_incoming_lane(session_id: &str) -> String {
         return "Incoming unavailable: suppression state could not be established.".to_string();
     };
 
-    let capture = start_meeting_sound_capture_runtime(session_id, suppression);
+    // Self-TTS render must never be selected as the incoming loopback source.
+    let virtual_route = get_virtual_mic_route_selection();
+    let Some(virtual_playback_device) = virtual_route
+        .selected_output_device
+        .filter(|_| virtual_route.route_ready)
+    else {
+        update_incoming_status(
+            session_id,
+            "degraded",
+            true,
+            "meeting_incoming:virtual_route_not_available",
+            "Incoming was disabled because its isolation from virtual TTS playback could not be verified. Required outbound remains independent.",
+        );
+        return "Incoming unavailable: virtual playback route not verified.".to_string();
+    };
+    let capture = start_meeting_sound_capture_runtime(
+        session_id, suppression, &virtual_playback_device,
+    );
     if !incoming_session_is_eligible(session_id) {
         if capture.ok {
             let _ = stop_meeting_sound_capture_runtime();

@@ -1,5 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait};
 use serde::Serialize;
+use std::collections::BTreeSet;
 
 use crate::engine;
 use crate::engine::audio::device_selection::resolve_unique_named_device;
@@ -119,6 +120,9 @@ pub struct AudioDeviceListReport {
     pub ok: bool,
     pub input_devices: Vec<AudioDeviceSummary>,
     pub output_devices: Vec<AudioDeviceSummary>,
+    // CPAL 0.15 exposes names rather than a stable endpoint identity.
+    pub ambiguous_input_names: Vec<String>,
+    pub ambiguous_output_names: Vec<String>,
     pub blocker: String,
     pub note: String,
 }
@@ -165,7 +169,40 @@ fn device_name(device: &cpal::Device) -> Option<String> {
     device.name().ok().and_then(clean_device_name)
 }
 
-fn collect_devices(is_input: bool) -> Result<Vec<AudioDeviceSummary>, String> {
+struct CollectedAudioDevices {
+    devices: Vec<AudioDeviceSummary>,
+    ambiguous_names: Vec<String>,
+}
+
+fn summarize_named_devices(
+    names: impl IntoIterator<Item = String>,
+    default_name: Option<&str>,
+) -> CollectedAudioDevices {
+    let mut seen = BTreeSet::new();
+    let mut ambiguous = BTreeSet::new();
+    let mut devices = Vec::new();
+    for name in names {
+        if !seen.insert(name.clone()) {
+            ambiguous.insert(name);
+            continue;
+        }
+        // Continue scanning the host for collisions beyond the UI option cap.
+        if devices.len() >= MAX_AUDIO_DEVICES_PER_KIND {
+            continue;
+        }
+        devices.push(AudioDeviceSummary {
+            id: name.clone(),
+            is_default: default_name == Some(name.as_str()),
+            name,
+        });
+    }
+    CollectedAudioDevices {
+        devices,
+        ambiguous_names: ambiguous.into_iter().collect(),
+    }
+}
+
+fn collect_devices(is_input: bool) -> Result<CollectedAudioDevices, String> {
     let host = cpal::default_host();
     let default_name = if is_input {
         host.default_input_device()
@@ -184,26 +221,10 @@ fn collect_devices(is_input: bool) -> Result<Vec<AudioDeviceSummary>, String> {
             .collect::<Vec<_>>()
     };
 
-    let mut result = Vec::new();
-    for device in devices {
-        if result.len() >= MAX_AUDIO_DEVICES_PER_KIND {
-            break;
-        }
-        if let Some(name) = device_name(&device) {
-            if result
-                .iter()
-                .any(|item: &AudioDeviceSummary| item.name == name)
-            {
-                continue;
-            }
-            result.push(AudioDeviceSummary {
-                id: name.clone(),
-                is_default: default_name.as_deref() == Some(name.as_str()),
-                name,
-            });
-        }
-    }
-    Ok(result)
+    Ok(summarize_named_devices(
+        devices.iter().filter_map(device_name),
+        default_name.as_deref(),
+    ))
 }
 
 fn find_output_device(
@@ -239,13 +260,21 @@ pub fn list_audio_devices() -> AudioDeviceListReport {
     .chars()
     .take(400)
     .collect::<String>();
-    let input_devices = collected_input.unwrap_or_default();
-    let output_devices = collected_output.unwrap_or_default();
-    let ok = !input_devices.is_empty() || !output_devices.is_empty();
+    let input = collected_input.unwrap_or_else(|_| CollectedAudioDevices {
+        devices: Vec::new(),
+        ambiguous_names: Vec::new(),
+    });
+    let output = collected_output.unwrap_or_else(|_| CollectedAudioDevices {
+        devices: Vec::new(),
+        ambiguous_names: Vec::new(),
+    });
+    let ok = !input.devices.is_empty() || !output.devices.is_empty();
     AudioDeviceListReport {
         ok,
-        input_devices,
-        output_devices,
+        input_devices: input.devices,
+        output_devices: output.devices,
+        ambiguous_input_names: input.ambiguous_names,
+        ambiguous_output_names: output.ambiguous_names,
         blocker: if ok {
             String::new()
         } else if enumeration_error.is_empty() {
@@ -348,6 +377,18 @@ pub fn get_audio_quality() -> AudioQualityReport {
 #[cfg(test)]
 mod audio_quality_tests {
     use super::classify_audio_quality;
+
+    #[test]
+    fn discovery_exposes_name_collisions_even_while_listing_once() {
+        let inventory = super::summarize_named_devices(
+            ["Mic A", "Mic B", "Mic A"].into_iter().map(str::to_string),
+            Some("Mic A"),
+        );
+        assert_eq!(inventory.devices.len(), 2);
+        assert_eq!(inventory.ambiguous_names, vec!["Mic A"]);
+        assert!(inventory.devices[0].is_default);
+    }
+
 
     #[test]
     fn quality_requires_live_audio_before_claiming_measurement() {

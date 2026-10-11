@@ -7,7 +7,7 @@ use std::sync::{Mutex, OnceLock};
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 
-use super::audio::{list_audio_devices, AudioDeviceSummary};
+use super::audio::{list_audio_devices, AudioDeviceListReport, AudioDeviceSummary};
 use super::helper_bridge_runtime::unix_ms;
 
 
@@ -143,6 +143,26 @@ fn matched_pair_candidates(
     }
     candidates.sort_by(|left, right| left.pair_id.cmp(&right.pair_id));
     candidates
+}
+
+// Discovery and actual stream preparation must agree. A name collision
+// cannot be used to claim a ready matched route.
+fn reject_ambiguous_pair(
+    mut selection: RouteSelection,
+    devices: &AudioDeviceListReport,
+) -> RouteSelection {
+    let output_collision = selection
+        .selected_output_device
+        .as_ref()
+        .is_some_and(|name| devices.ambiguous_output_names.contains(name));
+    let input_collision = selection
+        .selected_input_device
+        .as_ref()
+        .is_some_and(|name| devices.ambiguous_input_names.contains(name));
+    if output_collision || input_collision {
+        selection.blocker = "virtual_mic:matched_route_pair_ambiguous".to_string();
+    }
+    selection
 }
 
 fn primary_vb_cable_pair(candidate: &RoutePairCandidate) -> bool {
@@ -290,7 +310,10 @@ fn with_route_evidence(mut status: VirtualMicRouteContractStatus) -> VirtualMicR
 
 fn build_dynamic_status() -> VirtualMicRouteContractStatus {
     let devices = list_audio_devices();
-    let selection = select_route_pair(&devices.output_devices, &devices.input_devices);
+    let selection = reject_ambiguous_pair(
+        select_route_pair(&devices.output_devices, &devices.input_devices),
+        &devices,
+    );
     status_from_selection(
         device_names(&devices.output_devices),
         device_names(&devices.input_devices),
@@ -313,6 +336,10 @@ fn build_fixed_status(
         "virtual_mic:selected_output_device_missing".to_string()
     } else if !input_device_found {
         "virtual_mic:selected_input_device_missing".to_string()
+    } else if devices.ambiguous_output_names.contains(&fixed.output_device)
+        || devices.ambiguous_input_names.contains(&fixed.input_device)
+    {
+        "virtual_mic:selected_route_pair_ambiguous".to_string()
     } else if !pair_still_matches {
         "virtual_mic:selected_route_pair_mismatch".to_string()
     } else {
@@ -466,7 +493,39 @@ pub fn get_virtual_mic_route_contract_status() -> VirtualMicRouteContractStatus 
 
 #[cfg(test)]
 mod b3_route_hot_path_tests {
-    use super::{status_from_selection, RouteSelection};
+    use super::{reject_ambiguous_pair, status_from_selection, RouteSelection};
+    use crate::commands::audio::{AudioDeviceListReport, AudioDeviceSummary};
+
+    #[test]
+    fn duplicate_virtual_output_name_cannot_claim_route_ready() {
+        let make = |name: &str| AudioDeviceSummary {
+            id: name.to_string(),
+            name: name.to_string(),
+            is_default: false,
+        };
+        let inventory = AudioDeviceListReport {
+            ok: true,
+            input_devices: vec![make("CABLE Output (VB-Audio Virtual Cable)")],
+            output_devices: vec![make("CABLE Input (VB-Audio Virtual Cable)")],
+            ambiguous_input_names: vec![],
+            ambiguous_output_names: vec!["CABLE Input (VB-Audio Virtual Cable)".to_string()],
+            blocker: String::new(),
+            note: String::new(),
+        };
+        let selection = RouteSelection {
+            route_pair_id: Some("windows_virtual_pair:vb-audio-virtual-cable".to_string()),
+            selected_output_device: Some("CABLE Input (VB-Audio Virtual Cable)".to_string()),
+            selected_input_device: Some("CABLE Output (VB-Audio Virtual Cable)".to_string()),
+            output_device_found: true,
+            input_device_found: true,
+            blocker: String::new(),
+        };
+        let result = status_from_selection(
+            vec![], vec![], reject_ambiguous_pair(selection, &inventory), "collision_test",
+        );
+        assert!(!result.route_ready);
+        assert_eq!(result.blocker, "virtual_mic:matched_route_pair_ambiguous");
+    }
 
     #[test]
     fn internal_route_status_does_not_write_evidence() {

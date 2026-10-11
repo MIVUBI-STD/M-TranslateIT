@@ -77,6 +77,7 @@ static MEETING_SOUND_CAPTURE_RUNTIME: OnceLock<Mutex<Option<MeetingSoundCaptureR
 pub fn start_meeting_sound_capture_runtime(
     session_id: &str,
     suppression: Arc<AtomicBool>,
+    virtual_playback_device: &str,
 ) -> MeetingSoundCaptureStartReport {
     if !cfg!(target_os = "windows") {
         return blocked_start(
@@ -125,10 +126,12 @@ pub fn start_meeting_sound_capture_runtime(
     let thread_frames = Arc::clone(&frames_received);
     let thread_suppressed = Arc::clone(&suppressed_frames);
     let thread_suppression = Arc::clone(&suppression);
+    let thread_virtual_playback_device = virtual_playback_device.to_string();
     let thread_errors = Arc::clone(&callback_errors);
     let capture_thread = thread::spawn(move || {
         if let Err(error) = run_capture_thread(
             &thread_session_id,
+            &thread_virtual_playback_device,
             thread_frames,
             thread_suppressed,
             thread_suppression,
@@ -145,7 +148,12 @@ pub fn start_meeting_sound_capture_runtime(
         Ok(Err(error)) => {
             let _ = capture_thread.join();
             clear_finalized_incoming_utterance_producer();
-            return blocked_start("meeting_sound:loopback_start_failed", &error);
+            let blocker = if error == "meeting_sound:incoming_equals_virtual_tts_output" {
+                "meeting_sound:incoming_equals_virtual_tts_output"
+            } else {
+                "meeting_sound:loopback_start_failed"
+            };
+            return blocked_start(blocker, &error);
         }
         Err(error) => {
             let _ = stop_tx.send(());
@@ -240,8 +248,16 @@ pub fn meeting_sound_capture_status() -> MeetingSoundCaptureStatus {
     }
 }
 
+fn incoming_output_conflicts_with_virtual_tts(
+    selected_output: Option<&str>,
+    virtual_playback_device: &str,
+) -> bool {
+    selected_output == Some(virtual_playback_device)
+}
+
 fn run_capture_thread(
     session_id: &str,
+    virtual_playback_device: &str,
     frames_received: Arc<AtomicU64>,
     suppressed_frames: Arc<AtomicU64>,
     suppression: Arc<AtomicBool>,
@@ -252,6 +268,9 @@ fn run_capture_thread(
     let host = cpal::default_host();
     let device = select_output_device(&host)?;
     let device_name = device.name().ok();
+    if incoming_output_conflicts_with_virtual_tts(device_name.as_deref(), virtual_playback_device) {
+        return Err("meeting_sound:incoming_equals_virtual_tts_output".to_string());
+    }
     let supported = device
         .default_output_config()
         .map_err(|error| format!("Selected Meeting Sound endpoint has no usable output mix config: {error}"))?;
@@ -442,4 +461,25 @@ fn current_unix_ms() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis())
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod isolation_tests {
+    use super::incoming_output_conflicts_with_virtual_tts;
+
+    #[test]
+    fn optional_incoming_never_binds_to_virtual_tts_render_endpoint() {
+        assert!(incoming_output_conflicts_with_virtual_tts(
+            Some("CABLE Input (VB-Audio Virtual Cable)"),
+            "CABLE Input (VB-Audio Virtual Cable)",
+        ));
+        assert!(!incoming_output_conflicts_with_virtual_tts(
+            Some("Headset Output"),
+            "CABLE Input (VB-Audio Virtual Cable)",
+        ));
+        assert!(!incoming_output_conflicts_with_virtual_tts(
+            None,
+            "CABLE Input (VB-Audio Virtual Cable)",
+        ));
+    }
 }
