@@ -6,6 +6,8 @@
     type MyVoiceBuildActionResult,
     type MyVoiceBuildStatus,
   } from "../../app/bridge/myVoiceBuildApi";
+  import QuickVoicePreview from "./QuickVoicePreview.svelte";
+  import MyVoiceBuildSummary from "./MyVoiceBuildSummary.svelte";
 
   let {
     onNotice,
@@ -375,42 +377,16 @@
 </script>
 
 <section class="ti-panel p-6" aria-busy={build.active || busy || quickPreviewBusy}>
-  {#if statusCheckUnavailable}
-    <div role="alert" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] p-3">
-      <span class="text-sm">My Voice status is unavailable. The previous progress may be outdated.</span>
-      <button type="button" class="ti-button ti-button-secondary" disabled={busy || quickPreviewBusy} onclick={() => void refresh()}>Retry status</button>
-    </div>
-  {/if}
-  <div class="flex items-start justify-between gap-5">
-    <div>
-      <span class="ti-kicker">My Voice</span>
-      <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 3 · Create and review My Voice</h3>
-      <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use your accepted recordings to create a personalized English voice. You can listen before choosing it.</p>
-    </div>
-    {#if build.approved_voice_ready}
-      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />My Voice ready</span>
-    {/if}
-  </div>
-
-  <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-4 py-3.5">
-    <div class="flex items-center justify-between gap-4">
-      <strong class="text-sm font-semibold">Ready recordings</strong>
-      <span class="text-xs font-semibold text-[var(--ti-text-muted)]">{formatDuration(build.accepted_duration_ms)} / {formatDuration(build.minimum_duration_ms)}</span>
-    </div>
-    <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">{build.accepted_take_count} accepted recordings · clear, varied recordings help the result</p>
-    <div
-      class="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]"
-      role="progressbar"
-      aria-label="Ready recordings progress"
-      aria-valuemin="0"
-      aria-valuemax="100"
-      aria-valuenow={speechProgress}
-      aria-valuetext={`${formatDuration(build.accepted_duration_ms)} of ${formatDuration(build.minimum_duration_ms)} accepted speech`}
-    >
-      <div class="h-full rounded-full bg-[var(--ti-accent)]" style={`width:${speechProgress}%`}></div>
-    </div>
-  </div>
-
+  <MyVoiceBuildSummary
+    {build}
+    {statusCheckUnavailable}
+    {busy}
+    {quickPreviewBusy}
+    {speechProgress}
+    readyDurationLabel={formatDuration(build.accepted_duration_ms)}
+    minimumDurationLabel={formatDuration(build.minimum_duration_ms)}
+    onRetry={refresh}
+  />
   {#if quickPreviewBusy || build.preview_active}
     <div class="mt-5" role="status">
       <strong class="text-sm font-semibold">Creating Quick Preview</strong>
@@ -475,37 +451,16 @@
     {/if}
   {/if}
 
-  <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <strong class="text-sm font-semibold">Quick Preview · Not for meetings</strong>
-        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Optional temporary preview; never usable in Meeting.</p>
-      </div>
-      <button
-        type="button"
-        class="ti-button ti-button-secondary min-h-9"
-        aria-controls="my-voice-quick-preview-options"
-        aria-expanded={quickPreviewOptionsOpen || quickPreviewBusy || build.preview_active}
-        disabled={quickPreviewBusy || build.preview_active}
-        onclick={() => { quickPreviewOptionsOpen = !quickPreviewOptionsOpen; }}
-      >{quickPreviewOptionsOpen || quickPreviewBusy || build.preview_active ? "Hide options" : "Show options"}</button>
-    </div>
-    <div id="my-voice-quick-preview-options" hidden={!quickPreviewOptionsOpen && !quickPreviewBusy && !build.preview_active}>
-        <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">Try a short accepted recording before full training. A temporary sample is not an approved Meeting voice.</p>
-        <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
-          <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={previewAuthorized} />
-          I own this voice or have permission to create a preview.
-        </label>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" class="ti-button ti-button-secondary"
-            disabled={!previewAuthorized || busy || quickPreviewBusy || build.active || build.preview_active || build.accepted_take_count === 0}
-            onclick={() => void generateQuickPreview()}>Generate Quick Preview</button>
-          {#if quickPreviewReady}
-            <button type="button" class="ti-button ti-button-secondary" disabled={quickPreviewBusy || quickPreviewPlaying}
-              onclick={() => void playQuickPreview()}><Play size={14} />{quickPreviewPlaying ? "Playing..." : "Listen to Preview"}</button>
-          {/if}
-        </div>
-      </div>
-  </div>
+  <QuickVoicePreview
+    {build}
+    {busy}
+    {quickPreviewBusy}
+    {quickPreviewReady}
+    {quickPreviewPlaying}
+    bind:previewAuthorized
+    bind:quickPreviewOptionsOpen
+    onGenerate={generateQuickPreview}
+    onPlay={playQuickPreview}
+  />
   <p class="mb-0 mt-5 text-xs leading-5 text-[var(--ti-text-soft)]">Only a trained, evaluated and explicitly approved My Voice can be selected for Meeting. Quick Preview is not an output voice.</p>
 </section>

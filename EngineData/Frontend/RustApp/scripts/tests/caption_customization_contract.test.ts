@@ -4,6 +4,7 @@ import test from "node:test";
 
 const owner = readFileSync(new URL("../../src/components/settings/FloatingCaptionPreferences.svelte", import.meta.url), "utf8");
 const overlay = readFileSync(new URL("../../src/pages/TranslationOverlay.svelte", import.meta.url), "utf8");
+const overlayCss = readFileSync(new URL("../../src/styles/translation-overlay.css", import.meta.url), "utf8");
 const state = readFileSync(new URL("../../src/app/runtime/translationOverlayState.ts", import.meta.url), "utf8");
 
 test("caption customization stays limited to readability controls", () => {
@@ -18,7 +19,8 @@ test("caption width and contrast persist as bounded presets", () => {
   assert.match(state, /"standard", "high"/);
   assert.match(overlay, /overlayWidth\(preferences\.width\)/);
   assert.match(overlay, /preferences\.contrast === "high"/);
-  assert.match(overlay, /\.high-contrast \.caption-card/);
+  assert.match(overlay, /translation-overlay\.css/);
+  assert.match(overlayCss, /\.overlay-shell\.high-contrast \.caption-card/);
   assert.match(owner, /Allow clicks through caption/);
 });
 

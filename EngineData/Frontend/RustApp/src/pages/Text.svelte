@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeftRight, Check, Copy, Eraser, PictureInPicture2, RefreshCw, ShieldAlert, Undo2 } from "@lucide/svelte";
+  import { ArrowLeftRight, Check, Copy, Eraser, PictureInPicture2, RefreshCw, Undo2 } from "@lucide/svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
   import { publishTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
@@ -8,6 +8,7 @@
   import type { RuntimeSettings } from "../app/shared/types";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
   import TranslationFeedback from "../components/text/TranslationFeedback.svelte";
+  import TextReviewNotice from "../components/text/TextReviewNotice.svelte";
 
   const MAX_MANUAL_TRANSLATION_CHARS = 2000;
   type TextResultState = "idle" | "translating" | "success" | "stale" | "error";
@@ -415,15 +416,7 @@
     </div>
 
     {#if reviewHints.length > 0 && targetText.trim()}
-      <section class="border-t border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] px-5 py-3.5" aria-live="polite">
-        <div class="flex items-start gap-2.5">
-          <ShieldAlert size={15} class="mt-0.5 shrink-0 text-[var(--ti-warning)]" />
-          <div>
-            <strong class="text-[12px] font-semibold">Review important details</strong>
-            <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-muted)]">{reviewHints.join(" ")}</p>
-          </div>
-        </div>
-      </section>
+      <TextReviewNotice hints={reviewHints} />
     {/if}
 
     <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">

@@ -7,6 +7,7 @@ const overlayCapability = JSON.parse(readFileSync(new URL("../../src-tauri/capab
 const closeRuntime = readFileSync(new URL("../../src/app/runtime/nativeCloseRuntime.ts", import.meta.url), "utf8");
 const overlayRuntime = readFileSync(new URL("../../src/app/runtime/translationOverlayRuntime.ts", import.meta.url), "utf8");
 const overlayPage = readFileSync(new URL("../../src/pages/TranslationOverlay.svelte", import.meta.url), "utf8");
+const overlayCss = readFileSync(new URL("../../src/styles/translation-overlay.css", import.meta.url), "utf8");
 const meetingLiveController = readFileSync(new URL("../../src/app/runtime/meetingLiveController.ts", import.meta.url), "utf8");
 
 test("floating caption native window keeps readability contract", () => {
@@ -39,7 +40,8 @@ test("overlay and main window permissions remain split by least privilege", () =
   }
 });
 test("overlay includes high contrast, work area placement and explicit hide", () => {
-  assert.match(overlayPage, /forced-colors: active/); assert.match(overlayPage, /Hide floating caption/); assert.match(overlayPage, /monitor\.workArea/);
+  assert.match(overlayPage, /translation-overlay\.css/); assert.match(overlayCss, /forced-colors: active/);
+  assert.match(overlayPage, /Hide floating caption/); assert.match(overlayPage, /monitor\.workArea/);
 });
 
 test("Hide/Show clears private captions with the canonical bounded listener lifecycle", () => {

@@ -39,8 +39,10 @@ test("session review and feedback remain explicit bounded workflows", () => {
 
 test("Text workspace remains mounted across navigation without disk persistence", () => {
   const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8");
-  assert.match(app, /class=\{route === "text" \? "" : "hidden"\}/);
-  assert.match(app, /<Text\s+settings=\{snapshot\.settings\}/);
+  const workspace = readFileSync(new URL("../../src/components/layout/ProductWorkspace.svelte", import.meta.url), "utf8");
+  assert.match(app, /<ProductWorkspace/);
+  assert.match(workspace, /class=\{route === "text" \? "" : "hidden"\}/);
+  assert.match(workspace, /<Text\s+settings=\{snapshot\.settings\}/);
 });
 
 test("retained Text results become stale when translation settings change", () => {

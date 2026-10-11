@@ -3,15 +3,17 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const settingsUi = readFileSync(new URL("../../src/components/settings/TranslationPreferences.svelte", import.meta.url), "utf8");
+const styleUi = readFileSync(new URL("../../src/components/settings/TranslationStylePicker.svelte", import.meta.url), "utf8");
 const textCommand = readFileSync(new URL("../../src-tauri/src/commands/text_translation.rs", import.meta.url), "utf8");
 const outbound = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/outbound_pipeline.rs", import.meta.url), "utf8");
 const incoming = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/incoming_pipeline.rs", import.meta.url), "utf8");
 const deferred = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/incoming_deferred.rs", import.meta.url), "utf8");
 
 test("translation style exposes only natural and formal product choices", () => {
-  assert.match(settingsUi, />Natural</);
-  assert.match(settingsUi, />Formal</);
-  assert.doesNotMatch(settingsUi, /Creative|Funny|Academic|Casual/);
+  assert.match(settingsUi, /onSelect=\{updateTranslationStyle\}/);
+  assert.match(styleUi, />Natural</);
+  assert.match(styleUi, />Formal</);
+  assert.doesNotMatch(styleUi, /Creative|Funny|Academic|Casual/);
 });
 
 test("translation style reaches text and both meeting translation lanes", () => {

@@ -13,6 +13,11 @@ const primarySurfaces = [
   "src/pages/Meeting.svelte",
   "src/pages/Text.svelte",
   "src/pages/MyVoice.svelte",
+  "src/components/my-voice/BuiltinVoicePicker.svelte",
+  "src/components/my-voice/QuickVoicePreview.svelte",
+  "src/components/my-voice/MyVoiceBuildSummary.svelte",
+  "src/components/setup/SetupVoiceChoice.svelte",
+  "src/components/settings/TranslationStylePicker.svelte",
   "src/components/meeting/MeetingActivity.svelte",
   "src/components/my-voice/MyVoiceBuild.svelte",
   "src/components/setup/SetupNavigation.svelte",
@@ -46,12 +51,15 @@ test("primary UI copy stays beginner friendly", () => {
 test("voice and Meeting status use familiar labels without claiming delivery into the calling app", () => {
   const myVoice = readFileSync(resolve(root, "src/pages/MyVoice.svelte"), "utf8");
   const build = readFileSync(resolve(root, "src/components/my-voice/MyVoiceBuild.svelte"), "utf8");
+  const quickPreview = readFileSync(resolve(root, "src/components/my-voice/QuickVoicePreview.svelte"), "utf8");
+  const buildSummary = readFileSync(resolve(root, "src/components/my-voice/MyVoiceBuildSummary.svelte"), "utf8");
   const activity = readFileSync(resolve(root, "src/components/meeting/MeetingActivity.svelte"), "utf8");
   const sidebar = readFileSync(resolve(root, "src/components/layout/Sidebar.svelte"), "utf8");
   assert.ok(myVoice.includes('<h2 class="ti-page-title">My Voice</h2>'));
   assert.ok(myVoice.includes("Review this recording"));
-  assert.ok(build.includes("Quick Preview · Not for meetings"));
-  assert.ok(build.includes("Retry status"));
+  assert.ok(build.includes("<QuickVoicePreview"));
+  assert.ok(quickPreview.includes("Quick Preview · Not for meetings"));
+  assert.ok(buildSummary.includes("Retry status"));
   assert.ok(activity.includes("TranslateIT is sending translated audio to the selected call microphone."));
   assert.ok(!activity.includes("Other people in the call are hearing"));
   assert.ok(sidebar.includes("aria-label={item.label}"));

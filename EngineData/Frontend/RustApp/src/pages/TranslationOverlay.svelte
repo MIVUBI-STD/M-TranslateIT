@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "../styles/translation-overlay.css";
   import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
   import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { availableMonitors, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
@@ -383,39 +384,3 @@
   </section>
 </main>
 
-<style>
-  :global(html.ti-overlay-document body) { user-select: none; }
-  .overlay-shell { width: 100vw; height: 100vh; padding: 8px; background: transparent; }
-  .caption-card { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid rgb(255 255 255 / 0.14); border-radius: 14px; background: rgb(16 19 22 / 0.96); box-shadow: 0 16px 46px rgb(0 0 0 / 0.38); color: #f7f8fa; }
-  .high-contrast .caption-card { background: #000; border: 2px solid #fff; box-shadow: none; }
-  .high-contrast .caption-meta, .high-contrast .history-entry-meta, .high-contrast .caption-control, .high-contrast .caption-body .caption-placeholder, .high-contrast .history-empty { color: #fff; }
-  .high-contrast .caption-control:focus-visible { outline: 3px solid #fff; }
-  .caption-header { flex: 0 0 auto; display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 9px 5px 14px; cursor: grab; }
-  .caption-header:active { cursor: grabbing; }
-  .caption-meta { display: flex; min-width: 0; align-items: center; gap: 8px; color: rgb(232 237 242 / 0.68); font-size: 10px; font-weight: 700; letter-spacing: 0.09em; }
-  .live-dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 999px; background: #63d59b; box-shadow: 0 0 0 3px rgb(99 213 155 / 0.12); }
-  .paused-dot { background: #f0b45a; box-shadow: 0 0 0 3px rgb(240 180 90 / 0.12); }
-  .caption-controls { display: flex; align-items: center; gap: 2px; }
-  .caption-control { display: grid; width: 30px; height: 28px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 8px; background: transparent; color: rgb(242 245 248 / 0.72); }
-  .caption-control:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
-  .caption-control:focus-visible, .caption-body:focus-visible, .history-body:focus-visible { outline: 2px solid rgb(255 255 255 / 0.88); outline-offset: -2px; }
-  .caption-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 22px 18px; user-select: text; }
-  .caption-body p { margin: 0; color: #f7f8fa; font-size: var(--caption-font-size); font-weight: 560; line-height: 1.45; letter-spacing: -0.012em; overflow-wrap: anywhere; }
-  .caption-body .caption-placeholder { color: rgb(232 237 242 / 0.52); font-weight: 500; }
-  .history-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 10px 12px; user-select: text; }
-  .history-entry { padding: 12px 12px 13px; border-top: 1px solid rgb(255 255 255 / 0.08); }
-  .history-entry:first-child { border-top: 0; }
-  .history-entry-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 5px; color: rgb(232 237 242 / 0.48); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; }
-  .history-entry p { margin: 0; color: #f7f8fa; font-size: 15px; font-weight: 520; line-height: 1.45; overflow-wrap: anywhere; }
-  .history-empty { margin: 0; padding: 18px 12px; color: rgb(232 237 242 / 0.52); font-size: 13px; line-height: 1.5; }
-  .collapsed { padding: 7px; }
-  .collapsed .caption-card { border-radius: 12px; }
-  .collapsed .caption-header { height: 100%; min-height: 0; padding: 7px 8px 7px 13px; }
-  @media (forced-colors: active) {
-    .caption-card { border-color: CanvasText; background: Canvas; box-shadow: none; color: CanvasText; forced-color-adjust: auto; }
-    .caption-meta, .caption-control, .caption-body p, .caption-body .caption-placeholder, .history-entry p, .history-entry-meta, .history-empty { color: CanvasText; }
-    .live-dot, .paused-dot { background: Highlight; box-shadow: none; }
-    .caption-control:focus-visible { outline-color: Highlight; }
-  }
-  @media (prefers-reduced-motion: reduce) { .caption-control { transition: none; } }
-</style>

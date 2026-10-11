@@ -15,6 +15,7 @@
   import { cloneSettings, compact, deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
   import SetupNavigation from "../components/setup/SetupNavigation.svelte";
+  import SetupVoiceChoice from "../components/setup/SetupVoiceChoice.svelte";
   import StatusRow from "../components/ui/StatusRow.svelte";
 
   type SetupState = "new" | "deferred" | "completed";
@@ -359,60 +360,19 @@
           />
         </div>
       {:else}
-        <div>
-          <span class="ti-kicker">Voice others hear</span>
-          <h1 class="ti-page-title">{meetingVoiceReady && snapshot?.readiness.meetingReady ? "TranslateIT is ready for a call." : "Choose the English voice others will hear."}</h1>
-          <p class="ti-page-copy">Choose a built-in voice to start quickly, or make a personalized voice later. In your calling app, select the TranslateIT microphone before speaking.</p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <button type="button" class="ti-subtle-card p-5 text-left" disabled={busy} onclick={() => void selectBuiltin("MaleVoice")}>
-            <span class="ti-field-label">Ready now</span>
-            <strong class="mt-2 block text-sm font-semibold">Built-in Male</strong>
-            <span class="mt-1 block text-xs leading-5 text-[var(--ti-text-soft)]">Use this voice in meetings.</span>
-          </button>
-          <button type="button" class="ti-subtle-card p-5 text-left" disabled={busy} onclick={() => void selectBuiltin("FemaleVoice")}>
-            <span class="ti-field-label">Ready now</span>
-            <strong class="mt-2 block text-sm font-semibold">Built-in Female</strong>
-            <span class="mt-1 block text-xs leading-5 text-[var(--ti-text-soft)]">Use this voice in meetings.</span>
-          </button>
-        </div>
-
-        {#if builtinPendingId}
-          <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] p-4">
-            <strong class="text-sm font-semibold">Replace the current Voice others hear?</strong>
-            <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{builtinLabel(builtinPendingId)} will replace the voice currently selected for Meeting.</p>
-            <div class="ti-action-row mt-4">
-              <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => { builtinPendingId = null; message = ""; }}>Cancel</button>
-              <button type="button" class="ti-button" disabled={busy} onclick={() => void confirmPendingBuiltin()}>Replace Voice</button>
-            </div>
-          </div>
-        {/if}
-
-        <div class="ti-subtle-card divide-y divide-[var(--ti-border)] overflow-hidden">
-          <StatusRow label="Microphone" value={currentMicrophone()} status={snapshot?.readiness.microphoneReady ? "Ready" : "Setup Needed"} tone={snapshot?.readiness.microphoneReady ? "good" : "warning"} />
-          <StatusRow label="Voice others hear" value={meetingVoiceReady ? "A Meeting voice is ready" : meetingVoiceReady === null ? "Checking the Meeting voice" : "Choose a built-in voice or create My Voice"} status={meetingVoiceReady ? "Ready" : meetingVoiceReady === null ? "Checking" : "Setup Needed"} tone={meetingVoiceReady ? "good" : meetingVoiceReady === null ? "neutral" : "warning"} />
-          <StatusRow label="TranslateIT microphone" value={currentMeetingMicrophone()} detail="Windows availability does not confirm selection inside your calling app." status={snapshot?.readiness.meetingRouteReady ? "Available" : "Setup Needed"} tone={snapshot?.readiness.meetingRouteReady ? "good" : "warning"} />
-          <StatusRow label="Translate what you hear" value={`English → Indonesian text · ${currentMeetingSound()}`} detail="Optional. You can turn this on or change it later." status="Optional" tone="neutral" />
-        </div>
-
-        <button type="button" class="ti-button ti-button-secondary justify-self-start" disabled={busy} onclick={() => void openMyVoice()}>Create my own voice instead</button>
-        {#if snapshot && !snapshot.readiness.meetingReady}
-          <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] p-4" role="status">
-            <strong class="block text-sm font-semibold">What still needs attention</strong>
-            <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">
-              {snapshot.readiness.level === "checking"
-                ? "The local translation check is still running. Select Check Again."
-                : !snapshot.readiness.microphoneReady
-                  ? "Your input microphone is not ready. Go back to the Microphone step to select or check it."
-                  : !snapshot.readiness.meetingRouteReady
-                    ? "The TranslateIT microphone is not available in Windows. Go back to the Meeting app step to check it."
-                    : meetingVoiceReady === false
-                      ? "Choose a built-in Meeting voice above or create My Voice."
-                      : "The local translation check is not ready. Select Check Again, then Fix Setup if needed."}
-            </p>
-          </div>
-        {/if}
+        <SetupVoiceChoice
+          {snapshot}
+          {meetingVoiceReady}
+          {busy}
+          {builtinPendingId}
+          microphone={currentMicrophone()}
+          meetingMicrophone={currentMeetingMicrophone()}
+          meetingSound={currentMeetingSound()}
+          onSelect={(voiceId) => selectBuiltin(voiceId)}
+          onConfirm={confirmPendingBuiltin}
+          onCancel={() => { builtinPendingId = null; message = ""; }}
+          onOpenMyVoice={openMyVoice}
+        />
       {/if}
 
       {#if message}
