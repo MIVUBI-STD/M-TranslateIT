@@ -39,7 +39,19 @@ def validate_release_quality(report_path: Path, release_identity: str) -> dict:
         report_hash = str(row.get("report_sha256", "")).strip().lower()
         if len(report_hash) != 64 or any(ch not in "0123456789abcdef" for ch in report_hash):
             raise ValueError(f"quality_readiness_domain_hash_invalid:{domain}")
-    return {
+    if "meeting_trace" in data:
+        trace = data["meeting_trace"]
+        if not isinstance(trace, dict) or trace.get("ready") is not True:
+            raise ValueError("quality_readiness_meeting_trace_not_ready")
+        report_hash = trace.get("report_sha256")
+        if not isinstance(report_hash, str) or len(report_hash) != 64 or any(
+            char not in "0123456789abcdef" for char in report_hash
+        ):
+            raise ValueError("quality_readiness_meeting_trace_hash_invalid")
+        if (type(trace.get("case_count")) is not int
+            or not 1 <= trace["case_count"] <= 64):
+            raise ValueError("quality_readiness_meeting_trace_case_count_invalid")
+    result = {
         "schema": SCHEMA,
         "release_identity": actual_identity,
         "report_sha256": sha256_file(report_path),
@@ -51,6 +63,12 @@ def validate_release_quality(report_path: Path, release_identity: str) -> dict:
             for domain in DOMAINS
         },
     }
+    if "meeting_trace" in data:
+        result["meeting_trace"] = {
+            "report_sha256": data["meeting_trace"]["report_sha256"],
+            "case_count": data["meeting_trace"]["case_count"],
+        }
+    return result
 
 
 def main() -> int:

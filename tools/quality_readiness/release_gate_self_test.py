@@ -48,6 +48,23 @@ def main() -> int:
         assert result["release_identity"] == identity
         assert len(result["report_sha256"]) == 64
 
+        optional = ready_report(identity)
+        optional["meeting_trace"] = {
+            "ready": True, "case_count": 1, "report_sha256": "d" * 64
+        }
+        path.write_text(json.dumps(optional), encoding="utf-8")
+        verified = validator.validate_release_quality(path, identity)
+        assert verified["meeting_trace"]["case_count"] == 1
+
+        optional["meeting_trace"]["ready"] = False
+        path.write_text(json.dumps(optional), encoding="utf-8")
+        try:
+            validator.validate_release_quality(path, identity)
+        except ValueError as exc:
+            assert str(exc) == "quality_readiness_meeting_trace_not_ready"
+        else:
+            raise AssertionError("declared trace failure must not pass release gate")
+
         mismatch = ready_report(identity)
         mismatch["release_identity"] = "2" * 40
         path.write_text(json.dumps(mismatch), encoding="utf-8")

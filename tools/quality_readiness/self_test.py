@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
 import json
 import tempfile
 from pathlib import Path
@@ -89,6 +90,106 @@ def main() -> int:
         mismatched = evaluator.evaluate_manifest(manifest_path)
         assert mismatched["ready_on_declared_quality_evidence"] is False
         assert "tts:candidate_identity_mismatch" in mismatched["blockers"]
+
+
+        # Contract-only fixture: these hashes do not represent observed audio,
+        # model output, or human evaluation. It tests metadata linkage only.
+        case = {
+            "case_id": "negation-001",
+            "risk_tags": ["negation", "correction"],
+            "source_wav_sha256": "a" * 64,
+            "asr": {
+                "audio_sha256": "a" * 64,
+                "transcript_sha256": "b" * 64,
+                "status": "complete",
+            },
+            "translation": {
+                "input_transcript_sha256": "b" * 64,
+                "output_text_sha256": "c" * 64,
+                "direction": "id-en",
+                "complete": True,
+            },
+            "tts": {
+                "input_text_sha256": "c" * 64,
+                "wav_sha256": "d" * 64,
+                "status": "complete",
+            },
+            "delivery": {"wav_sha256": "d" * 64, "status": "output_complete"},
+            "meaning_review": {"verdict": "no_critical_error", "reviewer_count": 1},
+        }
+        receipt = {
+            "schema": evaluator.MEETING_TRACE_SCHEMA,
+            "source_identity": identity,
+            "domain_source_identities": {
+                name: identity for name in schemas
+            },
+            "cases": [case],
+        }
+        manifest["meeting_trace"] = {
+            "report": "meeting-trace.json",
+            "expected_case_ids": ["negation-001"],
+        }
+        trace_path = root / "meeting-trace.json"
+        trace_path.write_text(json.dumps(receipt), encoding="utf-8")
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        linked = evaluator.evaluate_manifest(manifest_path)
+        assert linked["ready_on_declared_quality_evidence"] is False
+        assert "tts:candidate_identity_mismatch" in linked["blockers"]
+        # Restore domain comparison identity before proving optional trace wiring.
+        tts_path.write_text(json.dumps(comparison(
+            "translateit.tts_quality.comparison.v1", identity,
+        )), encoding="utf-8")
+        linked = evaluator.evaluate_manifest(manifest_path)
+        assert linked["ready_on_declared_quality_evidence"] is True
+        assert linked["meeting_trace"]["ready"] is True
+        assert linked["meeting_trace"]["case_count"] == 1
+        assert len(linked["meeting_trace"]["report_sha256"]) == 64
+
+        corrupted = copy.deepcopy(receipt)
+        corrupted["cases"][0]["tts"]["input_text_sha256"] = "e" * 64
+        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        blocked = evaluator.evaluate_manifest(manifest_path)
+        assert not blocked["ready_on_declared_quality_evidence"]
+        assert "meeting_trace:negation-001:tts_boundary" in blocked["blockers"]
+
+        corrupted = copy.deepcopy(receipt)
+        corrupted["cases"][0]["meaning_review"]["verdict"] = "critical_error"
+        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        blocked = evaluator.evaluate_manifest(manifest_path)
+        assert "meeting_trace:negation-001:meaning_review_incomplete" in blocked["blockers"]
+
+        corrupted = copy.deepcopy(receipt)
+        corrupted["cases"][0]["asr"]["transcript_text"] = "private text"
+        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        blocked = evaluator.evaluate_manifest(manifest_path)
+        assert "meeting_trace:negation-001:asr_boundary" in blocked["blockers"]
+
+        corrupted = copy.deepcopy(receipt)
+        corrupted["domain_source_identities"]["asr"] = "different-model"
+        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        blocked = evaluator.evaluate_manifest(manifest_path)
+        assert "meeting_trace:domain_identity_mismatch" in blocked["blockers"]
+
+        corrupted = copy.deepcopy(receipt)
+        corrupted["cases"].append(copy.deepcopy(case))
+        trace_path.write_text(json.dumps(corrupted), encoding="utf-8")
+        blocked = evaluator.evaluate_manifest(manifest_path)
+        assert "meeting_trace:duplicate_case_id" in blocked["blockers"]
+
+        trace_path.write_text(json.dumps(receipt), encoding="utf-8")
+        manifest["meeting_trace"]["report"] = "../outside.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        try:
+            evaluator.load_manifest(manifest_path)
+        except ValueError as exc:
+            assert "local JSON filename" in str(exc)
+        else:
+            raise AssertionError("trace path traversal must fail closed")
+
+        # Legacy domain-only inputs remain accepted unchanged.
+        manifest.pop("meeting_trace")
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        assert "meeting_trace" not in evaluator.evaluate_manifest(manifest_path)
 
     print(json.dumps({"ok": True, "domains": sorted(schemas)}, indent=2))
     return 0
