@@ -92,13 +92,33 @@ fn cleanup_deferred_incoming_job(job: DeferredIncomingJob) {
     }
 }
 
-pub(super) fn enqueue_deferred_incoming(job: DeferredIncomingJob) -> usize {
+// Serialize admission with queue mutation and cleanup: a worker that resumes
+// after suppression/Stop must not refill a queue that was already cleared.
+fn enqueue_with_admission(
+    job: DeferredIncomingJob,
+    front: bool,
+    admitted: impl FnOnce(&str) -> bool,
+) -> usize {
     let Ok(mut guard) = deferred_incoming_queue().lock() else {
         return 0;
     };
-    guard.push_back(job);
+    // Reuse the current Meeting status/runtime owners, inside the same mutex
+    // used by clear_deferred_incoming_queue. No second session authority.
+    if !admitted(&job.session_id) {
+        return 0;
+    }
+    if front {
+        guard.push_front(job);
+    } else {
+        guard.push_back(job);
+    }
     while guard.len() > MAX_DEFERRED_INCOMING {
-        if let Some(evicted) = guard.pop_front() {
+        let evicted = if front {
+            guard.pop_back()
+        } else {
+            guard.pop_front()
+        };
+        if let Some(evicted) = evicted {
             cleanup_deferred_incoming_job(evicted);
         }
         DEFERRED_DROPPED_OVERFLOW.fetch_add(1, Ordering::Relaxed);
@@ -106,18 +126,12 @@ pub(super) fn enqueue_deferred_incoming(job: DeferredIncomingJob) -> usize {
     guard.len()
 }
 
+pub(super) fn enqueue_deferred_incoming(job: DeferredIncomingJob) -> usize {
+    enqueue_with_admission(job, false, super::incoming_session_is_eligible)
+}
+
 pub(super) fn requeue_deferred_incoming_front(job: DeferredIncomingJob) -> usize {
-    let Ok(mut guard) = deferred_incoming_queue().lock() else {
-        return 0;
-    };
-    guard.push_front(job);
-    while guard.len() > MAX_DEFERRED_INCOMING {
-        if let Some(evicted) = guard.pop_back() {
-            cleanup_deferred_incoming_job(evicted);
-        }
-        DEFERRED_DROPPED_OVERFLOW.fetch_add(1, Ordering::Relaxed);
-    }
-    guard.len()
+    enqueue_with_admission(job, true, super::incoming_session_is_eligible)
 }
 
 pub(super) fn take_due_deferred_incoming(
@@ -217,6 +231,33 @@ mod tests {
     }
 
     #[test]
+    fn deferred_admission_serializes_with_cleanup() {
+        clear_deferred_incoming_queue().expect("clear deferred queue");
+        let rejected = enqueue_with_admission(
+            job("old", 1, "stale", 1_000),
+            false,
+            |session_id| {
+                assert_eq!(session_id, "old");
+                assert!(deferred_incoming_queue().try_lock().is_err());
+                false
+            },
+        );
+        assert_eq!(rejected, 0);
+        assert_eq!(deferred_incoming_health_counts().0, 0);
+
+        assert_eq!(
+            enqueue_with_admission(job("current", 2, "live", 2_000), false, |_| true),
+            1
+        );
+        clear_deferred_incoming_queue().expect("clear accepted work");
+        assert_eq!(
+            enqueue_with_admission(job("old", 3, "late", 3_000), true, |_| false),
+            0
+        );
+        assert_eq!(deferred_incoming_health_counts().0, 0);
+    }
+
+    #[test]
     fn deferred_retry_preserves_first_deferral_age_budget() {
         clear_deferred_incoming_queue().expect("clear deferred queue");
         let first_deferred_unix_ms = 10_000;
@@ -225,7 +266,7 @@ mod tests {
         assert_eq!(preserved, first_deferred_unix_ms);
         assert_eq!(deferred_enqueue_unix_ms(None, retry_unix_ms), retry_unix_ms);
 
-        requeue_deferred_incoming_front(job("sess", 1, "t", preserved));
+        enqueue_with_admission(job("sess", 1, "t", preserved), true, |_| true);
         let stale_before = DEFERRED_DROPPED_STALE.load(Ordering::Relaxed);
         assert!(
             take_due_deferred_incoming(
@@ -247,7 +288,7 @@ mod tests {
         clear_deferred_incoming_queue().expect("clear deferred queue");
         assert!(deferred_incoming_queue().lock().unwrap().is_empty());
 
-        enqueue_deferred_incoming(job("sess", 1, "t", 1_000));
+        enqueue_with_admission(job("sess", 1, "t", 1_000), false, |_| true);
         let stale_before = DEFERRED_DROPPED_STALE.fetch_and(0, Ordering::Relaxed);
         assert!(take_due_deferred_incoming("other-sess", 2_000).is_none());
         assert_eq!(
@@ -257,7 +298,7 @@ mod tests {
         );
 
         for seq in 2..=7 {
-            enqueue_deferred_incoming(job("sess", seq, "t", 10_000));
+            enqueue_with_admission(job("sess", seq, "t", 10_000), false, |_| true);
         }
         assert_eq!(
             deferred_incoming_queue().lock().unwrap().len(),
@@ -277,8 +318,8 @@ mod tests {
             MAX_DEFERRED_INCOMING as u64
         );
 
-        enqueue_deferred_incoming(job("sess", 7, "a", 50_000));
-        enqueue_deferred_incoming(job("sess", 8, "b", 51_000));
+        enqueue_with_admission(job("sess", 7, "a", 50_000), false, |_| true);
+        enqueue_with_admission(job("sess", 8, "b", 51_000), false, |_| true);
         let first = take_due_deferred_incoming("sess", 52_000).expect("fresh job due");
         let second = take_due_deferred_incoming("sess", 52_000).expect("second fresh job due");
         assert_eq!(first.event_sequence, 7);
