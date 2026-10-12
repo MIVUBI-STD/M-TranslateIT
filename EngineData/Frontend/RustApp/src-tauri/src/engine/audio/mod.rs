@@ -12,6 +12,8 @@ pub mod meeting_sound_capture;
 // offline Rust execution and matched device tests prove the new boundary.
 #[cfg(test)]
 mod pcm_handoff;
+#[cfg(test)]
+mod pcm_handoff_replay;
 pub mod vad;
 
 #[cfg(test)]

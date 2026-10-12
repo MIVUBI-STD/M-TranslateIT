@@ -1,5 +1,5 @@
 //! Fixed-capacity PCM handoff prototype for one Meeting lane / session generation.
-//! The CPAL producer never waits for a lock and never allocates a chunk.
+//! A future CPAL producer would never wait for a lock or allocate a chunk.
 //! A loss invalidates buffered audio rather than joining speech across a gap.
 //! NOT wired to production capture until offline playback/VAD replay and native
 //! timing can be run; the legacy audio path remains the baseline.
@@ -208,6 +208,19 @@ impl PcmHandoff {
             return PcmDrain::Empty;
         }
         let count = ring.drain_into(output, maximum_samples);
+        // Callback-side try_lock failure can publish a loss while this worker
+        // holds the ring lock. Re-check before exposing drained audio to VAD.
+        // Without this, a frame copied during loss can be mistaken for
+        // uninterrupted speech on the receiving thread.
+        let loss_after_copy = self.loss_epoch.load(Ordering::Acquire);
+        if loss_after_copy != loss {
+            ring.clear();
+            self.buffered_samples.store(0, Ordering::Release);
+            output.fill(0.0);
+            output.clear();
+            *observed_loss_epoch = loss_after_copy;
+            return PcmDrain::Discontinuity;
+        }
         self.buffered_samples.store(ring.len, Ordering::Release);
         PcmDrain::Samples(count)
     }
@@ -286,6 +299,7 @@ mod tests {
         assert_eq!(q.drain_into(&mut out, 6, &mut seen), PcmDrain::Samples(5));
         assert_eq!(out, vec![0.4, 0.5, 0.6, 0.7, 0.8]);
         assert_eq!(q.metrics().buffered_samples, 0);
+        assert_eq!(q.metrics().capacity_samples, 6);
     }
 
     #[test]
@@ -296,6 +310,7 @@ mod tests {
         assert_eq!(q.try_push(&[0.1, 0.2, 0.3]), PcmPush::Accepted(3));
         assert_eq!(q.try_push(&[0.4, 0.5]), PcmPush::Dropped(PcmDropReason::BufferFull));
         assert_eq!(q.metrics().dropped_samples, 2);
+        assert_eq!(q.metrics().discontinuity_epoch, 1);
         assert_eq!(q.drain_into(&mut out, 4, &mut seen), PcmDrain::Discontinuity);
         assert!(out.is_empty());
         assert_eq!(q.metrics().buffered_samples, 0);
@@ -374,6 +389,7 @@ mod tests {
         assert_eq!(q.drain_into(&mut out, 8, &mut seen), PcmDrain::Stopped);
         assert_eq!(q.metrics().buffered_samples, 0);
         assert_eq!(q.metrics().generation, 51);
+        assert!(q.metrics().stopped);
         assert!(PcmHandoff::new(0, 8).is_err());
         assert!(PcmHandoff::new(1, 0).is_err());
     }

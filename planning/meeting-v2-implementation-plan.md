@@ -48,7 +48,9 @@
 
 ### Batch 1 — Reliable capture and full-turn records
 
-**Batch 2B PCM proof addition (2026-10-12):** a CPU-only, test-gated fixed-capacity handoff is in source at `engine/audio/pcm_handoff.rs`. It has a bounded ring, `try_lock` callback admission, explicit dropped-frame/discontinuity counters, a CPU-drain cursor, and Stop cancellation with memory erase. It is **not yet wired to CPAL live capture** and does not improve observed latency until hardware proof. Next: offline worker integration replay, then guarded production handoff only after Rust compilation and test execution.
+**Batch 2B.2 source continuation (2026-10-12):** `pcm_handoff_replay.rs` is a **test-only CPU worker replay adapter** that drives the canonical finalized incoming and outgoing VAD from bounded handoff chunks. Incoming discontinuities reset the existing incoming speech boundary; outbound replay uses a generation-gated, `#[cfg(test)]` boundary reset. Four Rust tests cover natural incoming finalization, gap-driven reset without phantom transcript continuity, rejection of foreign/stopped generation, and authoritative outbound finalization. The buffer prototype also re-checks loss after the CPU drain copy before exposing audio to VAD. No CPAL callback is switched, no GPU task or second segmenter is introduced. These tests are authored but **not executed** until Cargo is available.
+
+**Batch 2B PCM proof addition (2026-10-12):** a CPU-only, test-gated fixed-capacity handoff is in source at `engine/audio/pcm_handoff.rs`. It has a bounded ring, `try_lock` callback admission, explicit dropped-frame/discontinuity counters, a CPU-drain cursor, and Stop cancellation with memory erase. It is **not yet wired to CPAL live capture** and does not improve observed latency until hardware proof. Next: execute the authored Rust replay tests in a matching toolchain, then add explicit session ID and lane binding plus bounded CPU worker shutdown before guarded production handoff. Do not enable it merely because tests are present.
 
 - Replace blocking callback-side state manipulation with a bounded, preallocated capture handoff designed for audio thread deadlines. Track queue-full and OS callback errors; don't silently drop.
 - Carry monotonic capture time and sample offset through segmentation, ASR, translation and first-audio events. Distinguish onset estimate from observed audio frame boundaries.
@@ -111,4 +113,4 @@ Every case must specify **owner → input → expected state → observable fail
 
 ## 5. Next source change
 
-Begin Batch 0 with the deferred incoming stale style field and audio callback boundary audit, then a small Batch 1 event/state contract with offline replay fixtures. **Do not replace production audio capture until the new path has deterministic tests and a safe fallback.**
+Batch 0 and source-first Batch 1 are already staged. Batch 2B.1/2B.2 provide test-only PCM and canonical-VAD replay; **next execution gate** is Rust compile/unit test and explicit session/lane/Stop worker ownership. Production CPAL routing remains unchanged until those gates and a reversible runtime cutover exist. Persistent playback, speculative ASR, and TTS streaming are separate later candidates.

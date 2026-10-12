@@ -198,6 +198,23 @@ pub fn clear_finalized_incoming_utterance_producer() {
     clear_producer(incoming_sync());
 }
 
+// Offline replay hook only. Production may adopt this exact owner reset
+// after the bounded PCM handoff has passed native callback/deadline tests.
+#[cfg(test)]
+pub(super) fn reset_finalized_outbound_speech_boundary(generation: u64) {
+    if !runtime_generation_is_authoritative(generation) {
+        return;
+    }
+    let sync = outbound_sync();
+    if let Ok(mut guard) = sync.state.lock() {
+        if let Some(state) = guard.as_mut() {
+            if state.generation == Some(generation) {
+                reset_current_utterance(state);
+            }
+        }
+    }
+}
+
 pub fn reset_finalized_incoming_speech_boundary() {
     let sync = incoming_sync();
     if let Ok(mut guard) = sync.state.lock() {
