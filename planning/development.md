@@ -1,12 +1,13 @@
-## Active continuation — Source observation and stable-prefix contract (2026-10-12)
+## Active continuation — ASR rolling-window/capture-clock alignment (2026-10-13)
 
-**Source candidate:** A bounded, test-only Rust source-observation module now accepts session/generation/lane/speech/audio-epoch-scoped ASR revisions and 16-kHz input-window offsets. It retains only one prior hypothesis, requires genuinely growing, same-anchor audio for LocalAgreement text evidence, preserves negation/version differences, and rejects stale, foreign, regressed, invalid, or post-final observations. A canonical final-window declaration can identify the WHOLE final window; nonfinal agreement deliberately produces **no committed source span** because the current Faster Whisper worker has no word timestamps. The old finalized-utterance production path is unchanged, and no additional AI worker, queue, GPU request, or UI has been introduced.
+**Source candidate:** The existing test-only `meeting_session/source_observations.rs` now supports explicitly supplied capture-clock provenance for contiguous 16-kHz ASR windows. It maps WHOLE ASR window boundaries into outward-rounded capture sample bounds at the declared native rate (including 44.1/48 kHz), with epoch/scope checking, rate-ratio sanity checks, window containment and discontinuity rejection. Shifted overlapping ASR windows reset text agreement, while a new same-anchor growing window can reconfirm text. No non-final text is assigned a word-level capture span; finalized whole-window source identity requires capture map provenance. No production capture/ASR/MT/TTS path or model is modified.
 
-**Evidence ceiling:** Source inspection and four authored Rust scenario tests, **NOT EXECUTED** (Cargo, Windows GPU/audio, VB-CABLE, receiver). This module is deliberately `#[cfg(test)]` until a real ASR audio-to-source mapping and session-authority integration exists. Text agreement alone is not semantic commit authority.
+**Evidence ceiling:** Static source inspection and authored Rust scenarios only; all Cargo, Windows audio/VRAM, worker integration, VB-CABLE and meeting-receiver checks remain **NOT EXECUTED**. Source caller-supplied provenance and clock-rate mapping are not proof of physical PCM continuity or exact phoneme timing.
 
-**Unresolved:** Rolling shifted-window anchoring, verified ASR segment/word-to-source alignment, bounded long-monologue source-span progression, runtime Start/Stop gating, and measured inference load. Last Batch A commit remains the only enabled source/playback authority change.
+**Unresolved:** The canonical capture/VAD/resampler path does not yet supply real continuity/epoch and clock-map metadata to this candidate. Actual VAD trimming, pre-roll, resampler phase, mid-session device/rate change and sample-to-text alignment require explicit ownership. The existing PCM handoff stays test-only.
 
-**Single next step:** Implement ASR-domain-to-capture sample alignment and anchored rolling-window advance without fabricating word timestamps, then connect the stabilizer behind a reversible Meeting candidate path. Do not activate streaming or request incremental user-PC tests.
+**Single next step:** Connect producer-owned continuity/epoch metadata and capture-to-ASR mapping at the actual audio preparation boundary as an internal reversible candidate, without activating partial speech delivery or GPU drafts.
+
 
 ## Active continuation — Batch A source and delivery authority (2026-10-12)
 
