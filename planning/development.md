@@ -1,16 +1,24 @@
 # TranslateIT Development
 
-## Active continuation — Exact-SHA source admission and test URL roots (2026-10-12)
+## Active continuation — Developer acceptance paused for ChatGPT source work (2026-10-12)
 
-**State: SOURCE CORRECTION DELIVERED ON Local; NODE/CARGO/SVELTE EXECUTION AND TARGET_WINDOWS TESTS NOT EXECUTED.** Static source admission at pre-correction `665c31a5afb9e6443df31ff8c6b0c743158c5ae2` checked all 54 canonical Rust/TypeScript DTO field-name pairs (no differences), 68 frontend regression-test sources with over 200 literal relative source references, and the existing Windows Node/Rust/Python/uv declarations, lockfiles and built-in voice references. No field-name/path mismatch was found in those bounded checks.
+**State: PAUSED BY USER; PARTIAL DEVELOPER ACCEPTANCE COMPLETED.** The user stopped further PC testing and requested that all results be brought into `Local` before continuing repairs in ChatGPT. Tested source: `230ca94faae178659a7738fa82399485c267c991`, descended from the initial candidate `497041064aee4e797db57dc8a97a67974e5577aa`. The exact tested checkout was clean. This documentation handoff does not create fresh runtime proof for a later SHA.
 
-**First wrong owner and correction:** The existing `validate_test_reference_reachability.mjs` assumed that any relative `new URL()` string used the test module as its URL base. `rust_msrv_contract.test.ts` uses an explicit `root` pointing to RustApp, so `new URL("../../../toolchain.json", root)` is valid but was misclassified as missing. The validator now recognizes literal `new URL("../../", import.meta.url)` directory aliases and resolves relative URLs against their declared base, without guessing unknown dynamic bases. The existing MSRV contract test now protects the distinction. No toolchain, Cargo manifest, lockfile, model, runtime behavior or UI was changed.
+**Completed:** source/repository contracts, strict Svelte admission, 289 frontend tests, 161 worker tests, 205 Rust tests, evaluator self-tests and `DEV.cmd build` passed. Required pinned engine assets were staged and actual CUDA ASR, bidirectional MiLMMT and built-in Male/Female WAV synthesis passed. Native UI checks covered Setup checkpoint persistence, Male selection after restart, switching to Female, Text both directions, Copy/paste, Clear/Undo, focused Ctrl+Enter, terminology storage/application and a bounded no-alternative wording response. Exact proof and limits are in [Current Validation](../docs/knowledge/current-validation.md#developer-acceptance-evidence--2026-10-12).
 
-**Proof ceiling:** REMOTE_GITHUB source review and static projection only. The actual repository Node validator, frontend tests, Svelte typecheck, Rust compilation, built-in audio and real target-Windows scenarios are **NOT EXECUTED**; they remain the single integrated acceptance gate in `docs/knowledge/operations/target-windows-performance.md`. No hosted CI or `main` promotion.
+**First unresolved evidence:** Quick Actions opened through Ctrl+K and search, but Quick Translate/caption delivery was not observed to completion. One later observation showed Translate Clipboard disabled while Text was ready; a local trace subsequently showed a 34-character translation completing, but it does not prove caption reception or a stuck-busy defect. Physical Escape stopped Computer Use; further UI actions were not performed. Reconcile the current source owners `ProductivityActions.svelte`, `CommandPalette.svelte` and `translationOverlayRuntime.ts` with that partial evidence before changing behavior. Settings restart persistence and in-flight stale-result rejection remain unverified. Meeting initially displayed a pending session readiness check; no successful Check Again or Start was observed in this final UI session.
+
+**Local-only residue:** required assets, public prompt subsets and private receipts are retained on the PC under ignored caches/UserData; they are not transported by GitHub source. No authorized personal recordings were supplied, and no My Voice quality approval occurred. Physical microphone/VAD, separate Meet receiver, incoming isolation, five Start/Stop cycles, measured latency and 30-minute stability remain NOT EXECUTED. Do not ask for incremental PC tests from ChatGPT or resume native acceptance without a new user instruction. Installer/signing/installed updater/clean-machine acceptance, hosted CI and main promotion stay outside scope.
 
 ## Next Step
 
-Admit the integrated test-ready candidate on the corrected full Local SHA and resume the user-authorized developer-mode Windows checks through the existing runbook. No per-change tests on the user's PC are requested. The initial `497041064aee4e797db57dc8a97a67974e5577aa` checkout passed doctor and locked dependency setup, but repository verification failed on six missing documentation-contract markers; restore those contracts before advancing. STOP at the first actual executable failure. Packaging, hosted CI and main promotion remain outside this acceptance scope.
+In ChatGPT, inspect the exact current `Local` Quick Translate/overlay source against the partial observation above; diagnose a concrete first failing owner before proposing a bounded correction. Keep native tests paused and unobserved behavior UNKNOWN.
+
+This is the integrated test-ready candidate handoff; No per-change tests on the user's PC are requested. Resume the existing grouped acceptance only after a new user instruction. Packaging, hosted CI and main promotion remain outside this acceptance scope.
+
+## Earlier source decisions — historical context
+
+The sections below retain earlier source decisions and their original proof ceilings. Their old active/next labels do not override the paused continuation above; later executed evidence is scoped to the tested SHA in Current Validation.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 
@@ -264,4 +272,4 @@ denoiser binary/model assets and actual A/B speaker-identity, intelligibility
 and naturalness evidence before any enhanced-audio training admission.
 Paused handoff: prior build/package preparation remains preserved above, but is not active work. The active quality-improvement source direction is defined in Q1–Q3 above; resume one integrated local build/package/native acceptance only on a separate explicit decision. Source-only changes to feature owners remain valid on `Local`, with higher-context proof marked `NOT EXECUTED`.
 
-No benchmark improvement, native inference, installer validation, or runtime PASS is claimed. Branch Local remains development-only; main is reserved for expressly approved final results.
+Those earlier source-only decisions did not establish benchmark improvement, native inference, installer validation or runtime PASS. The revision-scoped developer evidence above supersedes their unexecuted claims only for the scenarios actually exercised. Branch Local remains development-only; main is reserved for expressly approved final results.
