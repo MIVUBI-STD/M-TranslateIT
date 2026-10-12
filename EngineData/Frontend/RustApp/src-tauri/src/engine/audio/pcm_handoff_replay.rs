@@ -9,9 +9,10 @@ use super::finalized_utterance::{
     observe_finalized_incoming_mono_f32_samples, observe_finalized_outbound_mono_f32_samples,
     reset_finalized_incoming_speech_boundary, reset_finalized_outbound_speech_boundary,
 };
-use super::pcm_handoff::{PcmDrain, PcmDrainCursor, PcmHandoff};
+use super::pcm_handoff::{PcmDrain, PcmDrainCursor, PcmHandoff, PcmLane};
 
 struct IncomingPcmVadReplay {
+    session_id: String,
     cursor: PcmDrainCursor,
     max_samples_per_pump: usize,
     sample_rate_hz: u32,
@@ -25,13 +26,15 @@ impl IncomingPcmVadReplay {
         sample_rate_hz: u32,
         max_samples_per_pump: usize,
     ) -> Result<Self, &'static str> {
-        if sample_rate_hz == 0
+        if handoff.lane() != PcmLane::Incoming
+            || sample_rate_hz == 0
             || max_samples_per_pump == 0
             || max_samples_per_pump > handoff.metrics().capacity_samples
         {
             return Err("pcm_replay:invalid_worker_config");
         }
         Ok(Self {
+            session_id: handoff.session_id().to_owned(),
             cursor: PcmDrainCursor::new(max_samples_per_pump),
             max_samples_per_pump,
             sample_rate_hz,
@@ -41,7 +44,7 @@ impl IncomingPcmVadReplay {
     }
 
     fn pump(&mut self, handoff: &PcmHandoff) -> PcmDrain {
-        if handoff.metrics().generation != self.generation {
+        if !handoff.belongs_to(&self.session_id, PcmLane::Incoming, self.generation) {
             return PcmDrain::Stopped;
         }
         let sample_rate_hz = self.sample_rate_hz;
@@ -66,6 +69,7 @@ impl IncomingPcmVadReplay {
 }
 
 struct OutboundPcmVadReplay {
+    session_id: String,
     cursor: PcmDrainCursor,
     max_samples_per_pump: usize,
     sample_rate_hz: u32,
@@ -78,13 +82,15 @@ impl OutboundPcmVadReplay {
         sample_rate_hz: u32,
         max_samples_per_pump: usize,
     ) -> Result<Self, &'static str> {
-        if sample_rate_hz == 0
+        if handoff.lane() != PcmLane::You
+            || sample_rate_hz == 0
             || max_samples_per_pump == 0
             || max_samples_per_pump > handoff.metrics().capacity_samples
         {
             return Err("pcm_replay:invalid_worker_config");
         }
         Ok(Self {
+            session_id: handoff.session_id().to_owned(),
             cursor: PcmDrainCursor::new(max_samples_per_pump),
             max_samples_per_pump,
             sample_rate_hz,
@@ -93,7 +99,7 @@ impl OutboundPcmVadReplay {
     }
 
     fn pump(&mut self, handoff: &PcmHandoff) -> PcmDrain {
-        if handoff.metrics().generation != self.generation {
+        if !handoff.belongs_to(&self.session_id, PcmLane::You, self.generation) {
             return PcmDrain::Stopped;
         }
         let sample_rate_hz = self.sample_rate_hz;
@@ -109,7 +115,7 @@ impl OutboundPcmVadReplay {
 
 #[cfg(test)]
 mod tests {
-    use super::{IncomingPcmVadReplay, OutboundPcmVadReplay, PcmDrain, PcmHandoff};
+    use super::{IncomingPcmVadReplay, OutboundPcmVadReplay, PcmDrain, PcmHandoff, PcmLane};
     use crate::engine::audio::finalized_utterance::{
         clear_finalized_incoming_utterance_producer, clear_finalized_outbound_utterance_producer,
         clear_finalized_meeting_sequence, reset_finalized_incoming_utterance_producer,
@@ -127,7 +133,7 @@ mod tests {
         fn new(session_id: &'static str, generation: u64, capacity: usize) -> Self {
             reset_finalized_meeting_sequence(session_id);
             reset_finalized_incoming_utterance_producer(session_id, 16_000);
-            let handoff = PcmHandoff::new(generation, capacity).expect("queue creation");
+            let handoff = PcmHandoff::new(session_id, PcmLane::Incoming, generation, capacity).expect("queue creation");
             let worker = IncomingPcmVadReplay::new(&handoff, 16_000, capacity)
                 .expect("worker configuration");
             Self { handoff, worker, session_id }
@@ -202,7 +208,7 @@ mod tests {
         reset_finalized_meeting_sequence(&session.session_id);
         reset_finalized_outbound_utterance_producer(&session.session_id, generation, 16_000);
 
-        let q = PcmHandoff::new(generation, 16_000).unwrap();
+        let q = PcmHandoff::new(&session.session_id, PcmLane::You, generation, 16_000).unwrap();
         let mut worker = OutboundPcmVadReplay::new(&q, 16_000, 16_000).unwrap();
         assert_eq!(q.try_push(&[0.10; 6_400]), super::super::pcm_handoff::PcmPush::Accepted(6_400));
         assert_eq!(worker.pump(&q), PcmDrain::Samples(6_400));
@@ -230,8 +236,19 @@ mod tests {
         assert!(IncomingPcmVadReplay::new(&fixture.handoff, 0, 1).is_err());
         assert!(IncomingPcmVadReplay::new(&fixture.handoff, 16_000, 0).is_err());
         assert!(IncomingPcmVadReplay::new(&fixture.handoff, 16_000, 8_001).is_err());
-        let foreign = PcmHandoff::new(13, 8_000).unwrap();
-        assert_eq!(fixture.worker.pump(&foreign), PcmDrain::Stopped);
+        let foreign_session = PcmHandoff::new(
+            "another-session", PcmLane::Incoming, 12, 8_000,
+        ).unwrap();
+        assert_eq!(fixture.worker.pump(&foreign_session), PcmDrain::Stopped);
+        let foreign_lane = PcmHandoff::new(
+            fixture.session_id, PcmLane::You, 12, 8_000,
+        ).unwrap();
+        assert_eq!(fixture.worker.pump(&foreign_lane), PcmDrain::Stopped);
+        let foreign_generation = PcmHandoff::new(
+            fixture.session_id, PcmLane::Incoming, 13, 8_000,
+        ).unwrap();
+        assert_eq!(fixture.worker.pump(&foreign_generation), PcmDrain::Stopped);
+        assert!(IncomingPcmVadReplay::new(&foreign_lane, 16_000, 8_000).is_err());
         assert!(try_take_finalized_incoming_utterance(fixture.session_id).is_none());
         fixture.handoff.stop();
         assert_eq!(fixture.worker.pump(&fixture.handoff), PcmDrain::Stopped);

@@ -7,6 +7,14 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Mutex, TryLockError};
 
+/// Meeting capture direction. Stored once when the queue is constructed; never
+/// read by the audio callback or inferred from a shared generation number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PcmLane {
+    You,
+    Incoming,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PcmDropReason {
     Stopped,
@@ -99,10 +107,12 @@ fn safe_pcm(sample: f32) -> f32 {
     }
 }
 
-/// One instance per authorized Meeting lane and generation. Never reuse after Stop.
+/// One instance per authorized Meeting session, lane and generation. Never reuse after Stop.
 /// A fixed preallocated ring prevents callback-side heap growth. The producer
 /// uses try_lock; contention/overflow is accounted, not silently stitched.
 pub struct PcmHandoff {
+    session_id: String,
+    lane: PcmLane,
     generation: u64,
     capacity_samples: usize,
     ring: Mutex<PcmRing>,
@@ -114,11 +124,21 @@ pub struct PcmHandoff {
 }
 
 impl PcmHandoff {
-    pub fn new(generation: u64, capacity_samples: usize) -> Result<Self, &'static str> {
-        if generation == 0 || !(1..=384_000).contains(&capacity_samples) {
-            return Err("pcm_handoff:invalid_capacity_or_generation");
+    pub fn new(
+        session_id: &str,
+        lane: PcmLane,
+        generation: u64,
+        capacity_samples: usize,
+    ) -> Result<Self, &'static str> {
+        if session_id.trim().is_empty()
+            || generation == 0
+            || !(1..=384_000).contains(&capacity_samples)
+        {
+            return Err("pcm_handoff:invalid_session_generation_or_capacity");
         }
         Ok(Self {
+            session_id: session_id.to_owned(),
+            lane,
             generation,
             capacity_samples,
             ring: Mutex::new(PcmRing {
@@ -132,6 +152,23 @@ impl PcmHandoff {
             loss_epoch: AtomicU64::new(0),
             stopped: AtomicBool::new(false),
         })
+    }
+
+    /// CPU-side identity gate. Callbacks only handle pre-bound PCM and do not
+    /// allocate, compare session strings, or create a second session owner.
+    pub fn belongs_to(&self, session_id: &str, lane: PcmLane, generation: u64) -> bool {
+        !self.stopped.load(Ordering::Acquire)
+            && self.session_id == session_id
+            && self.lane == lane
+            && self.generation == generation
+    }
+
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub fn lane(&self) -> PcmLane {
+        self.lane
     }
 
     fn record_loss(&self, samples: usize) {
@@ -285,11 +322,11 @@ impl PcmDrainCursor {
 
 #[cfg(test)]
 mod tests {
-    use super::{PcmDrain, PcmDrainCursor, PcmDropReason, PcmHandoff, PcmPush};
+    use super::{PcmDrain, PcmDrainCursor, PcmDropReason, PcmHandoff, PcmLane, PcmPush};
 
     #[test]
     fn bounded_fifo_wraps_without_allocating_and_preserves_order() {
-        let q = PcmHandoff::new(11, 6).unwrap();
+        let q = PcmHandoff::new("pcm-test", PcmLane::You, 11, 6).unwrap();
         let mut out = Vec::new();
         let mut seen = 0;
         assert_eq!(q.try_push(&[0.1, 0.2, 0.3, 0.4]), PcmPush::Accepted(4));
@@ -304,7 +341,7 @@ mod tests {
 
     #[test]
     fn capacity_overflow_is_accounted_and_forces_phrase_discontinuity() {
-        let q = PcmHandoff::new(7, 4).unwrap();
+        let q = PcmHandoff::new("pcm-test", PcmLane::You, 7, 4).unwrap();
         let mut out = Vec::new();
         let mut seen = 0;
         assert_eq!(q.try_push(&[0.1, 0.2, 0.3]), PcmPush::Accepted(3));
@@ -321,7 +358,7 @@ mod tests {
 
     #[test]
     fn lock_contention_never_blocks_callback_and_invalidates_old_audio() {
-        let q = PcmHandoff::new(3, 4).unwrap();
+        let q = PcmHandoff::new("pcm-test", PcmLane::You, 3, 4).unwrap();
         let mut seen = 0;
         let mut out = Vec::new();
         assert_eq!(q.try_push(&[0.2]), PcmPush::Accepted(1));
@@ -334,7 +371,7 @@ mod tests {
 
     #[test]
     fn invalid_float_and_oversize_chunks_never_poison_worker_output() {
-        let q = PcmHandoff::new(5, 4).unwrap();
+        let q = PcmHandoff::new("pcm-test", PcmLane::You, 5, 4).unwrap();
         let mut out = Vec::new();
         let mut seen = 0;
         assert_eq!(q.try_push(&[f32::NAN, f32::INFINITY, 2.0, -2.0]), PcmPush::Accepted(4));
@@ -346,7 +383,7 @@ mod tests {
 
     #[test]
     fn cpu_driver_forwards_only_continuous_audio_and_reports_reset() {
-        let handoff = PcmHandoff::new(61, 4).unwrap();
+        let handoff = PcmHandoff::new("pcm-test", PcmLane::You, 61, 4).unwrap();
         let mut cursor = PcmDrainCursor::new(4);
         let mut received = Vec::<f32>::new();
         let mut resets = 0;
@@ -379,7 +416,7 @@ mod tests {
 
     #[test]
     fn stop_discards_backlog_and_rejects_late_session_audio() {
-        let q = PcmHandoff::new(51, 8).unwrap();
+        let q = PcmHandoff::new("pcm-test", PcmLane::You, 51, 8).unwrap();
         let mut out = Vec::new();
         let mut seen = 0;
         assert_eq!(q.try_push(&[0.25, 0.5]), PcmPush::Accepted(2));
@@ -390,7 +427,19 @@ mod tests {
         assert_eq!(q.metrics().buffered_samples, 0);
         assert_eq!(q.metrics().generation, 51);
         assert!(q.metrics().stopped);
-        assert!(PcmHandoff::new(0, 8).is_err());
-        assert!(PcmHandoff::new(1, 0).is_err());
+        assert!(PcmHandoff::new("pcm-test", PcmLane::You, 0, 8).is_err());
+        assert!(PcmHandoff::new("pcm-test", PcmLane::You, 1, 0).is_err());
+    }
+
+    #[test]
+    fn session_lane_and_generation_must_match_before_replay() {
+        let q = PcmHandoff::new("session-a", PcmLane::You, 42, 8).unwrap();
+        assert!(q.belongs_to("session-a", PcmLane::You, 42));
+        assert!(!q.belongs_to("session-b", PcmLane::You, 42));
+        assert!(!q.belongs_to("session-a", PcmLane::Incoming, 42));
+        assert!(!q.belongs_to("session-a", PcmLane::You, 43));
+        assert!(PcmHandoff::new("", PcmLane::You, 42, 8).is_err());
+        q.stop();
+        assert!(!q.belongs_to("session-a", PcmLane::You, 42));
     }
 }

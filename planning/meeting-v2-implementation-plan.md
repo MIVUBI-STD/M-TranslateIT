@@ -3,8 +3,14 @@
 **Status:** IMPLEMENTATION BLUEPRINT. Batch 0 cleanup and Batch 1 source-first/long-session bounded retention have source candidates on `Local`; the compiler and GPU/browser acceptance have not run. More audio capture/streaming batches remain pending.
 **Baseline:** `75cd24e4f52708ec51105bf9cb2beed4833e7773` on `Local` (2026-10-12).
 **Primary goal:** natural, accurate, low-latency bilingual browser meetings on RTX 3070 8 GB, i7-14700-class CPU, 32 GB system RAM, **no available iGPU**.
-**No local PC now:** prepare modular source, fixtures, offline deterministic tests, and available hosted compile/unit gates. Reserve CUDA/Windows device/browser acceptance for the future exact-SHA session.
+**Current execution context:** GitHub source review/writes only. Prepare modular source and deterministic tests; compiler/CUDA/Windows/browser tests remain unexecuted until an integrated local acceptance phase. No hosted CI or cloud builds.
 **Related RFC:** `docs/knowledge/proposals/2026-10-12-meeting-quality-adaptive-streaming.md`. This plan is its implementation order and does not authorize premature replacement of production inference.
+
+**Target experience (not an equivalence claim):** continuous ID→EN local meeting speech with earlier first intelligible audio, stable meaning, and natural selected voice on RTX 3070 8 GB. Retain the single Tauri/Rust Meeting owner, single Python worker, one GPU permit and existing Whisper → MiLMMT → GPT-SoVITS models. Reuse existing VAD and playback owners rather than creating a V3 engine, provider registry, always-on background service, or new UI controls. Outbound comes first; incoming EN→ID remains optional text only. Streaming is a candidate behind exact-SHA compiler, native audio, semantic-quality and 30-minute stability gates—not an automatic product switch.
+
+**Commit rule for future streaming:** today's production output still requires a finalized utterance. Progressive sub-utterance commits may replace that boundary only after stable-prefix overlap/revision tests, human meaning review (especially negation/numbers), no duplicate/late speech, and measured end-to-end gains. Draft ASR is replaceable and optional under GPU pressure; synthesized/playable audio is immutable and at most once. All chunks remain tied to the canonical session, lane, generation, utterance and source span. No arbitrary fixed-time splitting.
+
+**Hardware admission:** CPU owns bounded capture/VAD/buffer management; a single shared 8 GB GPU inference permit runs priority-controlled ASR, translation and voice. Simultaneous model residency is conditional on measured peak VRAM with browser open; never assume that weights fitting implies runtime headroom. No automatic CPU swap/unload mid-meeting. Benchmark matched P50/P95 onset/end-to-first-audio, meaning fidelity, packet loss and audible output at the receiving meeting app, not just model-step speed.
 
 ## 0. Architectural hard rules
 
@@ -32,7 +38,7 @@
 | Playback | bounded per-generation PCM queue and candidate persistent CPAL stream, at-most-once and immediate Stop | `engine/audio/meeting_output_runtime.rs`, `meeting_session/playback_runtime.rs` |
 | Transcript | immutable source ASR and separate translation/playback statuses, full current-session bounded in-memory retention, manual export | `meeting_session/committed_turns.rs`, `transcript_export.rs`, chat components |
 | Diagnostics | derived monotonic onset/end/finalization/audio callback metrics, scheduler wait, output underruns, redacted numeric support bundle | existing Meeting timing + Diagnostics |
-| Verification | deterministic event/PCM replay, isolated fault injection, existing evaluators, hosted source compile | existing Rust/Python/TS suites and `tools/*_quality` |
+| Verification | deterministic event/PCM replay, isolated fault injection, existing evaluators, matching local source compilation | existing Rust/Python/TS suites and `tools/*_quality` |
 
 **Do not create a second model scheduler, a second backend service, a new test-results platform, or an always-on telemetry daemon.**
 
@@ -50,7 +56,7 @@
 
 **Batch 2B.2 source continuation (2026-10-12):** `pcm_handoff_replay.rs` is a **test-only CPU worker replay adapter** that drives the canonical finalized incoming and outgoing VAD from bounded handoff chunks. Incoming discontinuities reset the existing incoming speech boundary; outbound replay uses a generation-gated, `#[cfg(test)]` boundary reset. Four Rust tests cover natural incoming finalization, gap-driven reset without phantom transcript continuity, rejection of foreign/stopped generation, and authoritative outbound finalization. The buffer prototype also re-checks loss after the CPU drain copy before exposing audio to VAD. No CPAL callback is switched, no GPU task or second segmenter is introduced. These tests are authored but **not executed** until Cargo is available.
 
-**Batch 2B PCM proof addition (2026-10-12):** a CPU-only, test-gated fixed-capacity handoff is in source at `engine/audio/pcm_handoff.rs`. It has a bounded ring, `try_lock` callback admission, explicit dropped-frame/discontinuity counters, a CPU-drain cursor, and Stop cancellation with memory erase. It is **not yet wired to CPAL live capture** and does not improve observed latency until hardware proof. Next: execute the authored Rust replay tests in a matching toolchain, then add explicit session ID and lane binding plus bounded CPU worker shutdown before guarded production handoff. Do not enable it merely because tests are present.
+**Batch 2B PCM proof addition (2026-10-12):** a CPU-only, test-gated fixed-capacity handoff exists at `engine/audio/pcm_handoff.rs`. It has a bounded ring, `try_lock` callback admission, explicit dropped-frame/discontinuity counters, a CPU-drain cursor, and Stop cancellation with memory erase. The test-only handoff and VAD replay now bind a fixed session ID, lane, and generation and reject foreign bindings. It remains **unwired to production CPAL capture**; the new Rust tests are authored but not compiled/executed. Next: implement bounded CPU consumer stop/join ownership and run matching Rust tests before considering a reversible production handoff. Do not enable it merely because tests are present.
 
 - Replace blocking callback-side state manipulation with a bounded, preallocated capture handoff designed for audio thread deadlines. Track queue-full and OS callback errors; don't silently drop.
 - Carry monotonic capture time and sample offset through segmentation, ASR, translation and first-audio events. Distinguish onset estimate from observed audio frame boundaries.
@@ -85,10 +91,10 @@
 - **Proof:** source/runtime-comparable WAV fixtures, playback sequence tests, text-to-audio coverage and voice listening rubric. Do not turn it on for users without target hardware acceptance.
 
 ### Batch 6 — Pre-local-PC gate / handoff
-- Run **existing** compile/typecheck/pytest/Rust/native-independent tests in toolchains available away from PC. GitHub Code Health workflow is `workflow_dispatch` only; pushing code does not automatically execute it.
+- When an authorized local code/toolchain context becomes available, run **existing** compile/typecheck/pytest/Rust/native-independent tests on an exact clean `Local` SHA. GitHub Code Health workflows are inactive; no hosted execution or dispatch.
 - Produce one pinned-SHA run plan rather than per-commit PC tasks, with private/test-safe fixtures, expected metrics, and no audio contents in support bundles.
 - When PC becomes available, validate RTX 3070 + Chrome/Meet concurrent VRAM + same receiver, actual output latency P50/P95, cold/warm model residency, 30-minute session and 5 Start/Stop cycles. Only then promote best candidate.
-- **Proof ceiling:** `SOURCE_CANDIDATE` until executed local compile, `HOSTED_SOURCE_VERIFIED` after matching CI, and `TARGET_WINDOWS_ACCEPTED` only after real GPU/browser tests.
+- **Proof ceiling:** `SOURCE_CANDIDATE` until executed local compile, `LOCAL_CODE_VERIFIED` after matching CI, and `TARGET_WINDOWS_ACCEPTED` only after real GPU/browser tests.
 
 ## 3. Offline regression matrix (must be executable without RTX 3070)
 

@@ -42,7 +42,7 @@ Normal lifecycle:
 Ready → Starting → Live → Stopping → Ended
 ```
 
-Outbound Meeting translation may use the last three committed own-voice translation pairs from the same live session as bounded context. Incoming remains context-free.
+Meeting translation uses the current finalized utterance only; prior translated examples are not used as prompt context. Incoming remains context-free.
 
 ### Text
 
@@ -63,7 +63,7 @@ guided recording
 
 ### Current exclusions
 
-General History/Saved UI, Document Translation, Audio Studio, Push to Talk, Pause/Resume, user-facing Realtime/Quality modes, Auto/Casual translation styles, additional languages, imported-audio/quick-clone My Voice modes, multiple normal voice engines, partial translated subtitles, incoming Indonesian TTS, and automatic mid-session Meeting Sound rebind are outside the current product boundary. Translation style is intentionally bounded to Natural (default) or Formal.
+General History/Saved UI, Document Translation, Audio Studio, Push to Talk, Pause/Resume, user-facing Realtime/Quality modes, Auto/Casual translation styles, additional languages, imported-audio/quick-clone My Voice modes, multiple normal voice engines, partial translated subtitles, incoming Indonesian TTS, and automatic mid-session Meeting Sound rebind are outside the current product boundary. Translation follows one natural baseline behavior; user-facing style modes are retired.
 
 ## Architecture
 
