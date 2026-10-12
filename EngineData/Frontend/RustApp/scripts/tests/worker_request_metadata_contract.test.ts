@@ -67,7 +67,8 @@ test("Meeting scheduling metadata remains host-authoritative", () => {
 test("Python echoes host IDs and Rust validates reply identity and stage before applying response", () => {
   assert.ok(workerEntry.includes("def _respond_protocol(payload, request_id: str | None = None)"));
   assert.ok(workerEntry.includes('response["request_id"] = request_id'));
-  assert.ok(workerEntry.includes("_respond_protocol(handler(request), request_id)"));
+  assert.ok(workerEntry.includes("response = handler(request)"));
+  assert.ok(workerEntry.includes("_respond_protocol(response, request_id)"));
   assert.ok(runtime.includes("pub fn validate_worker_response_contract("));
   assert.ok(runtime.includes("worker:response_request_id_mismatch"));
   assert.ok(runtime.includes("worker:response_stage_mismatch"));
