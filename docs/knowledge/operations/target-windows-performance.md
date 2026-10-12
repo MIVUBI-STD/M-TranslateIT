@@ -166,7 +166,7 @@ Use the current Diagnostics timing surfaced from Meeting outbound status and rec
 
 Also record:
 
-- callback error count;
+- callback error count and `capture_callback_lock` observation/max-wait aggregates (redacted support export; not proof of zero audio drop);
 - overflow-dropped utterance count;
 - evicted-pending utterance count;
 - any failed/stale/interrupted turn;

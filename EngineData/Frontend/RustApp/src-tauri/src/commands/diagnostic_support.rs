@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::engine::audio::finalized_utterance::finalized_callback_lock_metrics;
 use crate::engine::logging::sanitize_diagnostic_text;
 use crate::engine::paths::ProjectPaths;
 
@@ -40,7 +41,7 @@ fn sanitized(value: &str) -> String {
 #[tauri::command]
 pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
     let paths = ProjectPaths::discover();
-    let (meeting, helper, watchdog, devices, recovery, long_session, incidents, route, latency) =
+    let (meeting, helper, watchdog, devices, recovery, long_session, incidents, route, latency, capture_lock) =
         without_runtime_incident_recording(|| {
             (
                 get_meeting_session_status(),
@@ -52,6 +53,7 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
                 get_recent_runtime_incidents(),
                 get_virtual_mic_route_selection(),
                 current_outbound_latency_distribution(),
+                finalized_callback_lock_metrics(),
             )
         });
 
@@ -98,6 +100,12 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
             "updated_unix_ms": devices.updated_unix_ms,
         },
         "meeting": {
+            "capture_callback_lock": {
+                "outbound_observations": capture_lock.0,
+                "outbound_max_wait_us": capture_lock.1,
+                "incoming_observations": capture_lock.2,
+                "incoming_max_wait_us": capture_lock.3,
+            },
             "lifecycle": meeting.lifecycle,
             "has_session": meeting.has_session,
             "authority_active": meeting.authority_active,

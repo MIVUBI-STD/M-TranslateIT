@@ -36,3 +36,17 @@ test("support bundle records only numeric stage timing, not private speech times
   }
   assert.doesNotMatch(support, /"finalized_unix_ms":|"first_playback_unix_ms":/);
 });
+
+test("capture callback contention evidence contains aggregates, not private speech", () => {
+  const producer = readFileSync(
+    new URL("../../src-tauri/src/engine/audio/finalized_utterance.rs", import.meta.url), "utf8",
+  );
+  assert.match(producer, /pub fn finalized_callback_lock_metrics\(\)/);
+  assert.match(producer, /callback_lock_wait_max_ns\.fetch_max/);
+  assert.match(support, /"capture_callback_lock"/);
+  for (const field of ["outbound_observations", "outbound_max_wait_us",
+    "incoming_observations", "incoming_max_wait_us"]) {
+    assert.ok(support.includes('"' + field + '": capture_lock.'), field);
+  }
+  assert.doesNotMatch(support, /"audio_samples"\s*:|"source_text"\s*:/);
+});

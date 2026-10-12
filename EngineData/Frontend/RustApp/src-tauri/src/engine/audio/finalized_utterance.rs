@@ -36,6 +36,19 @@ pub fn reset_finalized_drop_counters() {
     EVICTED_PENDING_UTTERANCES.store(0, Ordering::Relaxed);
 }
 
+/// (You observations, You max wait µs, incoming observations, incoming max wait µs).
+/// Measures only callback-side mutex admission, NOT full audio QoS.
+pub fn finalized_callback_lock_metrics() -> (u64, u64, u64, u64) {
+    let you = outbound_sync();
+    let incoming = incoming_sync();
+    (
+        you.callback_lock_observations.load(Ordering::Relaxed),
+        you.callback_lock_wait_max_ns.load(Ordering::Relaxed) / 1_000,
+        incoming.callback_lock_observations.load(Ordering::Relaxed),
+        incoming.callback_lock_wait_max_ns.load(Ordering::Relaxed) / 1_000,
+    )
+}
+
 fn current_unix_ms() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -85,6 +98,9 @@ struct FinalizedProducerState {
 struct FinalizedProducerSync {
     state: Mutex<Option<FinalizedProducerState>>,
     ready: Condvar,
+    // Aggregate observation only, never microphone or meeting text.
+    callback_lock_observations: AtomicU64,
+    callback_lock_wait_max_ns: AtomicU64,
 }
 
 #[derive(Debug)]
@@ -101,6 +117,8 @@ fn outbound_sync() -> &'static FinalizedProducerSync {
     FINALIZED_OUTBOUND_PRODUCER.get_or_init(|| FinalizedProducerSync {
         state: Mutex::new(None),
         ready: Condvar::new(),
+        callback_lock_observations: AtomicU64::new(0),
+        callback_lock_wait_max_ns: AtomicU64::new(0),
     })
 }
 
@@ -108,6 +126,8 @@ fn incoming_sync() -> &'static FinalizedProducerSync {
     FINALIZED_INCOMING_PRODUCER.get_or_init(|| FinalizedProducerSync {
         state: Mutex::new(None),
         ready: Condvar::new(),
+        callback_lock_observations: AtomicU64::new(0),
+        callback_lock_wait_max_ns: AtomicU64::new(0),
     })
 }
 
@@ -208,6 +228,8 @@ fn reset_producer(
         .saturating_add(profile.pre_roll_audio_ms);
     let initial_utterance_capacity = samples_for_duration(sample_rate_hz, initial_utterance_ms);
 
+    sync.callback_lock_observations.store(0, Ordering::Relaxed);
+    sync.callback_lock_wait_max_ns.store(0, Ordering::Relaxed);
     if let Ok(mut guard) = sync.state.lock() {
         *guard = Some(FinalizedProducerState {
             session_id: session_id.to_string(),
@@ -337,7 +359,12 @@ fn observe_finalized_mono_samples(
         return;
     }
 
-    let Ok(mut guard) = sync.state.lock() else {
+    let lock_started = Instant::now();
+    let locked = sync.state.lock();
+    let wait_ns = lock_started.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64;
+    sync.callback_lock_observations.fetch_add(1, Ordering::Relaxed);
+    sync.callback_lock_wait_max_ns.fetch_max(wait_ns, Ordering::Relaxed);
+    let Ok(mut guard) = locked else {
         return;
     };
 
