@@ -39,7 +39,7 @@ test("Meeting Live reports local output truth, not fabricated participant delive
   assert.match(live, /case "output_complete": return "Played"/);
   assert.match(live, /case "output_failed": return "Not played"/);
   assert.doesNotMatch(live, /"Sent"|"Delivered to participants"|"Sending"/);
-  assert.match(live, /Status of local playback, not confirmation from call participants/);
+  assert.match(live, /statusLabel=\{turn\.lane === "you" \? deliveryLabel\(turn\) : ""\}/);
 });
 
 test("Transcript tools follow user intent and preserve focus, reading position, and copy errors", () => {
@@ -51,15 +51,31 @@ test("Transcript tools follow user intent and preserve focus, reading position, 
   assert.match(live, />Jump to latest<\/button>/);
   assert.match(live, /copyFailedSequence = turn\.sequence/);
   assert.match(live, /Couldn't copy this phrase\. Try again\./);
-  assert.match(live, /languageName\(turn\.source_language\)/);
-  assert.match(live, /lang=\{turn\.target_language\}/);
+  const bubble = readFileSync(new URL("../../src/components/meeting/MeetingTurnBubble.svelte", import.meta.url), "utf8");
+  assert.match(live, /<MeetingTurnBubble \{turn\}/);
+  assert.match(bubble, /languageName\(turn\.source_language\)/);
+  assert.match(bubble, /lang=\{turn\.target_language\}/);
 });
 
 test("Last-session transcript is private-by-default and export remains explicit", () => {
   assert.match(review, /<details bind:open=\{reviewOpen\}/);
   assert.match(review, /reviewOpen = false/);
   assert.match(review, /getRecentMeetingTranscript\(\)/);
-  assert.match(review, /temporary until a new Meeting starts or the app closes/);
+  assert.match(review, /Only this meeting is available until the next meeting or app exit/);
   assert.match(review, /<MeetingTranscriptExport hasSession=\{false\}/);
   assert.doesNotMatch(review, /\$effect\([\s\S]{0,250}exportMeetingTranscript\(/);
+});
+
+test("live and last-session transcript reuse one WhatsApp-style lane-aware bubble", () => {
+  const bubble = readFileSync(new URL("../../src/components/meeting/MeetingTurnBubble.svelte", import.meta.url), "utf8");
+  assert.match(live, /<MeetingTurnBubble \{turn\}/);
+  assert.match(review, /<MeetingTurnBubble \{turn\}/);
+  assert.match(bubble, /own \? "justify-end" : "justify-start"/);
+  assert.match(bubble, /meetingSpeakerLabel\(turn\.lane\)/);
+  assert.match(bubble, /turn\.created_unix_ms/);
+  assert.match(bubble, /Original/);
+  assert.match(live, /Person 1 groups incoming audio/);
+  assert.match(review, /Person 1 groups incoming audio/);
+  assert.match(bubble, /Translation/);
+  assert.doesNotMatch(bubble, /Person 2|speaker_id|diarizationResult/);
 });

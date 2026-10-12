@@ -302,6 +302,12 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Turn this into general persistent History.
 
+**MUST:** Each new Meeting starts with a unique session identity; the next Meeting must not append to the last Meeting's transcript. The last unexported transcript is replaced when the next session starts or the app closes.
+
+**MUST:** Export remains explicitly user-triggered. Saved transcript files live under separate session-scoped folders; no automatic permanent save. Source data lost because of the current 240-turn in-memory limit must be indicated honestly as incomplete, not labeled a full transcript.
+
+**SHOULD:** Future full-session capture, if approved, use a bounded temporary store with explicit cleanup and privacy; do not silently convert manual export into persistent background recording.
+
 ### PR-105 — Translation feedback
 **MAY:** Store opt-in local translation issue reports for quality review.
 
@@ -356,6 +362,12 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 ### PR-163 — Meeting Live
 **MUST:** Emphasize Translation Live, finalized chronological transcript, simple activity and Stop Translation.
+
+**MUST:** Present the conversation as chat bubbles: `You` on the right and `Person 1` on the left, using one shared presentation for Live and Last Meeting review. Show original language/text, translation language/text, and recorded timestamp.
+
+**MUST NOT:** Claim that `Person 1` identifies one actual participant. It labels the combined incoming Windows output audio until speaker diarization exists and is validated. Do not invent `Person 2` or `Person 3` based on mixed audio.
+
+**MUST:** Display the session's date/time rather than an ungrounded global Meeting 1, 2, 3 counter; manual export folders must preserve distinct session identities.
 
 ### PR-164 — Settings
 **MUST:** Use left navigation for Voice & Audio, Meeting Captions and Help; retain device selection/probe only under Settings. My Voice creation remains on My Voice. Technical diagnostics belong in Help.

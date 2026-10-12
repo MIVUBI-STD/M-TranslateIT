@@ -45,3 +45,17 @@ test("partial transcript export shows an explicit warning", () => {
   assert.match(ui, /result\.truncated/);
   assert.match(ui, /Earlier phrases were not retained/);
 });
+
+test("manual exports are isolated in a per-session folder without automatic session history writes", () => {
+  assert.match(exporter, /\.join\(format!\("Meeting_\{session\}"\)\)/);
+  assert.match(exporter, /format!\("Transcript_\{\}\.\{\}", unix_ms\(\), normalized\)/);
+  assert.match(exporter, /let Some\(snapshot\) = exportable_committed_turn_snapshot\(\)/);
+  assert.match(exporter, /if fs::write\(&path, body\.as_bytes\(\)\)\.is_err\(\)/);
+  assert.match(committed, /\*ended = None/);
+});
+test("manual exports describe Person 1 honestly instead of fabricating participant identity", () => {
+  assert.match(exporter, /Person 1 = combined incoming meeting audio/);
+  assert.match(exporter, /individual speakers are not identified/);
+  assert.match(exporter, /"Person 1"/);
+  assert.match(exporter, /"PERSON 1"/);
+});

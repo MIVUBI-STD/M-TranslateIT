@@ -58,7 +58,7 @@ fn language_label(value: &str) -> &str {
 }
 
 fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
-    let mut out = String::from("# TranslateIT Meeting Transcript\n\n");
+    let mut out = String::from("# TranslateIT Meeting Transcript\n\n> You = your microphone. Person 1 = combined incoming meeting audio; individual speakers are not identified.\n\n");
     if let Some(session_id) = snapshot.session_id.as_deref() {
         out.push_str(&format!("Session: {}\n\n", session_id));
     }
@@ -69,7 +69,7 @@ fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
         ));
     }
     for turn in &snapshot.turns {
-        let speaker = if turn.lane == "you" { "You" } else { "Them" };
+        let speaker = if turn.lane == "you" { "You" } else { "Person 1" };
         out.push_str(&format!(
             "## {speaker} · {} → {}\n\n**Source**\n\n{}\n\n**Translation**\n\n{}\n\n",
             language_label(&turn.source_language),
@@ -82,7 +82,7 @@ fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
 }
 
 fn format_text(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
-    let mut out = String::from("TranslateIT Meeting Transcript\n");
+    let mut out = String::from("TranslateIT Meeting Transcript\nYou = your microphone; Person 1 = combined incoming meeting audio. Individual speakers are not identified.\n");
     if let Some(session_id) = snapshot.session_id.as_deref() {
         out.push_str(&format!("Session: {session_id}\n"));
     }
@@ -94,7 +94,7 @@ fn format_text(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
     }
     out.push('\n');
     for turn in &snapshot.turns {
-        let speaker = if turn.lane == "you" { "YOU" } else { "THEM" };
+        let speaker = if turn.lane == "you" { "YOU" } else { "PERSON 1" };
         out.push_str(&format!(
             "[{speaker}] {} -> {}\nSource: {}\nTranslation: {}\n\n",
             language_label(&turn.source_language),
@@ -169,8 +169,13 @@ pub(super) fn export_transcript(format: &str) -> MeetingTranscriptExportResult {
         };
     }
 
+    // Manual exports from separate sessions live in separate directories.
+    // No session history is written automatically: exporting remains explicit.
     let paths = ProjectPaths::discover();
-    let destination = PathBuf::from(&paths.user_saved_dir).join("Transcripts");
+    let session = sanitize_component(snapshot.session_id.as_deref().unwrap_or("meeting"));
+    let destination = PathBuf::from(&paths.user_saved_dir)
+        .join("Transcripts")
+        .join(format!("Meeting_{session}"));
     if fs::create_dir_all(&destination).is_err() {
         return MeetingTranscriptExportResult {
             ok: false,
@@ -183,8 +188,7 @@ pub(super) fn export_transcript(format: &str) -> MeetingTranscriptExportResult {
         };
     }
 
-    let session = sanitize_component(snapshot.session_id.as_deref().unwrap_or("meeting"));
-    let filename = format!("translateit_{session}_{}.{}", unix_ms(), normalized);
+    let filename = format!("Transcript_{}.{}", unix_ms(), normalized);
     let path = destination.join(filename);
     let body = if normalized == "md" {
         format_markdown(&snapshot)
@@ -263,7 +267,8 @@ mod tests {
     #[test]
     fn text_export_contains_source_translation_and_truncation_warning() {
         let body = format_text(&snapshot());
-        assert!(body.contains("[THEM] English -> Indonesian"));
+        assert!(body.contains("[PERSON 1] English -> Indonesian"));
+        assert!(body.contains("Individual speakers are not identified."));
         assert!(body.contains("Source: See you tomorrow."));
         assert!(body.contains("Translation: Sampai jumpa besok."));
         assert!(body.contains("WARNING: 2 earlier committed turns"));

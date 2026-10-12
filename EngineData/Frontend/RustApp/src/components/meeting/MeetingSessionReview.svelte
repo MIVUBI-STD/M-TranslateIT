@@ -3,6 +3,8 @@
   import { runtimeApi, type MeetingCommittedTurn, type MeetingCommittedTurnsSnapshot } from "../../app/bridge/runtimeApi";
   import { languageName } from "../../app/shared/state";
   import MeetingTranscriptExport from "./MeetingTranscriptExport.svelte";
+  import MeetingTurnBubble from "./MeetingTurnBubble.svelte";
+  import { meetingFirstRecordedTime, meetingSessionTitle, meetingSpeakerLabel, meetingTime } from "../../app/runtime/meetingTranscriptPresentation";
 
   let {
     sessionActive,
@@ -18,6 +20,7 @@
   let reviewOpen = $state(false);
   let loadedForInactive = false;
 
+  const sessionLabel = $derived(meetingSessionTitle(meetingFirstRecordedTime(snapshot?.turns ?? [])));
   const visibleTurns = $derived.by(() => {
     const needle = query.trim().toLowerCase();
     const turns = snapshot?.turns ?? [];
@@ -36,7 +39,7 @@
   async function copyAll(): Promise<void> {
     if (!snapshot?.turns.length) return;
     const value = snapshot.turns.map((turn: MeetingCommittedTurn) =>
-      `${languageName(turn.source_language)}\n${turn.source_text}\n${languageName(turn.target_language)}\n${turn.translated_text}`
+      `${meetingSpeakerLabel(turn.lane)} · ${meetingTime(turn.created_unix_ms)}\n${languageName(turn.source_language)}: ${turn.source_text}\n${languageName(turn.target_language)}: ${turn.translated_text}`
     ).join("\n\n");
     try {
       await navigator.clipboard.writeText(value);
@@ -63,8 +66,9 @@
 {#if !sessionActive && snapshot?.turns.length}
   <details bind:open={reviewOpen} class="ti-panel mt-4 overflow-hidden">
     <summary class="cursor-pointer px-5 py-4 hover:bg-[var(--ti-surface-soft)]">
-      <strong class="block text-[15px] font-semibold">Last session review</strong>
-      <span class="mt-1 block text-sm text-[var(--ti-text-muted)]">{snapshot.turns.length} retained phrase{snapshot.turns.length === 1 ? "" : "s"} · temporary until a new Meeting starts or the app closes.</span>
+      <strong class="block text-[15px] font-semibold">{sessionLabel} · Last session</strong>
+      <span class="mt-1 block text-sm text-[var(--ti-text-muted)]">{snapshot.turns.length} recorded phrase{snapshot.turns.length === 1 ? "" : "s"} · Person 1 groups incoming audio (speaker unverified).</span>
+      <span class="mt-1 block text-xs text-[var(--ti-warning)]">Only this meeting is available until the next meeting or app exit. Export manually to keep it.</span>
     </summary>
     <div class="border-t border-[var(--ti-border)]">
       <div class="flex flex-wrap items-center justify-end gap-2 px-5 py-3">
@@ -81,15 +85,8 @@
       </div>
       <div class="max-h-[360px] overflow-y-auto divide-y divide-[var(--ti-border)]">
         {#each visibleTurns as turn (turn.sequence)}
-          <div class="grid gap-2 px-5 py-4">
-            <div class="grid grid-cols-[88px_minmax(0,1fr)] gap-3">
-              <span class="text-xs text-[var(--ti-text-muted)]">{languageName(turn.source_language)}</span>
-              <p class="m-0 break-words text-[15px] leading-6">{turn.source_text}</p>
-            </div>
-            <div class="grid grid-cols-[88px_minmax(0,1fr)] gap-3">
-              <span class="text-xs text-[var(--ti-text-muted)]">{languageName(turn.target_language)}</span>
-              <p class="m-0 break-words text-[15px] leading-6 text-[var(--ti-text-muted)]">{turn.translated_text}</p>
-            </div>
+          <div class="px-4 py-3">
+            <MeetingTurnBubble {turn} />
           </div>
         {/each}
         {#if visibleTurns.length === 0}

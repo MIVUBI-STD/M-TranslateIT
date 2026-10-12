@@ -4,6 +4,8 @@
   import type { MeetingCommittedTurn, MeetingCommittedTurnsSnapshot, MeetingSessionStatus } from "../../app/bridge/runtimeApi";
   import { mapProductMeetingState } from "../../app/bridge/productMeetingState";
   import { languageName } from "../../app/shared/state";
+  import { meetingSessionTitle, meetingSpeakerLabel, meetingTime } from "../../app/runtime/meetingTranscriptPresentation";
+  import MeetingTurnBubble from "./MeetingTurnBubble.svelte";
 
   let {
     status,
@@ -115,7 +117,7 @@
   }
 
   async function copyTurn(turn: MeetingCommittedTurn): Promise<void> {
-    const value = `${languageName(turn.source_language)}\n${turn.source_text}\n\n${languageName(turn.target_language)}\n${turn.translated_text}`;
+    const value = `${meetingSpeakerLabel(turn.lane)} · ${meetingTime(turn.created_unix_ms)}\n${languageName(turn.source_language)}: ${turn.source_text}\n${languageName(turn.target_language)}: ${turn.translated_text}`;
     copyFailedSequence = null;
     try {
       if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
@@ -138,7 +140,7 @@
       <strong class="text-base font-semibold">{activity.label}</strong>
     </div>
     {#if status.incoming.capture_active && !status.incoming.degraded}
-      <span class="text-sm text-[var(--ti-text-muted)]">Incoming captions on</span>
+      <span class="text-sm text-[var(--ti-text-muted)]">Person 1 audio capture active · speaker unverified</span>
     {/if}
   </div>
 
@@ -152,11 +154,13 @@
   <section class="border-t border-[var(--ti-border)] pt-4" aria-label="Translated conversation">
     <header class="flex flex-wrap items-center justify-between gap-3 pb-3">
       <div class="flex items-baseline gap-3">
-        <h3 class="m-0 text-base font-semibold">Conversation</h3>
+        <h3 class="m-0 text-base font-semibold">Transcript</h3>
+        <span class="text-xs text-[var(--ti-text-muted)]">{meetingSessionTitle(status.started_unix_ms)}</span>
         {#if orderedTurns.length > 0}
           <span class="text-sm text-[var(--ti-text-muted)]">{orderedTurns.length} phrase{orderedTurns.length === 1 ? "" : "s"}</span>
         {/if}
       </div>
+      <span class="text-xs text-[var(--ti-text-muted)]">Person 1 groups incoming audio; individual speakers are not identified.</span>
       {#if orderedTurns.length > 1 || searchOpen}
         <button type="button" class="ti-button ti-button-secondary min-h-9"
           aria-expanded={searchOpen} aria-controls="meeting-conversation-search"
@@ -192,7 +196,7 @@
         </p>
       {/if}
       {#if orderedTurns.length === 0}
-        <p class="m-0 py-7 text-sm leading-6 text-[var(--ti-text-muted)]">Your conversation will appear here after the first finished phrase.</p>
+        <p class="m-0 py-7 text-sm leading-6 text-[var(--ti-text-muted)]">Translated phrases from You and incoming audio (Person 1) will appear here.</p>
       {:else}
         <div bind:this={transcriptScroller} onscroll={updateScrollPosition}
           class="max-h-[54vh] min-h-[160px] overflow-y-auto" role="log" aria-label="Meeting conversation" aria-live="off">
@@ -200,40 +204,25 @@
             <p class="m-0 py-7 text-sm text-[var(--ti-text-muted)]">{pinnedOnly ? "No pinned phrase matches this search." : "No phrase matches this search."}</p>
           {/if}
           {#each visibleTurns as turn (turn.sequence)}
-            <article class={`border-b border-[var(--ti-border)] py-4 last:border-b-0 ${pinnedSequences.has(turn.sequence) ? "bg-[var(--ti-surface-soft)]" : ""}`}>
-              <header class="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <span class="text-xs font-semibold tracking-[0.05em] text-[var(--ti-text-muted)]">{turn.lane === "incoming" ? "Meeting" : "You"}</span>
-                <div class="flex items-center gap-2">
-                  {#if turn.lane !== "incoming"}
-                    <span class="text-xs text-[var(--ti-text-muted)]" title="Status of local playback, not confirmation from call participants">{deliveryLabel(turn)}</span>
-                  {/if}
-                  <button type="button"
-                    class="grid size-9 place-items-center rounded-[7px] text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-raised)]"
-                    aria-label={pinnedSequences.has(turn.sequence) ? "Unpin phrase" : "Pin phrase"}
-                    title={pinnedSequences.has(turn.sequence) ? "Unpin phrase" : "Pin phrase"}
-                    onclick={() => togglePin(turn.sequence)}>
-                    {#if pinnedSequences.has(turn.sequence)}<PinOff size={16} />{:else}<Pin size={16} />{/if}
-                  </button>
-                  <button type="button"
-                    class="grid size-9 place-items-center rounded-[7px] text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-raised)]"
-                    aria-label="Copy bilingual phrase" title="Copy source and translation"
-                    onclick={() => void copyTurn(turn)}>
-                    {#if copiedSequence === turn.sequence}<Check size={16} />{:else}<Copy size={16} />{/if}
-                  </button>
-                </div>
-              </header>
-              <div class="grid grid-cols-[88px_minmax(0,1fr)] gap-3">
-                <span class="text-xs text-[var(--ti-text-muted)]">{languageName(turn.source_language)}</span>
-                <p class="m-0 break-words text-[15px] leading-6" lang={turn.source_language}>{turn.source_text}</p>
-              </div>
-              <div class="mt-2 grid grid-cols-[88px_minmax(0,1fr)] gap-3">
-                <span class="text-xs text-[var(--ti-text-muted)]">{languageName(turn.target_language)}</span>
-                <p class="m-0 break-words text-[15px] leading-6 text-[var(--ti-text-muted)]" lang={turn.target_language}>{turn.translated_text}</p>
+            <div class="border-b border-[var(--ti-border)] py-3 last:border-b-0">
+              <MeetingTurnBubble {turn} statusLabel={turn.lane === "you" ? deliveryLabel(turn) : ""} />
+              <div class={"mt-1 flex items-center gap-1 " + (turn.lane === "you" ? "justify-end" : "justify-start")}>
+                <button type="button" class="grid size-8 place-items-center rounded-[7px] text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-raised)]"
+                  aria-label={pinnedSequences.has(turn.sequence) ? "Unpin phrase" : "Pin phrase"}
+                  title={pinnedSequences.has(turn.sequence) ? "Unpin phrase" : "Pin phrase"}
+                  onclick={() => togglePin(turn.sequence)}>
+                  {#if pinnedSequences.has(turn.sequence)}<PinOff size={15} />{:else}<Pin size={15} />{/if}
+                </button>
+                <button type="button" class="grid size-8 place-items-center rounded-[7px] text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-raised)]"
+                  aria-label="Copy bilingual phrase" title="Copy source and translation"
+                  onclick={() => void copyTurn(turn)}>
+                  {#if copiedSequence === turn.sequence}<Check size={15} />{:else}<Copy size={15} />{/if}
+                </button>
               </div>
               {#if copyFailedSequence === turn.sequence}
-                <p class="m-0 mt-2 text-sm text-[var(--ti-warning)]" role="alert">Couldn't copy this phrase. Try again.</p>
+                <p class="m-0 text-sm text-[var(--ti-warning)]" role="alert">Couldn't copy this phrase. Try again.</p>
               {/if}
-            </article>
+            </div>
           {/each}
         </div>
         {#if (!followingLatest || searchQuery.trim() || pinnedOnly) && orderedTurns.length > 0}

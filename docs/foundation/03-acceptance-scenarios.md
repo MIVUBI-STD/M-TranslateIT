@@ -58,6 +58,7 @@ Requires relevant A/B capability first.
 | C3 | Incoming context isolation | TARGET_WINDOWS or matching runtime fixture | incoming EN→ID remains context-free and incoming failure does not break outbound |
 | C4 | Stop lifecycle | TARGET_WINDOWS | output authority revoked, work/capture cleaned, no dangling handles/stale output |
 | C5 | Repeated session stability | TARGET_WINDOWS | repeated start/stop remains stable and bounded |
+| C6 | Multi-speaker honesty | TARGET_WINDOWS | browser output can be captured when routed correctly; mixed audio stays one unverified incoming lane, with no false diarization or speaker assignment |
 
 ## Group D — Desktop product surfaces
 
@@ -71,6 +72,8 @@ Requires relevant A/B capability first.
 | D6 | Text Swap data preservation | source + rendered local | swapping source direction never discards untranslated input; stale inference cannot overwrite newer user edits |
 | D7 | Deferred Meeting recovery | source + TARGET_WINDOWS | deferred setup exposes one actionable recovery path, and Start/Stop ownership remains authoritative |
 | D8 | Transcript export receipt | source + rendered local | export shows short status, copyable location, and clear warning when earlier phrases are missing; no raw file path in global header |
+| D9 | Chat-style transcript | source + rendered local | You/right and Person 1/left in Live and Last Meeting; original and translated content visible; recorded time accurate; no participant-ID inference |
+| D10 | Manual session isolation | source + TARGET_WINDOWS file check | each meeting has a distinct session ID; manual exports land in unique session folders, not one accumulating file; unexported last-session data is never described as persistently saved |
 
 ## Group E — Distribution
 
