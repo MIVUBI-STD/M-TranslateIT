@@ -9,6 +9,11 @@ const appRoot = resolve(testDir, "../..");
 
 const read = (path: string) => readFileSync(join(appRoot, path), "utf8");
 
+test("developer startup supplies updater configuration without enabling downloads", () => {
+  const config = JSON.parse(read("src-tauri/tauri.conf.json"));
+  assert.deepEqual(config.plugins.updater, { pubkey: "", endpoints: [] });
+});
+
 test("updater remains one-shot and begins from the app root", () => {
   const api = read("src/app/update/appUpdateApi.ts");
   const app = read("src/App.svelte");
