@@ -8,7 +8,8 @@ use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 
 use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
 use super::committed_turns::{
-    update_committed_turn_delivery_state, update_committed_turn_outbound_timing,
+    begin_committed_playback, update_committed_turn_delivery_state,
+    update_committed_turn_outbound_timing,
 };
 use super::outbound_pipeline::remove_temporary_tts_paths;
 use super::session_state::{
@@ -90,8 +91,6 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         );
         return;
     }
-    *last_sequence = job.event_sequence;
-
     if !generation_is_live(job.generation) {
         cleanup_job(&job);
         mark_interrupted(&job);
@@ -146,6 +145,28 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         return;
     }
 
+    // Monotonic queue order is not sufficient authorization to speak.
+    if !begin_committed_playback(
+        &job.session_id,
+        job.generation,
+        job.event_sequence,
+        job.utterance_id,
+    ) {
+        cleanup_job(&job);
+        update_outbound_status(
+            job.generation,
+            &job.session_id,
+            "attention_needed",
+            job.event_sequence,
+            false,
+            false,
+            "meeting_playback:source_not_queued",
+            "Prepared voice was rejected because its committed source is no longer queued for delivery.",
+        );
+        return;
+    }
+    *last_sequence = job.event_sequence;
+
     let suppression_guard = match begin_self_output_suppression(&job.session_id) {
         Some(guard) => Some(guard),
         None => {
@@ -166,12 +187,6 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         }
     };
 
-    let _ = update_committed_turn_delivery_state(
-        &job.session_id,
-        job.generation,
-        job.utterance_id,
-        "speaking",
-    );
     set_outbound_playback_activity(
         job.generation,
         &job.session_id,

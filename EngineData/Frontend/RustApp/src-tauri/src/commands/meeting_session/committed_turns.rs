@@ -24,6 +24,8 @@ struct MeetingCommittedTurnStore {
     session_id: String,
     dropped_turn_count: u64,
     retained_text_bytes: usize,
+    // Compact replay fence independent of bounded transcript retention.
+    retired_sequence: u64,
     turns: VecDeque<MeetingCommittedTurn>,
 }
 
@@ -33,6 +35,7 @@ impl MeetingCommittedTurnStore {
             session_id: session_id.to_string(),
             dropped_turn_count: 0,
             retained_text_bytes: 0,
+            retired_sequence: 0,
             turns: VecDeque::new(),
         }
     }
@@ -47,6 +50,7 @@ impl MeetingCommittedTurnStore {
             };
             self.retained_text_bytes =
                 self.retained_text_bytes.saturating_sub(turn_text_bytes(&oldest));
+            self.retired_sequence = self.retired_sequence.max(oldest.sequence);
             self.dropped_turn_count = self.dropped_turn_count.saturating_add(1);
         }
     }
@@ -102,12 +106,18 @@ impl MeetingCommittedTurnStore {
         {
             return false;
         }
-        if self
-            .turns
-            .iter()
-            .any(|turn| turn.session_id == session_id && turn.sequence == sequence)
+        // Only a newly inserted source can start MT/TTS. A duplicate sequence
+        // or utterance identity must not reopen inference; evicted history is
+        // protected by a compact monotonic sequence fence.
+        if sequence <= self.retired_sequence
+            || self.turns.iter().any(|turn| {
+                turn.sequence == sequence
+                    || (turn.lane == lane
+                        && turn.generation == generation
+                        && turn.utterance_id == utterance_id)
+            })
         {
-            return true;
+            return false;
         }
 
         let turn = MeetingCommittedTurn {
@@ -204,6 +214,7 @@ impl MeetingCommittedTurnStore {
                 delivery_state,
                 "translating"
                     | "preparing_voice"
+                    | "queued"
                     | "speaking"
                     | "output_complete"
                     | "output_failed"
@@ -224,7 +235,44 @@ impl MeetingCommittedTurnStore {
         if terminal_delivery_state(turn.delivery_state.as_deref()) {
             return turn.delivery_state.as_deref() == Some(delivery_state);
         }
+        // A stale enqueue cannot send a translated or playing unit backwards.
+        if delivery_state == "queued"
+            && (turn.translation_state != "translated"
+                || turn.delivery_state.as_deref() != Some("preparing_voice"))
+        {
+            return false;
+        }
         turn.delivery_state = Some(delivery_state.to_string());
+        turn.updated_unix_ms = now_unix_ms;
+        true
+    }
+
+    fn begin_playback_at(
+        &mut self,
+        session_id: &str,
+        generation: u64,
+        sequence: u64,
+        utterance_id: u64,
+        now_unix_ms: u128,
+    ) -> bool {
+        if self.session_id != session_id || sequence == 0 {
+            return false;
+        }
+        let Some(turn) = self.turns.iter_mut().find(|turn| {
+            turn.sequence == sequence
+                && turn.generation == Some(generation)
+                && turn.utterance_id == utterance_id
+                && turn.lane == "you"
+        }) else {
+            return false;
+        };
+        if turn.translation_state != "translated"
+            || turn.delivery_state.as_deref() != Some("queued")
+        {
+            return false;
+        }
+        // Claim queued -> speaking exactly once before native audio is attempted.
+        turn.delivery_state = Some("speaking".to_string());
         turn.updated_unix_ms = now_unix_ms;
         true
     }
@@ -466,6 +514,16 @@ pub(super) fn commit_meeting_turn(
     delivery_state: Option<&str>,
     outbound_timing: Option<MeetingOutboundTiming>,
 ) -> bool {
+    let Some(session) = latest_runtime_session_state().snapshot else {
+        return false;
+    };
+    if session.owner_id != APPLICATION_MEETING_OWNER_ID
+        || session.session_id != session_id
+        || session.phase != "live"
+        || generation.is_some_and(|current| session.generation != current)
+    {
+        return false;
+    }
     let Ok(mut guard) = committed_turn_store().lock() else {
         return false;
     };
@@ -525,6 +583,37 @@ pub(super) fn finish_meeting_turn_translation(
         emit_meeting_runtime_event("translation_state_changed", Some(session_id), Some(sequence));
     }
     updated
+}
+
+// Sequence + source identity and queued state must all agree before audio.
+pub(super) fn begin_committed_playback(
+    session_id: &str,
+    generation: u64,
+    sequence: u64,
+    utterance_id: u64,
+) -> bool {
+    let Some(session) = latest_runtime_session_state().snapshot else {
+        return false;
+    };
+    if session.owner_id != APPLICATION_MEETING_OWNER_ID
+        || session.session_id != session_id
+        || session.phase != "live"
+        || session.generation != generation
+    {
+        return false;
+    }
+    let Ok(mut guard) = committed_turn_store().lock() else {
+        return false;
+    };
+    let Some(store) = guard.as_mut() else {
+        return false;
+    };
+    let claimed = store.begin_playback_at(session_id, generation, sequence, utterance_id, unix_ms());
+    drop(guard);
+    if claimed {
+        emit_meeting_runtime_event("delivery_state_changed", Some(session_id), Some(sequence));
+    }
+    claimed
 }
 
 pub(super) fn update_committed_turn_delivery_state(
@@ -1029,4 +1118,54 @@ mod tests {
             ]
         );
     }
+    #[test]
+    fn duplicate_source_and_evicted_sequence_never_restart_inference() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        assert!(store.commit_at(
+            "s1", 1, Some(7), 10, "you", "id", "en",
+            "Halo", "", Some("translating"), Some(timing(1)), 1,
+        ));
+        assert!(!store.commit_at(
+            "s1", 1, Some(7), 10, "you", "id", "en",
+            "Halo", "", Some("translating"), Some(timing(1)), 2,
+        ));
+        assert!(!store.commit_at(
+            "s1", 1, Some(7), 11, "you", "id", "en",
+            "Sumber lain", "", Some("translating"), Some(timing(1)), 3,
+        ));
+        assert!(!store.commit_at(
+            "s1", 2, Some(7), 10, "you", "id", "en",
+            "Halo", "", Some("translating"), Some(timing(2)), 4,
+        ));
+        for sequence in 2..=(MAX_SESSION_COMMITTED_TURNS as u64 + 2) {
+            assert!(store.commit_at(
+                "s1", sequence, None, sequence, "incoming", "en", "id",
+                "input", "", None, None, u128::from(sequence),
+            ));
+        }
+        assert!(store.retired_sequence >= 1);
+        assert!(!store.commit_at(
+            "s1", 1, Some(7), 10, "you", "id", "en",
+            "Halo", "", Some("translating"), Some(timing(1)), 10_000,
+        ));
+    }
+
+    #[test]
+    fn playback_requires_locked_queued_source_with_exact_sequence() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        assert!(store.commit_at(
+            "s1", 3, Some(7), 10, "you", "id", "en",
+            "Lanjutkan", "", Some("translating"), Some(timing(3)), 1,
+        ));
+        assert!(!store.update_delivery_state_at("s1", 7, 10, "queued", 2));
+        assert!(!store.begin_playback_at("s1", 7, 3, 10, 3));
+        assert!(store.finish_translation_at("s1", 3, Some(7), 10, "you", Some("Continue"), 4));
+        assert!(!store.begin_playback_at("s1", 7, 4, 10, 5));
+        assert!(!store.begin_playback_at("s1", 8, 3, 10, 5));
+        assert!(store.update_delivery_state_at("s1", 7, 10, "queued", 6));
+        assert!(store.begin_playback_at("s1", 7, 3, 10, 7));
+        assert!(!store.begin_playback_at("s1", 7, 3, 10, 8));
+        assert!(!store.update_delivery_state_at("s1", 7, 10, "queued", 9));
+    }
+
 }

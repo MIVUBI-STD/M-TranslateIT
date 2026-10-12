@@ -1,3 +1,13 @@
+## Active continuation — Batch A source and delivery authority (2026-10-12)
+
+**Source candidate on Local:** The existing Meeting turn store now treats source insertion as a one-time pipeline admission, rejects duplicate sequences or lane/generation/utterance identities, and retains a compact retired-sequence fence when old transcripts are evicted. It checks the live canonical session before source insertion. The outbound path now requires a successful queued transition after translation lock and playback atomically claims the exact session/generation/sequence/utterance before native delivery. No new worker, engine, model, or UI; finalized-utterance production remains the only enabled path.
+
+**Evidence ceiling:** Authored Rust regressions and exact-source review only. Cargo tests/build, Windows CPAL/VRAM, voice and meeting receiver checks are **NOT EXECUTED**. No measured latency or full Stop/capture atomicity claim.
+
+**Unresolved:** This Batch A slice protects current finalized-turn identities, not future sample-level SourceSpanId/audio-epoch/revision ownership. Streaming alignment, revision checks and end-to-end integrated proof remain pending. PCM handoff stays test-only.
+
+**Single next step:** Implement bounded source-span/epoch/revision observations as one cohesive source candidate; do not activate streaming until integrated acceptance. No hosted CI or incremental user-PC tests.
+
 ## Active continuation — PCM consumer ownership and shutdown proof (2026-10-12)
 
 **Source candidate:** A PCM handoff now atomically reserves one CPU consumer before thread spawn, rejects duplicates, and releases reservation if OS thread spawn fails. A timed-out worker cannot be replaced by a second consumer; Stop also erases the buffer even when its mutex was poisoned. This change stays test-only and reuses canonical VAD and the same Meeting design. No new engine, model, UI, runtime dependency, or production CPAL routing.

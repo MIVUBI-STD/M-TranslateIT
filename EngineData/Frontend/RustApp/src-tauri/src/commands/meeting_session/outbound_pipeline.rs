@@ -428,12 +428,29 @@ pub(super) fn process_outbound_wav(
         prepared_at: Instant::now(),
     };
 
-    let _ = update_committed_turn_delivery_state(
+    if !update_committed_turn_delivery_state(
         session_id,
         generation,
         utterance_id,
         "queued",
-    );
+    ) {
+        remove_temporary_tts_paths(&playback_job.requested_tts_path, &playback_job.actual_tts_path);
+        update_outbound_status(
+            generation, session_id, "attention_needed", event_sequence, false, false,
+            "meeting_outbound:delivery_reservation_failed",
+            "Voice was synthesized but its locked translation could not reserve audio delivery.",
+        );
+        return MeetingOutboundProcessResult {
+            ok: false,
+            delivered: false,
+            state: "delivery_reservation_failed".to_string(),
+            blocker: "meeting_outbound:delivery_reservation_failed".to_string(),
+            note: "No voice output was queued without committed source authority.".to_string(),
+            generation,
+            utterance_sequence: event_sequence,
+            runtime_claim: "meeting_outbound_delivery_not_reserved".to_string(),
+        };
+    }
     update_outbound_status(
         generation,
         session_id,
