@@ -347,8 +347,11 @@ impl PcmDrainCursor {
         );
         match result {
             PcmDrain::Samples(_) => on_samples(&self.samples),
-            PcmDrain::Discontinuity => on_discontinuity(),
-            PcmDrain::Empty | PcmDrain::Stopped | PcmDrain::Poisoned => {},
+            // A poisoned ring has lost trustworthy PCM continuity as well:
+            // revoke the VAD source phrase even though the CPU worker will
+            // subsequently stop, rather than leaving an unclosed fragment.
+            PcmDrain::Discontinuity | PcmDrain::Poisoned => on_discontinuity(),
+            PcmDrain::Empty | PcmDrain::Stopped => {},
         }
         result
     }
@@ -503,4 +506,22 @@ mod tests {
         assert_eq!(q.metrics().buffered_samples, 0);
         assert_eq!(q.try_push(&[0.1]), PcmPush::Dropped(PcmDropReason::Stopped));
     }
+    #[test]
+    fn poisoned_pcm_drain_invalidates_vad_once_without_replaying_audio() {
+        let q = PcmHandoff::new("pcm-poison-gap", PcmLane::Incoming, 54, 8).unwrap();
+        assert_eq!(q.try_push(&[0.1, 0.2]), PcmPush::Accepted(2));
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = q.ring.lock().unwrap();
+            panic!("intentional poison of PCM ring");
+        }));
+        let mut cursor = PcmDrainCursor::new(8);
+        let mut resets = 0;
+        let result = cursor.pump(
+            &q, 8, |_| panic!("poisoned audio was forwarded"), || resets += 1,
+        );
+        assert_eq!(result, PcmDrain::Poisoned);
+        assert_eq!(resets, 1);
+        q.stop();
+    }
+
 }

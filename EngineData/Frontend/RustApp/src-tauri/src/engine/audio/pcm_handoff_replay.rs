@@ -51,6 +51,7 @@ impl IncomingPcmVadReplay {
             return PcmDrain::Stopped;
         }
         let sample_rate_hz = self.sample_rate_hz;
+        let source_session = self.session_id.as_str();
         let mut reset_this_pump = false;
         let result = self.cursor.pump(
             handoff,
@@ -60,8 +61,9 @@ impl IncomingPcmVadReplay {
                 observe_finalized_incoming_mono_f32_samples(samples, sample_rate_hz);
             },
             || {
-                reset_finalized_incoming_speech_boundary();
-                reset_this_pump = true;
+                // A stale worker must not revoke the new incoming producer.
+                reset_this_pump =
+                    reset_finalized_incoming_speech_boundary(source_session).is_some();
             },
         );
         if reset_this_pump {
@@ -107,11 +109,14 @@ impl OutboundPcmVadReplay {
         }
         let sample_rate_hz = self.sample_rate_hz;
         let generation = self.generation;
+        let session_id = self.session_id.as_str();
         self.cursor.pump(
             handoff,
             self.max_samples_per_pump,
             |samples| observe_finalized_outbound_mono_f32_samples(samples, sample_rate_hz),
-            || reset_finalized_outbound_speech_boundary(generation),
+            || {
+                let _ = reset_finalized_outbound_speech_boundary(session_id, generation);
+            },
         )
     }
 }
@@ -318,7 +323,52 @@ mod tests {
         // Fresh post-gap utterance has its own recognized phrase boundary.
         assert_eq!(fixture.send_and_pump(&[0.10; 6_400]), PcmDrain::Samples(6_400));
         assert_eq!(fixture.send_and_pump(&[0.0; 6_400]), PcmDrain::Samples(6_400));
-        assert!(try_take_finalized_incoming_utterance(fixture.session_id).is_some());
+        let after_gap = try_take_finalized_incoming_utterance(fixture.session_id)
+            .expect("fresh post-gap utterance");
+        let provenance = after_gap.capture_provenance.expect("source clock after gap");
+        assert_eq!(provenance.audio_epoch, 2);
+        assert_eq!(provenance.input_start_sample, 0);
+        assert_eq!(provenance.input_end_sample, 12_800);
+        // A gap is accounted by the handoff and becomes the producer epoch
+        // boundary that future ASR SourceScope must carry.
+        assert_eq!(fixture.handoff.metrics().discontinuity_epoch, 1);
+    }
+
+    #[test]
+    fn stale_incoming_replay_gap_cannot_reset_a_new_session_producer() {
+        let _guard = crate::engine::runtime_state::runtime_test_guard();
+        let old_session = "pcm-stale-source-old";
+        let new_session = "pcm-stale-source-new";
+        reset_finalized_meeting_sequence(old_session);
+        reset_finalized_incoming_utterance_producer(old_session, 16_000);
+        let handoff = PcmHandoff::new(old_session, PcmLane::Incoming, 21, 6_400).unwrap();
+        let mut old_worker = IncomingPcmVadReplay::new(&handoff, 16_000, 6_400).unwrap();
+        // Canonical producer has already moved to a new session.
+        reset_finalized_meeting_sequence(new_session);
+        reset_finalized_incoming_utterance_producer(new_session, 16_000);
+        assert_eq!(
+            handoff.try_push(&[0.10; 6_401]),
+            super::super::pcm_handoff::PcmPush::Dropped(
+                super::super::pcm_handoff::PcmDropReason::ChunkTooLarge
+            ),
+        );
+        assert_eq!(old_worker.pump(&handoff), PcmDrain::Discontinuity);
+        assert_eq!(old_worker.reset_count, 0);
+        // New producer retains its own first epoch and can still finalize.
+        crate::engine::audio::finalized_utterance::observe_finalized_incoming_mono_f32_samples(
+            &[0.10; 6_400], 16_000,
+        );
+        crate::engine::audio::finalized_utterance::observe_finalized_incoming_mono_f32_samples(
+            &[0.0; 6_400], 16_000,
+        );
+        let fresh = try_take_finalized_incoming_utterance(new_session)
+            .expect("new incoming source remains independent");
+        assert_eq!(fresh.capture_provenance.unwrap().audio_epoch, 1);
+        assert_eq!(fresh.session_id, new_session);
+        assert!(try_take_finalized_incoming_utterance(old_session).is_none());
+        handoff.stop();
+        clear_finalized_incoming_utterance_producer();
+        clear_finalized_meeting_sequence();
     }
 
     #[test]
@@ -348,6 +398,23 @@ mod tests {
         assert_eq!(phrase.lane, "you");
         assert_eq!(phrase.frame.sample_rate_hz, 16_000);
         assert!(phrase.speech_duration_ms >= 400);
+        assert_eq!(phrase.capture_provenance.unwrap().audio_epoch, 1);
+        // Drop the next callback, forcing a fresh VAD epoch for the same
+        // authoritative outbound session instead of merging speech.
+        assert!(matches!(
+            q.try_push(&[0.1; 16_001]),
+            super::super::pcm_handoff::PcmPush::Dropped(
+                super::super::pcm_handoff::PcmDropReason::ChunkTooLarge
+            ),
+        ));
+        assert_eq!(worker.pump(&q), PcmDrain::Discontinuity);
+        assert_eq!(q.try_push(&[0.10; 6_400]), super::super::pcm_handoff::PcmPush::Accepted(6_400));
+        assert_eq!(worker.pump(&q), PcmDrain::Samples(6_400));
+        assert_eq!(q.try_push(&[0.0; 6_400]), super::super::pcm_handoff::PcmPush::Accepted(6_400));
+        assert_eq!(worker.pump(&q), PcmDrain::Samples(6_400));
+        let after_gap = wait_take_finalized_outbound_utterance(generation)
+            .expect("fresh outbound producer range");
+        assert_eq!(after_gap.capture_provenance.unwrap().audio_epoch, 2);
 
         q.stop();
         assert_eq!(worker.pump(&q), PcmDrain::Stopped);

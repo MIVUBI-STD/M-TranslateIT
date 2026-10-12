@@ -216,32 +216,42 @@ pub fn clear_finalized_incoming_utterance_producer() {
 // Offline replay hook only. Production may adopt this exact owner reset
 // after the bounded PCM handoff has passed native callback/deadline tests.
 #[cfg(test)]
-pub(super) fn reset_finalized_outbound_speech_boundary(generation: u64) {
+pub(super) fn reset_finalized_outbound_speech_boundary(
+    session_id: &str,
+    generation: u64,
+) -> Option<u64> {
     if !runtime_generation_is_authoritative(generation) {
-        return;
+        return None;
     }
     let sync = outbound_sync();
-    if let Ok(mut guard) = sync.state.lock() {
-        if let Some(state) = guard.as_mut() {
-            if state.generation == Some(generation) {
-                state.capture_epoch = state.capture_epoch.saturating_add(1);
-                state.input_sample_cursor = 0;
-                reset_current_utterance(state);
-            }
-        }
+    let mut guard = sync.state.lock().ok()?;
+    let state = guard.as_mut()?;
+    if state.session_id != session_id
+        || state.lane != LANE_YOU
+        || state.generation != Some(generation)
+    {
+        return None;
     }
+    state.capture_epoch = state.capture_epoch.saturating_add(1);
+    state.input_sample_cursor = 0;
+    reset_current_utterance(state);
+    Some(state.capture_epoch)
 }
 
-pub fn reset_finalized_incoming_speech_boundary() {
+// The canonical incoming VAD producer may outlive a replay consumer or a
+// suppression guard from a previous Meeting. A delayed reset MUST NOT erase
+// the speech boundary or accepted-sample clock of a new session.
+pub fn reset_finalized_incoming_speech_boundary(session_id: &str) -> Option<u64> {
     let sync = incoming_sync();
-    if let Ok(mut guard) = sync.state.lock() {
-        if let Some(state) = guard.as_mut() {
-            // Suppressed incoming frames must not create false clock continuity.
-            state.capture_epoch = state.capture_epoch.saturating_add(1);
-            state.input_sample_cursor = 0;
-            reset_current_utterance(state);
-        }
+    let mut guard = sync.state.lock().ok()?;
+    let state = guard.as_mut()?;
+    if state.session_id != session_id || state.lane != LANE_INCOMING {
+        return None;
     }
+    state.capture_epoch = state.capture_epoch.saturating_add(1);
+    state.input_sample_cursor = 0;
+    reset_current_utterance(state);
+    Some(state.capture_epoch)
 }
 
 fn reset_producer(

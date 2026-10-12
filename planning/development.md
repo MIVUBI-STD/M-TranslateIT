@@ -1,12 +1,12 @@
-## Active continuation — Producer-owned finalized audio provenance (2026-10-13)
+## Active continuation — Batch B.4 scoped capture gap-to-VAD epoch (2026-10-13)
 
-**Source candidate:** Existing mono VAD producer now attaches bounded accepted-input audio epoch, sample rate, native start/end (including pre-roll and trailing silence), and actual 16-kHz frame sample count. Known input-rate changes and incoming suppression-boundary resets advance the epoch; inconsistent provenance stays unknown. The existing test-only SourceStabilizer accepts a final whole-frame clock map derived from this real producer metadata, without claiming word timestamps or enabling partial ASR/TTS. PCM hot callback gains only scalar counters, no additional allocations, inference, or secondary capture runtime. Existing WAV emission remains unchanged.
+**Source candidate:** The existing producer's VAD gap-reset now checks the incoming source session ID and the outbound source session/generation before clearing speech/pre-roll and advancing capture epoch. A stale incoming PCM consumer or old suppression guard can no longer reset another session's VAD. The existing test-only PCM cursor invokes the same reset callback for both dropped PCM callbacks and poisoned ring state. Replay scenarios exercise incoming/outbound epoch transition after loss and the stale-incoming-worker boundary. A finalized post-gap utterance retains producer-owned epoch coordinates compatible with the existing test-only SourceScope. No extra audio engine, queue, model or user control; CPAL capture still runs through the finalized path.
 
-**Proof ceiling:** Static GitHub source inspection and Rust scenarios authored, **NOT EXECUTED** (Cargo, Windows audio/CUDA, device callback, VB-CABLE, receiver). Input samples are the mono frames admitted to producer, not real OS device timestamps; upstream lost frames cannot be reconstructed.
+**Evidence ceiling:** Exact-source inspection and authored Rust scenarios only. Cargo, Windows device/VRAM, VB-CABLE and receiver runtime checks **NOT EXECUTED**. Only losses recorded by the existing PCM handoff are propagated; the handoff is still **NOT CONNECTED** to production CPAL. A device drop before callback admission remains unobservable, and the source observations do not yet authorize partial commits.
 
-**Unresolved:** Actual capture callback loss signals and discontinuity epoch propagation, VAD trimmed/rolling ASR alignment, partial speech authority and physical timing evidence remain pending. The PCM handoff prototype stays test-only.
+**Unresolved:** Production CPAL error/loss signaling, in-flight Stop race and sample-to-word alignment. The PCM handoff prototype has an unaccepted deadline/teardown lifecycle and remains test-only.
 
-**Single next step:** Integrate known source-loss and discontinuity from the canonical capture/handoff boundary into epoch invalidation, without enabling partial Meeting output or hosted execution.
+**Single next step:** Integrate production capture-known discontinuity markers at the existing callback-to-VAD boundary without blocking callbacks or promoting the PCM prototype, then move to ASR semantic source slices.
 
 
 ## Active continuation — Batch A source and delivery authority (2026-10-12)

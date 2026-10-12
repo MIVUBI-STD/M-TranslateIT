@@ -16,12 +16,14 @@ struct MeetingSelfOutputSuppression {
 
 pub(super) struct SelfOutputSuppressionGuard {
     active: Arc<AtomicBool>,
+    session_id: String,
 }
 
 impl Drop for SelfOutputSuppressionGuard {
     fn drop(&mut self) {
         self.active.store(false, Ordering::Release);
-        reset_finalized_incoming_speech_boundary();
+        // The old guard must not reset the current producer of another session.
+        let _ = reset_finalized_incoming_speech_boundary(&self.session_id);
     }
 }
 
@@ -58,7 +60,7 @@ pub(super) fn suppression_handle_for_session(session_id: &str) -> Option<Arc<Ato
 
 pub(super) fn begin_self_output_suppression(session_id: &str) -> Option<SelfOutputSuppressionGuard> {
     let active = suppression_handle_for_session(session_id)?;
-    reset_finalized_incoming_speech_boundary();
+    let _ = reset_finalized_incoming_speech_boundary(session_id);
     active.store(true, Ordering::Release);
     update_incoming_status(
         session_id,
@@ -67,7 +69,7 @@ pub(super) fn begin_self_output_suppression(session_id: &str) -> Option<SelfOutp
         "",
         "Incoming Meeting Sound is temporarily suppressed while TranslateIT's own English TTS is routed to the Meeting Microphone.",
     );
-    Some(SelfOutputSuppressionGuard { active })
+    Some(SelfOutputSuppressionGuard { active, session_id: session_id.to_string() })
 }
 
 pub(super) fn disable_optional_incoming_for_outbound(session_id: &str) -> String {
@@ -103,6 +105,6 @@ pub(super) fn clear_self_output_suppression_for_session(session_id: &str) -> boo
         }
         Err(_) => false,
     };
-    reset_finalized_incoming_speech_boundary();
+    let _ = reset_finalized_incoming_speech_boundary(session_id);
     cleared
 }
