@@ -119,4 +119,6 @@ Every case must specify **owner → input → expected state → observable fail
 
 ## 5. Next source change
 
+**Source observation continuation (2026-10-12):** A test-only bounded Rust ASR observation buffer implements same-anchor LocalAgreement, exact epoch/speech/revision rejection and explicit final-window vs text-only evidence. It neither retrieves word timestamps from Faster Whisper nor maps rolling ASR windows back to microphone samples. It is not a production streaming enablement or an executed test. Next source boundary: verified rolling-window alignment and ASR-domain/capture sample mapping before any progressive audio-span claim.
+
 The source-only Batch A authority slice follows PCM Batch 2B: one-time turn admission, replay rejection after bounded transcript eviction, a locked-translation to queued transition, and exact identity playback claim. It does **not** implement sample-level SourceSpanId, audio epoch, ASR revision or progressive commits; the current finalized utterance remains the only production boundary. Next source batch: bounded source-span/revision ownership with ASR observations. All authored Rust tests, Windows GPU/audio and receiver checks remain **NOT EXECUTED** until integrated local acceptance. No hosted CI or unaccepted CPAL cutover.

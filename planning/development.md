@@ -1,3 +1,13 @@
+## Active continuation — Source observation and stable-prefix contract (2026-10-12)
+
+**Source candidate:** A bounded, test-only Rust source-observation module now accepts session/generation/lane/speech/audio-epoch-scoped ASR revisions and 16-kHz input-window offsets. It retains only one prior hypothesis, requires genuinely growing, same-anchor audio for LocalAgreement text evidence, preserves negation/version differences, and rejects stale, foreign, regressed, invalid, or post-final observations. A canonical final-window declaration can identify the WHOLE final window; nonfinal agreement deliberately produces **no committed source span** because the current Faster Whisper worker has no word timestamps. The old finalized-utterance production path is unchanged, and no additional AI worker, queue, GPU request, or UI has been introduced.
+
+**Evidence ceiling:** Source inspection and four authored Rust scenario tests, **NOT EXECUTED** (Cargo, Windows GPU/audio, VB-CABLE, receiver). This module is deliberately `#[cfg(test)]` until a real ASR audio-to-source mapping and session-authority integration exists. Text agreement alone is not semantic commit authority.
+
+**Unresolved:** Rolling shifted-window anchoring, verified ASR segment/word-to-source alignment, bounded long-monologue source-span progression, runtime Start/Stop gating, and measured inference load. Last Batch A commit remains the only enabled source/playback authority change.
+
+**Single next step:** Implement ASR-domain-to-capture sample alignment and anchored rolling-window advance without fabricating word timestamps, then connect the stabilizer behind a reversible Meeting candidate path. Do not activate streaming or request incremental user-PC tests.
+
 ## Active continuation — Batch A source and delivery authority (2026-10-12)
 
 **Source candidate on Local:** The existing Meeting turn store now treats source insertion as a one-time pipeline admission, rejects duplicate sequences or lane/generation/utterance identities, and retains a compact retired-sequence fence when old transcripts are evicted. It checks the live canonical session before source insertion. The outbound path now requires a successful queued transition after translation lock and playback atomically claims the exact session/generation/sequence/utterance before native delivery. No new worker, engine, model, or UI; finalized-utterance production remains the only enabled path.

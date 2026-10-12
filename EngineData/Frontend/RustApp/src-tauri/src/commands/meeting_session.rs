@@ -23,6 +23,9 @@ mod outbound_pipeline;
 mod playback_runtime;
 mod preflight;
 mod session_state;
+// Source-only candidate: no live ASR, speculative GPU work, or Meeting cutover.
+#[cfg(test)]
+mod source_observations;
 mod suppression;
 mod transcript_export;
 
