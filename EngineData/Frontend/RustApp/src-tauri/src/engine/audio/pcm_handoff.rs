@@ -121,6 +121,7 @@ pub struct PcmHandoff {
     lost_samples: AtomicU64,
     loss_epoch: AtomicU64,
     stopped: AtomicBool,
+    consumer_claimed: AtomicBool,
 }
 
 impl PcmHandoff {
@@ -151,6 +152,7 @@ impl PcmHandoff {
             lost_samples: AtomicU64::new(0),
             loss_epoch: AtomicU64::new(0),
             stopped: AtomicBool::new(false),
+            consumer_claimed: AtomicBool::new(false),
         })
     }
 
@@ -169,6 +171,27 @@ impl PcmHandoff {
 
     pub fn lane(&self) -> PcmLane {
         self.lane
+    }
+
+    /// One CPU consumer per session/lane queue. A timed-out worker retains
+    /// its claim so no new thread can consume its PCM concurrently.
+    pub(super) fn reserve_consumer(&self) -> Result<(), &'static str> {
+        if self.stopped.load(Ordering::Acquire) {
+            return Err("pcm_consumer:already_stopped");
+        }
+        self.consumer_claimed
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| "pcm_consumer:already_active")?;
+        if self.stopped.load(Ordering::Acquire) {
+            self.consumer_claimed.store(false, Ordering::Release);
+            return Err("pcm_consumer:already_stopped");
+        }
+        Ok(())
+    }
+
+    /// Undo reservation only on OS thread spawn failure; never while live.
+    pub(super) fn cancel_consumer_reservation(&self) {
+        self.consumer_claimed.store(false, Ordering::Release);
     }
 
     fn record_loss(&self, samples: usize) {
@@ -274,9 +297,12 @@ impl PcmHandoff {
     /// direct callers may use this without a separate consumer.
     pub fn stop(&self) {
         self.request_stop();
-        if let Ok(mut ring) = self.ring.lock() {
-            ring.erase();
-        }
+        // Poisoning does not mean retained private audio was erased.
+        let mut ring = match self.ring.lock() {
+            Ok(ring) => ring,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        ring.erase();
         self.buffered_samples.store(0, Ordering::Release);
     }
 
@@ -449,5 +475,32 @@ mod tests {
         assert!(PcmHandoff::new("", PcmLane::You, 42, 8).is_err());
         q.stop();
         assert!(!q.belongs_to("session-a", PcmLane::You, 42));
+    }
+
+    #[test]
+    fn consumer_reservation_is_single_owner_until_spawn_fails_or_stop() {
+        let q = PcmHandoff::new("pcm-claim", PcmLane::Incoming, 52, 8).unwrap();
+        assert_eq!(q.reserve_consumer(), Ok(()));
+        assert_eq!(q.reserve_consumer(), Err("pcm_consumer:already_active"));
+        q.cancel_consumer_reservation();
+        assert_eq!(q.reserve_consumer(), Ok(()));
+        q.stop();
+        assert_eq!(q.reserve_consumer(), Err("pcm_consumer:already_stopped"));
+    }
+
+    #[test]
+    fn stop_scrubs_poisoned_audio_ring_instead_of_skipping_cleanup() {
+        let q = PcmHandoff::new("pcm-poison", PcmLane::Incoming, 53, 8).unwrap();
+        assert_eq!(q.try_push(&[0.5, 0.7]), PcmPush::Accepted(2));
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = q.ring.lock().unwrap();
+            panic!("intentional mutex poison for Stop regression");
+        }));
+        assert!(poisoned.is_err());
+        q.stop();
+        let ring = q.ring.lock().unwrap_err().into_inner();
+        assert!(ring.data.iter().all(|v| *v == 0.0));
+        assert_eq!(q.metrics().buffered_samples, 0);
+        assert_eq!(q.try_push(&[0.1]), PcmPush::Dropped(PcmDropReason::Stopped));
     }
 }

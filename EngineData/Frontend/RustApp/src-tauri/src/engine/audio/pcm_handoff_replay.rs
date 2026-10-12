@@ -166,6 +166,7 @@ impl PcmCpuConsumer {
                 &handoff, sample_rate_hz, max_samples_per_pump,
             )?),
         };
+        handoff.reserve_consumer()?;
         let for_worker = Arc::clone(&handoff);
         let handle = thread::Builder::new()
             .name("translateit-pcm-cpu-replay".to_owned())
@@ -184,8 +185,14 @@ impl PcmCpuConsumer {
                         PcmDrain::Stopped | PcmDrain::Poisoned => break,
                     }
                 }
-            })
-            .map_err(|_| "pcm_consumer:spawn_failed")?;
+            });
+        let handle = match handle {
+            Ok(handle) => handle,
+            Err(_) => {
+                handoff.cancel_consumer_reservation();
+                return Err("pcm_consumer:spawn_failed");
+            }
+        };
         Ok(Self { handoff, thread: Some(handle) })
     }
 
@@ -438,6 +445,10 @@ mod tests {
             },
         ).unwrap();
         started_rx.recv_timeout(Duration::from_secs(1)).expect("worker reached hook");
+        assert!(matches!(
+            PcmCpuConsumer::start(Arc::clone(&handoff), 16_000, 6_400),
+            Err("pcm_consumer:already_active")
+        ));
         assert_eq!(
             handoff.try_push(&[0.10; 6_400]),
             super::super::pcm_handoff::PcmPush::Accepted(6_400),
@@ -447,6 +458,10 @@ mod tests {
             Err("pcm_consumer:stop_deadline_exceeded"),
         );
         assert!(handoff.metrics().stopped);
+        assert!(matches!(
+            PcmCpuConsumer::start(Arc::clone(&handoff), 16_000, 6_400),
+            Err("pcm_consumer:already_stopped")
+        ));
         assert_eq!(
             handoff.try_push(&[0.20]),
             super::super::pcm_handoff::PcmPush::Dropped(

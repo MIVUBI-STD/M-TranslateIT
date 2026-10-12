@@ -1,10 +1,10 @@
-## Active continuation — bounded CPU PCM replay worker (2026-10-12)
+## Active continuation — PCM consumer ownership and shutdown proof (2026-10-12)
 
-**Source candidate:** The existing `pcm_handoff.rs` now supports nonblocking admission revocation (`request_stop`), separate from final PCM erasure. Test-only `pcm_handoff_replay.rs` now has one bounded CPU drain thread per authorized session/lane/generation. It sends samples into the **existing** VAD, polls a bounded interval while idle, and handles gap/Stop/poison as distinct outcomes. Stop revokes admission, wakes the thread, waits for a fixed deadline and joins only after it has exited. A deadline breach is an explicit error, retains the join handle for retry and **does not** authorize production cutover. Drop revokes but cannot guarantee an in-flight VAD callback completed if Stop failed.
+**Source candidate:** A PCM handoff now atomically reserves one CPU consumer before thread spawn, rejects duplicates, and releases reservation if OS thread spawn fails. A timed-out worker cannot be replaced by a second consumer; Stop also erases the buffer even when its mutex was poisoned. This change stays test-only and reuses canonical VAD and the same Meeting design. No new engine, model, UI, runtime dependency, or production CPAL routing.
 
-**Evidence:** new Rust behavioral tests cover real VAD delivery on the CPU thread, successful Stop/erasure, and a deliberately blocked worker producing explicit timeout followed by safe retry/join without stale audio. Source review only. **Rust compile/test, Windows/RTX, virtual mic and browser meeting remain NOT EXECUTED for this revision.** The module is still `#[cfg(test)]`; production CPAL, GPU scheduler, ASR and TTS remain untouched.
+**Authored regressions (not executed):** consumer claim/reclaim after failed spawn, duplicate start while a worker is deliberately blocked, start denial after Stop timeout, and poisoned-mutex audio erasure. **Exact Local source inspection only. Cargo compile/tests, target Windows GPU/audio, VB-CABLE and meeting receiver checks remain NOT EXECUTED.**
 
-**Single next step:** resolve any Rust compile/test failures on the exact integrated candidate before a guarded and reversible CPAL handoff; capture callback deadline, source device stop order and actual Windows audio behavior remain unproven. Continue from [Meeting V2 implementation plan](./meeting-v2-implementation-plan.md).
+**Single next step:** compile/run targeted Rust PCM/VAD tests on one exact-SHA Local checkout in the integrated acceptance phase, then resolve observed failures before any reversible CPAL production cutover. Do not dispatch hosted CI or request incremental user-PC tests.
 
 ## Meeting V2 Batch 2A.2 — VAD callback contention observation (2026-10-12)
 
