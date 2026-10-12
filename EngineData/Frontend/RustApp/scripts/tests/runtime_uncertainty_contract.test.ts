@@ -10,7 +10,7 @@ const route = (route_ready: boolean, blocker: string, runtime_claim: string) =>
 
 test("virtual microphone evidence distinguishes missing devices from bridge failures", () => {
   assert.equal(classifyVirtualMicRoute(null), "checking");
-  assert.equal(classifyVirtualMicRoute(null, true), "ready");
+  assert.equal(classifyVirtualMicRoute(null), "checking");
   assert.equal(classifyVirtualMicRoute(route(true, "", "virtual_mic_matched_route_pair_selection_source_side_not_audio_delivery_proof")), "ready");
   assert.equal(classifyVirtualMicRoute(route(false, "virtual_mic:no_supported_pair", "virtual_mic_matched_route_pair_selection_source_side_not_audio_delivery_proof")), "setup_needed");
   assert.equal(classifyVirtualMicRoute(route(false, "frontend_bridge_unavailable", "frontend_bridge_unavailable")), "unavailable");
@@ -26,9 +26,9 @@ test("Meeting, Settings and First Setup share route evidence without assuming ok
   const setup = source("pages/FirstSetup.svelte");
   const voice = source("components/setup/SetupVoiceChoice.svelte");
 
-  assert.match(meeting, /classifyVirtualMicRoute\(routeStatus, readiness\.meetingRouteReady\)/);
+  assert.match(meeting, /classifyVirtualMicRoute\(routeStatus\)/);
   assert.doesNotMatch(meeting, /routeStatus\?\.ok === false/);
-  assert.match(settings, /classifyVirtualMicRoute\(routeStatus, snapshot\.readiness\.meetingRouteReady\)/);
+  assert.match(settings, /classifyVirtualMicRoute\(routeStatus\)/);
   assert.match(settings, /routeCheck === "unavailable" \? "Unable to check"/);
   assert.match(settings, /if \(!selected \|\| !devices\?\.ok\) return false/);
   assert.match(setup, /snapshot\?\.readiness\.meetingRouteReady === true && routeCheck === "ready"/);
@@ -53,7 +53,7 @@ test("failed My Voice recording bridge calls preserve authoritative state and na
   const guard = voice.indexOf('result.state === "frontend_bridge_error" || !result.recording', start);
   assert.ok(guard > start && stateApply > guard, "unverified recording must never become a synthetic stopped state");
   assert.match(voice, /recordingStatusUnknown = true;\s*onRecordingChange\(true\);/);
-  assert.match(voice, /if \(!next\) \{\s*recordingStatusUnknown = true;/);
+  assert.match(voice, /if \(!next\) \{\s*recordingStatusUnknown = true;\s*onRecordingChange\(true\);/);
   assert.match(voice, /Retry status<\/button>/);
   assert.match(voice, /recordingStatusUnknown \? "Retry Stop" : "Stop"/);
   assert.match(app, /myVoiceRecording \|\| snapshot\?\.resources\.owner_kind === "voice_recording"/);

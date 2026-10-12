@@ -25,7 +25,7 @@ test("Meeting options preserve real controls but are disclosed on demand, includ
   assert.match(meeting, /<MeetingPresetPanel/);
   assert.match(meeting, /<MeetingTranscriptExport/);
   assert.match(meeting, /Translate what you hear:/);
-  assert.match(meeting, /classifyVirtualMicRoute\(routeStatus, readiness\.meetingRouteReady\)/);
+  assert.match(meeting, /classifyVirtualMicRoute\(routeStatus\)/);
   assert.match(meeting, /routeCheck === "unavailable"/);
   assert.match(meeting, /cannot verify your calling app's input selection/);
 });

@@ -71,7 +71,7 @@
           ? "Stop My Voice recording before changing meeting audio or running Repair Setup."
           : "Finish the current audio action before changing meeting audio or running Repair Setup.",
   );
-  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus, snapshot.readiness.meetingRouteReady));
+  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus));
   const virtualMicrophoneReady = $derived(routeCheck === "ready");
   const meetingMicrophoneDevice = $derived(
     String(routeStatus?.selected_input_device ?? "").trim()

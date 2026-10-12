@@ -43,10 +43,7 @@
   let builtinPendingId = $state<BuiltinVoiceId | null>(null);
 
   const meetingVoiceReady = $derived(snapshot?.readiness.approvedVoiceReady ?? null);
-  const routeCheck = $derived(classifyVirtualMicRoute(
-    routeStatus,
-    snapshot?.readiness.meetingRouteReady === true,
-  ));
+  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus));
   // An unsaved device choice is not the verified microphone in the runtime snapshot.
   const microphoneSelectionPending = $derived(
     selectedMicrophone.trim() !== String(settings.audio.input_device_id ?? "").trim(),

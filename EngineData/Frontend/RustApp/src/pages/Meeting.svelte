@@ -71,7 +71,7 @@
     String(snapshot.inputStatus?.selected_device_name ?? snapshot.settings.audio.input_device_id ?? "").trim() || "Windows Default",
   );
   const meetingSound = $derived(String(snapshot.settings.audio.output_device_id ?? "").trim() || "Windows Default");
-  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus, readiness.meetingRouteReady));
+  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus));
   const meetingMicrophoneDevice = $derived(
     String(routeStatus?.selected_input_device ?? "").trim()
       || (routeCheck === "ready" ? "Device name unavailable" : routeCheck === "checking" ? "Checking..." : "Not available in Windows"),

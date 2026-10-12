@@ -249,6 +249,7 @@
       if (disposed) return;
       if (!next) {
         recordingStatusUnknown = true;
+        onRecordingChange(true);
         onNotice("Couldn't check recording status. Select Retry status.");
         return;
       }
@@ -257,6 +258,7 @@
     } catch {
       if (!disposed) {
         recordingStatusUnknown = true;
+        onRecordingChange(true);
         onNotice("Couldn't check recording status. Select Retry status.");
       }
     }

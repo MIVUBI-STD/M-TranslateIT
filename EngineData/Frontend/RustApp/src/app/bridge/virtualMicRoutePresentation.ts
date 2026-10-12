@@ -6,9 +6,9 @@ export type VirtualMicRouteCheck = "ready" | "setup_needed" | "checking" | "unav
 // not a failed bridge. Only the explicit frontend bridge claim is "unknown".
 export function classifyVirtualMicRoute(
   status: VirtualMicRouteContractStatus | null,
-  preflightReady = false,
 ): VirtualMicRouteCheck {
-  if (!status) return preflightReady ? "ready" : "checking";
+  // A previous preflight cannot fill an unobserved device-name/status request.
+  if (!status) return "checking";
   if (status.runtime_claim === "frontend_bridge_unavailable"
     || status.blocker === "frontend_bridge_unavailable") return "unavailable";
   return status.route_ready ? "ready" : "setup_needed";
