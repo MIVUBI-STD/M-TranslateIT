@@ -8,7 +8,9 @@
 
 **Proof ceiling:** REMOTE_GITHUB source review and static projection only. The actual repository Node validator, frontend tests, Svelte typecheck, Rust compilation, built-in audio and real target-Windows scenarios are **NOT EXECUTED**; they remain the single integrated acceptance gate in `docs/knowledge/operations/target-windows-performance.md`. No hosted CI or `main` promotion.
 
-**One next step:** after verifying the new Local HEAD, lock that full SHA as the source-only candidate for the one coordinated Windows build/typecheck/runtime acceptance. STOP at the first actual executable failure; do not request per-commit incremental testing or claim an installed application.
+## Next Step
+
+Admit the integrated test-ready candidate on the corrected full Local SHA and resume the user-authorized developer-mode Windows checks through the existing runbook. No per-change tests on the user's PC are requested. The initial `497041064aee4e797db57dc8a97a67974e5577aa` checkout passed doctor and locked dependency setup, but repository verification failed on six missing documentation-contract markers; restore those contracts before advancing. STOP at the first actual executable failure. Packaging, hosted CI and main promotion remain outside this acceptance scope.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

@@ -4,6 +4,8 @@ Canonical repository operating rules for AI/ChatGPT. Root and nearest `AGENTS.md
 
 **Local-only development model:** `Local` is the sole active development/source authority. GitHub default branch remains `main`, which is reserved for finalized, explicitly approved results—not unfinished development. Development, governance, source verification, continuation, and pre-release validation are performed against `Local`. Promotion to `main` requires explicit user approval after acceptance; do not copy, merge, edit, or use `main` as a fallback/PR base/CI proof source during routine work.
 
+Do **not** change the default branch to enable development or hosted CI.
+
 ## Core flow
 
 Apply Core Rules 1–7 in order.
@@ -79,6 +81,8 @@ Rules:
 - If a canonical edit cannot be complete without unavailable generated output, do not move `Local` with an incomplete canonical state.
 
 ### ChatGPT no-user-PC invariant
+
+Missing execution proof is not a user-PC to-do; retain it as unexecuted until the authorized integrated acceptance phase.
 
 For ChatGPT-owned TranslateIT work, `Local` is the **GitHub source/version-control branch only**, not an application execution platform or a user-PC folder. **No cloud computing, cloud inference, hosted CI or hosted builds.** Use GitHub to read, edit and version source. Never ask the user to clone/download source, install tools, run incremental tests, supply private audio/data or operate Windows/GPU/meeting apps as a workaround for repository tooling limitations.
 
