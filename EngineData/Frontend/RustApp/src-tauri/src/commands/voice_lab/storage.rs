@@ -118,6 +118,34 @@ fn recover_personal_archive(paths: &VoiceLabStoragePaths) -> Result<(), String> 
     Ok(())
 }
 
+// Recover only a single, fully validated interrupted active-actor backup.
+// Do not delete backup data or choose between multiple possible actors.
+pub(crate) fn recover_selected_actor_if_missing(
+    paths: &VoiceLabStoragePaths,
+) -> Result<bool, String> {
+    let candidates = [
+        paths.saved_root.join(".MyVoice.previous"),
+        paths.saved_root.join(".MyVoice.builtin-previous"),
+    ];
+    let pending: Vec<&PathBuf> = candidates.iter().filter(|path| path.exists()).collect();
+    if pending.is_empty() {
+        return Ok(false);
+    }
+    if paths.approved_actor_dir.exists() || pending.len() != 1 {
+        return Err("voice_lab:actor_recovery_ambiguous".to_string());
+    }
+    let backup = pending[0];
+    let metadata = fs::symlink_metadata(backup)
+        .map_err(|error| format!("voice_lab:actor_recovery_metadata_failed:{error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err("voice_lab:actor_recovery_backup_not_directory".to_string());
+    }
+    validate_actor_package(backup)?;
+    fs::rename(backup, &paths.approved_actor_dir)
+        .map_err(|error| format!("voice_lab:actor_recovery_rename_failed:{error}"))?;
+    Ok(true)
+}
+
 pub(crate) fn selected_voice_info(paths: &VoiceLabStoragePaths) -> SelectedVoiceInfo {
     let active = actor_kind(&paths.approved_actor_dir);
     let stored = actor_kind(&paths.stored_personal_actor_dir);

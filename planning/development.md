@@ -1,12 +1,14 @@
 # TranslateIT Development
 
-## Active continuation — Selected voice approval session guard (2026-10-12)
+## Active continuation — Verified single-backup voice recovery (2026-10-12)
 
-**State: SOURCE CORRECTIONS ON Local; TYPECHECK, FRONTEND TESTS, RUST BUILD, AND TARGET_WINDOWS PROOF NOT EXECUTED.** Source admission found that built-in and saved-personal voice selections already rejected changes while Meeting owns the runtime, but My Voice's separate approve-candidate path could promote a new selected actor without the same guard. Native approval now checks Meeting ownership before acquiring the voice-selection lock, after the lock, and immediately before candidate promotion, preserving user review data when blocked. The existing My Voice creation/review component consumes the root audio-lock/recording truth and disables selection during active Meeting or uncertain recording, with concise English recovery copy. The held-out quality/listening requirements remain unchanged.
+**State: SOURCE CANDIDATE ON Local; CARGO/FRONTEND EXECUTION AND TARGET_WINDOWS PROOF NOT EXECUTED.** The source audit found that selectors rejected pending `.MyVoice.previous` and `.MyVoice.builtin-previous` backups before any recoverable active-actor restoration could run. The existing canonical actor path remains unchanged. Select Built-in and Use My Voice now attempt recovery only when the selected actor is absent, exactly one backup exists, and the backup passes the canonical actor-package validation (including no symlinked directory). These actions preserve all data and reject ambiguous/invalid backups without guessing or deleting copies. The existing selected-voice lock and Meeting active owner checks remain in force. Rust unit-test fixtures cover valid single backup, multiple, corrupt, and existing-current cases; bounded source assertions and the U3 Windows runbook reflect the behavior.
 
-**Proof boundary:** Exact pinned `Local` source and static regression assertions only. Node/Svelte/Cargo and real Windows/app audio tests remain UNKNOWN / NOT EXECUTED. No cloud CI, new UI framework, new voice/AI engine or `main` promotion. Existing `docs/knowledge/operations/target-windows-performance.md` owns the single integrated acceptance gate.
+**Proof limit:** GitHub exact-source and static checks only; Rust/frontend tests, actual crash recovery, OS filesystem atomicity and Windows audio behavior NOT EXECUTED. No hosted CI, extra framework, model/asset mutation, or main promotion.
 
-**One next step:** finish static/source admission for concurrency and legacy voice storage recovery paths, then prepare one exact-Local-SHA integrated Windows test-ready candidate; do not request incremental tests on the user's PC.
+**Known remaining limitation:** an interrupted swap that leaves both a valid active actor and a backup is ambiguous and remains blocked pending safe manual/native recovery design. Never silently remove a potentially unique backup.
+
+**One next step:** complete remaining source admission and confirm pinned build inputs, then prepare the single exact-Local-SHA integrated developer-mode Windows acceptance candidate; keep all executable/native outcomes UNKNOWN until observed.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

@@ -8,7 +8,10 @@ use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEE
 mod storage;
 
 pub use storage::VoiceLabStoragePaths;
-pub(crate) use storage::{activate_stored_personal_voice, archive_selected_personal_voice, selected_voice_info};
+pub(crate) use storage::{
+    activate_stored_personal_voice, archive_selected_personal_voice,
+    recover_selected_actor_if_missing, selected_voice_info,
+};
 use storage::{prepare_guided_dataset_at, promote_voice_actor_candidate_at, validate_actor_package};
 #[cfg(test)]
 use storage::{
@@ -411,6 +414,48 @@ mod tests {
         fs::write(dir.join(SOVITS_WEIGHT_FILE), marker).expect("sovits weight");
         write_wav(&dir.join(REFERENCE_WAV_FILE), 4_000);
         write_json(&dir.join(ACTOR_MANIFEST_FILE), &actor_manifest(4_000)).expect("manifest");
+    }
+
+    #[test]
+    fn interrupted_single_actor_backup_is_restored_without_discarding_data() {
+        let root = test_root("actor-single-backup");
+        let paths = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        let previous = paths.saved_root.join(".MyVoice.builtin-previous");
+        write_actor(&previous, b"safe-personal-backup");
+        assert!(!paths.approved_actor_dir.exists());
+
+        assert_eq!(recover_selected_actor_if_missing(&paths), Ok(true));
+        assert_eq!(fs::read(paths.approved_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"safe-personal-backup");
+        assert!(!previous.exists());
+        assert_eq!(recover_selected_actor_if_missing(&paths), Ok(false));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn actor_recovery_rejects_ambiguous_or_invalid_backups_without_removing_them() {
+        let root = test_root("actor-backup-guard");
+        let paths = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        let previous = paths.saved_root.join(".MyVoice.previous");
+        let builtin_previous = paths.saved_root.join(".MyVoice.builtin-previous");
+        write_actor(&previous, b"trained-backup");
+        write_actor(&builtin_previous, b"built-in-backup");
+
+        assert!(recover_selected_actor_if_missing(&paths).is_err());
+        assert!(!paths.approved_actor_dir.exists());
+        assert!(previous.exists() && builtin_previous.exists());
+
+        fs::remove_dir_all(&builtin_previous).unwrap();
+        fs::write(previous.join(ACTOR_MANIFEST_FILE), b"invalid").unwrap();
+        assert!(recover_selected_actor_if_missing(&paths).is_err());
+        assert!(!paths.approved_actor_dir.exists());
+        assert!(previous.join(ACTOR_MANIFEST_FILE).is_file());
+
+        write_actor(&previous, b"validated-backup");
+        write_actor(&paths.approved_actor_dir, b"selected-current-voice");
+        assert!(recover_selected_actor_if_missing(&paths).is_err());
+        assert_eq!(fs::read(paths.approved_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"selected-current-voice");
+        assert!(previous.exists());
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

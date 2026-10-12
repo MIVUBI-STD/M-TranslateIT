@@ -90,3 +90,25 @@ test("approved My Voice cannot replace the selected actor during an active Meeti
   assert.match(ui, /disabled=\{busy \|\| voiceChangesLocked \|\| !evaluationReviewComplete \|\| !qualityConfirmed\}/);
   assert.match(ui, /case "meeting_active":\s*return "Stop Meeting translation before selecting My Voice\."/);
 });
+
+test("voice switching attempts validated single-backup recovery before declaring a permanent recovery block", () => {
+  const voiceStorage = readFileSync(new URL("../../src-tauri/src/commands/voice_lab/storage.rs", import.meta.url), "utf8");
+  const voiceOwner = readFileSync(new URL("../../src-tauri/src/commands/voice_lab.rs", import.meta.url), "utf8");
+  assert.match(voiceOwner, /recover_selected_actor_if_missing/);
+  assert.match(voiceStorage, /fn recover_selected_actor_if_missing\(/);
+  assert.match(voiceStorage, /paths\.approved_actor_dir\.exists\(\) \|\| pending\.len\(\) != 1/);
+  assert.match(voiceStorage, /metadata\.file_type\(\)\.is_symlink\(\) \|\| !metadata\.is_dir\(\)/);
+  assert.match(voiceStorage, /validate_actor_package\(backup\)\?;/);
+  assert.match(voiceStorage, /fs::rename\(backup, &paths\.approved_actor_dir\)/);
+
+  for (const name of ["pub fn select_builtin_voice(", "pub fn select_stored_personal_voice()"]) {
+    const start = build.indexOf(name);
+    const end = build.indexOf("\n}", start);
+    assert.ok(start >= 0 && end > start);
+    const action = build.slice(start, end);
+    assert.ok(action.indexOf("recover_selected_actor_if_missing(")
+      < action.indexOf("voice_selection_recovery_pending("));
+    assert.match(action, /if meeting_blocks_voice_change\(\)/);
+    assert.match(action, /voice_selection_guard\(\)/);
+  }
+});

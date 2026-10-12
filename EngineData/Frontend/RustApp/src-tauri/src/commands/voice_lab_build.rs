@@ -19,7 +19,8 @@ use super::voice_lab::{
     finish_voice_lab_build, prepare_guided_dataset, promote_voice_actor_candidate,
     request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, archive_selected_personal_voice,
-    activate_stored_personal_voice, selected_voice_info, GuidedDatasetManifest, GuidedTakeContract,
+    activate_stored_personal_voice, recover_selected_actor_if_missing,
+    selected_voice_info, GuidedDatasetManifest, GuidedTakeContract,
     VoiceLabStoragePaths, MAX_REFERENCE_MS, MIN_REFERENCE_MS, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
@@ -711,10 +712,17 @@ pub fn select_builtin_voice(
         Ok(guard) => guard,
         Err(()) => return result(false, "voice_selection_unavailable", "Voice selection is busy. Try again."),
     };
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active", "Stop Meeting translation before switching voices.");
+    }
 
     let project_paths = ProjectPaths::discover();
     let storage = VoiceLabStoragePaths::from_project_paths(&project_paths);
     let target = storage.approved_actor_dir.clone();
+    if recover_selected_actor_if_missing(&storage).is_err() {
+        return result(false, "voice_recovery_required",
+            "The prior Meeting voice could not be safely restored. Your saved files were kept.");
+    }
     if voice_selection_recovery_pending(&storage.saved_root) {
         return result(
             false,
@@ -765,7 +773,14 @@ pub fn select_stored_personal_voice() -> VoiceLabBuildActionResult {
         Ok(guard) => guard,
         Err(()) => return result(false, "voice_selection_unavailable", "Voice selection is busy. Try again."),
     };
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active", "Stop Meeting translation before switching voices.");
+    }
     let paths = storage();
+    if recover_selected_actor_if_missing(&paths).is_err() {
+        return result(false, "voice_recovery_required",
+            "The prior Meeting voice could not be safely restored. Your saved files were kept.");
+    }
     if voice_selection_recovery_pending(&paths.saved_root) {
         return result(false, "voice_recovery_required",
             "An earlier voice change needs recovery. The saved voice was not replaced.");
