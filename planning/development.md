@@ -1,14 +1,14 @@
 # TranslateIT Development
 
-## Active continuation — Verified single-backup voice recovery (2026-10-12)
+## Active continuation — Exact-SHA source admission and test URL roots (2026-10-12)
 
-**State: SOURCE CANDIDATE ON Local; CARGO/FRONTEND EXECUTION AND TARGET_WINDOWS PROOF NOT EXECUTED.** The source audit found that selectors rejected pending `.MyVoice.previous` and `.MyVoice.builtin-previous` backups before any recoverable active-actor restoration could run. The existing canonical actor path remains unchanged. Select Built-in and Use My Voice now attempt recovery only when the selected actor is absent, exactly one backup exists, and the backup passes the canonical actor-package validation (including no symlinked directory). These actions preserve all data and reject ambiguous/invalid backups without guessing or deleting copies. The existing selected-voice lock and Meeting active owner checks remain in force. Rust unit-test fixtures cover valid single backup, multiple, corrupt, and existing-current cases; bounded source assertions and the U3 Windows runbook reflect the behavior.
+**State: SOURCE CORRECTION DELIVERED ON Local; NODE/CARGO/SVELTE EXECUTION AND TARGET_WINDOWS TESTS NOT EXECUTED.** Static source admission at pre-correction `665c31a5afb9e6443df31ff8c6b0c743158c5ae2` checked all 54 canonical Rust/TypeScript DTO field-name pairs (no differences), 68 frontend regression-test sources with over 200 literal relative source references, and the existing Windows Node/Rust/Python/uv declarations, lockfiles and built-in voice references. No field-name/path mismatch was found in those bounded checks.
 
-**Proof limit:** GitHub exact-source and static checks only; Rust/frontend tests, actual crash recovery, OS filesystem atomicity and Windows audio behavior NOT EXECUTED. No hosted CI, extra framework, model/asset mutation, or main promotion.
+**First wrong owner and correction:** The existing `validate_test_reference_reachability.mjs` assumed that any relative `new URL()` string used the test module as its URL base. `rust_msrv_contract.test.ts` uses an explicit `root` pointing to RustApp, so `new URL("../../../toolchain.json", root)` is valid but was misclassified as missing. The validator now recognizes literal `new URL("../../", import.meta.url)` directory aliases and resolves relative URLs against their declared base, without guessing unknown dynamic bases. The existing MSRV contract test now protects the distinction. No toolchain, Cargo manifest, lockfile, model, runtime behavior or UI was changed.
 
-**Known remaining limitation:** an interrupted swap that leaves both a valid active actor and a backup is ambiguous and remains blocked pending safe manual/native recovery design. Never silently remove a potentially unique backup.
+**Proof ceiling:** REMOTE_GITHUB source review and static projection only. The actual repository Node validator, frontend tests, Svelte typecheck, Rust compilation, built-in audio and real target-Windows scenarios are **NOT EXECUTED**; they remain the single integrated acceptance gate in `docs/knowledge/operations/target-windows-performance.md`. No hosted CI or `main` promotion.
 
-**One next step:** complete remaining source admission and confirm pinned build inputs, then prepare the single exact-Local-SHA integrated developer-mode Windows acceptance candidate; keep all executable/native outcomes UNKNOWN until observed.
+**One next step:** after verifying the new Local HEAD, lock that full SHA as the source-only candidate for the one coordinated Windows build/typecheck/runtime acceptance. STOP at the first actual executable failure; do not request per-commit incremental testing or claim an installed application.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

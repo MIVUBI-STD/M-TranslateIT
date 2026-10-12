@@ -15,8 +15,8 @@ function collect(directory) {
   return files;
 }
 
-function candidates(testPath, relativeRef) {
-  const base = resolve(dirname(testPath), relativeRef);
+function candidates(baseDirectory, relativeRef) {
+  const base = resolve(baseDirectory, relativeRef);
   if (extname(base)) return [base];
   return [
     base,
@@ -33,18 +33,39 @@ function candidates(testPath, relativeRef) {
 const failures = [];
 for (const testPath of collect(testsRoot)) {
   const source = readFileSync(testPath, "utf8");
-  const refs = new Set();
+  const testDirectory = dirname(testPath);
+  const refs = new Map();
+
+  // Resolve only a literal directory alias whose URL base is import.meta.url.
+  // Other dynamic URL roots cannot be safely interpreted as test-file paths.
+  const directoryAliases = new Map();
+  for (const match of source.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new URL\(\s*["'`](\.\.?\/[^"'`]+)["'`]\s*,\s*import\.meta\.url\s*\)/g)) {
+    if (match[2].endsWith("/")) {
+      directoryAliases.set(match[1], resolve(testDirectory, match[2]));
+    }
+  }
+
+  function addReference(baseDirectory, relativeRef) {
+    refs.set(baseDirectory + "\0" + relativeRef, { baseDirectory, relativeRef });
+  }
 
   for (const match of source.matchAll(/\bfrom\s+["'](\.\.?\/[^"']+)["']/g)) {
-    refs.add(match[1]);
-  }
-  for (const match of source.matchAll(/new URL\(\s*["'`](\.\.?\/[^"'`]+)["'`]/g)) {
-    if (!match[1].includes("${")) refs.add(match[1]);
+    addReference(testDirectory, match[1]);
   }
 
-  for (const relativeRef of refs) {
-    if (!candidates(testPath, relativeRef).some((path) => existsSync(path))) {
-      failures.push(`${testPath}: missing referenced source ${relativeRef}`);
+  // For URL literals, the second argument owns the location. A URL relative
+  // to a named root must not be falsely resolved against the test file.
+  for (const match of source.matchAll(/new URL\(\s*["'`](\.\.?\/[^"'`]+)["'`]\s*,\s*(import\.meta\.url|[A-Za-z_$][\w$]*)\s*\)/g)) {
+    if (match[1].includes("$" + "{")) continue;
+    const baseDirectory = match[2] === "import.meta.url"
+      ? testDirectory
+      : directoryAliases.get(match[2]);
+    if (baseDirectory) addReference(baseDirectory, match[1]);
+  }
+
+  for (const { baseDirectory, relativeRef } of refs.values()) {
+    if (!candidates(baseDirectory, relativeRef).some((path) => existsSync(path))) {
+      failures.push(testPath + ": missing referenced source " + relativeRef);
     }
   }
 }

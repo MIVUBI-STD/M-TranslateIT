@@ -60,3 +60,14 @@ test("integrated Cargo source check uses exact SHA, fresh frontend and locked de
   assert.doesNotMatch(compile, /if \(!existsSync\(frontendDistPath\)\)\s*\{[\s\S]*?run\("frontend build"/);
   assert.match(compile, /\["check", "--locked", `--manifest-path=\$\{manifestPath\}`\]/);
 });
+
+test("MSRV policy URL resolves from its explicit RustApp root, not the test module", () => {
+  const validator = readFileSync(new URL("../validate_test_reference_reachability.mjs", import.meta.url), "utf8");
+  const correct = new URL("../../../toolchain.json", root).href;
+  assert.equal(correct, new URL("../../../../../toolchain.json", import.meta.url).href);
+  assert.notEqual(correct, new URL("../../../toolchain.json", import.meta.url).href);
+  assert.match(validator, /const directoryAliases = new Map\(\)/);
+  assert.match(validator, /directoryAliases\.set\(match\[1\], resolve\(testDirectory, match\[2\]\)\)/);
+  assert.match(validator, /directoryAliases\.get\(match\[2\]\)/);
+  assert.match(validator, /candidates\(baseDirectory, relativeRef\)/);
+});
