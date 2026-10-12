@@ -1,6 +1,6 @@
 import type { MeetingSessionStatus } from "./runtimeApi";
-import { compact } from "../shared/state";
-import { APPLICATION_MEETING_OWNER_ID } from "../shared/types";
+import { compact } from "../shared/state.ts";
+import { APPLICATION_MEETING_OWNER_ID } from "../shared/types.ts";
 import type { ProductMeetingState } from "./runtimeProductTypes";
 
 export type MeetingControlState = {

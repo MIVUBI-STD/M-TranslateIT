@@ -66,7 +66,8 @@ test("Quick Preview remains training-only in the visible My Voice UI", () => {
   assert.match(ui, /myVoiceBuildApi\.getQuickPreviewAudio\(\)/);
   assert.match(quickPreviewUi, /quickPreviewBusy \|\| build\.preview_active/);
   assert.match(ui, /bind:previewAuthorized/);
-  assert.match(status, /preview_active: super::voice_lab_preview::quick_voice_preview_active\(\)/);
+  assert.match(status, /let preview_active = super::voice_lab_preview::quick_voice_preview_active\(\);/);
+  assert.match(status, /VoiceLabBuildStatus \{[\s\S]*?\n\s*preview_active,/);
   assert.match(preview, /pub fn quick_voice_preview_active\(\) -> bool/);
   const start = ui.indexOf("async function generateQuickPreview()");
   const end = ui.indexOf("async function startBuild()", start);

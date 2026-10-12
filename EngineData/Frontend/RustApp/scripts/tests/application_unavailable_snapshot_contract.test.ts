@@ -67,7 +67,7 @@ test("failed product intent returns a fail-closed Meeting status, never an empty
   assert.match(fallback, /runtime_claim: "frontend_bridge_unavailable"/);
   assert.match(fallback, /ready_for_start: false/);
   assert.match(fallback, /start_eligible: false/);
-  assert.match(app, /!result\.ok && result\.state === "frontend_bridge_error"/);
+  assert.match(app, /result\.meeting\.lifecycle === "unavailable" \|\| result\.state === "frontend_bridge_error"/);
   assert.match(app, /Meeting status is unknown/);
 });
 

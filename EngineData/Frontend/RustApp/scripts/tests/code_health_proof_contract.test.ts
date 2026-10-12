@@ -38,7 +38,7 @@ test("worker protocol keeps both Python and frontend contract proof", () => {
   assert.match(workflow, /run: npm run validate:bridge-contract/);
   assert.match(workflow, /run: npm run validate:tauri-command-args/);
   assert.match(workflow, /name: Python source and unit health/);
-  assert.match(workflow, /name: Python Windows source and unit health/);
+  assert.match(workflow, /name: Windows Python source and unit health/);
 });
 
 test("skipped source domains are not evidence", () => {

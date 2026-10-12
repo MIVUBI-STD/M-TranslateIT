@@ -57,7 +57,9 @@ test("voice and Meeting status use familiar labels without claiming delivery int
   assert.ok(build.includes("<QuickVoicePreview"));
   assert.match(quickPreview, /not for meetings|never usable in Meeting/i);
   assert.ok(build.includes("Retry status"));
-  assert.match(activity, /sending translated audio to the selected call microphone/i);
+  const meetingState = readFileSync(resolve(root, "src/app/bridge/productMeetingState.ts"), "utf8");
+  assert.match(meetingState, /playing the English voice into the meeting microphone/i);
+  assert.match(activity, /case "output_complete": return "Played"/);
   assert.ok(!activity.includes("Other people in the call are hearing"));
   assert.ok(sidebar.includes("aria-label={item.label}"));
 });

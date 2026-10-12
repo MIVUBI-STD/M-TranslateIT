@@ -58,8 +58,8 @@ test("approved My Voice distinguishes selected actor from separately saved copy 
   assert.match(warning, /separate saved copy could not be verified/);
   assert.match(ui, /case "approved_archive_attention":\s*return result\.message/);
   assert.match(ui, /result\.ok && \["approved", "approved_cleanup_attention", "approved_archive_attention"\]\.includes\(result\.state\)/);
-  assert.match(ui, /if \(build\.selected_voice_kind === "personal"\)/);
-  assert.match(ui, />Personal voice selected<\/span>/);
+  assert.match(ui, /\{#if build\.selected_voice_kind === "personal"\}/);
+  assert.match(ui, /Personal voice selected<\/span>/);
   assert.match(ui, /else if build\.saved_personal_voice_available/);
 });
 
