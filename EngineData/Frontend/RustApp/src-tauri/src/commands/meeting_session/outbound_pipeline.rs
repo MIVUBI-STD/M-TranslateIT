@@ -150,6 +150,7 @@ pub(super) fn process_outbound_wav(
         }),
     );
     timing.metrics.asr_ms = Some(elapsed_millis(asr_started_at, Instant::now()));
+    timing.metrics.asr_scheduler_wait_ms = super::worker_scheduler_wait_ms(&asr);
     set_outbound_timing(generation, session_id, event_sequence, &timing.metrics);
     if !generation_is_live(generation) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
@@ -220,6 +221,7 @@ pub(super) fn process_outbound_wav(
         }),
     );
     timing.metrics.translation_ms = Some(elapsed_millis(translation_started_at, Instant::now()));
+    timing.metrics.translation_scheduler_wait_ms = super::worker_scheduler_wait_ms(&translation);
     timing.metrics.translation_tokenization_ms = worker_number(&translation, "tokenization_ms");
     timing.metrics.translation_inference_ms = worker_number(&translation, "inference_ms");
     timing.metrics.translation_decode_ms = worker_number(&translation, "decode_ms");
@@ -330,6 +332,7 @@ pub(super) fn process_outbound_wav(
         }),
     );
     timing.metrics.tts_ms = Some(elapsed_millis(tts_started_at, Instant::now()));
+    timing.metrics.tts_scheduler_wait_ms = super::worker_scheduler_wait_ms(&tts);
     set_outbound_timing(generation, session_id, event_sequence, &timing.metrics);
     let _ = update_committed_turn_outbound_timing(
         session_id,

@@ -75,6 +75,16 @@ pub struct MeetingOutboundTiming {
     pub playback_queue_ms: Option<u64>,
     pub delivery_ms: Option<u64>,
     pub outbound_latency_ms: Option<u64>,
+    // Bounded source-side estimates; VAD durations include pre-roll and can
+    // differ from phoneme-level onset/offset. Never label these exact wall audio latency.
+    pub captured_speech_span_ms: u64,
+    pub estimated_onset_to_first_audio_ms: Option<u64>,
+    pub estimated_end_to_first_audio_ms: Option<u64>,
+    pub asr_scheduler_wait_ms: Option<u64>,
+    pub translation_scheduler_wait_ms: Option<u64>,
+    pub tts_scheduler_wait_ms: Option<u64>,
+    pub output_stream_build_ms: Option<u64>,
+    pub output_stream_start_to_first_audio_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -227,6 +237,12 @@ fn worker_blocker(response: &HelperBridgeWorkerResponse, fallback: &str) -> Stri
 
 fn worker_number(response: &HelperBridgeWorkerResponse, key: &str) -> Option<f64> {
     worker_json(response).get(key).and_then(Value::as_f64)
+}
+
+fn worker_scheduler_wait_ms(response: &HelperBridgeWorkerResponse) -> Option<u64> {
+    worker_json(response)
+        .get("scheduler_wait_ms")
+        .and_then(Value::as_u64)
 }
 
 fn generation_is_live(generation: u64) -> bool {
@@ -401,6 +417,14 @@ mod c2_latency_tests {
                 playback_queue_ms: None,
                 delivery_ms: None,
                 outbound_latency_ms: None,
+                captured_speech_span_ms: 3_000,
+                estimated_onset_to_first_audio_ms: None,
+                estimated_end_to_first_audio_ms: None,
+                asr_scheduler_wait_ms: Some(10),
+                translation_scheduler_wait_ms: Some(4),
+                tts_scheduler_wait_ms: Some(3),
+                output_stream_build_ms: None,
+                output_stream_start_to_first_audio_ms: None,
             },
         };
 
@@ -414,6 +438,8 @@ mod c2_latency_tests {
         assert_eq!(timing.metrics.speech_boundary_ms, 140);
         assert_eq!(timing.metrics.delivery_ms, Some(75));
         assert_eq!(timing.metrics.outbound_latency_ms, Some(1_275));
+        assert_eq!(timing.metrics.estimated_end_to_first_audio_ms, Some(1_415));
+        assert_eq!(timing.metrics.estimated_onset_to_first_audio_ms, Some(4_415));
         assert_eq!(timing.metrics.first_playback_unix_ms, Some(51_275));
     }
 }

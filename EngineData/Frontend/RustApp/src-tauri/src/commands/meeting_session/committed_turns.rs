@@ -545,6 +545,14 @@ mod tests {
             playback_queue_ms: None,
             delivery_ms: None,
             outbound_latency_ms: None,
+            captured_speech_span_ms: 1_000,
+            estimated_onset_to_first_audio_ms: None,
+            estimated_end_to_first_audio_ms: None,
+            asr_scheduler_wait_ms: None,
+            translation_scheduler_wait_ms: None,
+            tts_scheduler_wait_ms: None,
+            output_stream_build_ms: None,
+            output_stream_start_to_first_audio_ms: None,
         }
     }
 

@@ -220,6 +220,7 @@ fn send_worker_task_inner(task: &str, mut payload: Value) -> HelperBridgeWorkerR
         }
     };
     let request_id = permit.request_id().to_string();
+    let scheduler_wait_ms = permit.scheduler_wait_ms();
     let response_deadline_ms = worker_response_deadline_for_priority(task, priority);
 
     // An incoming request may have entered the scheduler before outbound claimed the
@@ -372,6 +373,8 @@ fn send_worker_task_inner(task: &str, mut payload: Value) -> HelperBridgeWorkerR
     if let Some(object) = worker_response.as_object_mut() {
         object.insert("request_id".to_string(), json!(request_id));
         object.insert("scheduler_priority".to_string(), json!(priority.label()));
+        // Rust-measured admission delay, not model inference time or worker-supplied truth.
+        object.insert("scheduler_wait_ms".to_string(), json!(scheduler_wait_ms));
     }
 
     match runtime().lock() {

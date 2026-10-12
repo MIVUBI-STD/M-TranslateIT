@@ -32,6 +32,11 @@ fn current_unix_ms() -> u128 {
         .as_millis()
 }
 
+fn stream_start_to_first_audio_ms(start: Instant, first: Option<Instant>) -> Option<u64> {
+    first.and_then(|instant| instant.checked_duration_since(start))
+        .map(|duration| duration.as_millis().min(u128::from(u64::MAX)) as u64)
+}
+
 fn projected_unix_ms(anchor: Instant, anchor_unix_ms: u128, target: Instant) -> u128 {
     target
         .checked_duration_since(anchor)
@@ -45,6 +50,8 @@ pub struct MeetingOutputDeliveryReport {
     pub execution_attempted: bool,
     pub first_playback_at: Option<Instant>,
     pub first_playback_unix_ms: Option<u128>,
+    pub stream_build_ms: Option<u64>,
+    pub stream_start_to_first_audio_ms: Option<u64>,
     pub blocker: String,
 }
 
@@ -426,6 +433,8 @@ fn blocked(blocker: &str, execution_attempted: bool) -> MeetingOutputDeliveryRep
         execution_attempted,
         first_playback_at: None,
         first_playback_unix_ms: None,
+        stream_build_ms: None,
+        stream_start_to_first_audio_ms: None,
         blocker: blocker.to_string(),
     }
 }
@@ -485,6 +494,7 @@ pub fn deliver_meeting_output_wav(
     let (completion_tx, completion_rx) = mpsc::sync_channel(1);
     let (first_playback_tx, first_playback_rx) = mpsc::sync_channel(1);
     let callback_errors = Arc::new(Mutex::new(None));
+    let stream_build_started_at = Instant::now();
     let stream = match build_output_stream(
         &device,
         &config,
@@ -502,6 +512,8 @@ pub fn deliver_meeting_output_wav(
             return blocked(&blocker, false);
         }
     };
+    let stream_build_ms = stream_build_started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+    let stream_started_at = Instant::now();
     if stream.play().is_err() {
         clear_cancel_control(generation);
         return blocked("meeting_output:stream_start_failed", true);
@@ -518,6 +530,8 @@ pub fn deliver_meeting_output_wav(
         .ok()
         .and_then(|error| error.clone());
     let first_playback_at = first_playback_rx.try_recv().ok();
+    let stream_start_to_first_audio_ms =
+        stream_start_to_first_audio_ms(stream_started_at, first_playback_at);
     let first_playback_unix_ms = first_playback_at
         .map(|instant| projected_unix_ms(delivery_started_at, delivery_started_unix_ms, instant));
     let cancelled = cancel_requested.load(Ordering::Acquire)
@@ -541,18 +555,24 @@ pub fn deliver_meeting_output_wav(
         let mut report = blocked("meeting_output:cancelled", true);
         report.first_playback_at = first_playback_at;
         report.first_playback_unix_ms = first_playback_unix_ms;
+        report.stream_build_ms = Some(stream_build_ms);
+        report.stream_start_to_first_audio_ms = stream_start_to_first_audio_ms;
         return report;
     }
     if callback_error.is_some() {
         let mut report = blocked("meeting_output:stream_callback_failed", true);
         report.first_playback_at = first_playback_at;
         report.first_playback_unix_ms = first_playback_unix_ms;
+        report.stream_build_ms = Some(stream_build_ms);
+        report.stream_start_to_first_audio_ms = stream_start_to_first_audio_ms;
         return report;
     }
     if completion.is_err() {
         let mut report = blocked("meeting_output:delivery_deadline_exceeded", true);
         report.first_playback_at = first_playback_at;
         report.first_playback_unix_ms = first_playback_unix_ms;
+        report.stream_build_ms = Some(stream_build_ms);
+        report.stream_start_to_first_audio_ms = stream_start_to_first_audio_ms;
         return report;
     }
 
@@ -561,6 +581,8 @@ pub fn deliver_meeting_output_wav(
         execution_attempted: true,
         first_playback_at,
         first_playback_unix_ms,
+        stream_build_ms: Some(stream_build_ms),
+        stream_start_to_first_audio_ms,
         blocker: String::new(),
     }
 }
@@ -569,8 +591,18 @@ pub fn deliver_meeting_output_wav(
 mod tests {
     use super::{
         decode_wav_bytes, delivery_deadline_ms, prepare_output_samples, projected_unix_ms,
+        stream_start_to_first_audio_ms,
     };
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn stream_start_timing_uses_monotonic_time_and_has_no_synthetic_success() {
+        let started = Instant::now();
+        let first = started + Duration::from_millis(43);
+        assert_eq!(stream_start_to_first_audio_ms(started, Some(first)), Some(43));
+        assert_eq!(stream_start_to_first_audio_ms(started, None), None);
+        assert_eq!(stream_start_to_first_audio_ms(first, Some(started)), None);
+    }
 
     fn pcm16_wav(sample_rate: u32, channels: u16, samples: &[i16]) -> Vec<u8> {
         let data_bytes = (samples.len() * 2) as u32;

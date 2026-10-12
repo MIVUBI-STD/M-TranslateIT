@@ -1,6 +1,6 @@
 # RFC — Meeting Quality-First Adaptive Streaming (RTX 3070 / i7-14700 / 32 GB)
 
-**Status:** PROPOSED DESIGN; not runtime-proven; no inference/audio code changes authorized by this RFC.
+**Status:** PROPOSED ARCHITECTURE; instrumentation-only source candidate started 2026-10-12, target Windows runtime not proven. No model/streaming-mode changes authorized by this RFC.
 **Source baseline:** `a89e9501d68dc30082a332bd37be8e2a5e85f01d` on `Local`, 2026-10-12.
 **Goal:** deliver speech translation for online meetings with substantially less perceived latency *without regression in meaning, voice quality, audio routing, or long-session reliability*.
 **Hardware constraint:** one dedicated NVIDIA RTX 3070 (8 GB VRAM) shared by desktop/browser and local inference; Intel Core i7-14700 class CPU (20C/28T); 32 GB system RAM; no usable iGPU. Hardware identity and runtime precision need target-Windows verification.
@@ -124,4 +124,4 @@ Each stage is behind a developer-only acceptance mechanism, not a new product sw
 
 No Gemini/other cloud API, no mandatory new model, no speaker diarization, no speculative second GPU worker, no immediate complete model replacement, no UI settings for streaming modes, no automatic permanent transcript recording, no claim that source checks prove Google Meet delivery.
 
-**Next action:** baseline measurement and latency instrumentation design, then compare one small optimization (persistent output) before touching speculative decoding. User hardware and quality goals are confirmed; proposed architecture remains pending measured admission.
+**Next action:** run exact-SHA source/build admission for the instrumentation candidate, then one authorized native baseline (latency/VRAM/browser). Only if measured output-stream construction materially contributes to delays, compare a generation-bound persistent-stream prototype. Streaming ASR/TTS remains gated, not assumed.

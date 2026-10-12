@@ -191,6 +191,9 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         route.first_playback_at,
         route.first_playback_unix_ms,
     );
+    timing.metrics.output_stream_build_ms = route.stream_build_ms;
+    timing.metrics.output_stream_start_to_first_audio_ms =
+        route.stream_start_to_first_audio_ms;
     set_outbound_timing(
         job.generation,
         &job.session_id,

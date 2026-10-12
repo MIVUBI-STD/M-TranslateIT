@@ -51,3 +51,13 @@ test("unavailable recovery never appears as clean, and audio diagnosis uses actu
   assert.match(performance, /Largest recorded stage:/);
   assert.match(performance, /not proof of the underlying bottleneck/);
 });
+
+test("new Meeting performance metrics distinguish estimated onset from post-finalization and avoid double counting", () => {
+  assert.match(performance, /After finalization/);
+  assert.match(performance, /Estimated speech onset → first audio/);
+  assert.match(performance, /Estimated speech end → first audio/);
+  assert.match(performance, /Output stream build/);
+  assert.match(performance, /ASR scheduler wait/);
+  assert.match(performance, /already include scheduler wait/);
+  assert.match(performance, /not precise microphone or remote-participant timestamps/);
+});

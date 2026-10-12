@@ -124,6 +124,13 @@ pub fn export_diagnostic_support_bundle() -> DiagnosticSupportBundleResult {
                     "playback_queue": timing.playback_queue_ms,
                     "delivery": timing.delivery_ms,
                     "outbound_latency": timing.outbound_latency_ms,
+                    "estimated_speech_onset_to_first_audio": timing.estimated_onset_to_first_audio_ms,
+                    "estimated_speech_end_to_first_audio": timing.estimated_end_to_first_audio_ms,
+                    "asr_scheduler_wait": timing.asr_scheduler_wait_ms,
+                    "translation_scheduler_wait": timing.translation_scheduler_wait_ms,
+                    "tts_scheduler_wait": timing.tts_scheduler_wait_ms,
+                    "output_stream_build": timing.output_stream_build_ms,
+                    "output_stream_start_to_first_audio": timing.output_stream_start_to_first_audio_ms,
                 })),
                 // Numeric-only exploratory distribution, derived on explicit
                 // support export; not persistent telemetry or an SLA.

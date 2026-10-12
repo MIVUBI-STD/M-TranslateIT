@@ -68,6 +68,8 @@ fn assert_parser_blocker(label: &str, bytes: &[u8], expected_blocker: &str) {
     assert!(!report.ok);
     assert!(!report.execution_attempted);
     assert_eq!(report.blocker, expected_blocker);
+    assert!(report.stream_build_ms.is_none());
+    assert!(report.stream_start_to_first_audio_ms.is_none());
     let _ = fs::remove_file(path);
     let _ = clear_runtime_session_state();
 }

@@ -104,6 +104,14 @@ export type MeetingOutboundTiming = {
   playback_queue_ms: number | null;
   delivery_ms: number | null;
   outbound_latency_ms: number | null;
+  captured_speech_span_ms: number;
+  estimated_onset_to_first_audio_ms: number | null;
+  estimated_end_to_first_audio_ms: number | null;
+  asr_scheduler_wait_ms: number | null;
+  translation_scheduler_wait_ms: number | null;
+  tts_scheduler_wait_ms: number | null;
+  output_stream_build_ms: number | null;
+  output_stream_start_to_first_audio_ms: number | null;
 };
 export type MeetingOutboundRuntimeStatus = {
   generation: number | null;

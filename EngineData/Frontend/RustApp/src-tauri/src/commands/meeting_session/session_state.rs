@@ -283,6 +283,14 @@ pub(super) fn timing_context_from_utterance(
             playback_queue_ms: None,
             delivery_ms: None,
             outbound_latency_ms: None,
+            captured_speech_span_ms: utterance.speech_duration_ms,
+            estimated_onset_to_first_audio_ms: None,
+            estimated_end_to_first_audio_ms: None,
+            asr_scheduler_wait_ms: None,
+            translation_scheduler_wait_ms: None,
+            tts_scheduler_wait_ms: None,
+            output_stream_build_ms: None,
+            output_stream_start_to_first_audio_ms: None,
         },
     }
 }
@@ -297,8 +305,14 @@ pub(super) fn record_first_playback_timing(
         return;
     };
     timing.metrics.delivery_ms = Some(elapsed_millis(delivery_started_at, first_playback_at));
-    timing.metrics.outbound_latency_ms =
-        Some(elapsed_millis(timing.finalized_at, first_playback_at));
+    let post_finalization_ms = elapsed_millis(timing.finalized_at, first_playback_at);
+    timing.metrics.outbound_latency_ms = Some(post_finalization_ms);
+    // Add the already-measured VAD trailing silence and retained speech span;
+    // these are estimates, not native capture hardware timestamps.
+    let estimated_end_ms = post_finalization_ms.saturating_add(timing.metrics.speech_boundary_ms);
+    timing.metrics.estimated_end_to_first_audio_ms = Some(estimated_end_ms);
+    timing.metrics.estimated_onset_to_first_audio_ms =
+        Some(estimated_end_ms.saturating_add(timing.metrics.captured_speech_span_ms));
     timing.metrics.first_playback_unix_ms = first_playback_unix_ms;
 }
 

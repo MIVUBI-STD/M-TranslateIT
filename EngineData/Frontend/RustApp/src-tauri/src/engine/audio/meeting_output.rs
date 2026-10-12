@@ -57,6 +57,8 @@ fn blocked_before_execution(blocker: &str) -> MeetingOutputDeliveryReport {
         execution_attempted: false,
         first_playback_at: None,
         first_playback_unix_ms: None,
+        stream_build_ms: None,
+        stream_start_to_first_audio_ms: None,
         blocker: blocker.to_string(),
     }
 }

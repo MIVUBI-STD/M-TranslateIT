@@ -28,7 +28,10 @@ test("support bundle snapshot does not mutate incident history while observing g
 test("support bundle records only numeric stage timing, not private speech timestamps", () => {
   assert.match(support, /"timing_ms": meeting\.outbound\.timing\.as_ref\(\)/);
   for (const field of ["speech_boundary", "finalization", "queue", "audio_prepare",
-    "asr", "translation", "tts", "playback_queue", "delivery", "outbound_latency"]) {
+    "asr", "translation", "tts", "playback_queue", "delivery", "outbound_latency",
+    "estimated_speech_onset_to_first_audio", "estimated_speech_end_to_first_audio",
+    "asr_scheduler_wait", "translation_scheduler_wait", "tts_scheduler_wait",
+    "output_stream_build", "output_stream_start_to_first_audio"]) {
     assert.ok(support.includes('"' + field + '": timing.'), field);
   }
   assert.doesNotMatch(support, /"finalized_unix_ms":|"first_playback_unix_ms":/);

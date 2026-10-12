@@ -62,11 +62,17 @@ fn scheduler() -> &'static (Mutex<HelperSchedulerState>, Condvar) {
 
 pub struct HelperTaskPermit {
     request_id: String,
+    scheduler_wait_ms: u64,
 }
 
 impl HelperTaskPermit {
     pub fn request_id(&self) -> &str {
         &self.request_id
+    }
+
+    /// Time spent waiting for the single worker permit, excluding model execution.
+    pub fn scheduler_wait_ms(&self) -> u64 {
+        self.scheduler_wait_ms
     }
 }
 
@@ -201,6 +207,7 @@ fn acquire_helper_task_permit_with_wait_deadline(
     state.next_request_sequence = state.next_request_sequence.saturating_add(1);
     Ok(HelperTaskPermit {
         request_id: format!("helper-{}", state.next_request_sequence),
+        scheduler_wait_ms: wait_started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
     })
 }
 

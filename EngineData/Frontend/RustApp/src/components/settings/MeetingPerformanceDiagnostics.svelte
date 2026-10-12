@@ -58,15 +58,32 @@
     <h4 class="mb-0 mt-1.5 text-[14px] font-semibold">Meeting performance</h4>
   </div>
 
-  <div class="mt-4 grid grid-cols-[repeat(5,minmax(0,1fr))] gap-3">
-    <div class="ti-state-card"><span class="ti-field-label">Total</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.outbound_latency_ms)}</strong></div>
+  <div class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div class="ti-state-card"><span class="ti-field-label">After finalization</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.outbound_latency_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">ASR</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.asr_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Translation</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Voice TTS</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.tts_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Delivery</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.delivery_ms)}</strong></div>
   </div>
 
-  <div class="mt-3 grid grid-cols-[repeat(4,minmax(0,1fr))] gap-3">
+  <div class="mt-3 grid grid-cols-2 gap-3">
+    <div class="ti-state-card"><span class="ti-field-label">Estimated speech onset → first audio</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.estimated_onset_to_first_audio_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">Estimated speech end → first audio</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.estimated_end_to_first_audio_ms)}</strong></div>
+  </div>
+  <p class="mt-2 text-[11px] leading-5 text-[var(--ti-text-soft)]">Speech onset/end estimates include VAD's buffered speech span and trailing silence. They are not precise microphone or remote-participant timestamps.</p>
+
+  <div class="mt-3 grid grid-cols-3 gap-3">
+    <div class="ti-state-card"><span class="ti-field-label">ASR scheduler wait</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.asr_scheduler_wait_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">Translation scheduler wait</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_scheduler_wait_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">TTS scheduler wait</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.tts_scheduler_wait_ms)}</strong></div>
+  </div>
+
+  <div class="mt-3 grid grid-cols-2 gap-3">
+    <div class="ti-state-card"><span class="ti-field-label">Output stream build</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.output_stream_build_ms)}</strong></div>
+    <div class="ti-state-card"><span class="ti-field-label">Output stream start → first callback</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.output_stream_start_to_first_audio_ms)}</strong></div>
+  </div>
+
+  <div class="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
     <div class="ti-state-card"><span class="ti-field-label">Translate tokenize</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_tokenization_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Translate inference</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_inference_ms)}</strong></div>
     <div class="ti-state-card"><span class="ti-field-label">Translate decode</span><strong class="mt-2 block text-[12px]">{formatTiming(timing?.translation_decode_ms)}</strong></div>
@@ -93,6 +110,6 @@
 
   <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-muted)]" role="status">{diagnosis}</p>
   <p class="mb-0 mt-2 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-    Stage timings are observational evidence. Measure whole-product VRAM with the Windows/NVIDIA GPU monitor because ASR and PyTorch use separate CUDA runtimes.
+    Stage timings are observational evidence from this device only. ASR/translation/TTS totals already include scheduler wait, so do not add wait times to them. Measure whole-product VRAM with Windows/NVIDIA GPU tools (including browser and WDDM); no app-level VRAM figure is inferred.
   </p>
 </article>

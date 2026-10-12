@@ -1,3 +1,11 @@
+## Meeting Performance Foundation — hardware-specific instrumentation (2026-10-12)
+
+**Scope:** adds source-only, numeric, redacted measurement for VAD-estimated speech onset/end to first native audio, helper scheduler wait by ASR/translation/TTS, and CPAL stream-build/start overhead. The production models, GPU concurrency, audio routing, VAD thresholds, and final-utterance flow remain unchanged. Device: RTX 3070 8 GB + i7-14700-class CPU + 32 GB RAM, without a usable iGPU.
+
+**Do not overclaim:** the existing `outbound_latency_ms` is post-finalization; onset/end values are approximate, and the first native callback is not proof the Google Meet receiver heard translated speech. Real VRAM/CPU/Chrome GPU load require target Windows instruments. No native or build result yet on this revision.
+
+**Admission sequence:** matching source/typecheck/Rust/Python tests → one pinned Windows real-Meet baseline with 10–20 phrases → cold/warm, P50/P95, Chrome active + nvidia-smi/Task Manager VRAM peaks → at least five Start/Stop cycles and 30-minute stability → evaluate one change at a time against baseline; do not start speculative streaming.
+
 ## Meeting transcript refinement — 2026-10-12
 
 **Decision:** use WhatsApp-like left/right transcript presentation, `You` for microphone turns on the right and `Person 1` on the left for the **single combined incoming lane**. This is **not** speaker diarization and must not infer identities or separate different participants without actual speaker evidence. Display local recorded time and a readable session date/time; retain original and translation as separate fields. One reusable bubble component renders Live and Last Meeting.
