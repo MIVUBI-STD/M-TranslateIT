@@ -62,6 +62,17 @@ fn elapsed_millis(start: Instant, end: Instant) -> u64 {
         .unwrap_or(0)
 }
 
+// Clock of accepted mono samples at the canonical VAD producer, NOT
+// device/OS timestamps. Frames dropped upstream cannot be recovered here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FinalizedCaptureProvenance {
+    pub audio_epoch: u64,
+    pub input_rate_hz: u32,
+    pub input_start_sample: u64,
+    pub input_end_sample: u64, // exclusive; includes pre-roll and trailing silence
+    pub asr_sample_count: u64, // actual 16-kHz frame sent to the WAV writer
+}
+
 #[derive(Debug, Clone)]
 pub struct FinalizedMeetingUtterance {
     pub session_id: String,
@@ -75,6 +86,7 @@ pub struct FinalizedMeetingUtterance {
     pub speech_boundary_ms: u64,
     pub speech_duration_ms: u64,
     pub finalization_ms: u64,
+    pub capture_provenance: Option<FinalizedCaptureProvenance>,
     pub frame: AudioFrame,
 }
 
@@ -84,6 +96,9 @@ struct FinalizedProducerState {
     generation: Option<u64>,
     lane: &'static str,
     sample_rate_hz: u32,
+    capture_epoch: u64,
+    input_sample_cursor: u64,
+    current_input_start: Option<u64>,
     profile: RuntimeVadProfile,
     pre_roll: VecDeque<f32>,
     in_utterance: bool,
@@ -209,6 +224,8 @@ pub(super) fn reset_finalized_outbound_speech_boundary(generation: u64) {
     if let Ok(mut guard) = sync.state.lock() {
         if let Some(state) = guard.as_mut() {
             if state.generation == Some(generation) {
+                state.capture_epoch = state.capture_epoch.saturating_add(1);
+                state.input_sample_cursor = 0;
                 reset_current_utterance(state);
             }
         }
@@ -219,6 +236,9 @@ pub fn reset_finalized_incoming_speech_boundary() {
     let sync = incoming_sync();
     if let Ok(mut guard) = sync.state.lock() {
         if let Some(state) = guard.as_mut() {
+            // Suppressed incoming frames must not create false clock continuity.
+            state.capture_epoch = state.capture_epoch.saturating_add(1);
+            state.input_sample_cursor = 0;
             reset_current_utterance(state);
         }
     }
@@ -253,6 +273,9 @@ fn reset_producer(
             generation,
             lane,
             sample_rate_hz,
+            capture_epoch: 1,
+            input_sample_cursor: 0,
+            current_input_start: None,
             profile,
             // Reserve normal working capacity before the audio callback starts so
             // ordinary speech does not repeatedly grow these buffers in realtime.
@@ -403,9 +426,20 @@ fn observe_finalized_mono_samples(
     };
     if state.sample_rate_hz != sample_rate_hz {
         state.sample_rate_hz = sample_rate_hz;
+        state.capture_epoch = state.capture_epoch.saturating_add(1);
+        state.input_sample_cursor = 0;
         state.pre_roll.clear();
         reset_current_utterance(state);
     }
+    let Some(next_cursor) = state.input_sample_cursor.checked_add(samples.len() as u64) else {
+        state.capture_epoch = state.capture_epoch.saturating_add(1);
+        state.input_sample_cursor = 0;
+        reset_current_utterance(state);
+        return;
+    };
+    // Advance before finalization; this callback block is fully accepted by
+    // the existing mono VAD owner, with no extra callback allocation.
+    state.input_sample_cursor = next_cursor;
 
     // AudioEvidenceReport sanitizes while reading, and ingest_observation sanitizes
     // only samples that must be retained. Avoid constructing a second safe_samples
@@ -533,6 +567,9 @@ fn ingest_observation(
     if !state.in_utterance {
         if speech_like {
             state.in_utterance = true;
+            state.current_input_start = state.input_sample_cursor
+                .checked_sub(samples.len() as u64)
+                .and_then(|start| start.checked_sub(state.pre_roll.len() as u64));
             state
                 .current_samples
                 .reserve(state.pre_roll.len() + samples.len());
@@ -634,6 +671,12 @@ fn finalize_current_utterance(state: &mut FinalizedProducerState) -> bool {
     }
 
     let source_samples = std::mem::take(&mut state.current_samples);
+    // The WAV includes preserved pre-roll AND trailing silence: never use
+    // speech_end as its full native clock boundary.
+    let native_range = state.current_input_start.and_then(|start| {
+        (start.checked_add(source_samples.len() as u64) == Some(state.input_sample_cursor))
+            .then_some((start, state.input_sample_cursor))
+    });
     let target_samples = if state.sample_rate_hz == TARGET_SAMPLE_RATE_HZ {
         source_samples
     } else {
@@ -673,6 +716,13 @@ fn finalize_current_utterance(state: &mut FinalizedProducerState) -> bool {
         speech_boundary_ms,
         speech_duration_ms: u64::from(speech_duration_ms),
         finalization_ms,
+        capture_provenance: native_range.map(|(start, end)| FinalizedCaptureProvenance {
+            audio_epoch: state.capture_epoch,
+            input_rate_hz: state.sample_rate_hz,
+            input_start_sample: start,
+            input_end_sample: end,
+            asr_sample_count: target_samples.len() as u64,
+        }),
         frame: AudioFrame {
             sample_rate_hz: TARGET_SAMPLE_RATE_HZ,
             channels: TARGET_CHANNELS,
@@ -726,6 +776,7 @@ fn extend_safe_samples(target: &mut Vec<f32>, samples: &[f32]) {
 
 fn reset_current_utterance(state: &mut FinalizedProducerState) {
     state.in_utterance = false;
+    state.current_input_start = None;
     state.current_samples.clear();
     state.speech_samples = 0;
     state.trailing_silence_samples = 0;

@@ -69,6 +69,9 @@ fn preroll_bound_resample_and_safe_retention_are_deterministic() {
         generation: None,
         lane: LANE_INCOMING,
         sample_rate_hz: 16_000,
+        capture_epoch: 1,
+        input_sample_cursor: 0,
+        current_input_start: None,
         profile,
         pre_roll: VecDeque::new(),
         in_utterance: false,
@@ -141,6 +144,9 @@ fn clipped_burst_during_active_speech_does_not_become_a_silence_boundary() {
         generation: None,
         lane: LANE_INCOMING,
         sample_rate_hz: 16_000,
+        capture_epoch: 1,
+        input_sample_cursor: 0,
+        current_input_start: None,
         profile: runtime_vad_profile(),
         pre_roll: VecDeque::new(),
         in_utterance: false,
@@ -204,6 +210,9 @@ fn incoming_bounded_wait_distinguishes_deferred_retry_from_stopped_producer() {
             generation: None,
             lane: LANE_INCOMING,
             sample_rate_hz: 16_000,
+            capture_epoch: 1,
+            input_sample_cursor: 0,
+            current_input_start: None,
             profile: runtime_vad_profile(),
             pre_roll: VecDeque::new(),
             in_utterance: false,
@@ -215,6 +224,8 @@ fn incoming_bounded_wait_distinguishes_deferred_retry_from_stopped_producer() {
             pending: VecDeque::new(),
         })),
         ready: Condvar::new(),
+        callback_lock_observations: AtomicU64::new(0),
+        callback_lock_wait_max_ns: AtomicU64::new(0),
     };
     assert!(matches!(
         wait_take_finalized_incoming_utterance_for_sync(
@@ -242,6 +253,7 @@ fn incoming_bounded_wait_distinguishes_deferred_retry_from_stopped_producer() {
             speech_boundary_ms: 100,
             speech_duration_ms: 300,
             finalization_ms: 0,
+            capture_provenance: None,
             frame: AudioFrame {
                 sample_rate_hz: TARGET_SAMPLE_RATE_HZ,
                 channels: TARGET_CHANNELS,

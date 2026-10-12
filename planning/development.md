@@ -1,12 +1,12 @@
-## Active continuation — ASR rolling-window/capture-clock alignment (2026-10-13)
+## Active continuation — Producer-owned finalized audio provenance (2026-10-13)
 
-**Source candidate:** The existing test-only `meeting_session/source_observations.rs` now supports explicitly supplied capture-clock provenance for contiguous 16-kHz ASR windows. It maps WHOLE ASR window boundaries into outward-rounded capture sample bounds at the declared native rate (including 44.1/48 kHz), with epoch/scope checking, rate-ratio sanity checks, window containment and discontinuity rejection. Shifted overlapping ASR windows reset text agreement, while a new same-anchor growing window can reconfirm text. No non-final text is assigned a word-level capture span; finalized whole-window source identity requires capture map provenance. No production capture/ASR/MT/TTS path or model is modified.
+**Source candidate:** Existing mono VAD producer now attaches bounded accepted-input audio epoch, sample rate, native start/end (including pre-roll and trailing silence), and actual 16-kHz frame sample count. Known input-rate changes and incoming suppression-boundary resets advance the epoch; inconsistent provenance stays unknown. The existing test-only SourceStabilizer accepts a final whole-frame clock map derived from this real producer metadata, without claiming word timestamps or enabling partial ASR/TTS. PCM hot callback gains only scalar counters, no additional allocations, inference, or secondary capture runtime. Existing WAV emission remains unchanged.
 
-**Evidence ceiling:** Static source inspection and authored Rust scenarios only; all Cargo, Windows audio/VRAM, worker integration, VB-CABLE and meeting-receiver checks remain **NOT EXECUTED**. Source caller-supplied provenance and clock-rate mapping are not proof of physical PCM continuity or exact phoneme timing.
+**Proof ceiling:** Static GitHub source inspection and Rust scenarios authored, **NOT EXECUTED** (Cargo, Windows audio/CUDA, device callback, VB-CABLE, receiver). Input samples are the mono frames admitted to producer, not real OS device timestamps; upstream lost frames cannot be reconstructed.
 
-**Unresolved:** The canonical capture/VAD/resampler path does not yet supply real continuity/epoch and clock-map metadata to this candidate. Actual VAD trimming, pre-roll, resampler phase, mid-session device/rate change and sample-to-text alignment require explicit ownership. The existing PCM handoff stays test-only.
+**Unresolved:** Actual capture callback loss signals and discontinuity epoch propagation, VAD trimmed/rolling ASR alignment, partial speech authority and physical timing evidence remain pending. The PCM handoff prototype stays test-only.
 
-**Single next step:** Connect producer-owned continuity/epoch metadata and capture-to-ASR mapping at the actual audio preparation boundary as an internal reversible candidate, without activating partial speech delivery or GPU drafts.
+**Single next step:** Integrate known source-loss and discontinuity from the canonical capture/handoff boundary into epoch invalidation, without enabling partial Meeting output or hosted execution.
 
 
 ## Active continuation — Batch A source and delivery authority (2026-10-12)

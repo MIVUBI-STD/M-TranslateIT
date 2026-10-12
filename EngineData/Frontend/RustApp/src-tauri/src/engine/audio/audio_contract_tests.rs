@@ -88,6 +88,7 @@ fn utterance_fixture(
             sample_rate_hz,
         )),
         finalization_ms: 0,
+        capture_provenance: None,
         frame: AudioFrame {
             sample_rate_hz,
             channels,
@@ -312,6 +313,11 @@ fn finalized_source_rate_transition_resets_old_preroll_and_resamples_to_target()
         .expect("new-rate speech should finalize after the source-rate reset");
     assert_eq!(transitioned.frame.sample_rate_hz, TARGET_SAMPLE_RATE_HZ);
     assert_eq!(transitioned.frame.channels, TARGET_CHANNELS);
+    let clock = transitioned.capture_provenance.expect("canonical producer clock");
+    assert_eq!(clock.audio_epoch, 2);
+    assert_eq!(clock.input_rate_hz, 16_000);
+    assert_eq!((clock.input_start_sample, clock.input_end_sample), (0, 12_800));
+    assert_eq!(clock.asr_sample_count, 12_800);
     assert_eq!(
         transitioned.frame.samples.len(),
         12_800,
@@ -336,6 +342,11 @@ fn finalized_source_rate_transition_resets_old_preroll_and_resamples_to_target()
         .expect("8 kHz finalized speech should be resampled to the target format");
     assert_eq!(resampled.frame.sample_rate_hz, TARGET_SAMPLE_RATE_HZ);
     assert_eq!(resampled.frame.channels, TARGET_CHANNELS);
+    let clock = resampled.capture_provenance.expect("native clock after resampling");
+    assert_eq!(clock.audio_epoch, 1);
+    assert_eq!(clock.input_rate_hz, 8_000);
+    assert_eq!((clock.input_start_sample, clock.input_end_sample), (0, 6_400));
+    assert_eq!(clock.asr_sample_count, 12_800);
     assert_eq!(resampled.frame.samples.len(), 12_800);
     assert!(resampled
         .frame

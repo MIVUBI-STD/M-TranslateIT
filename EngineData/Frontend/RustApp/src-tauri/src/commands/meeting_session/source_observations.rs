@@ -3,6 +3,8 @@
 //! can supply audio-epoch sample positions and authorize progressive commits.
 //! Agreement across growing windows is TEXT evidence, not word/audio alignment.
 
+use crate::engine::audio::finalized_utterance::FinalizedMeetingUtterance;
+
 const ASR_RATE_HZ: u32 = 16_000;
 const MAX_OBSERVATION_BYTES: usize = 8 * 1024;
 const MAX_WINDOW_SAMPLES_16K: u64 = 16_000 * 60;
@@ -82,6 +84,15 @@ impl CaptureClockSegment {
         {
             return Err(ObservationError::UnmappedWindow);
         }
+        if window == self.asr_window {
+            // Only this WHOLE accepted producer range has exact sample
+            // endpoints; partial windows remain ratio-based approximations.
+            return Ok(CaptureWindowBounds {
+                start_lower_sample: self.capture_window.start_sample,
+                end_upper_sample: self.capture_window.end_sample,
+                sample_rate_hz: self.capture_rate_hz,
+            });
+        }
         let rate = u128::from(self.capture_rate_hz);
         let asr_rate = u128::from(ASR_RATE_HZ);
         let start_delta = u128::from(window.start_sample - self.asr_window.start_sample) * rate / asr_rate;
@@ -100,6 +111,47 @@ impl CaptureClockSegment {
             sample_rate_hz: self.capture_rate_hz,
         })
     }
+}
+
+// Internal bridge: real finalized VAD metadata -> same existing ASR
+// observation domain. Transcript text is supplied separately by ASR.
+pub(super) fn finalized_capture_clock(
+    utterance: &FinalizedMeetingUtterance,
+) -> Option<(SourceScope, AudioWindow, CaptureClockSegment)> {
+    let p = utterance.capture_provenance?;
+    if utterance.frame.sample_rate_hz != ASR_RATE_HZ
+        || utterance.frame.channels != 1
+        || utterance.frame.samples.len() as u64 != p.asr_sample_count
+        || utterance.utterance_id == 0
+        || p.audio_epoch == 0
+        || p.input_end_sample <= p.input_start_sample
+    {
+        return None;
+    }
+    let lane = match utterance.lane.as_str() {
+        "you" if utterance.generation.is_some() => SourceLane::You,
+        "incoming" if utterance.generation.is_none() => SourceLane::Incoming,
+        _ => return None,
+    };
+    let scope = SourceScope {
+        session_id: utterance.session_id.clone(),
+        generation: utterance.generation,
+        lane,
+        speech_id: utterance.utterance_id,
+        audio_epoch: p.audio_epoch,
+    };
+    let asr_window = AudioWindow { start_sample: 0, end_sample: p.asr_sample_count };
+    let mapping = CaptureClockSegment {
+        scope: scope.clone(),
+        asr_window,
+        capture_window: AudioWindow {
+            start_sample: p.input_start_sample,
+            end_sample: p.input_end_sample,
+        },
+        capture_rate_hz: p.input_rate_hz,
+    };
+    mapping.map_window(&scope, asr_window).ok()?;
+    Some((scope, asr_window, mapping))
 }
 
 #[derive(Debug, Clone)]
@@ -524,6 +576,47 @@ mod tests {
                 whole_final_span: None,
             }),
         );
+    }
+
+    #[test]
+    fn canonical_finalized_metadata_maps_whole_asr_frame_not_words() {
+        use crate::engine::audio::finalized_utterance::{
+            FinalizedCaptureProvenance, FinalizedMeetingUtterance,
+        };
+        use crate::engine::audio::AudioFrame;
+        use std::time::Instant;
+        let now = Instant::now();
+        let utterance = FinalizedMeetingUtterance {
+            session_id: "s1".into(), sequence: 1, lane: "you".into(),
+            generation: Some(7), utterance_id: 31, finalized_at: now,
+            enqueued_at: now, finalized_unix_ms: 0, speech_boundary_ms: 0,
+            speech_duration_ms: 1000, finalization_ms: 0,
+            capture_provenance: Some(FinalizedCaptureProvenance {
+                audio_epoch: 3, input_rate_hz: 44_100,
+                input_start_sample: 2_000, input_end_sample: 46_100,
+                asr_sample_count: 16_000,
+            }),
+            frame: AudioFrame {
+                sample_rate_hz: 16_000, channels: 1, samples: vec![0.0; 16_000],
+            },
+        };
+        let (scope, window, clock) =
+            finalized_capture_clock(&utterance).expect("valid native clock");
+        assert_eq!(clock.map_window(&scope, window).unwrap(), CaptureWindowBounds {
+            start_lower_sample: 2_000,
+            end_upper_sample: 46_100,
+            sample_rate_hz: 44_100,
+        });
+        let mut stabilizer = SourceStabilizer::new(scope.clone()).unwrap();
+        let result = stabilizer.observe_with_capture_mapping(
+            observation(&scope, 1, 0, 16_000, "Kita mulai besok.", true),
+            Some(&clock),
+        ).unwrap();
+        let ObservationOutcome::Stable(candidate) = result else { panic!("final text") };
+        assert_eq!(candidate.whole_final_span.unwrap().capture_bounds.end_upper_sample, 46_100);
+        let mut bad = utterance;
+        bad.capture_provenance.as_mut().unwrap().asr_sample_count = 8_000;
+        assert!(finalized_capture_clock(&bad).is_none());
     }
 
 }
