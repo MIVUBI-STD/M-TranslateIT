@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import math
+import wave
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,10 @@ ASR_RUNTIME_DEVICE = "not_loaded"
 ASR_RUNTIME_COMPUTE = "not_loaded"
 ASR_RUNTIME_MODEL_ID = "not_loaded"
 MAX_ASR_HOTWORDS_CHARS = 1024
+# Source-evidence probe only. Never enabled by Meeting production requests.
+MAX_ALIGNMENT_PROBE_WORDS = 512
+MAX_ALIGNMENT_PROBE_WORD_TEXT_BYTES = 16 * 1024
+MAX_ALIGNMENT_PROBE_FRAMES_16K = 16_000 * 60
 VOICE_ACTOR_RUNTIME: dict[str, Any] | None = None
 VOICE_ACTOR_RUNTIME_FINGERPRINT: Any | None = None
 
@@ -119,6 +125,91 @@ def handle_asr_preload(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
 
+
+def _alignment_probe_frame_count(path: Path) -> int:
+    """Validate the exact untrimmed PCM source before trusting model-relative times."""
+    try:
+        with wave.open(str(path), "rb") as audio:
+            if (
+                audio.getnchannels() != 1
+                or audio.getsampwidth() != 2
+                or audio.getframerate() != 16_000
+                or audio.getcomptype() != "NONE"
+            ):
+                raise ValueError("asr:alignment_requires_pcm16_mono_16k_wav")
+            count = audio.getnframes()
+            if not 1 <= count <= MAX_ALIGNMENT_PROBE_FRAMES_16K:
+                raise ValueError("asr:alignment_audio_length_out_of_range")
+            # A declared WAV header alone cannot prove sample bytes exist.
+            if len(audio.readframes(count)) != count * 2:
+                raise ValueError("asr:alignment_wav_data_truncated")
+            return count
+    except (OSError, EOFError, wave.Error) as exc:
+        raise ValueError("asr:alignment_wav_unreadable") from exc
+
+
+def _alignment_probe_candidate(segments: list[Any], transcript: str, frames: int) -> dict:
+    """Check model-estimated word ranges; never certify phoneme or semantic truth."""
+    words: list[dict[str, Any]] = []
+    word_text_bytes = 0
+    preceding_end = 0
+    for segment in segments:
+        aligned = getattr(segment, "words", None)
+        if not aligned:
+            raise ValueError("asr:alignment_words_missing")
+        for word in aligned:
+            if len(words) >= MAX_ALIGNMENT_PROBE_WORDS:
+                raise ValueError("asr:alignment_word_limit_exceeded")
+            value = getattr(word, "word", None)
+            start = getattr(word, "start", None)
+            end = getattr(word, "end", None)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > 256
+                or "\x00" in value
+                or type(start) not in (float, int)
+                or type(end) not in (float, int)
+                or not math.isfinite(start)
+                or not math.isfinite(end)
+                or start < 0
+                or end <= start
+            ):
+                raise ValueError("asr:alignment_word_invalid")
+            word_text_bytes += len(value.encode("utf-8"))
+            if word_text_bytes > MAX_ALIGNMENT_PROBE_WORD_TEXT_BYTES:
+                raise ValueError("asr:alignment_word_text_limit_exceeded")
+            lower_sample = math.floor(start * 16_000)
+            upper_sample = math.ceil(end * 16_000)
+            if (
+                lower_sample < preceding_end
+                or lower_sample >= upper_sample
+                or upper_sample > frames
+            ):
+                raise ValueError("asr:alignment_word_range_invalid")
+            words.append({
+                "text": value,
+                "start_sample": lower_sample,
+                "end_sample": upper_sample,
+            })
+            preceding_end = upper_sample
+    if not words:
+        raise ValueError("asr:alignment_words_missing")
+    # Exact normalized concordance blocks words from another ASR hypothesis.
+    # This is structural agreement, not proof that the transcript is correct.
+    joined = " ".join("".join(word["text"] for word in words).split())
+    if joined != transcript:
+        raise ValueError("asr:alignment_transcript_mismatch")
+    return {
+        "evidence": "FASTER_WHISPER_ESTIMATED_WORD_TIMES",
+        "verified_semantic_boundary": False,
+        "timebase": "untrimmed_pcm16_mono_16000hz_wav",
+        "sample_rate_hz": 16_000,
+        "asr_frame_count": frames,
+        "words": words,
+    }
+
+
 def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
     started = common.now_ms()
     try:
@@ -148,6 +239,30 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
             "blocker": "asr:audio_file_too_large",
             "max_bytes": common.MAX_AUDIO_INPUT_BYTES,
         }
+    alignment_probe = payload.get("alignment_probe", False)
+    if not isinstance(alignment_probe, bool):
+        return {
+            "ok": False,
+            "stage": "transcribe",
+            "blocker": "asr:alignment_probe_flag_invalid",
+            "elapsed_ms": common.now_ms() - started,
+        }
+    if alignment_probe and payload.get("vad_filter", True) is not False:
+        return {
+            "ok": False,
+            "stage": "transcribe",
+            "blocker": "asr:alignment_requires_disabled_worker_vad",
+            "elapsed_ms": common.now_ms() - started,
+        }
+    try:
+        probe_frames = _alignment_probe_frame_count(audio_path) if alignment_probe else None
+    except ValueError as exc:
+        return {
+            "ok": False,
+            "stage": "transcribe",
+            "blocker": str(exc),
+            "elapsed_ms": common.now_ms() - started,
+        }
     try:
         model = get_asr_runtime(payload)
         hotwords = common.compact_runtime_text(payload.get("hotwords", ""), MAX_ASR_HOTWORDS_CHARS)
@@ -160,9 +275,12 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
             condition_on_previous_text=False,
             vad_filter=bool(payload.get("vad_filter", True)),
             without_timestamps=True,
-            word_timestamps=False,
+            word_timestamps=alignment_probe,
             hotwords=hotwords or None,
         )
+        if alignment_probe:
+            # Only the opt-in probe iterates twice, for text/word concordance.
+            segments = list(segments)
         # A partial ASR transcript must never be treated as complete Meeting
         # speech; compact without truncating, then fail closed above the bound.
         text = " ".join(
@@ -179,7 +297,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
                 "max_chars": common.MAX_TRANSCRIPT_TEXT_CHARS,
                 "elapsed_ms": common.now_ms() - started,
             }
-        return {
+        result = {
             "ok": bool(text),
             "stage": "transcribe",
             "transcript_text": text,
@@ -192,6 +310,12 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
             "elapsed_ms": common.now_ms() - started,
             "blocker": "" if text else "asr:empty_transcript",
         }
+        if alignment_probe and text:
+            # This evidence is never consumed by the production Meeting path.
+            result["asr_alignment"] = _alignment_probe_candidate(
+                segments, text, probe_frames
+            )
+        return result
     except Exception as exc:
         return {
             "ok": False,
