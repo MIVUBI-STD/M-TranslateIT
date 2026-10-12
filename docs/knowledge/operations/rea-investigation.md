@@ -53,6 +53,18 @@ Do **not** treat a user supplying a public GitHub URL as approval to run downloa
 
 The installed REA version/server may advertise fewer tools than current upstream. Discover **actual** tool names/schemas via the active REA MCP connection or `rea --help`; do not fabricate a call. Native Ghidra, IDA, Hopper, JEB, Android, WASM and other provider capabilities may require separately licensed tools or platform-specific setup. REA's own skill specifically recommends **ordinary source review** when complete source is available.
 
+## Existing audit-planner entry point
+
+The canonical repository context tool can now explicitly include REA in an **external** audit without another audit engine, executor, registry or permission owner:
+
+```text
+python tools/repository_context.py --mode context-recovery --intent "Inspect translation app client behavior" --external-audit-target runtime
+```
+
+Use one of `source`, `artifact`, `runtime`, `capture`. The result's `externalAudit` field reports `PLANNED_NOT_EXECUTED`, whether target-rights review and separate runtime/capture approval are needed, and the runbook path. Source-only questions start with public source and do **not** require REA. Artifact/runtime/capture questions remain `UNKNOWN_UNTIL_AUTHORIZED_TARGET_EVIDENCE` until actual REA or other appropriately scoped evidence is collected. The planner never installs, connects, executes, or attaches a REA provider, and does not record proof receipts. `--intent` is not used to infer tool authorization.
+
+Existing internal code/governance audits are unchanged. External REA findings must still be reconciled by a human or authorized investigator and forwarded to their existing implementation and validation owners; `externalAudit` is **not** evidence that a third-party application or our own code was validated.
+
 ## Installation / connection boundary
 
 - `REMOTE_GITHUB` (normal ChatGPT work): source research, source/REA documentation and artifact references **only**. No REA runtime, local binary analysis, browser attachment or hosted compute is implied; record `NOT EXECUTED` when tools are unavailable.

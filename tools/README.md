@@ -4,7 +4,7 @@ Repository-owned Python tools for **source-derived verification, routing, impact
 
 - `verify_repository.py` — aggregate structural and governance source checks
 - `repository_knowledge.py` — document catalog, graph, scoped retrieval (read-only)
-- `repository_context.py` — bounded read-only context/permission projection
+- `repository_context.py` — bounded read-only context/permission projection; `--external-audit-target source|artifact|runtime|capture` routes scoped REA audit evidence without executing REA or claiming external runtime proof
 - `repository_dependencies.py`, `repository_impact.py` — partial source dependency impact and affected proof planning
 - `repository_verification.py` — explicit opt-in execution of existing selected commands only
 - `repository_benchmark.py` — opt-in source-derived method-flow/context/permission conformance replay, not model or native proof

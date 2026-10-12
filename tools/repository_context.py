@@ -35,6 +35,10 @@ DEVELOPMENT_DISCIPLINE = "docs/knowledge/development-discipline.md"
 BRIEF = ".agents/skills/development-brief/SKILL.md"
 CONTINUATION = "planning/development.md"
 OWNER_MAP = "docs/knowledge/source-ownership.md"
+REA_AUDIT = "docs/knowledge/operations/rea-investigation.md"
+# External audit surface is deliberately selected by the caller, never inferred
+# from a prompt or treated as evidence that a REA provider actually ran.
+EXTERNAL_AUDIT_TARGETS = frozenset(("source", "artifact", "runtime", "capture"))
 
 
 def _nonempty(value: Any, field: str) -> str:
@@ -78,6 +82,28 @@ def _handoff(
     }
 
 
+def _external_audit_plan(kind: str | None) -> dict[str, Any] | None:
+    """Route an external evidence gap through REA without executing a provider."""
+    if kind is None:
+        return None
+    if kind not in EXTERNAL_AUDIT_TARGETS:
+        raise ValueError("unsupported external audit target: source|artifact|runtime|capture")
+    return {
+        "targetKind": kind,
+        "method": "SOURCE_REVIEW_FIRST" if kind == "source" else "REA_INVESTIGATION_CANDIDATE",
+        "runbook": REA_AUDIT,
+        "status": "PLANNED_NOT_EXECUTED",
+        "reaExecuted": False,
+        "externalRuntimeProven": False,
+        "targetRightsReviewRequired": kind != "source",
+        "specificRuntimeApprovalRequired": kind in {"runtime", "capture"},
+        "evidenceDisposition": (
+            "SOURCE_ONLY_NO_REA_REQUIREMENT" if kind == "source"
+            else "UNKNOWN_UNTIL_AUTHORIZED_TARGET_EVIDENCE"
+        ),
+    }
+
+
 def plan_context(
     *,
     intent: str,
@@ -92,6 +118,7 @@ def plan_context(
     knowledge_query: str | None = None,
     knowledge_domain: str | None = None,
     handoff: dict[str, Any] | None = None,
+    external_audit_target: str | None = None,
     branch: str = "Local",
     root: Path = ROOT,
 ) -> dict[str, Any]:
@@ -104,6 +131,7 @@ def plan_context(
     if mode not in TASKS or mode not in policy["modes"]:
         raise ValueError("unknown work mode; select it explicitly from AGENTS.md")
     selected_task = task or DEFAULT_TASK[mode]
+    external_audit = _external_audit_plan(external_audit_target)
     if selected_task not in TASKS[mode]:
         raise ValueError("task class is not allowed by the selected work mode")
     scopes = set(policy["scopes"])
@@ -174,6 +202,9 @@ def plan_context(
                         "domain procedure changes a material decision")
     add_conditional("docs/knowledge/current-validation.md",
                     "actual previous proof status changes decision")
+    if external_audit is not None:
+        add_conditional(REA_AUDIT,
+                        "external source/artifact/runtime evidence gap requires scoped investigation")
     for item in conditional:
         if not (root / item["path"]).is_file():
             raise ValueError(f"conditional context owner is missing: {item['path']}")
@@ -229,6 +260,7 @@ def plan_context(
                            "advisoryOnly": True},
         "releasePreflight": release_gate,
         "handoff": proposed_handoff,
+        "externalAudit": external_audit,
         "knownImpact": impact,
         "rankedKnowledge": {"status": "RANKING_NOT_AUTHORITY",
                             "matches": ranked} if knowledge_query is not None else None,
@@ -248,6 +280,8 @@ def verify_context(root: Path = ROOT) -> list[str]:
          "scope": "governance", "owner": "GITHUB_RULES.md",
          "proposed_writes": ["docs/knowledge/flow.md"]},
         {"intent": "Diagnose complex issue", "mode": "complex-development"},
+        {"intent": "Review an authorized external runtime", "mode": "context-recovery",
+         "external_audit_target": "runtime"},
     ]
     issues = []
     for case in cases:
@@ -257,6 +291,11 @@ def verify_context(root: Path = ROOT) -> list[str]:
                 issues.append("context planner claimed execution")
             if case["mode"] == "complex-development" and BRIEF not in plan["context"]["REQUIRED"]:
                 issues.append("complex development failed to include brief")
+            if case.get("external_audit_target") == "runtime":
+                audit = plan["externalAudit"]
+                if (audit["reaExecuted"] or audit["externalRuntimeProven"]
+                        or audit["evidenceDisposition"] != "UNKNOWN_UNTIL_AUTHORIZED_TARGET_EVIDENCE"):
+                    issues.append("external REA audit incorrectly claimed runtime proof")
         except (OSError, ValueError, KeyError, TypeError) as exc:
             issues.append(f"context projection invalid: {exc}")
     return issues
@@ -277,6 +316,9 @@ def main() -> int:
     parser.add_argument("--knowledge-query")
     parser.add_argument("--knowledge-domain", choices=("foundation", "knowledge", "system"))
     parser.add_argument("--handoff", help="Explicit JSON handoff; never switches lanes")
+    parser.add_argument("--external-audit-target",
+                        choices=sorted(EXTERNAL_AUDIT_TARGETS),
+                        help="External audit surface; plan REA review without invoking a provider")
     parser.add_argument("--branch", default="Local")
     args = parser.parse_args()
     try:
@@ -291,7 +333,8 @@ def main() -> int:
             changed=args.changed, proposed_writes=args.write,
             activate_specialist=args.activate_specialist, resume=args.resume,
             knowledge_query=args.knowledge_query, knowledge_domain=args.knowledge_domain,
-            handoff=value, branch=args.branch,
+            handoff=value, external_audit_target=args.external_audit_target,
+            branch=args.branch,
         )
         print(json.dumps(plan, indent=2))
         return 0 if plan["writePreflight"]["status"] not in {"ASK", "DENY"} else 1

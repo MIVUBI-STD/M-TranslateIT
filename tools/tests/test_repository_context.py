@@ -25,6 +25,56 @@ class DevelopmentContextTests(unittest.TestCase):
         self.assertEqual(p["execution"], "NOT_EXECUTED")
         self.assertNotIn("Amati project", str(p))  # intent is not echoed to the console
 
+    def test_external_runtime_audit_routes_rea_without_claiming_execution(self):
+        p = plan_context(
+            intent="Audit a third-party live translation client",
+            mode="context-recovery", external_audit_target="runtime",
+        )
+        audit = p["externalAudit"]
+        self.assertEqual(audit["method"], "REA_INVESTIGATION_CANDIDATE")
+        self.assertEqual(audit["status"], "PLANNED_NOT_EXECUTED")
+        self.assertEqual(audit["evidenceDisposition"],
+                         "UNKNOWN_UNTIL_AUTHORIZED_TARGET_EVIDENCE")
+        self.assertFalse(audit["reaExecuted"])
+        self.assertFalse(audit["externalRuntimeProven"])
+        self.assertTrue(audit["specificRuntimeApprovalRequired"])
+        self.assertTrue(audit["targetRightsReviewRequired"])
+        self.assertEqual(p["context"]["REQUIRED"], ["AGENTS.md", "GITHUB_RULES.md"])
+        self.assertTrue(any(x["path"] == audit["runbook"]
+                            for x in p["context"]["CONDITIONAL"]))
+        self.assertIsNone(p["activeSpecialist"])
+        self.assertFalse(p["ciTriggered"])
+        self.assertEqual(p["execution"], "NOT_EXECUTED")
+
+    def test_external_source_review_does_not_force_rea(self):
+        p = plan_context(
+            intent="Audit an open-source SDK", mode="context-recovery",
+            external_audit_target="source",
+        )
+        self.assertEqual(p["externalAudit"]["method"], "SOURCE_REVIEW_FIRST")
+        self.assertEqual(p["externalAudit"]["evidenceDisposition"],
+                         "SOURCE_ONLY_NO_REA_REQUIREMENT")
+        self.assertFalse(p["externalAudit"]["targetRightsReviewRequired"])
+        self.assertIsNone(plan_context(
+            intent="Audit our current code", mode="context-recovery",
+        )["externalAudit"])
+
+    def test_external_artifact_and_capture_remain_bounded_and_unexecuted(self):
+        for kind, approval_required in (("artifact", False), ("capture", True)):
+            with self.subTest(kind=kind):
+                p = plan_context(intent="Inspect permitted evidence",
+                                 mode="standard-development", scope="governance",
+                                 external_audit_target=kind)
+                audit = p["externalAudit"]
+                self.assertEqual(audit["status"], "PLANNED_NOT_EXECUTED")
+                self.assertTrue(audit["targetRightsReviewRequired"])
+                self.assertEqual(audit["specificRuntimeApprovalRequired"], approval_required)
+                self.assertFalse(audit["reaExecuted"])
+                self.assertFalse(p["ciTriggered"])
+        with self.assertRaises(ValueError):
+            plan_context(intent="Do not guess audit target", mode="context-recovery",
+                         external_audit_target="unknown")
+
     def test_continuation_and_owner_only_when_material(self):
         p = plan_context(
             intent="Resume the current code contract",

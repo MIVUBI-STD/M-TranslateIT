@@ -140,6 +140,8 @@ The default Rust check is an existing cheap manifest/contract validator, **not**
 
 ## Third-party / closed-app investigation with REA
 
+For an explicit external audit scope, the existing `tools/repository_context.py --external-audit-target source|artifact|runtime|capture` projects a conditional REA investigation route and an unexecuted/unknown proof state. It neither starts REA nor certifies any external application behavior. See the [REA audit runbook](./operations/rea-investigation.md).
+
 When an external application's **observable implementation** materially affects a design decision, route through [REA investigation](./operations/rea-investigation.md): public source/API first → exact target and authority → static inspection → optional approved runtime observation → evidence/unknown reconciliation → compared candidate → existing owner/acceptance. REA is a conditional investigation tool, not a second development mode, skill or product pipeline. Do not treat observed browser/desktop client behavior as proof of proprietary server internals. Never change production ASR/translation/TTS or activate Meeting streaming on a REA-only finding; existing human, local-model and target-Windows evidence remains required.
 
 ## First-wrong-owner examples
