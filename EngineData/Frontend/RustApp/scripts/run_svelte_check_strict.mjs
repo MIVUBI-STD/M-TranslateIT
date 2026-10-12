@@ -1,9 +1,12 @@
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 
-const executable = process.platform === "win32" ? "npx.cmd" : "npx";
+const require = createRequire(import.meta.url);
+const checker = resolve(dirname(require.resolve("svelte-check/package.json")), "bin/svelte-check");
 const result = spawnSync(
-  executable,
-  ["svelte-check", "--tsconfig", "./tsconfig.json"],
+  process.execPath,
+  [checker, "--tsconfig", "./tsconfig.json"],
   { cwd: process.cwd(), encoding: "utf8", shell: false },
 );
 

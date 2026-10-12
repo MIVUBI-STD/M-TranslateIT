@@ -10,8 +10,8 @@
 
   const groups: ProductCommand["group"][] = ["Navigation", "Meeting utilities", "Text utilities", "Settings & support"];
   let query = $state("");
-  let input: HTMLInputElement;
-  let dialog: HTMLDivElement;
+  let input = $state<HTMLInputElement>();
+  let dialog = $state<HTMLDivElement>();
   let previousFocus: HTMLElement | null = null;
   const filtered = $derived.by(() => {
     const needle = query.trim().toLowerCase();
@@ -51,7 +51,7 @@
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     event.preventDefault();
     const buttons = availableButtons();
-    const index = buttons.findIndex(button => button.dataset.commandId === id);
+    const index = buttons.findIndex(button => button.dataset["commandId"] === id);
     const target = index + (event.key === "ArrowDown" ? 1 : -1);
     if (target < 0) input?.focus();
     else buttons[Math.min(target, buttons.length - 1)]?.focus();
@@ -69,6 +69,7 @@
     ) ?? []);
     if (!focusable.length) return;
     const first = focusable[0], last = focusable[focusable.length - 1];
+    if (!first || !last) return;
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();

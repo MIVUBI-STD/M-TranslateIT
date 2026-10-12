@@ -30,9 +30,9 @@ export async function resolveNativeCloseVerdict(): Promise<CloseVerdict> {
   ]);
 
   return resolveClosePolicy({
-    recordingLineId: myVoice.recording_line_id,
-    pendingReview: myVoice.pending_review !== null,
-    runtimeUnavailable: application.revision <= 0 || application.lifecycle === "unavailable",
+    recordingLineId: myVoice?.recording_line_id ?? null,
+    pendingReview: myVoice != null && myVoice.pending_review !== null,
+    runtimeUnavailable: myVoice === null || application.revision <= 0 || application.lifecycle === "unavailable",
     voiceBuildActive: application.summaries.voice.build_active,
     audioLocked: application.resources.audio_locked,
     ownerKind: application.resources.owner_kind,

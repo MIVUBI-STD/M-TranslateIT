@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Copy, Plus, Search, Trash2, Upload } from "@lucide/svelte";
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import type { UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import { runtimeApi } from "../../app/bridge/runtimeApi";
   import type { RuntimeSettings, SpokenTermEntry, TerminologyEntry } from "../../app/shared/types";
@@ -35,7 +35,7 @@
   const preferencesBusy = $derived(saving || styleSaving);
   let termSearch = $state("");
   // UI disclosure state is transient, independent of term-list mutations.
-  let languageToolsOpen = $state(settings.spoken_terms.length > 0 || settings.terminology.length > 0);
+  let languageToolsOpen = $state(untrack(() => settings.spoken_terms.length > 0 || settings.terminology.length > 0));
   let pendingDelete = $state<string | null>(null);
   $effect(() => {
     const request = utilityRequest;

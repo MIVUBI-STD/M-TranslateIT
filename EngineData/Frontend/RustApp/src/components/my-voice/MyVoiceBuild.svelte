@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Check, Play, Square } from "@lucide/svelte";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import {
     myVoiceBuildApi,
     type MyVoiceBuildActionResult,
@@ -47,7 +47,7 @@
   let quickPreviewPlaying = $state(false);
   let busy = $state(false);
   let playingLineId = $state<number | null>(null);
-  let seenRefreshRevision = refreshRevision;
+  let seenRefreshRevision = untrack(() => refreshRevision);
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let statusCheckUnavailable = $state(false);

@@ -20,8 +20,8 @@
   let copiedSequence = $state<number | null>(null);
   let copyFailedSequence = $state<number | null>(null);
   let followingLatest = $state(true);
-  let transcriptScroller: HTMLDivElement | undefined;
-  let searchInput: HTMLInputElement | undefined;
+  let transcriptScroller = $state<HTMLDivElement>();
+  let searchInput = $state<HTMLInputElement>();
 
   const meeting = $derived(mapProductMeetingState(status));
   const orderedTurns = $derived(

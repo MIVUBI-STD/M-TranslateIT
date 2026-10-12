@@ -181,7 +181,7 @@
     catch { /* Only a generic availability message is shown. */ }
     if (requestId === historyRequestId) historyLoading = false;
     // The native request can finish after Hide, session rollover, or a newer review request.
-    if (disposed || requestId !== historyRequestId || preferences.visibility === "hidden"
+    if (disposed || requestId !== historyRequestId || overlayIsHidden()
       || overlayMeetingSession(caption) !== requestedSession) return;
     if (snapshot?.ok && snapshot.has_session && snapshot.session_id === requestedSession) {
       historyEntries = recentMeetingCaptions(snapshot, 20);
@@ -194,6 +194,9 @@
     await scheduleLayout();
     await tick();
     if (!disposed && historyOpen) historyBody?.focus();
+  }
+  function overlayIsHidden(): boolean {
+    return preferences.visibility === "hidden";
   }
 
   async function closeRecentHistory(): Promise<void> {
@@ -358,6 +361,7 @@
     </header>
     {#if !collapsed}
       {#if historyOpen}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex (Named scroll regions need keyboard focus to scroll their read-only text.) -->
         <div class="history-body" bind:this={historyBody} role="region" tabindex="0" aria-label="Recent committed translations">
           {#if historyMessage}
             <p class="history-empty">{historyMessage}</p>
@@ -376,6 +380,7 @@
           {/if}
         </div>
       {:else}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex (Named scroll regions need keyboard focus to scroll their read-only text.) -->
         <div class="caption-body" bind:this={captionBody} role="region" tabindex="0" aria-label="Current translation" aria-live={captionsPaused ? "off" : "polite"} aria-atomic="true">
           {#if caption}<p lang={caption.language} bind:this={captionText}>{caption.text}</p>{:else}<p class="caption-placeholder">Your latest translation will appear here.</p>{/if}
         </div>

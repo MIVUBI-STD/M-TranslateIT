@@ -326,6 +326,8 @@ function audioDevicesFallback(message: string): AudioDeviceListReport {
     ok: false,
     input_devices: [],
     output_devices: [],
+    ambiguous_input_names: [],
+    ambiguous_output_names: [],
     blocker: "frontend_bridge_unavailable",
     note: message,
   };
