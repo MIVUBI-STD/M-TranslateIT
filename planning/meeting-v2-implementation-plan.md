@@ -54,6 +54,9 @@
 - **Proof:** replay identical synthetic timing and failures, no dropped/duplicated words in basic fixtures; buffer stress, 60+s monologue, concurrent Start/Stop, session reentry and overflow tests.
 
 ### Batch 2 — CPU/ring-buffer playback candidate
+
+**Progress 2026-10-12:** Batch 2A hot-path changes staged for native compilation: bounded pre-roll eviction, reusable incoming F32 stereo conversion scratch, and one suppression-boundary reset per suppression transition rather than per suppressed callback. All need real Rust tests before calling them verified. Capture lock isolation and persistent CPAL output remain future work.
+
 - Measure CPAL per-WAV stream startup from existing timing first.
 - Implement an **internal candidate** long-lived stream with bounded PCM chunks, underrun silence and one session owner. No disk/model change, no new UI toggle.
 - Stop/cancel removes all old-generation chunks, no audio may leak after Stop. Device removal causes truthful recovery.

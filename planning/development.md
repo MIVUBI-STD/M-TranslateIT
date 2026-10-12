@@ -1,3 +1,11 @@
+## Meeting V2 Batch 2A — safer hot path without streaming takeover (2026-10-12)
+
+**Change:** existing VAD pre-roll ring evicts BEFORE pushing, so it can remain within its preallocated capacity even when callback blocks exceed the pre-roll length. Incoming Windows loopback F32 stereo downmix reuses callback-owned `Vec<f32>` instead of allocating a new mono vector each callback. Suppression no longer takes a VAD mutex for *every suppressed frame*: the canonical playback suppression owner already resets the incoming boundary both when starting and ending self-output suppression. Existing user-visible behavior, VAD thresholds, output routing, scheduler and TTS remain unchanged.
+
+**Evidence ceiling:** Rust deterministic unit tests added for pre-roll capacity, last-tail retention, sanitized samples and stereo downmix scratch reuse; source read only, not cargo-built on Windows/GPU. This is an incremental hot-path improvement, **not** a fully nonblocking callback: active producer and diagnostic buffers still use locks, and other incoming sample formats use the existing conversion path. Do not claim a latency improvement yet.
+
+**Next Batch 2B:** isolate VAD and callback-expensive resampling behind a bounded, preallocated PCM handoff with explicit overflow and session-generation cancellation; measure results with a deterministic replay harness before routing production capture through it. Persistent playback must remain a separate A/B candidate; do not conflate it with capture stability.
+
 ## Meeting V2 Batch 1B — bounded full-session manual export (2026-10-12)
 
 **Source candidate:** one existing canonical in-memory turn store retains up to 4,096 phrases and 8 MiB of text (whichever is reached first). Live and last-session review still expose at most 240 recent phrases to keep webview work bounded. Manual MD/TXT exports use the entire retained session without silently treating hidden UI phrases as lost. Exports continue to be explicit, session-scoped and never persisted automatically.

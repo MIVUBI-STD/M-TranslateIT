@@ -257,6 +257,10 @@ pub fn observe_finalized_incoming_f32_samples(
     observe_f32(incoming_sync(), samples, sample_rate_hz, source_channels);
 }
 
+pub fn observe_finalized_incoming_mono_f32_samples(samples: &[f32], sample_rate_hz: u32) {
+    observe_finalized_mono_samples(incoming_sync(), samples, sample_rate_hz);
+}
+
 pub fn observe_finalized_incoming_i16_samples(
     samples: &[i16],
     sample_rate_hz: u32,
@@ -655,12 +659,20 @@ fn adaptive_end_silence_ms(profile: &RuntimeVadProfile, evidence: &AudioEvidence
 }
 
 fn append_pre_roll(state: &mut FinalizedProducerState, samples: &[f32]) {
-    state
-        .pre_roll
-        .extend(samples.iter().map(|sample| safe_sample(*sample)));
     let max_samples = samples_for_duration(state.sample_rate_hz, state.profile.pre_roll_audio_ms);
-    while state.pre_roll.len() > max_samples {
-        let _ = state.pre_roll.pop_front();
+    if max_samples == 0 {
+        state.pre_roll.clear();
+        return;
+    }
+    // Evict BEFORE appending so a fully preallocated circular VecDeque never
+    // grows just to discard the oldest samples inside an audio callback.
+    // A callback larger than the entire pre-roll keeps only its newest tail.
+    let recent = &samples[samples.len().saturating_sub(max_samples)..];
+    for &sample in recent {
+        if state.pre_roll.len() >= max_samples {
+            let _ = state.pre_roll.pop_front();
+        }
+        state.pre_roll.push_back(safe_sample(sample));
     }
 }
 

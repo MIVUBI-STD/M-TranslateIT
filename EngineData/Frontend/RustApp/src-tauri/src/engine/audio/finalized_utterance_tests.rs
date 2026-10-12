@@ -85,6 +85,29 @@ fn preroll_bound_resample_and_safe_retention_are_deterministic() {
     );
     append_pre_roll(&mut state, &vec![0.0; max_pre_roll.saturating_add(16_000)]);
     assert_eq!(state.pre_roll.len(), max_pre_roll);
+    // A preallocated pre-roll must not grow in capacity after repeated calls.
+    state.pre_roll = VecDeque::with_capacity(max_pre_roll);
+    let capacity = state.pre_roll.capacity();
+    for cycle in 0..64 {
+        let samples: Vec<f32> = (0..(max_pre_roll + 17))
+            .map(|i| (i + cycle) as f32 / 100_000.0)
+            .collect();
+        append_pre_roll(&mut state, &samples);
+        assert_eq!(state.pre_roll.len(), max_pre_roll);
+        assert_eq!(state.pre_roll.capacity(), capacity);
+        assert_eq!(
+            state.pre_roll.back().copied(),
+            samples.last().copied(),
+        );
+    }
+    state.pre_roll.clear();
+    append_pre_roll(&mut state, &[f32::NAN, 2.0, -2.0, 0.25]);
+    let sanitized = state.pre_roll.iter().copied().collect::<Vec<_>>();
+    assert_eq!(sanitized, vec![0.0, 1.0, -1.0, 0.25]);
+    // A zero-length configured pre-roll never reallocates or retains audio.
+    state.profile.pre_roll_audio_ms = 0;
+    append_pre_roll(&mut state, &[0.2, 0.3]);
+    assert!(state.pre_roll.is_empty());
 
     let resampled = resample_linear(&[0.0, 0.25, -0.25, 0.0], 8_000, 16_000);
     assert_eq!(resampled.len(), 8);

@@ -9,9 +9,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use super::device_selection::resolve_unique_named_device;
 use super::finalized_utterance::{
     clear_finalized_incoming_utterance_producer, observe_finalized_incoming_f32_samples,
+    observe_finalized_incoming_mono_f32_samples,
     observe_finalized_incoming_i16_samples, observe_finalized_incoming_i32_samples,
     observe_finalized_incoming_i64_samples, observe_finalized_incoming_u8_samples,
-    reset_finalized_incoming_speech_boundary, reset_finalized_incoming_utterance_producer,
+    reset_finalized_incoming_utterance_producer,
 };
 use crate::engine::runtime_settings::load_settings;
 
@@ -309,6 +310,19 @@ fn run_capture_thread(
     Ok(())
 }
 
+// Callback-owned scratch buffer: no repeated stereo conversion allocation.
+fn downmix_f32_into(samples: &[f32], channels: u16, scratch: &mut Vec<f32>) {
+    scratch.clear();
+    let channels = usize::from(channels.max(1));
+    scratch.reserve(samples.len().div_ceil(channels));
+    for frame in samples.chunks(channels) {
+        let sum = frame.iter().map(|sample| {
+            if sample.is_finite() { sample.clamp(-1.0, 1.0) } else { 0.0 }
+        }).sum::<f32>();
+        scratch.push(sum / frame.len().max(1) as f32);
+    }
+}
+
 fn build_loopback_stream(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
@@ -335,7 +349,9 @@ fn build_loopback_stream(
                         frames.fetch_add(frame_count, Ordering::Relaxed);
                         if suppression_flag.load(Ordering::Acquire) {
                             suppressed.fetch_add(frame_count, Ordering::Relaxed);
-                            reset_finalized_incoming_speech_boundary();
+                            // The suppression owner resets the speech boundary
+                            // once on activation and again on deactivation.
+                            // Never acquire the VAD mutex for each suppressed frame.
                             return;
                         }
                         $observe(data, sample_rate_hz, channels);
@@ -348,7 +364,34 @@ fn build_loopback_stream(
     }
 
     match sample_format {
-        cpal::SampleFormat::F32 => build_stream!(f32, observe_finalized_incoming_f32_samples),
+        cpal::SampleFormat::F32 => {
+            let frames = Arc::clone(&frames_received);
+            let suppressed = Arc::clone(&suppressed_frames);
+            let suppression_flag = Arc::clone(&suppression);
+            let errors = Arc::clone(&callback_errors);
+            let mut mono_scratch = Vec::<f32>::new();
+            device
+                .build_input_stream(
+                    config,
+                    move |data: &[f32], _| {
+                        let count = frame_count(data.len(), channels);
+                        frames.fetch_add(count, Ordering::Relaxed);
+                        if suppression_flag.load(Ordering::Acquire) {
+                            suppressed.fetch_add(count, Ordering::Relaxed);
+                            return;
+                        }
+                        if channels <= 1 {
+                            observe_finalized_incoming_f32_samples(data, sample_rate_hz, 1);
+                        } else {
+                            downmix_f32_into(data, channels, &mut mono_scratch);
+                            observe_finalized_incoming_mono_f32_samples(&mono_scratch, sample_rate_hz);
+                        }
+                    },
+                    move |error| push_callback_error(&errors, error),
+                    None,
+                )
+                .map_err(|error| error.to_string())
+        }
         cpal::SampleFormat::I16 => build_stream!(i16, observe_finalized_incoming_i16_samples),
         cpal::SampleFormat::I32 => build_stream!(i32, observe_finalized_incoming_i32_samples),
         cpal::SampleFormat::I64 => build_stream!(i64, observe_finalized_incoming_i64_samples),
@@ -466,6 +509,22 @@ fn current_unix_ms() -> u128 {
 #[cfg(test)]
 mod isolation_tests {
     use super::incoming_output_conflicts_with_virtual_tts;
+
+    #[test]
+    fn stereo_f32_downmix_reuses_capacity_and_sanitizes_samples() {
+        let mut scratch = Vec::with_capacity(64);
+        let original_capacity = scratch.capacity();
+        for _ in 0..64 {
+            super::downmix_f32_into(
+                &[1.0, -1.0, f32::NAN, 0.5, f32::INFINITY, -1.0],
+                2, &mut scratch,
+            );
+            assert_eq!(scratch, vec![0.0, 0.25, -0.5]);
+            assert_eq!(scratch.capacity(), original_capacity);
+        }
+        super::downmix_f32_into(&[0.3, -0.3, 0.5], 1, &mut scratch);
+        assert_eq!(scratch, vec![0.3, -0.3, 0.5]);
+    }
 
     #[test]
     fn optional_incoming_never_binds_to_virtual_tts_render_endpoint() {
