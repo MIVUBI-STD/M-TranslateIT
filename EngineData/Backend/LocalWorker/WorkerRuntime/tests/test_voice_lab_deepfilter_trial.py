@@ -8,12 +8,21 @@ from pathlib import Path
 
 import numpy as np
 from scipy.signal import resample_poly
-
 from test_voice_lab_source_pair import tone, wav
+
 from voice_lab_deepfilter_trial import (
-    ATTENUATION_DB, EXECUTABLE_NAME, MODEL_NAME, MODEL_GIT_BLOB_SHA1,
-    deepfilter_command, frozen_sources, git_blob_sha1, inspect_enhanced,
-    prepare_48k, sha256_file, stage_original_32k, verify_asset,
+    ATTENUATION_DB,
+    EXECUTABLE_NAME,
+    MODEL_GIT_BLOB_SHA1,
+    MODEL_NAME,
+    deepfilter_command,
+    frozen_sources,
+    git_blob_sha1,
+    inspect_enhanced,
+    prepare_48k,
+    sha256_file,
+    stage_original_32k,
+    verify_asset,
 )
 from voice_lab_source_pair import inspect_frozen_source_pair
 

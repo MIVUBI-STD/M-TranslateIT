@@ -9,17 +9,16 @@ from __future__ import annotations
 import argparse
 import gc
 import json
-import os
 import sys
 import wave
 from pathlib import Path
 
+from voice_lab_build import BuildError, validate_take_signal
 from voice_lab_gpt_sovits import (
     VoiceLabProviderError,
     prepare_pretrained_voice_preview,
     synthesize_pretrained_voice_preview,
 )
-from voice_lab_build import BuildError, validate_take_signal
 from voice_lab_gpt_sovits_build import select_reference, synthesis_artifact_flags
 
 PREVIEW_TEXT = "Good morning, everyone. Thank you for joining this meeting."

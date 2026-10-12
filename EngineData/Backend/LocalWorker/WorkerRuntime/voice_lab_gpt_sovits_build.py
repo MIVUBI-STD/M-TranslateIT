@@ -24,7 +24,6 @@ from voice_lab_audio_quality import (
     inspect_take_frames,
     reference_quiet_context_available,
 )
-from voice_lab_speaker_consistency import inspect_speaker_embeddings
 from voice_lab_gpt_sovits import (
     ACTOR_GPT_WEIGHT_FILE,
     ACTOR_REFERENCE_WAV_FILE,
@@ -48,6 +47,7 @@ from voice_lab_gpt_sovits import (
     wav_signal_metrics_pcm16,
     write_wav,
 )
+from voice_lab_speaker_consistency import inspect_speaker_embeddings
 
 
 def source_assets(source_root: Path) -> dict[str, Path]:

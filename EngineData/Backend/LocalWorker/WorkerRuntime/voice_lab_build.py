@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 from voice_lab_audio_quality import inspect_take_frames
-from voice_lab_source_pair import inspect_frozen_source_pair
 from voice_lab_gpt_sovits import (
     ENGINE,
     ENGINE_REVISION,
@@ -25,6 +24,7 @@ from voice_lab_gpt_sovits import (
     wav_signal_metrics_pcm16,
 )
 from voice_lab_gpt_sovits_build import build_candidate
+from voice_lab_source_pair import inspect_frozen_source_pair
 
 SCHEMA_VERSION = 1
 SILENCE_ABS_PCM16 = 128

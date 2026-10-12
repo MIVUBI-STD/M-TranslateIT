@@ -7,8 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from test_voice_actor_inference import load_provider_module
-
 PREVIEW_PATH = Path(__file__).resolve().parents[1] / "voice_lab_quick_preview.py"
 
 

@@ -197,9 +197,9 @@ def test_milmmt_generate_options_are_greedy_deterministic_and_have_no_forced_bos
     assert "forced_bos_token_id" not in captured
 
 
-def test_milmmt_standalone_source_limit_reserves_prompt_headroom() -> None:
+def test_milmmt_standalone_source_limit_bounds_target_expansion() -> None:
     worker = load_worker_module()
-    assert worker.translation_input_token_limit(object(), object()) == 1792
+    assert worker.translation_input_token_limit(object(), object()) == 96
 
 
 def test_milmmt_continuation_rejects_token_ceiling_without_eos(monkeypatch) -> None:

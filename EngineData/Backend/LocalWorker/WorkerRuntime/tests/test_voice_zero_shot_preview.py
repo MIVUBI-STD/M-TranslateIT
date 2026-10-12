@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from test_voice_actor_inference import load_provider_module
 
 
@@ -64,7 +63,10 @@ def test_pretrained_preview_is_separate_from_approved_actor(tmp_path: Path, monk
     with pytest.raises(provider.VoiceLabProviderError, match="preview_runtime_required"):
         provider.synthesize_pretrained_voice_preview({}, "Test", output)
     with pytest.raises(provider.VoiceLabProviderError, match="preview_output_name_invalid"):
-        provider.synthesize_pretrained_voice_preview(runtime, "Test", tmp_path / "reference.wav")
+        provider.synthesize_pretrained_voice_preview(runtime, "Test", tmp_path / "invalid_preview.wav")
+    with pytest.raises(provider.VoiceLabProviderError, match="preview_output_already_exists"):
+        provider.synthesize_pretrained_voice_preview(runtime, "Test", reference)
+    assert reference.read_bytes() == b"reference"
 
 
 @pytest.mark.parametrize("quality", [
