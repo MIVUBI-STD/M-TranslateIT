@@ -490,7 +490,7 @@ mod tests {
     fn mismatched_clock_or_gap_cannot_advance_asr_revision() {
         let scope = scope(7);
         let mut tracker = SourceStabilizer::new(scope.clone()).unwrap();
-        let wrong_scope = map(&scope(8), 0, 8_000, 0, 24_000, 48_000);
+        let wrong_scope = map(&SourceScope { audio_epoch: 8, ..scope.clone() }, 0, 8_000, 0, 24_000, 48_000);
         assert_eq!(
             tracker.observe_with_capture_mapping(
                 observation(&scope, 1, 0, 8_000, "Mulai", false), Some(&wrong_scope)),
