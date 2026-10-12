@@ -18,6 +18,9 @@ mod consumer_runtime;
 mod incoming_activation;
 mod incoming_deferred;
 mod incoming_pipeline;
+// Pure source eligibility candidate; never invoked by production MT/TTS.
+#[cfg(test)]
+mod interpreter_policy;
 mod lifecycle;
 mod outbound_pipeline;
 mod playback_runtime;

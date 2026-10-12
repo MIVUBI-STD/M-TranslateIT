@@ -1,22 +1,12 @@
-## Active continuation — CPAL error-to-VAD source epoch (2026-10-13)
+## Active continuation — Batch C.1 semantic source eligibility (2026-10-13)
 
-**Source candidate:** Production microphone and optional Meeting Sound loopback each own an atomic CPAL callback-error counter, bound before stream start to the corresponding canonical VAD producer. Error callbacks increment without waiting for a VAD lock; diagnostic error strings use `try_lock` while the public error count derives from the atomic counter. The current VAD observation lock checks the stream marker before and after ingest and invalidates speech/pre-roll plus producer sample epoch on a known CPAL error, including a newly finalized phrase if an error races during ingest. Stale stream markers cannot cross session/lane/generation reset boundaries. Existing finalized ASR→MT→TTS, virtual mic output and test-only PCM handoff remain unchanged.
+**Source candidate:** A test-only pure `meeting_session/interpreter_policy.rs` now consumes the bounded `StableTextCandidate` result and requires a matching session/generation/lane/speech/audio-epoch scope and current revision. The existing ASR candidate now carries its scope EVEN for nonfinal stable prefixes. Advisory Indonesian tail checks identify plainly open negation/conditional/repair/connective forms, but punctuation, two ASR agreements and lag NEVER certify translation safety. All nonfinal prefixes remain `WAIT` because there is no verified word-to-audio span. A finalized whole window with matching producer-aligned span may return `COMMIT_READY` as a candidate only; this module does not mutate transcript, perform MiLMMT/TTS, or change production finalized-utterance behavior. No model or UI addition.
 
-**Proof ceiling:** Static Local source review and authored domain scenario only; Rust/Cargo, real Windows callbacks, CUDA/VRAM, VB-CABLE and receiver checks remain **NOT EXECUTED**. CPAL errors report unknown gaps, not the number/timing of missing samples. The pre-existing blocking VAD mutex is still used on capture callbacks; this change introduces no *additional* callback lock for discontinuity delivery.
+**Evidence:** Exact GitHub source review and five bounded Rust behavior scenarios authored. Cargo, Windows/GPU/audio, receiver, human semantic-quality and long-meeting checks remain **NOT EXECUTED**. Deterministic lexical hints cannot prove meaning, avoid hallucinations, or replace human quality review.
 
-**Unresolved:** Physical capture error ordering, unreported device-frame loss, pre-existing VAD lock contention, and long/partial speech semantic commit.
+**Unresolved:** Audio-aligned partial clause boundaries, explicit incremental ASR worker observations, human fidelity comparisons for revisions/negation/numbers, and live eligibility/commit authority. No partial speech should be admitted without those gates.
 
-**Single next step:** Implement bounded semantic-boundary eligibility for anchored stable source observations; retain finalized production and run integrated native acceptance only when source is ready.
-
-## Active continuation — Batch B.4 scoped capture gap-to-VAD epoch (2026-10-13)
-
-**Source candidate:** The existing producer's VAD gap-reset now checks the incoming source session ID and the outbound source session/generation before clearing speech/pre-roll and advancing capture epoch. A stale incoming PCM consumer or old suppression guard can no longer reset another session's VAD. The existing test-only PCM cursor invokes the same reset callback for both dropped PCM callbacks and poisoned ring state. Replay scenarios exercise incoming/outbound epoch transition after loss and the stale-incoming-worker boundary. A finalized post-gap utterance retains producer-owned epoch coordinates compatible with the existing test-only SourceScope. No extra audio engine, queue, model or user control; CPAL capture still runs through the finalized path.
-
-**Evidence ceiling:** Exact-source inspection and authored Rust scenarios only. Cargo, Windows device/VRAM, VB-CABLE and receiver runtime checks **NOT EXECUTED**. Only losses recorded by the existing PCM handoff are propagated; the handoff is still **NOT CONNECTED** to production CPAL. A device drop before callback admission remains unobservable, and the source observations do not yet authorize partial commits.
-
-**Unresolved:** Production CPAL error/loss signaling, in-flight Stop race and sample-to-word alignment. The PCM handoff prototype has an unaccepted deadline/teardown lifecycle and remains test-only.
-
-**Single next step:** Integrate production capture-known discontinuity markers at the existing callback-to-VAD boundary without blocking callbacks or promoting the PCM prototype, then move to ASR semantic source slices.
+**Single next step:** Specify and implement the minimum source-to-audio clause-boundary evidence from ASR for progressive units, not heuristic word timestamps; retain the existing finalized path until native acceptance.
 
 
 ## Active continuation — Batch A source and delivery authority (2026-10-12)

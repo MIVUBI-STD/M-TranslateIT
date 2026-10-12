@@ -183,6 +183,9 @@ pub(super) enum StabilityEvidence {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct StableTextCandidate {
+    // A nonfinal stable-prefix candidate must retain its authoritative
+    // session/generation/speech/epoch identity even without word alignment.
+    pub scope: SourceScope,
     pub text: String,
     pub revision: u64,
     pub evidence: StabilityEvidence,
@@ -291,6 +294,7 @@ impl SourceStabilizer {
             // Finality must originate from the authoritative source producer,
             // not be inferred from punctuation or two matching ASR strings.
             let candidate = StableTextCandidate {
+                scope: self.scope.clone(),
                 text: input.transcript.trim().to_string(),
                 revision: input.revision,
                 evidence: StabilityEvidence::FinalizedWholeWindow,
@@ -319,6 +323,7 @@ impl SourceStabilizer {
 
         let result = match evidence {
             Some(text) => ObservationOutcome::Stable(StableTextCandidate {
+                scope: self.scope.clone(),
                 text,
                 revision: input.revision,
                 evidence: StabilityEvidence::GrowingWindowAgreement,
@@ -438,6 +443,7 @@ mod tests {
             tracker.observe(observation(&scope, 4, 4_000, 14_000, "Server aktif", false))
                 .unwrap(),
             ObservationOutcome::Stable(StableTextCandidate {
+                scope: scope.clone(),
                 text: "Server aktif".into(),
                 revision: 4,
                 evidence: StabilityEvidence::GrowingWindowAgreement,
@@ -568,6 +574,7 @@ mod tests {
             tracker.observe(observation(&scope, 2, 0, 12_000, "Mulai lagi", false))
                 .unwrap(),
             ObservationOutcome::Stable(StableTextCandidate {
+                scope: scope.clone(),
                 text: "Mulai".into(),
                 revision: 2,
                 evidence: StabilityEvidence::GrowingWindowAgreement,
