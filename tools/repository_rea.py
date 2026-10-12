@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_APPROVED_VERSION = "6.4.0"
 MAX_DOCTOR_STDOUT_BYTES = 2 * 1024 * 1024
 MAX_ANALYSIS_BYTES = 512 * 1024 * 1024
+MAX_JSON_VALIDATION_BYTES = 32 * 1024 * 1024
 VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][a-zA-Z0-9.-]+)?$")
 IDENTIFIER = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 
@@ -32,12 +33,22 @@ def _command(script: str | None) -> list[str]:
     """Avoid executing Windows npm .cmd shims with untrusted file arguments."""
     if script is not None:
         path = Path(script)
-        if not path.is_absolute() or path.suffix != ".mjs" or not path.is_file():
-            raise ReaBridgeError("--rea-script must be an existing absolute .mjs file")
+        if not path.is_absolute() or not path.is_file():
+            raise ReaBridgeError("--rea-script must be an existing absolute entrypoint")
+        resolved = path.resolve()
+        if resolved.name != "rea.mjs" or resolved.parent.name != "scripts":
+            raise ReaBridgeError("--rea-script must select the installed REA scripts/rea.mjs")
+        manifest = resolved.parent.parent / "package.json"
+        try:
+            package = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError) as exc:
+            raise ReaBridgeError("installed REA package identity is unavailable") from exc
+        if not isinstance(package, dict) or package.get("name") != "rea-agents":
+            raise ReaBridgeError("entrypoint is not inside an identified rea-agents package")
         node = shutil.which("node")
         if node is None:
             raise ReaBridgeError("Node.js missing; REA requires an approved local Node runtime")
-        return [node, str(path.resolve())]
+        return [node, str(resolved)]
     executable = shutil.which("rea")
     if executable is None:
         raise ReaBridgeError("REA CLI unavailable; use approved REA setup, no automatic install")
@@ -122,13 +133,31 @@ def _analyze(command: list[str], target: Path, output: Path) -> dict:
         size = output.stat().st_size
         if completed.returncode != 0 or size <= 0 or size > MAX_ANALYSIS_BYTES:
             raise ReaBridgeError("REA analysis failed, returned empty, or exceeded 512 MiB")
+        # REA can emit hundreds of MB; never JSON-decode all such Evidence
+        # in a wrapper. Validate small documents; large ones require the
+        # upstream REA inspect-analysis-view/evidence tools for verification.
+        syntax = "NOT_CHECKED_LARGE_JSON"
+        if size <= MAX_JSON_VALIDATION_BYTES:
+            try:
+                with output.open("r", encoding="utf-8") as stream:
+                    parsed = json.load(stream)
+            except (OSError, UnicodeError, ValueError) as exc:
+                raise ReaBridgeError("REA produced malformed JSON evidence") from exc
+            if not isinstance(parsed, dict) or parsed.get("ok") is False or "error" in parsed:
+                raise ReaBridgeError("REA returned an error or non-object analysis result")
+            syntax = "VALID_JSON_DOCUMENT"
         digest = hashlib.sha256()
         with output.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(chunk)
-        # Do not expose Evidence bytes on stdout or promote them to validated truth.
-        return {"status": "REA_ARTIFACT_CAPTURED_UNREVIEWED",
-                "output": str(output), "bytes": size, "sha256": digest.hexdigest(),
+        # No private file path, transcript, source text or Evidence payload is
+        # emitted to stdout. A syntactically valid document is not a proven
+        # reconstruction, and large results retain explicit unknown syntax.
+        return {"status": ("REA_ARTIFACT_CAPTURED_UNREVIEWED"
+                           if syntax == "VALID_JSON_DOCUMENT"
+                           else "REA_ARTIFACT_CAPTURED_SYNTAX_UNVERIFIED"),
+                "bytes": size, "sha256": digest.hexdigest(),
+                "jsonSyntax": syntax,
                 "proof": "EXTERNAL_TOOL_COMPLETED_OUTPUT_NOT_SEMANTICALLY_VERIFIED",
                 "meetingValidated": False}
     except BaseException:
@@ -177,11 +206,16 @@ def main() -> int:
         ready = _doctor(command, args.approved_version,
                         args.client if args.operation == "doctor" else None,
                         args.provider if args.operation == "doctor" else None)
-        if args.operation == "doctor" or not ready["healthy"]:
+        if args.operation == "doctor":
             print(json.dumps(ready, indent=2))
             return 0 if ready["healthy"] else 3
+        # Upstream explicitly documents that unscoped 'doctor' may be unhealthy
+        # solely because unrelated optional native providers are unavailable,
+        # while standalone static JavaScript analysis still works. The doctor
+        # result verifies package identity but is NOT a static-JS admission gate.
         result = _analyze(command, target, output)
-        print(json.dumps({**result, "reaVersion": ready["version"]}, indent=2))
+        print(json.dumps({**result, "reaVersion": ready["version"],
+                          "generalDoctorHealthy": ready["healthy"]}, indent=2))
         return 0
     except (ReaBridgeError, OSError) as exc:
         print(json.dumps({"status": "BLOCKED_OR_UNKNOWN",

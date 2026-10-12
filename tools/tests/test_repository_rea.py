@@ -60,6 +60,66 @@ class ReaBoundaryTests(unittest.TestCase):
                 self.assertEqual(main(), 2)
             called.assert_not_called()
 
+    def test_optional_provider_doctor_failure_does_not_block_static_js(self):
+        with tempfile.TemporaryDirectory() as private:
+            target = Path(private) / "app.asar"
+            target.write_bytes(b"fake")
+            output = Path(private) / "result.json"
+            unhealthy = {"healthy": False, "version": "6.4.0"}
+            with patch("repository_rea._doctor", return_value=unhealthy):
+                with patch("repository_rea._command", return_value=["rea"]):
+                    with patch("repository_rea._analyze", return_value={
+                        "status": "REA_ARTIFACT_CAPTURED_UNREVIEWED"
+                    }) as analyze:
+                        with patch.object(sys, "argv", [
+                            "repository_rea.py", "analyze-js",
+                            "--target", str(target), "--output", str(output),
+                            "--target-authorized", "--execute",
+                        ]):
+                            self.assertEqual(main(), 0)
+                        analyze.assert_called_once_with(["rea"], target, output)
+
+    def test_invalid_success_json_is_rejected_and_cleaned_up(self):
+        with tempfile.TemporaryDirectory() as private:
+            target = Path(private) / "app.asar"
+            target.write_bytes(b"fake")
+            output = Path(private) / "result.json"
+            def write_invalid(*args, **kwargs):
+                kwargs["stdout"].write(b'{"broken":')
+                return subprocess.CompletedProcess(args[0], 0)
+            with patch("repository_rea.subprocess.run", side_effect=write_invalid):
+                with self.assertRaises(ReaBridgeError):
+                    _analyze(["rea"], target, output)
+            self.assertFalse(output.exists())
+            def write_error(*args, **kwargs):
+                kwargs["stdout"].write(b'{"error":"no provider"}')
+                return subprocess.CompletedProcess(args[0], 0)
+            with patch("repository_rea.subprocess.run", side_effect=write_error):
+                with self.assertRaises(ReaBridgeError):
+                    _analyze(["rea"], target, output)
+            self.assertFalse(output.exists())
+
+    def test_rea_script_identity_requires_installed_package(self):
+        with tempfile.TemporaryDirectory() as private:
+            base = Path(private)
+            scripts = base / "scripts"
+            scripts.mkdir()
+            entry = scripts / "rea.mjs"
+            entry.write_text("", encoding="utf-8")
+            with self.assertRaises(ReaBridgeError):
+                _command(str(entry))
+            (base / "package.json").write_text(
+                json.dumps({"name": "not-rea-agents"}), encoding="utf-8"
+            )
+            with self.assertRaises(ReaBridgeError):
+                _command(str(entry))
+            (base / "package.json").write_text(
+                json.dumps({"name": "rea-agents", "version": "6.4.0"}),
+                encoding="utf-8"
+            )
+            with patch("repository_rea.shutil.which", return_value="/approved/node"):
+                self.assertEqual(_command(str(entry))[1], str(entry))
+
     def test_analysis_retains_only_private_digest_and_removes_failed_output(self):
         with tempfile.TemporaryDirectory() as private:
             target = Path(private) / "app.asar"
@@ -72,6 +132,8 @@ class ReaBoundaryTests(unittest.TestCase):
                 report = _analyze(["rea"], target, output)
             self.assertEqual(report["status"], "REA_ARTIFACT_CAPTURED_UNREVIEWED")
             self.assertNotIn("private value", str(report))
+            self.assertNotIn(str(output), str(report))
+            self.assertEqual(report["jsonSyntax"], "VALID_JSON_DOCUMENT")
             self.assertTrue(output.exists())
             output.unlink()
             with patch("repository_rea.subprocess.run",
