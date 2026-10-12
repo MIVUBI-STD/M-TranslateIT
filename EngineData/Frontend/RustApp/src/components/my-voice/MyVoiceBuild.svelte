@@ -137,6 +137,8 @@
         return "My Voice is ready and selected for meetings.";
       case "approved_cleanup_attention":
         return "My Voice is ready. Some temporary build files could not be cleared yet.";
+      case "approved_archive_attention":
+        return result.message || "My Voice is selected, but its separate saved copy could not be verified. Switching voices remains unavailable until it can be preserved.";
       case "approval_failed":
         return "My Voice couldn't be approved. Try again.";
       case "dataset_prepare_failed":
@@ -196,6 +198,8 @@
     if (result.build.phase === "unavailable") {
       statusCheckUnavailable = true;
     } else {
+      // A verified native response supersedes a previous bridge failure.
+      statusCheckUnavailable = false;
       applyStatus(result.build);
     }
     onNotice(productMessage(result));
@@ -399,7 +403,9 @@
       <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 3 · Create and review My Voice</h3>
       <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use your accepted recordings to create a personalized English voice. You can listen before choosing it.</p>
     </div>
-    {#if build.saved_personal_voice_available}
+    {#if build.selected_voice_kind === "personal"}
+      <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Personal voice selected</span>
+    {:else if build.saved_personal_voice_available}
       <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Personal voice saved</span>
     {:else if build.approved_voice_ready}
       <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Meeting voice ready</span>
