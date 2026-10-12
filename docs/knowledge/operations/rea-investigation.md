@@ -65,6 +65,27 @@ Use one of `source`, `artifact`, `runtime`, `capture`. The result's `externalAud
 
 Existing internal code/governance audits are unchanged. External REA findings must still be reconciled by a human or authorized investigator and forwarded to their existing implementation and validation owners; `externalAudit` is **not** evidence that a third-party application or our own code was validated.
 
+## Executable REA bridge and MCP readiness
+
+The audit context planner continues to be **plan-only**. A separate, explicitly opt-in developer bridge can now check the installed REA CLI and capture static JavaScript evidence through the **official REA CLI** without a second reverse-engineering implementation:
+
+```text
+python tools/repository_rea.py doctor
+python tools/repository_rea.py doctor --execute
+python tools/repository_rea.py doctor --execute --client codex
+python tools/repository_rea.py doctor --execute --provider ghidra
+python tools/repository_rea.py analyze-js --target ABSOLUTE_EXISTING_ASAR_OR_DIRECTORY --output ABSOLUTE_PRIVATE_OUTSIDE_REPO.json
+python tools/repository_rea.py analyze-js --target ABSOLUTE_EXISTING_ASAR_OR_DIRECTORY --output ABSOLUTE_PRIVATE_OUTSIDE_REPO.json --target-authorized --execute
+```
+
+The first and fifth calls only **plan**. `--execute` on a capable local developer host runs actual REA; it never installs REA or a provider. `analyze-js` also requires `--target-authorized` for that exact chosen artifact and uses an exclusive private output file outside the Git repository. The bridge reports SHA-256, output size and execution state **without printing raw Evidence**. A captured artifact remains `REA_ARTIFACT_CAPTURED_UNREVIEWED`; inspect it using upstream REA's own Evidence/view tools before using findings as a technical argument. Failed/truncated outputs are not PASS.
+
+REA package `6.4.0` is the reviewed default approval pin. For a separately reviewed package version, provide `--approved-version X.Y.Z`; do not silently accept a different installed version. On Windows, a typical npm `rea.cmd` launcher is rejected by this bridge because shell-mediated untrusted file arguments are unsafe; provide the **absolute installed** `scripts/rea.mjs` through `--rea-script`, executed with Node.js argument arrays (no shell). The bridge does not discover or alter global package paths. The documented doctor identity/version is from the real REA response, not our own inferred state.
+
+**All other REA capabilities remain available directly** from its installed MCP catalog or official CLI (`rea capabilities --json`, `rea providers --json`, `rea --help`). Use its target-specific native, managed, browser, Electron, mobile, WebAssembly, database and replay tools when actually needed. The bridge intentionally does not attempt to wrap every provider or pretend they are installed. For an agent, use `rea setup --client codex --dry-run --json` to review configuration, then a separate operator-approved real setup for MCP and the bundled skill; `rea doctor --client codex --json` checks registration readiness. A healthy CLI is not proof that the MCP server works in the connected agent: verify an actual advertised `tools/list` and a permitted target-specific call. This agent setup remains **outside the repository**, not a ChatGPT-hosted install.
+
+`REMOTE_GITHUB` can inspect and commit bridge source only. No Python/REA execution, browser/GPU/Meet evidence or installed-client proof is claimed until the separately authorized `LOCAL_CODE` / `TARGET_WINDOWS` phase. Do not require the user to perform incremental PC tests for each change.
+
 ## Installation / connection boundary
 
 - `REMOTE_GITHUB` (normal ChatGPT work): source research, source/REA documentation and artifact references **only**. No REA runtime, local binary analysis, browser attachment or hosted compute is implied; record `NOT EXECUTED` when tools are unavailable.
