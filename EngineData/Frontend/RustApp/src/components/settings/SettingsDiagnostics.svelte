@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ArrowLeft, Bug, RefreshCw } from "@lucide/svelte";
-  import { runtimeApi } from "../../app/bridge/runtimeApi";
+  import { runtimeApi, type AudioQualityReport } from "../../app/bridge/runtimeApi";
   import {
     parseWorkerCapabilities,
     type ProductRuntimeSnapshot,
@@ -33,6 +33,23 @@
     sanitizeDiagnosticText(snapshot.helper?.message, "Refresh status to check the local worker."),
   );
   const commandErrors = $derived(runtimeApi.getCommandErrors());
+  let audioQuality = $state<AudioQualityReport | null>(null);
+  let audioQualityLoading = $state(true);
+
+  $effect(() => {
+    const revision = refreshRevision;
+    let active = true;
+    audioQuality = null;
+    audioQualityLoading = true;
+    void runtimeApi.getAudioQuality().then((report) => {
+      if (active && revision === refreshRevision) audioQuality = report;
+    }).catch(() => {
+      if (active && revision === refreshRevision) audioQuality = null;
+    }).finally(() => {
+      if (active && revision === refreshRevision) audioQualityLoading = false;
+    });
+    return () => { active = false; };
+  });
 </script>
 
 <section class="grid gap-4">
@@ -83,6 +100,13 @@
 
   <RuntimeReliabilityDiagnostics {refreshRevision} />
   <MeetingPerformanceDiagnostics status={snapshot.meetingSession} />
+
+  <article class="ti-panel p-5">
+    <span class="ti-field-label">Microphone quality</span>
+    <strong class="mt-2 block text-[13px]">{audioQualityLoading ? "Checking..." : audioQuality?.label ?? "Not verified"}</strong>
+    <p class="mb-0 mt-2 text-[12px] leading-5 text-[var(--ti-text-muted)]">{audioQualityLoading ? "Reading the current microphone buffer." : sanitizeDiagnosticText(audioQuality?.note, "Audio quality is unavailable. Use Check Again to retry.")}</p>
+    <p class="mb-0 mt-2 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Uses existing Mic Test or Meeting capture. Checking quality does not start the microphone.</p>
+  </article>
 
   <article class="ti-panel p-5">
     <div class="flex items-end justify-between gap-5">

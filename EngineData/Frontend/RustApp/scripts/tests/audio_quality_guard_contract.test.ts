@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const meeting = readFileSync(new URL("../../src/pages/Meeting.svelte", import.meta.url), "utf8");
+const diagnostics = readFileSync(new URL("../../src/components/settings/SettingsDiagnostics.svelte", import.meta.url), "utf8");
 const runtimeApi = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", import.meta.url), "utf8");
 const audioCommand = readFileSync(new URL("../../src-tauri/src/commands/audio.rs", import.meta.url), "utf8");
 
@@ -19,9 +20,15 @@ test("audio quality guard exposes bounded user-facing states", () => {
   assert.match(runtimeApi, /getAudioQuality/);
 });
 
-test("Meeting page reads diagnostic audio status without starting capture", () => {
-  assert.match(meeting, /async function refreshAudioQuality\(\)/);
-  assert.match(meeting, /audioQuality = await runtimeApi\.getAudioQuality\(\)/);
-  assert.match(meeting, /onMount\(\(\) => \{[\s\S]*?void refreshAudioQuality\(\);/);
+test("Settings Diagnostics reads audio quality on explicit refresh without starting capture", () => {
+  assert.match(diagnostics, /runtimeApi\.getAudioQuality\(\)/);
+  assert.match(diagnostics, /const revision = refreshRevision/);
+  assert.match(diagnostics, /active && revision === refreshRevision/);
+  assert.match(diagnostics, /return \(\) => \{ active = false; \}/);
+  assert.match(diagnostics, /audioQuality = null/);
+  assert.match(diagnostics, /audioQualityLoading \? "Checking\.\.\."/);
+  assert.match(diagnostics, /Microphone quality/);
+  assert.doesNotMatch(diagnostics, /startCapture\(|setInterval\(/);
+  assert.doesNotMatch(meeting, /getAudioQuality\(/);
   assert.doesNotMatch(meeting, /startCapture\(/);
 });
