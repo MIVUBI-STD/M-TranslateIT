@@ -25,6 +25,16 @@ Use the latest completed matching verifier for the exact `Local` SHA and changed
 
 Do not preserve mutable “latest PASS” snapshots here. Historic GitHub Actions runs are not proof of the current `Local` commit.
 
+## Meeting Performance Foundation — source audit (2026-10-12)
+
+- Audited source baseline: `77f95bc65630a46c7f86d6a79667fc64b1ea1044` on `Local`.
+- Searched 92 Rust source files for `MeetingOutboundTiming`, `MeetingOutputDeliveryReport`, `OutboundTimingContext`, and `HelperTaskPermit` constructors/references; no overlooked constructor was identified by static inspection.
+- Reviewed scheduler-wait plumbing, per-utterance latency metrics, and diagnostic/frontend fields. **Source inspection only: not compilation or runtime verification.**
+- No matching GitHub Actions run was found for that SHA. Available execution context lacks Cargo and direct GitHub clone networking. The frontend, Rust, and worker suites require an appropriate clean build environment.
+- GPU VRAM residency, actual Chrome/Meet delivery, real native output latency, translation fidelity, P50/P95 and 30-minute stability remain **NOT EXECUTED** for this revision.
+- Later documentation-only commits do not upgrade the proof ceiling of this source revision.
+
+
 ## Developer acceptance evidence — 2026-10-12
 
 Fixed tested revision: `230ca94faae178659a7738fa82399485c267c991` on `Local`; initial requested candidate: `497041064aee4e797db57dc8a97a67974e5577aa`. Execution occurred in the user-authorized integrated developer phase on the target Windows PC. The user subsequently paused testing to continue source work in ChatGPT. This is partial acceptance, not a release or full-test completion. Documentation-only descendants retain these observations for unchanged runtime source; source changes require their own relevant proof.

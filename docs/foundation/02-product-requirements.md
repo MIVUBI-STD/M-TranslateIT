@@ -165,8 +165,12 @@ Indonesian speech
 ### PR-051 — Latency philosophy
 **SHOULD:** Accept bounded post-speech delay when it materially improves complete stable translation.
 
-### PR-052 — Outbound latency metric
-**MUST:** Measure user-relevant outbound latency from finalized utterance end to first translated audio playback when evaluating live performance.
+### PR-052 — Outbound latency metrics and evidence boundary
+**MUST:** Keep `outbound_latency_ms` defined precisely as *finalized utterance → first native translated-audio playback callback*. It is a post-finalization diagnostic metric, **not** the complete delay experienced by the speaker or proof of receipt by another participant.
+
+**SHOULD:** Also measure speech onset/end → first translated audio with traceable audio-boundary timestamps. Existing VAD speech-span and trailing-silence estimates must be explicitly labeled **estimated** until sample-accurate capture timing has been proven.
+
+**MUST NOT:** Fabricate zero latency when first playback is missing, double-count scheduler wait included in ASR/translation/TTS stage totals, or treat local playback as Google Meet delivery proof. Compare P50/P95 and quality only on matched, actually executed scenarios.
 
 ### PR-053 — Atomic Start
 **MUST:** Commit `Live` only when required outbound path, including selected Meeting voice and route, is actually ready. Duplicate Start must not create another session.

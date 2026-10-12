@@ -442,6 +442,51 @@ mod c2_latency_tests {
         assert_eq!(timing.metrics.estimated_onset_to_first_audio_ms, Some(4_415));
         assert_eq!(timing.metrics.first_playback_unix_ms, Some(51_275));
     }
+
+    #[test]
+    fn missing_first_audio_callback_cannot_create_a_latency_measurement() {
+        let finalized_at = Instant::now();
+        let mut timing = OutboundTimingContext {
+            finalized_at,
+            metrics: MeetingOutboundTiming {
+                finalized_unix_ms: 1,
+                first_playback_unix_ms: None,
+                speech_boundary_ms: 125,
+                finalization_ms: 0,
+                queue_ms: 0,
+                audio_prepare_ms: 0,
+                asr_ms: None,
+                translation_ms: None,
+                translation_tokenization_ms: None,
+                translation_inference_ms: None,
+                translation_decode_ms: None,
+                translation_tokens_per_second: None,
+                tts_ms: None,
+                playback_queue_ms: None,
+                delivery_ms: None,
+                outbound_latency_ms: None,
+                captured_speech_span_ms: 2_000,
+                estimated_onset_to_first_audio_ms: None,
+                estimated_end_to_first_audio_ms: None,
+                asr_scheduler_wait_ms: None,
+                translation_scheduler_wait_ms: None,
+                tts_scheduler_wait_ms: None,
+                output_stream_build_ms: None,
+                output_stream_start_to_first_audio_ms: None,
+            },
+        };
+        record_first_playback_timing(
+            &mut timing,
+            finalized_at + Duration::from_millis(2_000),
+            None,
+            None,
+        );
+        assert_eq!(timing.metrics.delivery_ms, None);
+        assert_eq!(timing.metrics.outbound_latency_ms, None);
+        assert_eq!(timing.metrics.estimated_end_to_first_audio_ms, None);
+        assert_eq!(timing.metrics.estimated_onset_to_first_audio_ms, None);
+        assert_eq!(timing.metrics.first_playback_unix_ms, None);
+    }
 }
 
 #[cfg(test)]
