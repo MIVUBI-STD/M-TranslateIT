@@ -541,6 +541,7 @@
   </div>
 
   <MyVoiceBuild {onNotice}
+    voiceChangesLocked={voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null}
     onMeetingVoiceChanged={async (message) => {
       await refreshVoiceSelection();
       await onMeetingVoiceChanged(message);

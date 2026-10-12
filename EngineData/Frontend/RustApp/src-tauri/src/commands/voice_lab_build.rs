@@ -785,10 +785,18 @@ pub fn approve_voice_lab_candidate(
     quality_confirmed: bool,
     review_id: String,
 ) -> VoiceLabBuildActionResult {
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active", "Stop Meeting translation before selecting My Voice.");
+    }
     let _guard = match voice_selection_guard() {
         Ok(guard) => guard,
         Err(()) => return result(false, "voice_selection_unavailable", "Voice selection is busy. Try again."),
     };
+    // Recheck after acquiring the selection lock: Meeting may have started
+    // while another voice change held this lock.
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active", "Stop Meeting translation before selecting My Voice.");
+    }
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
     }
@@ -829,6 +837,11 @@ pub fn approve_voice_lab_candidate(
     }
     if !held_out_wavs_intact(&paths, &evaluation) {
         return result(false, "evaluation_audio_integrity_failed", "Audio changed; rebuild.");
+    }
+    // Approval changes the actor selected by Meeting. A late-started session
+    // must not be allowed to receive an unverified actor change.
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active", "Stop Meeting translation before selecting My Voice.");
     }
     let project_paths = ProjectPaths::discover();
     match promote_voice_actor_candidate(&project_paths) {

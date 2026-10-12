@@ -68,3 +68,25 @@ test("a verified My Voice action clears prior unavailable-bridge warning without
   assert.match(ui, /if \(result\.build\.phase === "unavailable"\) \{\s*statusCheckUnavailable = true;/);
   assert.match(ui, /else \{\s*\/\/ A verified native response supersedes a previous bridge failure\.\s*statusCheckUnavailable = false;\s*applyStatus\(result\.build\);/);
 });
+
+test("approved My Voice cannot replace the selected actor during an active Meeting", () => {
+  const start = build.indexOf("pub fn approve_voice_lab_candidate(");
+  const end = build.indexOf("pub fn get_voice_lab_evaluation_audio(", start);
+  assert.ok(start >= 0 && end > start);
+  const approval = build.slice(start, end);
+  const meetingChecks = [...approval.matchAll(/if meeting_blocks_voice_change\(\)/g)];
+  assert.ok(meetingChecks.length >= 2, "Meeting guard must be checked before promotion and after selection lock");
+  assert.ok(approval.indexOf('return result(false, "meeting_active"') >= 0);
+  assert.ok(approval.lastIndexOf("if meeting_blocks_voice_change()")
+    < approval.indexOf("match promote_voice_actor_candidate("));
+  assert.match(approval, /if !evaluation_review_complete\(&evaluation, &reviewed_line_ids\)/);
+  assert.match(approval, /if !quality_confirmed/);
+
+  const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const parent = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  assert.match(parent, /<MyVoiceBuild \{onNotice\}\s*voiceChangesLocked=\{voiceChangesLocked \|\| recordingStatusUnknown \|\| isRecording \|\| pendingLineId !== null\}/);
+  assert.match(ui, /voiceChangesLocked\?: boolean/);
+  assert.match(ui, /async function approve\(\): Promise<void> \{\s*if \(busy \|\| voiceChangesLocked/);
+  assert.match(ui, /disabled=\{busy \|\| voiceChangesLocked \|\| !evaluationReviewComplete \|\| !qualityConfirmed\}/);
+  assert.match(ui, /case "meeting_active":\s*return "Stop Meeting translation before selecting My Voice\."/);
+});

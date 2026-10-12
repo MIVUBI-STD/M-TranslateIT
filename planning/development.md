@@ -1,15 +1,12 @@
 # TranslateIT Development
 
-## Active continuation — Cross-page source admission (2026-10-12)
+## Active continuation — Selected voice approval session guard (2026-10-12)
 
-**State: SOURCE CORRECTIONS DELIVERED ON Local; EXECUTABLE TYPECHECK/TESTS AND TARGET_WINDOWS PROOF NOT EXECUTED.** Current integration source review confirmed 19 owner modules with 116 relative import references resolving and five relevant Rust/TypeScript DTO pairs aligned on field names. The canonical Node 22, Rust 1.88+, Python 3.12.10 and uv 0.12+ toolchain policy and all three source dependency lockfiles are present; their executable dependency closure is not proven.
+**State: SOURCE CORRECTIONS ON Local; TYPECHECK, FRONTEND TESTS, RUST BUILD, AND TARGET_WINDOWS PROOF NOT EXECUTED.** Source admission found that built-in and saved-personal voice selections already rejected changes while Meeting owns the runtime, but My Voice's separate approve-candidate path could promote a new selected actor without the same guard. Native approval now checks Meeting ownership before acquiring the voice-selection lock, after the lock, and immediately before candidate promotion, preserving user review data when blocked. The existing My Voice creation/review component consumes the root audio-lock/recording truth and disables selection during active Meeting or uncertain recording, with concise English recovery copy. The held-out quality/listening requirements remain unchanged.
 
-**Admission corrections:** Rust's Meeting preset transaction now preserves the existing Text source/target direction even for saved v1 presets; frontend preset application no longer transfers standalone Text languages, while the fixed Indonesian→English Meeting outbound and optional incoming direction remain intact. Existing preset storage keys are preserved. The stale Voice selection test now checks the current canonical snapshot refresh rather than a deprecated notice-only path. Targeted Rust/source/storage regression assertions and the existing U2 Windows runbook were updated. Shared translation style remains a product-level preference.
+**Proof boundary:** Exact pinned `Local` source and static regression assertions only. Node/Svelte/Cargo and real Windows/app audio tests remain UNKNOWN / NOT EXECUTED. No cloud CI, new UI framework, new voice/AI engine or `main` promotion. Existing `docs/knowledge/operations/target-windows-performance.md` owns the single integrated acceptance gate.
 
-**Proof ceiling:** GitHub exact-source/static inspection only, not a Node/Cargo build or executed tests. No CI cloud or main-branch promotion. The product is NOT YET marked build-pass, native-pass or release-ready.
-
-**One next step:** complete the source-admission review of remaining compatibility/semantic blockers, then pin one integrated exact-Local-SHA Windows build and functional acceptance candidate without repeated incremental user testing.
-
+**One next step:** finish static/source admission for concurrency and legacy voice storage recovery paths, then prepare one exact-Local-SHA integrated Windows test-ready candidate; do not request incremental tests on the user's PC.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

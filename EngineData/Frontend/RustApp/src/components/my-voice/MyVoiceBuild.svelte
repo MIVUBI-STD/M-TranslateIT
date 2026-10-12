@@ -12,10 +12,12 @@
     onNotice,
     onMeetingVoiceChanged,
     refreshRevision = 0,
+    voiceChangesLocked = false,
   }: {
     onNotice: (message: string) => void;
     onMeetingVoiceChanged: (message?: string) => void | Promise<void>;
     refreshRevision?: number;
+    voiceChangesLocked?: boolean;
   } = $props();
 
   let build = $state<MyVoiceBuildStatus>({
@@ -124,6 +126,8 @@
         return result.message || "Record a few more clear and varied lines before creating My Voice.";
       case "build_blocked":
         return "Stop Meeting translation before creating My Voice, then try again.";
+      case "meeting_active":
+        return "Stop Meeting translation before selecting My Voice.";
       case "cancel_pending":
         return "My Voice is still stopping. Keep My Voice open and try again shortly.";
       case "evaluation_required":
@@ -285,7 +289,7 @@
   }
 
   async function startBuild(): Promise<void> {
-    if (busy || quickPreviewBusy || !build.can_build || !authorized) return;
+    if (busy || voiceChangesLocked || quickPreviewBusy || !build.can_build || !authorized) return;
     quickPreviewReady = false;
     stopAudio();
     reviewedLineIds = [];
@@ -312,7 +316,7 @@
   }
 
   async function approve(): Promise<void> {
-    if (busy || build.active || !build.evaluation_ready || !build.evaluation_review_id || !evaluationReviewComplete || !qualityConfirmed) return;
+    if (busy || voiceChangesLocked || build.active || !build.evaluation_ready || !build.evaluation_review_id || !evaluationReviewComplete || !qualityConfirmed) return;
     stopAudio();
     busy = true;
     try {
@@ -469,7 +473,10 @@
         <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={qualityConfirmed} disabled={!evaluationReviewComplete || busy} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I listened to every preview. The voice is clear, sounds natural, resembles the authorized speaker, and I want to use it for meetings.</span>
       </label>
-      <button type="button" class="ti-button mt-4" disabled={busy || !evaluationReviewComplete || !qualityConfirmed} onclick={() => void approve()}>
+      {#if voiceChangesLocked}
+        <p class="mb-0 mt-3 text-sm text-[var(--ti-text-muted)]" role="status">Finish the current Meeting or recording before selecting a new voice.</p>
+      {/if}
+      <button type="button" class="ti-button mt-4" disabled={busy || voiceChangesLocked || !evaluationReviewComplete || !qualityConfirmed} onclick={() => void approve()}>
         <Check size={15} /><span>{busy ? "Saving..." : "Use My Voice"}</span>
       </button>
       <p class="mb-0 mt-4 text-xs leading-5 text-[var(--ti-text-muted)]">Not satisfied? Keep the current Meeting voice and record more samples before creating another candidate.</p>
@@ -478,7 +485,7 @@
           <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} disabled={busy} />
           I own this voice or have permission to create another version.
         </label>
-        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
       {/if}
     </div>
   {:else}
@@ -489,7 +496,7 @@
         <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
       </label>
-      <button type="button" class="ti-button mt-4" disabled={busy || !authorized} onclick={() => void startBuild()}>
+      <button type="button" class="ti-button mt-4" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>
         <span>{busy ? "Starting..." : build.approved_voice_ready ? "Create Again" : "Create My Voice"}</span>
       </button>
     {/if}

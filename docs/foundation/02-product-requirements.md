@@ -349,6 +349,8 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Run My Voice training concurrently with active Meeting.
 
+**MUST NOT:** Change the selected Meeting voice during a live/starting/stopping Meeting, including approving a newly evaluated My Voice actor. The native approval transaction must reject the change without replacing the current actor; the UI must show a recoverable Stop Meeting instruction.
+
 ## 13. UI
 
 ### PR-160 — Navigation
