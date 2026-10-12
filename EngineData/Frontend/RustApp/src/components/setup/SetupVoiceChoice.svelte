@@ -1,14 +1,16 @@
 <script lang="ts">
   import StatusRow from "../ui/StatusRow.svelte";
   import type { ProductRuntimeSnapshot } from "../../app/bridge/runtimeProductFacade";
+  import type { VirtualMicRouteCheck } from "../../app/bridge/virtualMicRoutePresentation";
   type BuiltinVoiceId = "MaleVoice" | "FemaleVoice";
   let {
-    snapshot, meetingVoiceReady, busy, builtinPendingId,
+    snapshot, meetingVoiceReady, routeCheck, busy, builtinPendingId,
     microphone, meetingMicrophone, meetingSound,
     onSelect, onConfirm, onCancel, onOpenMyVoice,
   }: {
     snapshot: ProductRuntimeSnapshot | null;
     meetingVoiceReady: boolean | null;
+    routeCheck: VirtualMicRouteCheck;
     busy: boolean;
     builtinPendingId: BuiltinVoiceId | null;
     microphone: string;
@@ -23,7 +25,7 @@
 
 <div>
           <span class="ti-kicker">Voice others hear</span>
-          <h1 class="ti-page-title">{meetingVoiceReady && snapshot?.readiness.meetingReady ? "TranslateIT is ready for a call." : "Choose the English voice others will hear."}</h1>
+          <h1 class="ti-page-title">{meetingVoiceReady && snapshot?.readiness.meetingReady && routeCheck === "ready" ? "TranslateIT is ready for a call." : "Choose the English voice others will hear."}</h1>
           <p class="ti-page-copy">Choose a built-in voice to start quickly, or make a personalized voice later. In your calling app, select the TranslateIT microphone before speaking.</p>
         </div>
 
@@ -54,17 +56,22 @@
         <div class="ti-subtle-card divide-y divide-[var(--ti-border)] overflow-hidden">
           <StatusRow label="Microphone" value={microphone} status={snapshot?.readiness.microphoneReady ? "Ready" : "Setup Needed"} tone={snapshot?.readiness.microphoneReady ? "good" : "warning"} />
           <StatusRow label="Voice others hear" value={meetingVoiceReady ? "A Meeting voice is ready" : meetingVoiceReady === null ? "Checking the Meeting voice" : "Choose a built-in voice or create My Voice"} status={meetingVoiceReady ? "Ready" : meetingVoiceReady === null ? "Checking" : "Setup Needed"} tone={meetingVoiceReady ? "good" : meetingVoiceReady === null ? "neutral" : "warning"} />
-          <StatusRow label="TranslateIT microphone" value={meetingMicrophone} detail="Windows availability does not confirm selection inside your calling app." status={snapshot?.readiness.meetingRouteReady ? "Available" : "Setup Needed"} tone={snapshot?.readiness.meetingRouteReady ? "good" : "warning"} />
+          <StatusRow label="TranslateIT microphone" value={meetingMicrophone}
+            detail={routeCheck === "unavailable" ? "Couldn't verify the Windows device. Select Check Again." : "Windows availability does not confirm selection inside your calling app."}
+            status={routeCheck === "ready" ? "Available" : routeCheck === "unavailable" ? "Unable to check" : routeCheck === "checking" ? "Checking" : "Setup Needed"}
+            tone={routeCheck === "ready" ? "good" : routeCheck === "setup_needed" ? "warning" : "neutral"} />
           <StatusRow label="Translate what you hear" value={`English → Indonesian text · ${meetingSound}`} detail="Optional. You can turn this on or change it later." status="Optional" tone="neutral" />
         </div>
 
         <button type="button" class="ti-button ti-button-secondary justify-self-start" disabled={busy} onclick={() => void onOpenMyVoice()}>Create my own voice instead</button>
-        {#if snapshot && !snapshot.readiness.meetingReady}
+        {#if snapshot && (!snapshot.readiness.meetingReady || routeCheck !== "ready")}
           <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] p-4" role="status">
             <strong class="block text-sm font-semibold">What still needs attention</strong>
             <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">
-              {snapshot.readiness.level === "checking"
-                ? "The local translation check is still running. Select Check Again."
+              {routeCheck === "unavailable"
+                ? "Couldn't check the TranslateIT microphone in Windows. Go back to the Meeting app step and select Check Again."
+                : snapshot.readiness.level === "checking" || routeCheck === "checking"
+                  ? "The local translation check is still running. Select Check Again."
                 : !snapshot.readiness.microphoneReady
                   ? "Your input microphone is not ready. Go back to the Microphone step to select or check it."
                   : !snapshot.readiness.meetingRouteReady

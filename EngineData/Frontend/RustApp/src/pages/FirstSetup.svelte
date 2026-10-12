@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { myVoiceBuildApi } from "../app/bridge/myVoiceBuildApi";
+  import { classifyVirtualMicRoute } from "../app/bridge/virtualMicRoutePresentation";
   import { runtimeApi, type VirtualMicRouteContractStatus } from "../app/bridge/runtimeApi";
   import {
     runtimeProductFacade,
@@ -42,6 +43,10 @@
   let builtinPendingId = $state<BuiltinVoiceId | null>(null);
 
   const meetingVoiceReady = $derived(snapshot?.readiness.approvedVoiceReady ?? null);
+  const routeCheck = $derived(classifyVirtualMicRoute(
+    routeStatus,
+    snapshot?.readiness.meetingRouteReady === true,
+  ));
   // An unsaved device choice is not the verified microphone in the runtime snapshot.
   const microphoneSelectionPending = $derived(
     selectedMicrophone.trim() !== String(settings.audio.input_device_id ?? "").trim(),
@@ -57,7 +62,7 @@
 
   function savedMicrophoneMissing(): boolean {
     const current = currentMicrophoneId();
-    return Boolean(current && devices && !microphoneDevices().some((device) => deviceId(device) === current));
+    return Boolean(current && devices?.ok && !microphoneDevices().some((device) => deviceId(device) === current));
   }
 
   function currentMicrophone(): string {
@@ -67,7 +72,10 @@
   function currentMeetingMicrophone(): string {
     return compact(
       routeStatus?.selected_input_device,
-      snapshot?.readiness.meetingRouteReady ? "Device name unavailable — check Settings" : "TranslateIT microphone not ready",
+      routeCheck === "unavailable" ? "Unable to check in Windows"
+        : routeCheck === "checking" ? "Checking..."
+        : routeCheck === "ready" ? "Device name unavailable — check Settings"
+        : "Not available in Windows",
     );
   }
 
@@ -276,7 +284,7 @@
   }
 
   async function completeSetup(): Promise<void> {
-    if (busy || !meetingVoiceReady || !snapshot?.readiness.meetingReady) return;
+    if (busy || !meetingVoiceReady || !snapshot?.readiness.meetingReady || routeCheck !== "ready") return;
     busy = true;
     message = "Saving...";
     const saved = await persistSetupFact("completed", 4);
@@ -357,10 +365,10 @@
         <div>
           <span class="ti-kicker">Meeting app</span>
           <h1 class="ti-page-title">Choose TranslateIT as your call microphone</h1>
-          <p class="ti-page-copy">In the audio settings of Zoom, Google Meet, Discord, or your calling app, select the microphone shown below.</p>
+          <p class="ti-page-copy">In the audio settings of Zoom, Google Meet, Discord, or your calling app, select the TranslateIT microphone once it is available.</p>
         </div>
         <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] p-5">
-          <span class="ti-field-label">Choose this as the microphone in your meeting app</span>
+          <span class="ti-field-label">TranslateIT microphone for your meeting app</span>
           <strong class="mt-2 block break-words text-base font-semibold">{currentMeetingMicrophone()}</strong>
           <p class="mb-0 mt-2 text-xs leading-5 text-[var(--ti-text-muted)]">Check Again verifies only the TranslateIT device in Windows. It cannot confirm which microphone your calling app selected.</p>
         </div>
@@ -368,15 +376,19 @@
           <StatusRow
             label="TranslateIT microphone"
             value={currentMeetingMicrophone()}
-            detail={snapshot?.readiness.meetingRouteReady ? "Available in Windows. Select it separately in your calling app." : "TranslateIT needs to finish setting up this microphone."}
-            status={snapshot?.readiness.meetingRouteReady ? "Available" : snapshot?.readiness.level === "checking" ? "Checking" : "Setup Needed"}
-            tone={snapshot?.readiness.meetingRouteReady ? "good" : snapshot?.readiness.level === "checking" ? "neutral" : "warning"}
+            detail={routeCheck === "ready" ? "Available in Windows. Select it separately in your calling app."
+              : routeCheck === "unavailable" ? "Couldn't check the Windows device status. Select Check Again."
+              : routeCheck === "checking" ? "Checking the TranslateIT microphone in Windows..."
+              : "TranslateIT needs to finish setting up this microphone."}
+            status={routeCheck === "ready" ? "Available" : routeCheck === "unavailable" ? "Unable to check" : routeCheck === "checking" ? "Checking" : "Setup Needed"}
+            tone={routeCheck === "ready" ? "good" : routeCheck === "setup_needed" ? "warning" : "neutral"}
           />
         </div>
       {:else}
         <SetupVoiceChoice
           {snapshot}
           {meetingVoiceReady}
+          {routeCheck}
           {busy}
           {builtinPendingId}
           microphone={currentMicrophone()}
@@ -398,9 +410,9 @@
         {busy}
         microphoneReady={snapshot?.readiness.microphoneReady === true}
         {microphoneSelectionPending}
-        meetingRouteReady={snapshot?.readiness.meetingRouteReady === true}
+        meetingRouteReady={snapshot?.readiness.meetingRouteReady === true && routeCheck === "ready"}
         {meetingVoiceReady}
-        meetingReady={snapshot?.readiness.meetingReady === true}
+        meetingReady={snapshot?.readiness.meetingReady === true && routeCheck === "ready"}
         onBack={goBack}
         onDefer={deferSetup}
         onOpenText={openTextInstead}

@@ -14,6 +14,7 @@
   import type { RuntimeSettings } from "../app/shared/types";
   import { setupStateNeedsResume } from "../app/runtime/setupFlow";
   import { meetingControlState } from "../app/bridge/productMeetingState";
+  import { classifyVirtualMicRoute } from "../app/bridge/virtualMicRoutePresentation";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
   import MeetingPresetPanel from "../components/meeting/MeetingPresetPanel.svelte";
   import MeetingSessionReview from "../components/meeting/MeetingSessionReview.svelte";
@@ -70,10 +71,10 @@
     String(snapshot.inputStatus?.selected_device_name ?? snapshot.settings.audio.input_device_id ?? "").trim() || "Windows Default",
   );
   const meetingSound = $derived(String(snapshot.settings.audio.output_device_id ?? "").trim() || "Windows Default");
+  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus, readiness.meetingRouteReady));
   const meetingMicrophoneDevice = $derived(
-    routeStatus?.ok === false ? "Unable to check in Windows"
-      : String(routeStatus?.selected_input_device ?? "").trim()
-        || (readiness.meetingRouteReady ? "Check device name in Settings" : "Not available in Windows"),
+    String(routeStatus?.selected_input_device ?? "").trim()
+      || (routeCheck === "ready" ? "Device name unavailable" : routeCheck === "checking" ? "Checking..." : "Not available in Windows"),
   );
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.live));
   // Meeting outbound is always Indonesian speech to English voice. Swapping
@@ -256,13 +257,15 @@
         <section class="flex flex-wrap items-start justify-between gap-3 px-6 py-4">
           <div class="min-w-0">
             <h3 class="m-0 text-sm font-semibold">Set up your calling app</h3>
-            {#if routeStatus?.ok === false}
+            {#if routeCheck === "unavailable"}
               <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">Couldn't check the TranslateIT microphone in Windows. Check Settings before configuring your calling app.</p>
-            {:else if readiness.meetingRouteReady}
+            {:else if routeCheck === "ready" && routeStatus?.selected_input_device}
               <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">
                 Select <strong class="font-medium text-[var(--ti-text)]">{meetingMicrophoneDevice}</strong> as the microphone input in your calling app.
               </p>
               <p class="mb-0 mt-1 text-xs text-[var(--ti-text-soft)]">Available in Windows; TranslateIT cannot verify your calling app's input selection.</p>
+            {:else if routeCheck === "ready" || routeCheck === "checking"}
+              <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">Check the TranslateIT microphone's device name in Settings before selecting it in your calling app.</p>
             {:else}
               <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">The TranslateIT microphone isn't ready. Open Settings and repair the setup before starting a call.</p>
             {/if}

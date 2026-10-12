@@ -1,12 +1,14 @@
 # TranslateIT Development
 
-## Active continuation — Meeting Ready/Live progressive disclosure (2026-10-12)
+## Active continuation — Cross-page runtime uncertainty admission (2026-10-12)
 
-**State: SOURCE CANDIDATE ON Local; TYPECHECK, FRONTEND TESTS, RENDERED UI, AND TARGET_WINDOWS PROOF NOT EXECUTED.** Meeting Ready now prioritizes Indonesian speech → English voice, the selected microphone and voice, and one runtime-authorized Start/Stop action. The fixed Meeting direction no longer reflects Text's swapped source/target settings. Meeting detection remains advisory. Device routing, optional incoming captions, saved presets and transcript export are preserved in user-expanded Meeting options, with Quick Actions automatically opening and focusing the target. Live shows one stage grounded in the outbound runtime's output_active/stage signals, with contextual transcript tools, local playback labels, copy feedback, smart follow and an explicit Jump to latest. Last-session review stays collapsed until the user opens it. No new UI framework, prompt controls or normal-surface technical telemetry was introduced.
+**State: SOURCE CORRECTIONS ON Local; EXECUTABLE TYPECHECK/TESTS AND TARGET_WINDOWS EVIDENCE NOT EXECUTED.** The integration review found that the My Voice recording bridge represented failed calls as an empty idle state, potentially clearing its navigation lock despite unverified capture ownership. Recording reads and failed mutation results now carry explicit unknown (null), the last verified recording state remains in place, Retry status/Retry Stop are reachable, and the application shell also honors Rust's authoritative voice-recording resource owner. The virtual-microphone route command's `ok=false` can legitimately mean an absent device; Meeting, Settings and First Setup now use one route-evidence classifier so missing devices are `Setup Needed` while frontend bridge failure is `Unable to check`. First Setup completion still requires verified Meeting readiness and a confirmed route check.
 
-**Proof ceiling:** GitHub source and cross-file static review only. Targeted source/contract tests added and stale Meeting-direction assertions corrected but executable typecheck/frontend tests, visual layouts at Windows DPI, real audio/playback, and installed-product tests have not run. Hosted CI remains inactive and `main` unchanged. The existing integrated Windows acceptance runbook now names the exact U2 behaviors to observe.
+**Source-contract compatibility:** the existing Quick Actions test fixture was updated for the required `meetingActionLabel`, and a stale Meeting UI test that treated `ok=false` as bridge failure was corrected. New targeted source/policy tests cover both scenarios. The established Windows acceptance runbook now explicitly includes My Voice bridge loss, last-verified state, and personal voice restoration.
 
-**One next step:** perform an exact-Local-SHA source integration admission review across Meeting, Text, My Voice, Settings and startup, resolving any source-contract blockers before one coordinated native build-and-Windows acceptance.
+**Proof ceiling:** GitHub exact-source/static checks only. All Node/TS/Svelte/Rust compilation, frontend execution, and Windows audio/device tests remain UNKNOWN / NOT EXECUTED. No hosted CI, new UI framework, external cloud service or `main` promotion.
+
+**One next step:** complete the bounded exact-SHA source admission review of affected imports/DTOs and static test fixtures; then prepare one integrated Windows test-ready candidate if no source blockers remain.
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

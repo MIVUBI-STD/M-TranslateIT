@@ -62,6 +62,9 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
 
 
   const snapshot = $derived(applicationState.snapshot);
+  const voiceRecordingLock = $derived(
+    myVoiceRecording || snapshot?.resources.owner_kind === "voice_recording",
+  );
   const setupRequired = $derived(applicationState.setupRequired);
   const setupSettings = $derived(applicationState.setupSettings);
   const meetingStatus = $derived(snapshot?.meetingSession ?? null);
@@ -99,7 +102,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   }
 
   function navigate(next: AppRoute): void {
-    if (myVoiceRecording && next !== "my-voice") {
+    if (voiceRecordingLock && next !== "my-voice") {
       setNotice("Stop the current My Voice recording before leaving My Voice.");
       return;
     }
@@ -108,7 +111,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   }
 
   function openUtility(target: UtilityDestination): void {
-    if (myVoiceRecording) {
+    if (voiceRecordingLock) {
       setNotice("Stop the current My Voice recording before opening another tool.");
       return;
     }
@@ -445,7 +448,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
         {route}
         {notice}
         meetingActionBusy={meetingActionBusy}
-        {myVoiceRecording}
+        myVoiceRecording={voiceRecordingLock}
         onNavigate={navigate}
         onOpenUtility={openUtility}
         onToggleMeeting={handleMeetingAction}

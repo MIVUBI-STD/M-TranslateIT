@@ -39,6 +39,7 @@
   let selectedBuiltinVoiceId = $state<string | null>(null);
   let savedPersonalVoiceAvailable = $state(false);
   let selectedVoiceVerified = $state(false);
+  let recordingStatusUnknown = $state(false);
 
   async function refreshVoiceSelection(): Promise<void> {
     try {
@@ -97,7 +98,7 @@
   }
 
   async function selectBuiltin(voiceId: BuiltinVoiceId, confirmed = false): Promise<void> {
-    if (busy || voiceChangesLocked || isRecording || pendingLineId !== null) return;
+    if (busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectBuiltin(voiceId, confirmed);
@@ -129,7 +130,7 @@
   }
 
   async function selectStoredPersonalVoice(): Promise<void> {
-    if (busy || voiceChangesLocked || isRecording || pendingLineId !== null) return;
+    if (busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectSavedPersonalVoice();
@@ -229,6 +230,15 @@
 
   function applyResult(result: GuidedRecordingActionResult): void {
     if (disposed) return;
+    if (result.state === "frontend_bridge_error" || !result.recording) {
+      // The call may have reached Rust despite the missing response. Never
+      // consume the empty fallback state or assert that capture has stopped.
+      recordingStatusUnknown = true;
+      onRecordingChange(true);
+      onNotice("Couldn't verify recording status. Select Retry status before continuing.");
+      return;
+    }
+    recordingStatusUnknown = false;
     applyState(result.recording);
     onNotice(productMessage(result));
   }
@@ -236,14 +246,24 @@
   async function refresh(): Promise<void> {
     try {
       const next = await myVoiceApi.getState();
-      if (!disposed) applyState(next);
+      if (disposed) return;
+      if (!next) {
+        recordingStatusUnknown = true;
+        onNotice("Couldn't check recording status. Select Retry status.");
+        return;
+      }
+      recordingStatusUnknown = false;
+      applyState(next);
     } catch {
-      if (!disposed) onNotice("Couldn't check your recordings. Open My Voice again or try another action.");
+      if (!disposed) {
+        recordingStatusUnknown = true;
+        onNotice("Couldn't check recording status. Select Retry status.");
+      }
     }
   }
 
   async function startRecording(): Promise<void> {
-    if (busy || selectedLineId === null) return;
+    if (busy || recordingStatusUnknown || selectedLineId === null) return;
     if (!authorized) {
       onNotice("Confirm that this is your voice, or that you have permission to use it.");
       return;
@@ -277,7 +297,7 @@
   }
 
   async function retryTake(): Promise<void> {
-    if (busy || pendingLineId === null) return;
+    if (busy || recordingStatusUnknown || pendingLineId === null) return;
     stopReplay();
     busy = true;
     try {
@@ -290,13 +310,13 @@
   }
 
   async function acceptTake(): Promise<void> {
-    if (busy || pendingLineId === null || recordingState.pending_review?.quality_blocker) return;
+    if (busy || recordingStatusUnknown || pendingLineId === null || recordingState.pending_review?.quality_blocker) return;
     stopReplay();
     busy = true;
     try {
       const result = await myVoiceApi.acceptTake(pendingLineId);
       applyResult(result);
-      if (result.ok) {
+      if (result.ok && result.recording) {
         buildRefreshRevision += 1;
         selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
       }
@@ -308,7 +328,7 @@
   }
 
   function skipLine(): void {
-    if (busy || replaying || isRecording || recordingState.pending_review !== null || selectedLineId === null) return;
+    if (busy || recordingStatusUnknown || replaying || isRecording || recordingState.pending_review !== null || selectedLineId === null) return;
 
     const currentIndex = recordingState.lines.findIndex((line) => line.line_id === selectedLineId);
     if (currentIndex < 0) return;
@@ -395,13 +415,20 @@
     {selectedBuiltinVoiceId}
     {savedPersonalVoiceAvailable}
     {selectedVoiceVerified}
-    voiceChangesLocked={voiceChangesLocked || isRecording || pendingLineId !== null}
+    voiceChangesLocked={voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null}
     onPreview={previewBuiltin}
     onSelect={selectBuiltin}
     onSelectPersonal={selectStoredPersonalVoice}
     onConfirm={confirmPendingBuiltin}
     onCancel={() => { builtinPendingId = null; }}
   />
+
+  {#if recordingStatusUnknown}
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3 border border-[var(--ti-warning-border)] px-4 py-3" role="alert">
+      <p class="m-0 text-sm text-[var(--ti-warning)]">Recording status couldn't be verified. The last confirmed state was preserved.</p>
+      <button type="button" class="ti-button ti-button-secondary min-h-9" disabled={busy} onclick={() => void refresh()}>Retry status</button>
+    </div>
+  {/if}
 
   <div class="mb-5 border-t border-[var(--ti-border)] pt-5">
     <span class="ti-kicker">Optional</span>
@@ -449,30 +476,30 @@
         <div class="mt-6 flex flex-wrap items-center gap-3">
           {#if isRecording && recordingState.recording_line_id === currentLine.line_id}
             <button type="button" class="ti-button ti-button-danger" disabled={busy} onclick={() => void stopRecording()}>
-              <Square size={15} fill="currentColor" /><span>{busy ? "Stopping..." : "Stop"}</span>
+              <Square size={15} fill="currentColor" /><span>{busy ? "Stopping..." : recordingStatusUnknown ? "Retry Stop" : "Stop"}</span>
             </button>
             <span class="flex items-center gap-2 text-sm text-[var(--ti-danger)]"><span class="size-2 animate-pulse rounded-full bg-current"></span>Recording</span>
           {:else if recordingState.pending_review && pendingLineId === currentLine.line_id}
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || replaying} onclick={() => void replayTake()}>
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
               <Play size={15} /><span>{replaying ? "Playing..." : "Replay"}</span>
             </button>
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void retryTake()}>
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown} onclick={() => void retryTake()}>
               <RotateCcw size={15} /><span>Retry</span>
             </button>
             {#if !recordingState.pending_review.quality_blocker}
-              <button type="button" class="ti-button" disabled={busy} onclick={() => void acceptTake()}>
+              <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown} onclick={() => void acceptTake()}>
                 <Check size={15} /><span>{busy ? "Saving..." : "Accept"}</span>
               </button>
             {/if}
           {:else}
-            <button type="button" class="ti-button" disabled={busy || !authorized} onclick={() => void startRecording()}>
+            <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
               <Mic size={15} /><span>{currentLine.accepted ? "Record Again" : "Record"}</span>
             </button>
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || replaying} onclick={skipLine}>
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={skipLine}>
               <SkipForward size={15} /><span>Skip</span>
             </button>
             {#if currentLine.accepted}
-              <button type="button" class="ti-button ti-button-secondary" disabled={busy || replaying} onclick={() => void replayTake()}>
+              <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
                 <Play size={15} /><span>{replaying ? "Playing..." : "Replay Accepted"}</span>
               </button>
             {/if}
@@ -495,7 +522,7 @@
           <button
             type="button"
             class={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2.5 text-left text-sm transition-colors ${selectedLineId === line.line_id ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}`}
-            disabled={isRecording || recordingState.pending_review !== null}
+            disabled={isRecording || recordingStatusUnknown || recordingState.pending_review !== null}
             aria-pressed={selectedLineId === line.line_id}
             onclick={() => { selectedLineId = line.line_id; }}
           >

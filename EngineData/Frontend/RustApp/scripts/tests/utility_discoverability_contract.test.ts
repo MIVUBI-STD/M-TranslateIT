@@ -63,7 +63,7 @@ test("Meeting command searches never invert Start and Stop actions", async () =>
     { meetingHasSession: true, meetingCanStart: false, meetingCanStop: true,
       expected: "Stop Translation", included: "stop", excluded: "start", disabled: false },
     { meetingHasSession: true, meetingCanStart: false, meetingCanStop: false,
-      expected: "Stop Translation", included: "stop", excluded: "start", disabled: true },
+      expected: "Stopping...", included: "status", excluded: "start", disabled: true },
   ] as const;
 
   for (const scenario of scenarios) {
@@ -71,6 +71,7 @@ test("Meeting command searches never invert Start and Stop actions", async () =>
       meetingHasSession: scenario.meetingHasSession,
       meetingCanStart: scenario.meetingCanStart,
       meetingCanStop: scenario.meetingCanStop,
+      meetingActionLabel: scenario.expected,
       navigationLocked: false,
       quickTranslateReady: true,
       navigate: () => {},

@@ -22,15 +22,12 @@ export type GuidedRecordingActionResult = {
   ok: boolean;
   state: string;
   message: string;
-  recording: GuidedRecordingState;
+  recording: GuidedRecordingState | null;
 };
 
-function unavailableState(): GuidedRecordingState {
-  return { recording_line_id: null, pending_review: null, lines: [] };
-}
-
 function unavailableAction(message: string): GuidedRecordingActionResult {
-  return { ok: false, state: "frontend_bridge_error", message, recording: unavailableState() };
+  // A failed mutation may have reached Rust. Null means no verified recording state.
+  return { ok: false, state: "frontend_bridge_error", message, recording: null };
 }
 
 function productMessage(message: string): string {
@@ -42,8 +39,9 @@ function normalizeAction(action: GuidedRecordingActionResult): GuidedRecordingAc
 }
 
 export const myVoiceApi = {
-  async getState(): Promise<GuidedRecordingState> {
-    return (await runCommand<GuidedRecordingState>("get_voice_lab_guided_recording_state")) ?? unavailableState();
+  async getState(): Promise<GuidedRecordingState | null> {
+    // A failed bridge read is unknown, never evidence that recording stopped.
+    return runCommand<GuidedRecordingState>("get_voice_lab_guided_recording_state");
   },
 
   async startTake(lineId: number, authorizedVoiceConfirmed: boolean): Promise<GuidedRecordingActionResult> {

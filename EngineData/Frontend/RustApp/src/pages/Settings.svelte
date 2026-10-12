@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import type { UtilityDestination } from "../app/runtime/productCommandRegistry";
+  import { classifyVirtualMicRoute } from "../app/bridge/virtualMicRoutePresentation";
   import { runtimeApi, type VirtualMicRouteContractStatus } from "../app/bridge/runtimeApi";
   import {
     runtimeProductFacade,
@@ -70,11 +71,13 @@
           ? "Stop My Voice recording before changing meeting audio or running Repair Setup."
           : "Finish the current audio action before changing meeting audio or running Repair Setup.",
   );
+  const routeCheck = $derived(classifyVirtualMicRoute(routeStatus, snapshot.readiness.meetingRouteReady));
+  const virtualMicrophoneReady = $derived(routeCheck === "ready");
   const meetingMicrophoneDevice = $derived(
-    String(routeStatus?.selected_input_device ?? "").trim() || "TranslateIT microphone not ready",
-  );
-  const virtualMicrophoneReady = $derived(
-    routeStatus?.route_ready ?? snapshot.readiness.meetingRouteReady,
+    String(routeStatus?.selected_input_device ?? "").trim()
+      || (routeCheck === "unavailable" ? "Status unavailable"
+        : routeCheck === "checking" ? "Checking..."
+        : routeCheck === "ready" ? "Device name unavailable" : "Not available in Windows"),
   );
 
 
@@ -84,7 +87,7 @@
 
   function deviceMissing(kind: ProductAudioDeviceKind): boolean {
     const selected = currentDevice(kind).trim();
-    if (!selected || !devices) return false;
+    if (!selected || !devices?.ok) return false;
     const list = kind === "microphone" ? devices.input_devices : devices.output_devices;
     return !list.some((device) => deviceId(device) === selected);
   }
@@ -291,15 +294,17 @@
             <span class="ti-field-label">TranslateIT microphone</span>
             <strong class="mt-1.5 block break-words text-[13px] font-semibold leading-5">{meetingMicrophoneDevice}</strong>
             <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
-              {virtualMicrophoneReady
-                ? "Choose this as the calling app's microphone INPUT. Its speaker OUTPUT should remain your physical headset or speakers."
-                : "TranslateIT's virtual microphone route is not ready. Check VB-CABLE or run Repair Setup before Meeting translation."}
+              {routeCheck === "unavailable" ? "Couldn't check the virtual microphone. Check Again before changing your call settings."
+                : routeCheck === "checking" ? "Checking the virtual microphone in Windows..."
+                : virtualMicrophoneReady
+                  ? "Choose this as the calling app's microphone INPUT. Its speaker OUTPUT should remain your physical headset or speakers."
+                  : "TranslateIT's virtual microphone route is not ready. Check VB-CABLE or run Repair Setup before Meeting translation."}
             </p>
           </div>
           {#if !virtualMicrophoneReady}
             <StatusBadge
-              label={snapshot.readiness.level === "unavailable" ? "Unavailable" : "Setup Needed"}
-              tone={snapshot.readiness.level === "unavailable" ? "danger" : "warning"}
+              label={routeCheck === "unavailable" ? "Unable to check" : routeCheck === "checking" ? "Checking" : "Setup Needed"}
+              tone={routeCheck === "setup_needed" ? "warning" : "neutral"}
             />
           {/if}
         </div>
@@ -307,6 +312,9 @@
         <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
           <p class="m-0 min-w-0 flex-1 text-[12px] leading-5 text-[var(--ti-text-muted)]" aria-live="polite">{meetingResourcesLocked ? meetingResourceLockMessage : deviceMessage}</p>
           <div class="ti-action-row shrink-0">
+            {#if routeCheck === "unavailable"}
+              <button type="button" class="ti-button ti-button-secondary" disabled={devicesLoading || deviceSaving} onclick={() => void loadRouteStatus()}>Check Again</button>
+            {/if}
             <button type="button" class="ti-button ti-button-secondary" disabled={micTestBlockedByMeeting || micTestBusy || setupBusy || deviceSaving} onclick={() => void onMicTest()}>{micTestBusy ? "Working..." : snapshot.readiness.recording || micTestOwnsResources ? "Stop Mic Test" : "Mic Test"}</button>
             <button type="button" class="ti-button ti-button-secondary" disabled={meetingResourcesLocked || setupBusy || deviceSaving} onclick={() => void runSetupRepair()}>{setupBusy ? "Fixing..." : "Repair Setup"}</button>
           </div>
