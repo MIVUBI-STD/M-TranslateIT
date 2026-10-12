@@ -1,14 +1,15 @@
 # TranslateIT Development
 
-## Active continuation — Cross-page runtime uncertainty admission (2026-10-12)
+## Active continuation — Cross-page source admission (2026-10-12)
 
-**State: SOURCE CORRECTIONS ON Local; EXECUTABLE TYPECHECK/TESTS AND TARGET_WINDOWS EVIDENCE NOT EXECUTED.** The integration review found that the My Voice recording bridge represented failed calls as an empty idle state, potentially clearing its navigation lock despite unverified capture ownership. Recording reads and failed mutation results now carry explicit unknown (null), the last verified recording state remains in place, Retry status/Retry Stop are reachable, and the application shell also honors Rust's authoritative voice-recording resource owner. The virtual-microphone route command's `ok=false` can legitimately mean an absent device; Meeting, Settings and First Setup now use one route-evidence classifier so missing devices are `Setup Needed` while frontend bridge failure is `Unable to check`. First Setup completion still requires verified Meeting readiness and a confirmed route check.
+**State: SOURCE CORRECTIONS DELIVERED ON Local; EXECUTABLE TYPECHECK/TESTS AND TARGET_WINDOWS PROOF NOT EXECUTED.** Current integration source review confirmed 19 owner modules with 116 relative import references resolving and five relevant Rust/TypeScript DTO pairs aligned on field names. The canonical Node 22, Rust 1.88+, Python 3.12.10 and uv 0.12+ toolchain policy and all three source dependency lockfiles are present; their executable dependency closure is not proven.
 
-**Source-contract compatibility:** the existing Quick Actions test fixture was updated for the required `meetingActionLabel`, and a stale Meeting UI test that treated `ok=false` as bridge failure was corrected. New targeted source/policy tests cover both scenarios. The established Windows acceptance runbook now explicitly includes My Voice bridge loss, last-verified state, and personal voice restoration.
+**Admission corrections:** Rust's Meeting preset transaction now preserves the existing Text source/target direction even for saved v1 presets; frontend preset application no longer transfers standalone Text languages, while the fixed Indonesian→English Meeting outbound and optional incoming direction remain intact. Existing preset storage keys are preserved. The stale Voice selection test now checks the current canonical snapshot refresh rather than a deprecated notice-only path. Targeted Rust/source/storage regression assertions and the existing U2 Windows runbook were updated. Shared translation style remains a product-level preference.
 
-**Proof ceiling:** GitHub exact-source/static checks only. All Node/TS/Svelte/Rust compilation, frontend execution, and Windows audio/device tests remain UNKNOWN / NOT EXECUTED. No hosted CI, new UI framework, external cloud service or `main` promotion.
+**Proof ceiling:** GitHub exact-source/static inspection only, not a Node/Cargo build or executed tests. No CI cloud or main-branch promotion. The product is NOT YET marked build-pass, native-pass or release-ready.
 
-**One next step:** complete the bounded exact-SHA source admission review of affected imports/DTOs and static test fixtures; then prepare one integrated Windows test-ready candidate if no source blockers remain.
+**One next step:** complete the source-admission review of remaining compatibility/semantic blockers, then pin one integrated exact-Local-SHA Windows build and functional acceptance candidate without repeated incremental user testing.
+
 
 ## Standard VB-CABLE automatic route: source admission correction (2026-10-11)
 

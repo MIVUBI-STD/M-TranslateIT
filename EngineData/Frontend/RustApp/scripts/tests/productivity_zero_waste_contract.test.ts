@@ -24,6 +24,20 @@ test("Meeting presets apply through one Rust-owned validation transaction", () =
   assert.match(settings, /persist_runtime_settings\(candidate\)/);
 });
 
+test("Meeting presets cannot overwrite the independent Text language direction", () => {
+  const presetState = readFileSync(new URL("../../src/app/runtime/meetingPresetState.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(panel, /source_language:\s*preset\.sourceLanguage|target_language:\s*preset\.targetLanguage/);
+  assert.match(panel, /meeting_listen_source_language:\s*preset\.listenSourceLanguage/);
+  assert.match(panel, /runtimeApi\.applyMeetingPreset\(candidate\)/);
+  assert.match(settings, /fn validated_meeting_preset_settings\(/);
+  assert.match(settings, /candidate\.source_language = current\.source_language\.clone\(\)/);
+  assert.match(settings, /candidate\.target_language = current\.target_language\.clone\(\)/);
+  assert.match(settings, /let candidate = validated_meeting_preset_settings\(&current, settings\)/);
+  assert.match(presetState, /sourceLanguage:\s*"id"/);
+  assert.match(presetState, /targetLanguage:\s*"en"/);
+  assert.match(presetState, /const PRESETS_KEY = "translateit\.meeting-presets\.v1"/);
+});
+
 test("Text cache stays process-local rather than becoming persistent history", () => {
   assert.match(cache, /MAX_ENTRIES = 32/);
   assert.doesNotMatch(cache, /localStorage|sessionStorage|indexedDB|fs\./i);

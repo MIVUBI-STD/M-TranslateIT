@@ -3,6 +3,8 @@ import type { RuntimeSettings } from "../shared/types";
 export type MeetingPreset = {
   id: string;
   name: string;
+  // Legacy v1 persisted fields. Meeting outbound is fixed ID -> EN; these do not
+  // control standalone Text language selection when a preset is applied.
   sourceLanguage: string;
   targetLanguage: string;
   listenSourceLanguage: string;
@@ -43,8 +45,8 @@ export function meetingPresetFromSettings(id: string, name: string, settings: Ru
   return {
     id,
     name: cleanName(name) || "Meeting preset",
-    sourceLanguage: settings.source_language,
-    targetLanguage: settings.target_language,
+    sourceLanguage: "id",
+    targetLanguage: "en",
     listenSourceLanguage: settings.meeting_listen_source_language,
     listenTargetLanguage: settings.meeting_listen_target_language,
     translationStyle: settings.translation_style,

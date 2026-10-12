@@ -80,8 +80,8 @@
       const current = (await runtimeApi.loadSettings()) ?? settings;
       const candidate: RuntimeSettings = {
         ...current,
-        source_language: preset.sourceLanguage,
-        target_language: preset.targetLanguage,
+        // Meeting presets only control optional incoming captions, shared style,
+        // and audio. Never change Text's selected language direction.
         meeting_listen_source_language: preset.listenSourceLanguage,
         meeting_listen_target_language: preset.listenTargetLanguage,
         translation_style: preset.translationStyle,
@@ -117,7 +117,7 @@
       {:else}
         <div>
           <strong class="block text-[12.5px] font-semibold">Meeting presets</strong>
-          <p class="mb-0 mt-0.5 text-[11px] text-[var(--ti-text-soft)]">Save up to {MAX_MEETING_PRESETS} user-driven setups. Devices are validated before switching.</p>
+          <p class="mb-0 mt-0.5 text-[11px] text-[var(--ti-text-soft)]">Save up to {MAX_MEETING_PRESETS} setups. Text languages stay the same; translation style is shared with Text.</p>
         </div>
       {/if}
     </div>

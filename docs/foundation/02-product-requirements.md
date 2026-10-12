@@ -371,6 +371,8 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST:** Applying a preset is explicit, validates required devices before persistence, and never silently auto-applies from meeting-app detection. Detection may only suggest the last explicitly used preset for that provider.
 
+**MUST:** Meeting presets cannot modify the independent Text source/target language direction, including when restoring older saved presets. Meeting outbound remains Indonesian → English; optional incoming Meeting language direction and shared translation style may follow the selected preset.
+
 ### PR-165 — Vocabulary
 **MUST:** Normal users see product states such as Ready, Live, Setup Needed, Unavailable, Checking, Training, Needs Review rather than internal runtime vocabulary.
 

@@ -20,14 +20,14 @@ const voiceSync = readFileSync(
   "utf8",
 );
 
-test("Voice selection and approval refresh through ApplicationRuntime events", () => {
+test("Voice selection and approval refresh the canonical runtime snapshot", () => {
   assert.match(mutations, /emit_after\(&app, "approve_voice_candidate"/);
   assert.match(mutations, /emit_after\(&app, "select_builtin_voice"/);
 
   const start = app.indexOf("async function syncMeetingVoice");
   const body = app.slice(start, start + 260);
-  assert.match(body, /setNotice\(/);
-  assert.doesNotMatch(body, /refreshSnapshot\(/);
+  assert.match(body, /await refreshSnapshot\(message \?\? "Meeting voice updated\."\)/);
+  assert.doesNotMatch(body, /setNotice\(/);
 });
 
 test("background Voice build completion uses a global backend event", () => {

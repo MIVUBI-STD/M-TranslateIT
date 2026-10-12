@@ -51,6 +51,12 @@ test("Meeting preset storage is bounded and drops malformed persisted entries", 
   assert.deepEqual(readMeetingPresets().map((entry) => entry.name), ["Work"]);
 
   const settings = defaultSettings();
+  const reversedTextSettings = { ...settings, source_language: "en", target_language: "id" };
+  const isolated = meetingPresetFromSettings("isolated", "Isolated", reversedTextSettings);
+  assert.equal(isolated.sourceLanguage, "id");
+  assert.equal(isolated.targetLanguage, "en");
+  assert.equal(isolated.listenSourceLanguage, settings.meeting_listen_source_language);
+  assert.equal(isolated.listenTargetLanguage, settings.meeting_listen_target_language);
   // The earlier valid Work preset plus five new presets reaches the hard cap.
   for (let index = 0; index < 5; index += 1) {
     assert.equal(saveMeetingPreset(meetingPresetFromSettings(`p-${index}`, `Preset ${index}`, settings)).ok, true);
