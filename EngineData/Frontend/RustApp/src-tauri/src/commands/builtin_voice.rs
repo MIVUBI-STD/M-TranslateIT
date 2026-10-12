@@ -55,6 +55,7 @@ pub fn install_builtin_voice(
     let sovits_weight = voice_root.join(BUILTIN_SOVITS_WEIGHT);
     replace_directory_atomically(target_dir, |staging| {
         provision_builtin_voice(
+            voice_id,
             &builtin_dir,
             &gpt_weight,
             &sovits_weight,
@@ -107,6 +108,7 @@ fn reference_text_from_source(source_txt: &Path) -> Result<String, String> {
 }
 
 fn provision_builtin_voice(
+    voice_id: &str,
     builtin_dir: &Path,
     gpt_weight_src: &Path,
     sovits_weight_src: &Path,
@@ -288,13 +290,14 @@ mod tests {
         let root = root("manifest");
         let (builtin, gpt, sovits) = write_assets(&root);
         let target = root.join("target");
-        provision_builtin_voice(&builtin, &gpt, &sovits, &target, "rev-test")
+        provision_builtin_voice("MaleVoice", &builtin, &gpt, &sovits, &target, "rev-test")
             .expect("provision");
         let actor: serde_json::Value = serde_json::from_slice(
             &fs::read(target.join("actor.json")).expect("actor"),
         )
         .expect("actor json");
         assert_eq!(actor["builtin_voice"], true);
+        assert_eq!(actor["builtin_voice_id"], "MaleVoice");
         assert_eq!(actor["reference_text"], "Hello world");
         assert_eq!(actor["reference_duration_ms"], 5_000);
         assert_eq!(actor["engine_revision"], "rev-test");

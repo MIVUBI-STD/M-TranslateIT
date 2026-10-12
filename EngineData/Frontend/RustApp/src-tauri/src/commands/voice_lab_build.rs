@@ -36,7 +36,7 @@ use phase::reconcile_phase;
 use evaluation::{
     evaluation_dir, evaluation_review_complete, held_out_contract, held_out_wavs_intact,
     reviewable_evaluation as reviewable_evaluation_for_takes, verified_held_out_wav,
-    EvaluationManifest,
+    EvaluationManifest, MAX_EVALUATION_WAV_BYTES,
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
