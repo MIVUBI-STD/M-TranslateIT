@@ -1,4 +1,5 @@
 """Source-contract tests for opt-in REA CLI boundary (no REA installed)."""
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -9,8 +10,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
-from repository_rea import (ReaBridgeError, _analyze, _command, _doctor,
-                            _target_and_output, main, plan)
+from repository_rea import (ReaBridgeError, _analyze, _bounded_stdout, _command,
+                            _doctor, _target_and_output, main, plan)
 
 
 class ReaBoundaryTests(unittest.TestCase):
@@ -32,15 +33,20 @@ class ReaBoundaryTests(unittest.TestCase):
             "scope_checks": [{"name": "node", "ok": True}],
             "identity": {"cli_package_version": "6.4.0"},
         }
-        ok = subprocess.CompletedProcess(["rea"], 0, json.dumps(result).encode(), b"")
-        with patch("repository_rea.subprocess.run", return_value=ok):
+        def fake_doctor(argv, output, limit, seconds):
+            output.write(json.dumps(result).encode("utf-8"))
+            return 0
+        with patch("repository_rea._bounded_stdout", side_effect=fake_doctor):
             self.assertTrue(_doctor(["rea"], "6.4.0", None, None)["healthy"])
             with self.assertRaises(ReaBridgeError):
                 _doctor(["rea"], "6.3.0", None, None)
-        bad = subprocess.CompletedProcess(["rea"], 0, b"not JSON", b"")
-        with patch("repository_rea.subprocess.run", return_value=bad):
+        def malformed(argv, output, limit, seconds):
+            output.write(b"invalid JSON")
+            return 0
+        with patch("repository_rea._bounded_stdout", side_effect=malformed):
             with self.assertRaises(ReaBridgeError):
                 _doctor(["rea"], "6.4.0", None, None)
+
 
     def test_private_output_and_explicit_target_requirements(self):
         with tempfile.TemporaryDirectory() as private:
@@ -84,20 +90,21 @@ class ReaBoundaryTests(unittest.TestCase):
             target = Path(private) / "app.asar"
             target.write_bytes(b"fake")
             output = Path(private) / "result.json"
-            def write_invalid(*args, **kwargs):
-                kwargs["stdout"].write(b'{"broken":')
-                return subprocess.CompletedProcess(args[0], 0)
-            with patch("repository_rea.subprocess.run", side_effect=write_invalid):
+            def write_invalid(argv, output, limit, seconds):
+                output.write(b'{"broken":')
+                return 0
+            with patch("repository_rea._bounded_stdout", side_effect=write_invalid):
                 with self.assertRaises(ReaBridgeError):
                     _analyze(["rea"], target, output)
             self.assertFalse(output.exists())
-            def write_error(*args, **kwargs):
-                kwargs["stdout"].write(b'{"error":"no provider"}')
-                return subprocess.CompletedProcess(args[0], 0)
-            with patch("repository_rea.subprocess.run", side_effect=write_error):
+            def write_error(argv, output, limit, seconds):
+                output.write(b'{"error":"no provider"}')
+                return 0
+            with patch("repository_rea._bounded_stdout", side_effect=write_error):
                 with self.assertRaises(ReaBridgeError):
                     _analyze(["rea"], target, output)
             self.assertFalse(output.exists())
+
 
     def test_rea_script_identity_requires_installed_package(self):
         with tempfile.TemporaryDirectory() as private:
@@ -125,10 +132,10 @@ class ReaBoundaryTests(unittest.TestCase):
             target = Path(private) / "app.asar"
             target.write_bytes(b"fake")
             output = Path(private) / "result.json"
-            def write_evidence(*args, **kwargs):
-                kwargs["stdout"].write(b'{"evidence":"private value"}')
-                return subprocess.CompletedProcess(args[0], 0)
-            with patch("repository_rea.subprocess.run", side_effect=write_evidence):
+            def write_evidence(argv, output, limit, seconds):
+                output.write(b'{"evidence":"private value"}')
+                return 0
+            with patch("repository_rea._bounded_stdout", side_effect=write_evidence):
                 report = _analyze(["rea"], target, output)
             self.assertEqual(report["status"], "REA_ARTIFACT_CAPTURED_UNREVIEWED")
             self.assertNotIn("private value", str(report))
@@ -136,11 +143,29 @@ class ReaBoundaryTests(unittest.TestCase):
             self.assertEqual(report["jsonSyntax"], "VALID_JSON_DOCUMENT")
             self.assertTrue(output.exists())
             output.unlink()
-            with patch("repository_rea.subprocess.run",
-                       return_value=subprocess.CompletedProcess(["rea"], 1)):
+            with patch("repository_rea._bounded_stdout", return_value=1):
                 with self.assertRaises(ReaBridgeError):
                     _analyze(["rea"], target, output)
             self.assertFalse(output.exists())
+
+    def test_stdout_limit_enforced_during_execution(self):
+        output = io.BytesIO()
+        command = [sys.executable, "-c", "import sys;sys.stdout.buffer.write(b'X'*131072)"]
+        with self.assertRaises(ReaBridgeError):
+            _bounded_stdout(command, output, 1024, 10)
+        self.assertLessEqual(len(output.getvalue()), 1024)
+
+    def test_deadline_terminates_silent_child(self):
+        output = io.BytesIO()
+        with self.assertRaises(ReaBridgeError):
+            _bounded_stdout([sys.executable, "-c", "import time;time.sleep(10)"],
+                            output, 1024, 0.3)
+
+    def test_mcp_probe_is_not_started_without_execute(self):
+        with patch("repository_rea.subprocess.Popen") as launch:
+            with patch.object(sys, "argv", ["repository_rea.py", "mcp-probe"]):
+                self.assertEqual(main(), 0)
+            launch.assert_not_called()
 
 
 if __name__ == "__main__":
