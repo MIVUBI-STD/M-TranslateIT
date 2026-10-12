@@ -138,6 +138,10 @@ To execute the selected source checks on a real, clean `Local` checkout, the ope
 
 The default Rust check is an existing cheap manifest/contract validator, **not** `cargo check`. `--include-offline-rust` additionally selects `cargo check --locked --offline` only by explicit choice. Dependency-graph closure is partial even when checks succeed. A `SELECTED_CHECKS_PASS_PARTIAL_PROOF` outcome is **not** full acceptance; the CLI uses a nonzero exit when review is still required. No CI or release workflow is dispatched by this tool.
 
+## Third-party / closed-app investigation with REA
+
+When an external application's **observable implementation** materially affects a design decision, route through [REA investigation](./operations/rea-investigation.md): public source/API first → exact target and authority → static inspection → optional approved runtime observation → evidence/unknown reconciliation → compared candidate → existing owner/acceptance. REA is a conditional investigation tool, not a second development mode, skill or product pipeline. Do not treat observed browser/desktop client behavior as proof of proprietary server internals. Never change production ASR/translation/TTS or activate Meeting streaming on a REA-only finding; existing human, local-model and target-Windows evidence remains required.
+
 ## First-wrong-owner examples
 
 ```text

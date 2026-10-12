@@ -17,6 +17,7 @@ This file maps semantic responsibility to the current owner. It does not carry p
 |---|---|
 | GitHub branch/ref/history, CI security, retry/STOP | `GITHUB_RULES.md` |
 | Agent execution/routing | `AGENTS.md` |
+| External reverse-engineering investigation method / REA evidence scope | `docs/knowledge/operations/rea-investigation.md` (conditional developer tooling; domain source owners and existing proof gates remain authoritative) |
 | Skill identity/classification | `.agents/skill-registry.json` |
 | Advisory agent path/action preflight | `.agents/permissions/permission-policy.json` + `tools/repository_permissions.py` |
 | Permission regression corpus | `.agents/evals/permission-cases.json` + `tools/tests/test_repository_permissions.py` |
