@@ -293,7 +293,10 @@ mod tests {
         let scope = scope(3);
         let mut tracker = SourceStabilizer::new(scope.clone()).unwrap();
         assert_eq!(
-            tracker.observe(observation(&scope(4), 1, 0, 5_000, "salah", false)),
+            tracker.observe(observation(
+                &SourceScope { audio_epoch: 4, ..scope.clone() },
+                1, 0, 5_000, "salah", false,
+            )),
             Err(ObservationError::ScopeMismatch),
         );
         tracker.observe(observation(&scope, 2, 0, 5_000, "Lanjut", false)).unwrap();
