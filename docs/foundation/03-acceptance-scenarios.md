@@ -76,6 +76,7 @@ Requires relevant A/B capability first.
 | D8 | Transcript export receipt | source + rendered local | export shows short status, copyable location, and clear warning when earlier phrases are missing; no raw file path in global header |
 | D9 | Chat-style transcript | source + rendered local | You/right and Person 1/left in Live and Last Meeting; original and translated content visible; recorded time accurate; no participant-ID inference |
 | D10 | Manual session isolation | source + TARGET_WINDOWS file check | each meeting has a distinct session ID; manual exports land in unique session folders, not one accumulating file; unexported last-session data is never described as persistently saved |
+| D11 | Full-session bounded manual export | Rust source unit + TARGET_WINDOWS file check | live/review window remains last 240, manual export contains up to 4,096 session turns under 8 MiB text budget, evicted content is clearly disclosed, and no automatic file write occurs |
 
 ## Group E — Distribution
 

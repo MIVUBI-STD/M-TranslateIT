@@ -1,6 +1,6 @@
 # M-TranslateIT — Meeting V2 implementation plan (source-first)
 
-**Status:** IMPLEMENTATION BLUEPRINT, not executed or hardware-validated.
+**Status:** IMPLEMENTATION BLUEPRINT. Batch 0 cleanup and Batch 1 source-first/long-session bounded retention have source candidates on `Local`; the compiler and GPU/browser acceptance have not run. More audio capture/streaming batches remain pending.
 **Baseline:** `75cd24e4f52708ec51105bf9cb2beed4833e7773` on `Local` (2026-10-12).
 **Primary goal:** natural, accurate, low-latency bilingual browser meetings on RTX 3070 8 GB, i7-14700-class CPU, 32 GB system RAM, **no available iGPU**.
 **No local PC now:** prepare modular source, fixtures, offline deterministic tests, and available hosted compile/unit gates. Reserve CUDA/Windows device/browser acceptance for the future exact-SHA session.

@@ -322,7 +322,20 @@ pub fn get_meeting_committed_turns() -> MeetingCommittedTurnsSnapshot {
 
 #[tauri::command]
 pub fn get_recent_meeting_transcript() -> MeetingCommittedTurnsSnapshot {
-    exportable_committed_turn_snapshot().unwrap_or(MeetingCommittedTurnsSnapshot {
+    if let Some(mut snapshot) = exportable_committed_turn_snapshot() {
+        // The review remains lightweight; manual file Export retains every
+        // available session turn (subject only to explicit memory limits).
+        const MAX_REVIEW_TURNS: usize = 240;
+        if snapshot.turns.len() > MAX_REVIEW_TURNS {
+            let hidden = snapshot.turns.len() - MAX_REVIEW_TURNS;
+            snapshot.turns = snapshot.turns.split_off(hidden);
+            if !snapshot.truncated {
+                snapshot.note = "Showing latest 240 phrases; export manually for the full retained session.".to_string();
+            }
+        }
+        return snapshot;
+    }
+    MeetingCommittedTurnsSnapshot {
         ok: true,
         has_session: false,
         session_id: None,
@@ -332,7 +345,7 @@ pub fn get_recent_meeting_transcript() -> MeetingCommittedTurnsSnapshot {
         blocker: String::new(),
         note: "No recently ended Meeting transcript is retained.".to_string(),
         runtime_claim: "meeting_recent_transcript_source_contract_not_rendered_runtime_proof".to_string(),
-    })
+    }
 }
 
 #[tauri::command]

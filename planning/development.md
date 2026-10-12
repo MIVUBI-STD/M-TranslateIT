@@ -1,10 +1,18 @@
+## Meeting V2 Batch 1B — bounded full-session manual export (2026-10-12)
+
+**Source candidate:** one existing canonical in-memory turn store retains up to 4,096 phrases and 8 MiB of text (whichever is reached first). Live and last-session review still expose at most 240 recent phrases to keep webview work bounded. Manual MD/TXT exports use the entire retained session without silently treating hidden UI phrases as lost. Exports continue to be explicit, session-scoped and never persisted automatically.
+
+**Hard retention truth:** if actual session bounds are exceeded, oldest turns are evicted and counted as unrecoverable; export reports truncation. This is a bounded 32 GB RAM design, **not** guaranteed unlimited recordings. Continuous streaming audio and long-unbroken speech segmentation remain separate work items.
+
+**Verification ceiling:** Rust retention tests and frontend contract added; build/runtime tests not executed yet.
+
 ## Meeting V2 Batch 1A — Source-first transcript and deferred cleanup (2026-10-12)
 
 **Candidate:** canonical Meeting turn store now represents pending/translated/failed translation separately from playback. Incoming and outgoing recognized source is stored before model translation. Invalid output retains original source and displays "Translation unavailable". Stop invalidates pending work; all async completion checks session, generation and utterance identity.
 
 **Incoming deferral:** queue expiry/overflow/rejected jobs are cleaned outside queue mutex; an already-recognized transcript is marked failed instead of left forever pending. Existing bounded age, admission limit and outbound precedence stay intact.
 
-**Proof ceiling:** source code plus Rust and TS tests added, but neither compiler nor local model/RTX 3070/browser have been run. Current 240-turn retention cap remains and needs a separate bounded full-session export revision. No new model, streaming worker, scheduler, GPU setting or UI mode added.
+**Proof ceiling:** source code plus Rust and TS tests added, but neither compiler nor local model/RTX 3070/browser have been run. The separate Batch 1B change above now keeps a larger bounded full session for manual export while limiting the UI to 240 recent turns. No new model, streaming worker, scheduler, GPU setting or UI mode added.
 
 ## Meeting V2 — Source-first implementation continuation (2026-10-12)
 
@@ -22,7 +30,7 @@
 
 **Decision:** use WhatsApp-like left/right transcript presentation, `You` for microphone turns on the right and `Person 1` on the left for the **single combined incoming lane**. This is **not** speaker diarization and must not infer identities or separate different participants without actual speaker evidence. Display local recorded time and a readable session date/time; retain original and translation as separate fields. One reusable bubble component renders Live and Last Meeting.
 
-**Manual export policy:** every Meeting already has a distinct runtime session ID, but only the active plus most recently ended transcript is available in memory. The new manual export uses a unique folder under `SavedProject/Transcripts/Meeting_<session-id>/`. No background transcript saving and no persistent archive listing are added. Users must export before starting another meeting or exiting. The current 240-entry bounded buffer may omit early phrases; its incomplete warning is retained. Full-session temporary spooling and multi-speaker diarization are separate future changes requiring explicit implementation and acceptance.
+**Manual export policy:** every Meeting already has a distinct runtime session ID, but only the active plus most recently ended transcript is available in memory. The new manual export uses a unique folder under `SavedProject/Transcripts/Meeting_<session-id>/`. No background transcript saving and no persistent archive listing are added. Users must export before starting another meeting or exiting. The 240-entry display window remains, while the newer bounded full-session memory policy above governs manual export. Disk spooling and multi-speaker diarization remain separate future work.
 
 **Browser limitations:** incoming WASAPI endpoint-loopback may include non-meeting system sounds and may miss browser audio routed to another speaker. An active capture stream is not transcription or participant-identity proof. Windows two-device meeting test, simultaneous speech, suppression, 20-second defer/drop behavior and transcript export are still NOT EXECUTED for this source revision.
 

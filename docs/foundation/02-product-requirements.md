@@ -308,7 +308,7 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST:** Each new Meeting starts with a unique session identity; the next Meeting must not append to the last Meeting's transcript. The last unexported transcript is replaced when the next session starts or the app closes.
 
-**MUST:** Export remains explicitly user-triggered. Saved transcript files live under separate session-scoped folders; no automatic permanent save. Source data lost because of the current 240-turn in-memory limit must be indicated honestly as incomplete, not labeled a full transcript.
+**MUST:** Export remains explicitly user-triggered. Saved transcript files live under separate session-scoped folders; no automatic permanent save. Live and Last Meeting views are limited to 240 recent phrases, while full-session manual export retains up to 4,096 turns or 8 MiB of source/translation text in RAM (whichever bound is reached first). Any actual evictions must be indicated honestly as incomplete. No unlimited archive or automatic disk spool is implied.
 
 **SHOULD:** Future full-session capture, if approved, use a bounded temporary store with explicit cleanup and privacy; do not silently convert manual export into persistent background recording.
 

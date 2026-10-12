@@ -265,7 +265,7 @@ Use the measured owner instead of applying speculative architecture changes:
 
 An explicit redacted support export may include the numeric-only
 `latency_distribution_ms` from the active Meeting's retained, completed outbound
-turns (within the existing 240-turn cap). P50/P95 use nearest-rank selection
+turns (within the new bounded full-session retention limits, not just 240 UI turns). P50/P95 use nearest-rank selection
 and always include sample count. Failed, interrupted, incoming, pending and
 unmeasured turns are excluded. A null field means no eligible completed
 samples, **not** zero latency. Small samples and a rolling retention window

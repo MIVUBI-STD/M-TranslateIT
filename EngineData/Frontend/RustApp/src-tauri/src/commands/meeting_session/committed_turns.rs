@@ -11,10 +11,19 @@ use super::{
 };
 
 const MAX_LIVE_COMMITTED_TURNS: usize = 240;
+// The UI stays small, but manual export may retain a much longer session.
+// Both limits are hard bounds; excess is explicitly counted as lost content.
+const MAX_SESSION_COMMITTED_TURNS: usize = 4_096;
+const MAX_SESSION_TRANSCRIPT_BYTES: usize = 8 * 1024 * 1024;
+
+fn turn_text_bytes(turn: &MeetingCommittedTurn) -> usize {
+    turn.source_text.len().saturating_add(turn.translated_text.len())
+}
 
 struct MeetingCommittedTurnStore {
     session_id: String,
     dropped_turn_count: u64,
+    retained_text_bytes: usize,
     turns: VecDeque<MeetingCommittedTurn>,
 }
 
@@ -23,7 +32,22 @@ impl MeetingCommittedTurnStore {
         Self {
             session_id: session_id.to_string(),
             dropped_turn_count: 0,
+            retained_text_bytes: 0,
             turns: VecDeque::new(),
+        }
+    }
+
+    fn enforce_session_limits(&mut self) {
+        while self.turns.len() > MAX_SESSION_COMMITTED_TURNS
+            || self.retained_text_bytes > MAX_SESSION_TRANSCRIPT_BYTES
+        {
+            let Some(oldest) = self.turns.pop_front() else {
+                self.retained_text_bytes = 0;
+                break;
+            };
+            self.retained_text_bytes =
+                self.retained_text_bytes.saturating_sub(turn_text_bytes(&oldest));
+            self.dropped_turn_count = self.dropped_turn_count.saturating_add(1);
         }
     }
 
@@ -111,12 +135,10 @@ impl MeetingCommittedTurnStore {
             .iter()
             .position(|existing| existing.sequence > sequence)
             .unwrap_or(self.turns.len());
+        self.retained_text_bytes =
+            self.retained_text_bytes.saturating_add(turn_text_bytes(&turn));
         self.turns.insert(insert_at, turn);
-
-        while self.turns.len() > MAX_LIVE_COMMITTED_TURNS {
-            let _ = self.turns.pop_front();
-            self.dropped_turn_count = self.dropped_turn_count.saturating_add(1);
-        }
+        self.enforce_session_limits();
         true
     }
 
@@ -147,6 +169,7 @@ impl MeetingCommittedTurnStore {
         {
             return false;
         }
+        let previous_bytes = turn.translated_text.len();
         if let Some(text) = translated.filter(|text| !text.trim().is_empty()) {
             turn.translated_text = text.trim().to_string();
             turn.translation_state = "translated".to_string();
@@ -161,6 +184,10 @@ impl MeetingCommittedTurnStore {
             }
         }
         turn.updated_unix_ms = now_unix_ms;
+        self.retained_text_bytes = self.retained_text_bytes
+            .saturating_sub(previous_bytes)
+            .saturating_add(turn.translated_text.len());
+        self.enforce_session_limits();
         true
     }
 
@@ -260,9 +287,34 @@ impl MeetingCommittedTurnStore {
         Some((count, p50, p95))
     }
 
+    fn snapshot_for_export(&self) -> MeetingCommittedTurnsSnapshot {
+        // Stored turns are already ordered by shared sequence; no re-sort needed.
+        MeetingCommittedTurnsSnapshot {
+            ok: true,
+            has_session: true,
+            session_id: Some(self.session_id.clone()),
+            turns: self.turns.iter().cloned().collect(),
+            dropped_turn_count: self.dropped_turn_count,
+            truncated: self.dropped_turn_count > 0,
+            blocker: String::new(),
+            note: if self.dropped_turn_count > 0 {
+                format!(
+                    "The session transcript exceeded its bounded memory limit; {} earlier turns cannot be exported.",
+                    self.dropped_turn_count,
+                )
+            } else {
+                "Complete currently retained Meeting turns for explicit manual export.".to_string()
+            },
+            runtime_claim: "meeting_committed_turn_snapshot_source_contract_not_rendered_runtime_proof".to_string(),
+        }
+    }
+
     fn snapshot(&self) -> MeetingCommittedTurnsSnapshot {
-        let mut turns = self.turns.iter().cloned().collect::<Vec<_>>();
-        turns.sort_by_key(|turn| turn.sequence);
+        // Fast path for live UI refresh: clone only the last visible turns,
+        // not thousands of retained turns on every runtime event/poll.
+        let mut turns: Vec<_> = self.turns.iter().rev()
+            .take(MAX_LIVE_COMMITTED_TURNS).cloned().collect();
+        turns.reverse();
         MeetingCommittedTurnsSnapshot {
             ok: true,
             has_session: true,
@@ -272,16 +324,13 @@ impl MeetingCommittedTurnStore {
             truncated: self.dropped_turn_count > 0,
             blocker: String::new(),
             note: if self.dropped_turn_count > 0 {
-                format!(
-                    "Live transcript snapshot is bounded; {} earlier committed turns are no longer retained in the transient view.",
-                    self.dropped_turn_count
-                )
+                format!("{} earlier phrases exceeded the session's bounded memory capacity and cannot be exported.", self.dropped_turn_count)
+            } else if self.turns.len() > MAX_LIVE_COMMITTED_TURNS {
+                "Showing the latest 240 phrases. Earlier phrases remain available for manual export.".to_string()
             } else {
-                "Live transcript snapshot contains the currently retained committed turns for this Meeting session in finalized speech/event order."
-                    .to_string()
+                "Live Meeting transcription reflects the latest retained recognized source and available translations.".to_string()
             },
-            runtime_claim: "meeting_committed_turn_snapshot_source_contract_not_rendered_runtime_proof"
-                .to_string(),
+            runtime_claim: "meeting_committed_turn_snapshot_source_contract_not_rendered_runtime_proof".to_string(),
         }
     }
 }
@@ -350,7 +399,7 @@ pub(super) fn retain_committed_turns_for_export(session_id: &str) -> bool {
     if store.session_id != session_id {
         return false;
     }
-    let mut snapshot = store.snapshot();
+    let mut snapshot = store.snapshot_for_export();
     snapshot.has_session = false;
     // Ending a session also ends all uncompleted incoming/outgoing work. The
     // last-session review must never display "Translating..." forever.
@@ -371,9 +420,18 @@ pub(super) fn retain_committed_turns_for_export(session_id: &str) -> bool {
 }
 
 pub(super) fn exportable_committed_turn_snapshot() -> Option<MeetingCommittedTurnsSnapshot> {
-    let active = current_committed_turn_snapshot();
-    if active.ok && active.has_session && !active.turns.is_empty() {
-        return Some(active);
+    // Only the active authoritative Meeting session or the last explicitly
+    // stopped session may be exported. Never expose a foreign runtime owner.
+    if let Some(session) = latest_runtime_session_state().snapshot {
+        if session.owner_id == APPLICATION_MEETING_OWNER_ID {
+            if let Ok(guard) = committed_turn_store().lock() {
+                if let Some(store) = guard.as_ref() {
+                    if store.session_id == session.session_id && !store.turns.is_empty() {
+                        return Some(store.snapshot_for_export());
+                    }
+                }
+            }
+        }
     }
     ended_transcript_store().lock().ok().and_then(|guard| guard.clone())
 }
@@ -550,7 +608,7 @@ pub(super) fn committed_turn_health_counts() -> (usize, u64, bool) {
         .and_then(|guard| {
             guard.as_ref().map(|store| {
                 (
-                    store.turns.len(),
+                    store.turns.len().min(MAX_LIVE_COMMITTED_TURNS),
                     store.dropped_turn_count,
                     store.dropped_turn_count > 0,
                 )
@@ -624,7 +682,7 @@ pub(super) fn current_committed_turn_snapshot() -> MeetingCommittedTurnsSnapshot
 
 #[cfg(test)]
 mod tests {
-    use super::{MeetingCommittedTurnStore, MAX_LIVE_COMMITTED_TURNS};
+    use super::{MeetingCommittedTurnStore, MAX_LIVE_COMMITTED_TURNS, MAX_SESSION_COMMITTED_TURNS, MAX_SESSION_TRANSCRIPT_BYTES};
     use crate::commands::meeting_session::MeetingOutboundTiming;
 
     fn timing(finalized_unix_ms: u128) -> MeetingOutboundTiming {
@@ -794,7 +852,7 @@ mod tests {
     #[test]
     fn committed_turn_retention_drops_only_oldest_events() {
         let mut store = MeetingCommittedTurnStore::new("session-a");
-        for sequence in 1..=(MAX_LIVE_COMMITTED_TURNS as u64 + 2) {
+        for sequence in 1..=(MAX_SESSION_COMMITTED_TURNS as u64 + 2) {
             assert!(store.commit_at(
                 "session-a",
                 sequence,
@@ -811,13 +869,49 @@ mod tests {
             ));
         }
 
-        assert_eq!(store.turns.len(), MAX_LIVE_COMMITTED_TURNS);
+        assert_eq!(store.turns.len(), MAX_SESSION_COMMITTED_TURNS);
         assert_eq!(store.dropped_turn_count, 2);
         assert_eq!(store.turns.front().map(|turn| turn.sequence), Some(3));
         assert_eq!(
             store.turns.back().map(|turn| turn.sequence),
-            Some(MAX_LIVE_COMMITTED_TURNS as u64 + 2)
+            Some(MAX_SESSION_COMMITTED_TURNS as u64 + 2)
         );
+        assert_eq!(store.snapshot().turns.len(), MAX_LIVE_COMMITTED_TURNS);
+        assert_eq!(store.snapshot_for_export().turns.len(), MAX_SESSION_COMMITTED_TURNS);
+        assert!(store.snapshot_for_export().truncated);
+    }
+
+    #[test]
+    fn recent_preview_is_short_but_manual_export_keeps_full_session() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        for seq in 1..=(MAX_LIVE_COMMITTED_TURNS as u64 + 3) {
+            assert!(store.commit_at(
+                "s1", seq, None, seq, "incoming", "en", "id",
+                "Can you confirm?", "Bisa konfirmasi?", None, None, seq as u128,
+            ));
+        }
+        let preview = store.snapshot();
+        let export = store.snapshot_for_export();
+        assert_eq!(preview.turns.len(), MAX_LIVE_COMMITTED_TURNS);
+        assert_eq!(preview.turns.first().map(|turn| turn.sequence), Some(4));
+        assert!(!preview.truncated);
+        assert_eq!(export.turns.len(), MAX_LIVE_COMMITTED_TURNS + 3);
+        assert!(!export.truncated);
+        assert_eq!(store.dropped_turn_count, 0);
+    }
+
+    #[test]
+    fn memory_budget_is_enforced_even_with_fewer_than_turn_count_limit() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        let oversized = "x".repeat(MAX_SESSION_TRANSCRIPT_BYTES + 1);
+        assert!(store.commit_at(
+            "s1", 1, None, 1, "incoming", "en", "id",
+            &oversized, "", None, None, 1,
+        ));
+        assert!(store.turns.is_empty());
+        assert_eq!(store.retained_text_bytes, 0);
+        assert_eq!(store.dropped_turn_count, 1);
+        assert!(store.snapshot_for_export().truncated);
     }
 
     #[test]

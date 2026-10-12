@@ -66,3 +66,14 @@ test("manual transcript export retains original source after translation failure
   assert.match(committed, /snapshot\.has_session = false/);
   assert.match(committed, /turn\.translation_state == "pending"/);
 });
+
+test("long-session export is larger than the lightweight 240-entry transcript view", () => {
+  const meeting = readFileSync(new URL("../../src-tauri/src/commands/meeting_session.rs", import.meta.url), "utf8");
+  assert.match(committed, /const MAX_SESSION_COMMITTED_TURNS: usize = 4_096/);
+  assert.match(committed, /const MAX_SESSION_TRANSCRIPT_BYTES: usize = 8 \* 1024 \* 1024/);
+  assert.match(committed, /fn snapshot_for_export\(&self\)/);
+  assert.match(committed, /\.take\(MAX_LIVE_COMMITTED_TURNS\)/);
+  assert.match(committed, /let mut snapshot = store\.snapshot_for_export\(\)/);
+  assert.match(meeting, /snapshot\.turns = snapshot\.turns\.split_off\(hidden\)/);
+  assert.match(exporter, /exportable_committed_turn_snapshot\(\)/);
+});
