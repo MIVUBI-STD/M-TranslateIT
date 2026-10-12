@@ -297,6 +297,7 @@ mod tests {
 
     #[test]
     fn rolling_buffer_retains_only_newest_samples_in_chronological_order() {
+        let _serial = crate::engine::runtime_state::runtime_test_guard();
         clear_live_audio_buffer();
         reset_live_audio_buffer(10, 1);
         let source = (0..30).map(|value| value as f32 / 30.0).collect::<Vec<_>>();

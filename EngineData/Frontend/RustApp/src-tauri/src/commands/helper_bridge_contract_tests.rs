@@ -192,6 +192,7 @@ fn request_cleanup_preserves_replacement_and_clears_exact_identity() {
 
 #[test]
 fn helper_hard_cancel_is_session_scoped_and_cleans_matching_metadata() {
+    let _serial = crate::engine::runtime_state::runtime_test_guard();
     reset_bridge_runtime();
     {
         let mut bridge = runtime().lock().expect("helper bridge test lock");
