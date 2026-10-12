@@ -65,7 +65,10 @@ test("MSRV policy URL resolves from its explicit RustApp root, not the test modu
   const validator = readFileSync(new URL("../validate_test_reference_reachability.mjs", import.meta.url), "utf8");
   const correct = new URL("../../../toolchain.json", root).href;
   assert.equal(correct, new URL("../../../../../toolchain.json", import.meta.url).href);
-  assert.notEqual(correct, new URL("../../../toolchain.json", import.meta.url).href);
+  // Deliberately wrong base: keep the negative fixture dynamic so the static
+  // reference validator does not mistake it for a required source file.
+  const wrongBaseRelative = ["..", "..", "..", "toolchain.json"].join("/");
+  assert.notEqual(correct, new URL(wrongBaseRelative, import.meta.url).href);
   assert.match(validator, /const directoryAliases = new Map\(\)/);
   assert.match(validator, /directoryAliases\.set\(match\[1\], resolve\(testDirectory, match\[2\]\)\)/);
   assert.match(validator, /directoryAliases\.get\(match\[2\]\)/);
