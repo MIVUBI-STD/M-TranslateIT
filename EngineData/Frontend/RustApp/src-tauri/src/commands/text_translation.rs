@@ -22,35 +22,6 @@ pub struct TextTranslationResult {
     pub review_hints: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct QuickTranslationResult {
-    pub ok: bool,
-    pub state: String,
-    pub translated_text: String,
-    pub user_message: String,
-    pub blocker: String,
-    pub needs_review: bool,
-    pub review_hints: Vec<String>,
-    pub source_language: String,
-    pub target_language: String,
-}
-
-impl QuickTranslationResult {
-    fn from_text(result: TextTranslationResult, source_language: String, target_language: String) -> Self {
-        Self {
-            ok: result.ok,
-            state: result.state,
-            translated_text: result.translated_text,
-            user_message: result.user_message,
-            blocker: result.blocker,
-            needs_review: result.needs_review,
-            review_hints: result.review_hints,
-            source_language,
-            target_language,
-        }
-    }
-}
-
 impl TextTranslationResult {
     fn success(translated_text: String, review_hints: Vec<String>) -> Self {
         Self {
@@ -255,8 +226,6 @@ fn translate_with_persistent_helper(
         "source_language": settings.source_language,
         "target_language": settings.target_language,
         "request_kind": request_kind,
-        "translation_style": settings.translation_style,
-        "terminology": &settings.terminology,
     });
     let response = send_helper_worker_task("translate", payload);
     let worker_response = serde_json::from_str::<Value>(&response.worker_response_json)
@@ -328,42 +297,6 @@ pub fn translate_text(source: String) -> TextTranslationResult {
         trace_command_error("translate_text", started, format!("state={}", result.state));
     }
     result
-}
-
-#[tauri::command]
-pub fn quick_translate_text(source: String) -> QuickTranslationResult {
-    let started = trace_command_start(
-        "quick_translate_text",
-        format!("source_chars={}", source.chars().count()),
-    );
-    let source = clean_source(&source);
-    let mut direction = (String::new(), String::new());
-    let result = if source.is_empty() {
-        TextTranslationResult::blocked(
-            "empty_input",
-            "Quick Translate needs text to translate.",
-            "quick_translation:empty_input".to_string(),
-        )
-    } else if source.chars().count() > MAX_TEXT_TRANSLATION_CHARS {
-        TextTranslationResult::blocked(
-            "input_too_long",
-            &format!(
-                "Quick Translate text is too long. Limit: {MAX_TEXT_TRANSLATION_CHARS} characters."
-            ),
-            "quick_translation:input_too_long".to_string(),
-        )
-    } else {
-        let translated = translate_with_persistent_helper(&source, "quick_text");
-        direction = (translated.1, translated.2);
-        translated.0
-    };
-
-    if result.ok {
-        trace_command_end("quick_translate_text", started, format!("state={}", result.state));
-    } else {
-        trace_command_error("quick_translate_text", started, format!("state={}", result.state));
-    }
-    QuickTranslationResult::from_text(result, direction.0, direction.1)
 }
 
 #[cfg(test)]
@@ -461,99 +394,4 @@ mod tests {
             "Text translation is busy with higher-priority Meeting work right now. Try again after the current Meeting phrase finishes."
         );
     }
-}
-
-
-const MAX_ALTERNATIVE_SOURCE_CHARS: usize = 1_000;
-
-#[tauri::command]
-pub fn translate_text_alternative(source: String, current_translation: String) -> TextTranslationResult {
-    let started = trace_command_start(
-        "translate_text_alternative",
-        format!("source_chars={}", source.chars().count()),
-    );
-    let source = clean_source(&source);
-    let current_translation = clean_source(&current_translation);
-    let result = if source.is_empty() || current_translation.is_empty() {
-        TextTranslationResult::blocked(
-            "alternative_unavailable",
-            "Translate the text first, then request another wording.",
-            "text_translation:alternative_requires_current_translation".to_string(),
-        )
-    } else if source.chars().count() > MAX_ALTERNATIVE_SOURCE_CHARS {
-        TextTranslationResult::blocked(
-            "alternative_input_too_long",
-            "Another wording is available for shorter text only. Shorten the source or edit the current translation.",
-            "text_translation:alternative_source_too_long".to_string(),
-        )
-    } else if let Err(result) = ensure_persistent_helper_started() {
-        *result
-    } else {
-        let settings = load_settings();
-        let payload = json!({
-            "text": source,
-            "source_language": settings.source_language,
-            "target_language": settings.target_language,
-            "request_kind": "standalone_alternative",
-            "translation_style": settings.translation_style,
-            "alternative_of": current_translation,
-            "terminology": &settings.terminology,
-        });
-        let response = send_helper_worker_task("translate", payload);
-        let worker_response = serde_json::from_str::<Value>(&response.worker_response_json)
-            .unwrap_or_else(|_| json!({
-                "ok": false,
-                "stage": "translate",
-                "blocker": "helper_bridge:invalid_translation_response",
-                "note": response.message,
-            }));
-        let translated = worker_response
-            .get("translated_text")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .trim();
-        let verified = response.ok
-            && worker_generation_is_complete(&worker_response)
-            && worker_response_matches_direction(
-                &worker_response,
-                &settings.source_language,
-                &settings.target_language,
-            );
-        if !verified {
-            if response.ok {
-                TextTranslationResult::blocked(
-                    "alternative_unavailable",
-                    "The local translator didn't return a complete, verified alternative. Keep the current wording and try again.",
-                    "text_translation:alternative_result_unverified".to_string(),
-                )
-            } else {
-                TextTranslationResult::blocked(
-                    "alternative_unavailable",
-                    worker_failure_message(&worker_response),
-                    worker_blocker(&worker_response),
-                )
-            }
-        } else if translated.is_empty() {
-            TextTranslationResult::blocked(
-                "alternative_unavailable",
-                "The local translator returned no alternative. Keep the current wording and try again.",
-                "text_translation:alternative_empty_output".to_string(),
-            )
-        } else if translated == current_translation {
-            TextTranslationResult::blocked(
-                "no_distinct_alternative",
-                "The local translator didn't find a meaning-preserving alternative. Keep or edit the current translation.",
-                "text_translation:no_distinct_alternative".to_string(),
-            )
-        } else {
-            TextTranslationResult::success(translated.to_string(), source_review_hints(&source))
-        }
-    };
-
-    if result.ok {
-        trace_command_end("translate_text_alternative", started, format!("state={}", result.state));
-    } else {
-        trace_command_error("translate_text_alternative", started, format!("state={}", result.state));
-    }
-    result
 }

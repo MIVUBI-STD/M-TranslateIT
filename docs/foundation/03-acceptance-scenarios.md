@@ -54,7 +54,7 @@ Requires relevant A/B capability first.
 |---|---|---|---|
 | C0 | Day-one start with built-in voice | TARGET_WINDOWS | choose Built-in Male/Female; required readiness can reach Start without My Voice training |
 | C1 | Outbound end-to-end | TARGET_WINDOWS | Start→capture→ASR→ID→EN→selected voice→Meeting Microphone; stage timing recorded when latency is claimed |
-| C2 | Outbound rolling context | TARGET_WINDOWS or matching runtime fixture | only last three committed own-voice pairs affect outbound; current utterance remains primary input |
+| C2 | Outbound context isolation | TARGET_WINDOWS or matching runtime fixture | previous translated pairs never enter the model prompt; the current finalized utterance is the only translation source |
 | C3 | Incoming context isolation | TARGET_WINDOWS or matching runtime fixture | incoming EN→ID remains context-free and incoming failure does not break outbound |
 | C4 | Stop lifecycle | TARGET_WINDOWS | output authority revoked, work/capture cleaned, no dangling handles/stale output |
 | C5 | Repeated session stability | TARGET_WINDOWS | repeated start/stop remains stable and bounded |
@@ -67,7 +67,10 @@ Requires relevant A/B capability first.
 | D2 | Settings sanitize/atomic write | source/local | invalid state is sanitized; writes remain atomic |
 | D3 | Readiness truth | source + TARGET_WINDOWS for live claim | Meeting Start depends on required route/runtime plus **a selected built-in or approved My Voice**, not My Voice training specifically |
 | D4 | Diagnostics privacy | source/local | no private conversation/raw audio/unredacted user path is exposed by default |
-| D5 | Rendered UI hierarchy | rendered local/target | current state/action remains legible at supported window sizes; source alone is not visual PASS |
+| D5 | Rendered UI hierarchy | rendered local/target | one Meeting primary action, simple Text, categorized Settings, contextual export feedback; remains legible at supported sizes; source alone is not visual PASS |
+| D6 | Text Swap data preservation | source + rendered local | swapping source direction never discards untranslated input; stale inference cannot overwrite newer user edits |
+| D7 | Deferred Meeting recovery | source + TARGET_WINDOWS | deferred setup exposes one actionable recovery path, and Start/Stop ownership remains authoritative |
+| D8 | Transcript export receipt | source + rendered local | export shows short status, copyable location, and clear warning when earlier phrases are missing; no raw file path in global header |
 
 ## Group E — Distribution
 

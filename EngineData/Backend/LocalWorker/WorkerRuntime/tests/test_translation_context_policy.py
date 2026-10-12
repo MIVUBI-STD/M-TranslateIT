@@ -63,204 +63,73 @@ def install_fake_translation_runtime(worker) -> list[str]:
     return prompts
 
 
-def test_only_authoritative_outbound_id_en_can_use_context(monkeypatch) -> None:
+def _install_fake_worker(monkeypatch):
     worker = load_worker_module()
     monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
     monkeypatch.setitem(
-        sys.modules,
-        "torch",
-        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
+        sys.modules, "torch", types.SimpleNamespace(inference_mode=_FakeInferenceMode)
     )
     prompts = install_fake_translation_runtime(worker)
+    return worker, prompts
 
-    context_pairs = [
-        ["old-0-id", "old-0-en"],
-        ["old-1-id", "old-1-en"],
-        ["old-2-id", "old-2-en"],
-        ["old-3-id", "old-3-en"],
+
+def test_meeting_context_cannot_modify_translation_prompt(monkeypatch) -> None:
+    worker, prompts = _install_fake_worker(monkeypatch)
+    request = {
+        "text": "Coba lagi",
+        "source_language": "id",
+        "target_language": "en",
+        "meeting_lane": "you",
+        "meeting_session_id": "session-a",
+        "meeting_generation": 4,
+        "context_pairs": [["OLD_INSTRUCTION", "OLD_TRANSLATION"]],
+        "translation_style": "formal",
+        "terminology": [{"indonesian": "Coba lagi", "english": "UNTRUSTED_DICTIONARY"}],
+        "alternative_of": "OLD_ALTERNATIVE",
+    }
+    result = worker.handle_translate(request)
+    assert result["ok"] is True
+    prompt = prompts[-1]
+    assert "Indonesian: Coba lagi" in prompt
+    for forbidden in [
+        "OLD_INSTRUCTION", "OLD_TRANSLATION", "UNTRUSTED_DICTIONARY",
+        "OLD_ALTERNATIVE", "formal, professional", "Preferred terminology",
+    ]:
+        assert forbidden not in prompt
+    assert result["context_pairs_used"] == 0
+    assert result["terminology_entries_used"] == 0
+    assert result["translation_style"] == "natural"
+
+
+def test_stored_preferences_are_inert_in_both_directions(monkeypatch) -> None:
+    worker, prompts = _install_fake_worker(monkeypatch)
+    cases = [
+        ("id", "en", "Apakah kurang panjang?", "Indonesian:", "English:"),
+        ("en", "id", "Hi please confirm this one", "English:", "Indonesian:"),
     ]
-
-    outbound = worker.handle_translate(
-        {
-            "text": "current outbound",
-            "source_language": "id",
-            "target_language": "en",
-            "meeting_lane": "you",
-            "meeting_session_id": "session-a",
-            "meeting_generation": 7,
-            "context_pairs": context_pairs,
-        }
-    )
-    assert outbound["ok"] is True
-    outbound_prompt = prompts[-1]
-    assert "old-0-id" not in outbound_prompt
-    for index in (1, 2, 3):
-        assert f"old-{index}-id" in outbound_prompt
-        assert f"old-{index}-en" in outbound_prompt
-    assert "Indonesian: current outbound" in outbound_prompt
-
-    incoming = worker.handle_translate(
-        {
-            "text": "current incoming",
-            "source_language": "en",
-            "target_language": "id",
-            "meeting_lane": "incoming",
-            "meeting_session_id": "session-a",
-            "context_pairs": [["must-not-enter-en", "must-not-enter-id"]],
-        }
-    )
-    assert incoming["ok"] is True
-    incoming_prompt = prompts[-1]
-    assert "must-not-enter-en" not in incoming_prompt
-    assert "must-not-enter-id" not in incoming_prompt
-    assert "English: current incoming" in incoming_prompt
-
-    standalone = worker.handle_translate(
-        {
-            "text": "standalone",
-            "source_language": "id",
-            "target_language": "en",
-            "context_pairs": [["must-not-enter-standalone", "ignored"]],
-        }
-    )
-    assert standalone["ok"] is True
-    assert "must-not-enter-standalone" not in prompts[-1]
-
-    spoofed_lane = worker.handle_translate(
-        {
-            "text": "spoofed lane",
-            "source_language": "id",
-            "target_language": "en",
-            "meeting_lane": "you",
-            "context_pairs": [["must-not-enter-spoof", "ignored"]],
-        }
-    )
-    assert spoofed_lane["ok"] is True
-    assert "must-not-enter-spoof" not in prompts[-1]
-
-    zero_generation = worker.handle_translate(
-        {
-            "text": "zero generation",
-            "source_language": "id",
-            "target_language": "en",
-            "meeting_lane": "you",
-            "meeting_session_id": "session-a",
-            "meeting_generation": 0,
-            "context_pairs": [["must-not-enter-zero", "ignored"]],
-        }
-    )
-    assert zero_generation["ok"] is True
-    assert "must-not-enter-zero" not in prompts[-1]
-
-    wrong_direction = worker.handle_translate(
-        {
-            "text": "reverse on you lane",
-            "source_language": "en",
-            "target_language": "id",
-            "meeting_lane": "you",
-            "meeting_session_id": "session-a",
-            "meeting_generation": 7,
-            "context_pairs": [["must-not-enter-reverse", "ignored"]],
-        }
-    )
-    assert wrong_direction["ok"] is True
-    assert "must-not-enter-reverse" not in prompts[-1]
+    for src, tgt, text, src_label, tgt_label in cases:
+        response = worker.handle_translate({
+            "text": text, "source_language": src, "target_language": tgt,
+            "context_pairs": [["LEAK_SOURCE", "LEAK_TARGET"]],
+            "terminology": [{"indonesian": "foo", "english": "BAR"}],
+            "translation_style": "formal",
+        })
+        assert response["ok"] is True
+        prompt = prompts[-1]
+        assert f"{src_label} {text}" in prompt
+        assert prompt.endswith(tgt_label)
+        assert "LEAK_SOURCE" not in prompt
+        assert "LEAK_TARGET" not in prompt
+        assert "BAR" not in prompt
 
 
-def test_terminology_is_relevant_and_directional(monkeypatch) -> None:
-    worker = load_worker_module()
-    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
-    monkeypatch.setitem(
-        sys.modules,
-        "torch",
-        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
-    )
-    prompts = install_fake_translation_runtime(worker)
-
-    terms = [
-        {"indonesian": "pemugaran", "english": "restoration"},
-        {"indonesian": "nama produk", "english": "product name"},
-        {"indonesian": "tidak relevan", "english": "irrelevant"},
-    ]
-    result = worker.handle_translate(
-        {
-            "text": "Pemugaran nama produk dimulai besok.",
-            "source_language": "id",
-            "target_language": "en",
-            "terminology": terms,
-        }
-    )
-    assert result["ok"] is True
-    prompt = prompts[-1]
-    assert "- pemugaran => restoration" in prompt
-    assert "- nama produk => product name" in prompt
-    assert "tidak relevan" not in prompt
-
-    reverse = worker.handle_translate(
-        {
-            "text": "The restoration starts tomorrow.",
-            "source_language": "en",
-            "target_language": "id",
-            "terminology": terms,
-        }
-    )
-    assert reverse["ok"] is True
-    reverse_prompt = prompts[-1]
-    assert "- restoration => pemugaran" in reverse_prompt
-    assert "product name => nama produk" not in reverse_prompt
-
-
-def test_alternative_prompt_preserves_source_and_existing_translation(monkeypatch) -> None:
-    worker = load_worker_module()
-    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
-    monkeypatch.setitem(
-        sys.modules,
-        "torch",
-        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
-    )
-    prompts = install_fake_translation_runtime(worker)
-
-    result = worker.handle_translate(
-        {
-            "text": "Saya belum sempat mengerjakannya.",
-            "source_language": "id",
-            "target_language": "en",
-            "alternative_of": "I haven't had a chance to work on it yet.",
-        }
-    )
-    assert result["ok"] is True
-    prompt = prompts[-1]
-    assert "Produce one natural alternative wording" in prompt
-    assert "I haven't had a chance to work on it yet." in prompt
-    assert "Indonesian: Saya belum sempat mengerjakannya." in prompt
-
-
-def test_terminology_rejects_conflicting_source_or_target_mappings(monkeypatch) -> None:
-    worker = load_worker_module()
-    monkeypatch.setattr(worker, "translation_model_ready", lambda _path: True)
-    monkeypatch.setitem(
-        sys.modules,
-        "torch",
-        types.SimpleNamespace(inference_mode=_FakeInferenceMode),
-    )
-    prompts = install_fake_translation_runtime(worker)
-
-    result = worker.handle_translate(
-        {
-            "text": "Pemugaran dan arsip dibahas hari ini.",
-            "source_language": "id",
-            "target_language": "en",
-            "terminology": [
-                {"indonesian": "pemugaran", "english": "restoration"},
-                {"indonesian": "PEMUGARAN", "english": "renovation"},
-                {"indonesian": "restorasi", "english": "restoration"},
-                {"indonesian": "arsip", "english": "archive"},
-            ],
-        }
-    )
-    assert result["ok"] is True
-    prompt = prompts[-1]
-    assert "- pemugaran => restoration" in prompt
-    assert "PEMUGARAN => renovation" not in prompt
-    assert "restorasi => restoration" not in prompt
-    assert "- arsip => archive" in prompt
+def test_single_prompt_does_not_include_stored_examples(monkeypatch) -> None:
+    worker, prompts = _install_fake_worker(monkeypatch)
+    for i in range(25):
+        response = worker.handle_translate({
+            "text": f"Sentence {i}", "source_language": "en", "target_language": "id",
+            "meeting_lane": "incoming", "context_pairs": [[f"old-{i}", "ignore"]],
+        })
+        assert response["ok"] is True
+        assert prompts[-1].count(f"Sentence {i}") == 1
+        assert f"old-{i}" not in prompts[-1]

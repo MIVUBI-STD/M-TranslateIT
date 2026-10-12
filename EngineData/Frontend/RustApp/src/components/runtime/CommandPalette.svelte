@@ -109,7 +109,7 @@
       </header>
       <div class="max-h-[min(60vh,420px)] overflow-y-auto p-2" role="region" aria-label="Available actions">
         {#if filtered.length === 0}
-          <p class="m-0 px-3 py-8 text-center text-[12.5px] text-[var(--ti-text-muted)]">No matching action. Try “mic”, “captions”, or “terms”.</p>
+          <p class="m-0 px-3 py-8 text-center text-[12.5px] text-[var(--ti-text-muted)]">No matching action. Try “meeting”, “audio”, or “help”.</p>
         {:else}
           {#each groups as group}
             {#if filtered.some(command => command.group === group)}

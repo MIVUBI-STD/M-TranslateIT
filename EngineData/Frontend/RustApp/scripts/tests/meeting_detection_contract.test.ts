@@ -2,19 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const meetingPage = readFileSync(new URL("../../src/pages/Meeting.svelte", import.meta.url), "utf8");
-const runtimeApi = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", import.meta.url), "utf8");
+const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+const meeting = source("src/pages/Meeting.svelte");
+const api = source("src/app/bridge/runtimeApi.ts");
+const registry = source("src-tauri/src/commands/registry.rs");
+const modules = source("src-tauri/src/commands/mod.rs");
 
-test("meeting detection remains advisory and never auto-starts translation", () => {
-  assert.match(meetingPage, /detectMeetingApp/);
-  assert.match(meetingPage, /if \(detectionInFlight \|\| meeting\.hasSession\) return;/);
-  assert.match(meetingPage, /onMount\(\(\) => \{[\s\S]*?void refreshMeetingDetection\(\);/);
-  assert.match(meetingPage, /only start when you choose Start Translation/);
-  assert.doesNotMatch(meetingPage, /detectMeetingApp\(\)[\s\S]{0,300}startMeetingTranslation/);
-});
-
-test("meeting detection bridge has an explicit safe fallback", () => {
-  assert.match(runtimeApi, /meetingAppDetectionFallback/);
-  assert.match(runtimeApi, /frontend_bridge_unavailable/);
-  assert.match(runtimeApi, /"detect_meeting_app"/);
+test("Meeting app detection and preset suggestions are fully retired", () => {
+  assert.doesNotMatch(meeting, /detectMeetingApp|MeetingPresetPanel|meetingDetection|Suggested preset/);
+  assert.match(meeting, /onclick=\{handlePrimary\}/);
+  assert.doesNotMatch(api, /detectMeetingApp|meetingAppDetectionFallback|MeetingAppDetection/);
+  assert.doesNotMatch(registry, /detect_meeting_app/);
+  assert.doesNotMatch(modules, /meeting_detection/);
 });

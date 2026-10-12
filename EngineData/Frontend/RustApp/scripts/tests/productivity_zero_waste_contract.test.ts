@@ -2,74 +2,42 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const panel = readFileSync(new URL("../../src/components/meeting/MeetingPresetPanel.svelte", import.meta.url), "utf8");
-const settings = readFileSync(new URL("../../src-tauri/src/commands/settings.rs", import.meta.url), "utf8");
-const registry = readFileSync(new URL("../../src-tauri/src/commands/registry.rs", import.meta.url), "utf8");
-const mutations = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/mutations.rs", import.meta.url), "utf8");
-const runtimeApi = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", import.meta.url), "utf8");
-const cache = readFileSync(new URL("../../src/app/runtime/textTranslationCache.ts", import.meta.url), "utf8");
-const sessionReview = readFileSync(new URL("../../src/components/meeting/MeetingSessionReview.svelte", import.meta.url), "utf8");
-const feedbackReview = readFileSync(new URL("../../src/components/settings/TranslationFeedbackReview.svelte", import.meta.url), "utf8");
+const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+const meeting = source("src/pages/Meeting.svelte");
+const textPage = source("src/pages/Text.svelte");
+const settings = source("src/pages/Settings.svelte");
+const native = source("src-tauri/src/commands/settings.rs");
+const registry = source("src-tauri/src/commands/registry.rs");
+const cache = source("src/app/runtime/textTranslationCache.ts");
+const app = source("src/App.svelte");
 
-test("Meeting presets apply through one Rust-owned validation transaction", () => {
-  assert.match(registry, /application_runtime::mutations::apply_product_meeting_preset/);
-  assert.match(runtimeApi, /"apply_product_meeting_preset"/);
-  assert.match(mutations, /emit_after\(&app, "apply_meeting_preset"/);
-  assert.match(panel, /runtimeApi\.applyMeetingPreset/);
-  assert.doesNotMatch(panel, /probeInputDeviceCandidate|probeOutputDeviceCandidate|saveSettings\(/);
-  assert.match(settings, /pub fn apply_meeting_preset/);
-  assert.match(settings, /runtime_session_owns_audio_resources/);
-  assert.match(settings, /probe_input_device_candidate/);
-  assert.match(settings, /probe_output_device_candidate/);
-  assert.match(settings, /persist_runtime_settings\(candidate\)/);
+test("Meeting presets cannot be applied through any UI or registered native command", () => {
+  assert.doesNotMatch(native, /pub fn apply_meeting_preset|MeetingPresetApplyResult/);
+  assert.doesNotMatch(registry, /apply_product_meeting_preset/);
+  assert.doesNotMatch(meeting, /MeetingPresetPanel|meeting-presets/);
+  assert.doesNotMatch(settings, /MeetingPresetPanel|Meeting presets/);
 });
 
-test("Meeting presets cannot overwrite the independent Text language direction", () => {
-  const presetState = readFileSync(new URL("../../src/app/runtime/meetingPresetState.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(panel, /source_language:\s*preset\.sourceLanguage|target_language:\s*preset\.targetLanguage/);
-  assert.match(panel, /meeting_listen_source_language:\s*preset\.listenSourceLanguage/);
-  assert.match(panel, /runtimeApi\.applyMeetingPreset\(candidate\)/);
-  assert.match(settings, /fn validated_meeting_preset_settings\(/);
-  assert.match(settings, /candidate\.source_language = current\.source_language\.clone\(\)/);
-  assert.match(settings, /candidate\.target_language = current\.target_language\.clone\(\)/);
-  assert.match(settings, /let candidate = validated_meeting_preset_settings\(&current, settings\)/);
-  assert.match(presetState, /sourceLanguage:\s*"id"/);
-  assert.match(presetState, /targetLanguage:\s*"en"/);
-  assert.match(presetState, /const PRESETS_KEY = "translateit\.meeting-presets\.v1"/);
+test("retired preference screens are not mounted", () => {
+  assert.doesNotMatch(settings, /TranslationPreferences|Spoken terms|Preferred words|Translation style/);
+  assert.match(settings, /Voice &amp; Audio/);
+  assert.match(settings, /Meeting Captions/);
+  assert.match(settings, /Help/);
 });
 
-test("Text cache stays process-local rather than becoming persistent history", () => {
-  assert.match(cache, /MAX_ENTRIES = 32/);
-  assert.doesNotMatch(cache, /localStorage|sessionStorage|indexedDB|fs\./i);
-});
-
-test("session review and feedback remain explicit bounded workflows", () => {
-  assert.match(sessionReview, /getRecentMeetingTranscript/);
-  assert.match(sessionReview, /temporary until a new Meeting starts or the app closes/);
-  assert.match(feedbackReview, /Copy review data/);
-  assert.match(feedbackReview, /> Clear</);
-  assert.match(feedbackReview, /bounded to 40 entries/);
-});
-
-test("Text workspace remains mounted across navigation without disk persistence", () => {
-  const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8");
+test("Text is an ephemeral translate-copy workspace", () => {
+  assert.match(textPage, /function clearWorkspace/);
+  assert.match(textPage, /aria-label="Clear text"/);
+  assert.match(textPage, /copyTranslation/);
+  assert.doesNotMatch(textPage, /Undo Clear|More options|Try another wording|Floating caption|Report issue/);
+  assert.doesNotMatch(textPage, /localStorage|sessionStorage|indexedDB/);
   assert.match(app, /class=\{route === "text" \? "" : "hidden"\}/);
-  assert.match(app, /<Text\s+settings=\{snapshot\.settings\}/);
+  assert.match(cache, /MAX_ENTRIES = 32/);
 });
 
-test("retained Text results become stale when translation settings change", () => {
-  const textPage = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
-  assert.match(textPage, /lastTranslatedSettingsKey/);
-  assert.match(textPage, /currentTextSettingsKey !== requestSettingsKey/);
-  assert.match(textPage, /Translation settings changed/);
-});
-
-test("Text Clear/Undo is a bounded process-only edit path", () => {
-  const page = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
-  assert.match(page, /function clearWorkspace\(\)/);
-  assert.match(page, /function undoClear\(\)/);
-  assert.match(page, /clearedDraft = null/);
-  assert.match(page, /Undo Clear/);
-  assert.match(page, /sourceText\.trim\(\) !== requestSource/);
-  assert.doesNotMatch(page, /localStorage|sessionStorage|indexedDB/);
+test("Text results respect request identity and retain user edits", () => {
+  assert.match(textPage, /targetRevision !== revision/);
+  assert.match(textPage, /sourceText\.trim\(\) !== requestSource/);
+  assert.match(textPage, /currentTextSettingsKey !== currentKey/);
+  assert.match(textPage, /originalOutput\.trim\(\) \? originalOutput : originalInput/);
 });

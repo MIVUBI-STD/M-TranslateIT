@@ -24,8 +24,10 @@ test("caption width and contrast persist as bounded presets", () => {
   assert.match(owner, /Allow clicks through caption/);
 });
 
-test("floating caption settings live in a dedicated owner component", () => {
-  const translationPreferences = readFileSync(new URL("../../src/components/settings/TranslationPreferences.svelte", import.meta.url), "utf8");
-  assert.match(translationPreferences, /FloatingCaptionPreferences/);
-  assert.doesNotMatch(translationPreferences, /Caption text size/);
+test("floating caption preferences belong directly to Meeting Settings", () => {
+  const settings = readFileSync(new URL("../../src/pages/Settings.svelte", import.meta.url), "utf8");
+  const textPage = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
+  assert.match(settings, /<FloatingCaptionPreferences/);
+  assert.match(settings, /Meeting Captions/);
+  assert.doesNotMatch(textPage, /publishTranslationOverlay|Floating caption/);
 });

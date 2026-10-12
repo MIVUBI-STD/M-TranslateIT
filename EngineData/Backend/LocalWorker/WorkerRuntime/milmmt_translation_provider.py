@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import time
 from pathlib import Path
 from typing import Any
@@ -38,113 +37,15 @@ def language_name(code: str) -> str:
     return names[code]
 
 
-def build_prompt(
-    source_language: str,
-    target_language: str,
-    text: str,
-    context_pairs: "list[tuple[str, str]]" = (),
-    terminology: "list[tuple[str, str]]" = (),
-    alternative_of: str = "",
-    translation_style: str = "natural",
-) -> str:
+def build_prompt(source_language: str, target_language: str, text: str) -> str:
+    """Canonical literal source-to-target prompt; no saved user preferences or prior turns."""
     source_name = language_name(source_language)
     target_name = language_name(target_language)
-    if alternative_of:
-        lines = [
-            f"Translate this from {source_name} to {target_name}.",
-            "Produce one natural alternative wording that preserves exactly the same meaning and factual details.",
-            "Do not explain, add facts, omit details, or copy the existing translation verbatim.",
-            f"Existing translation: {alternative_of}",
-        ]
-    else:
-        lines = [f"Translate this from {source_name} to {target_name}:"]
-    if translation_style == "formal":
-        lines.append(
-            "Use a formal, professional register while preserving the source meaning, names, numbers, and factual details exactly."
-        )
-    if terminology:
-        lines.append("Preferred terminology (use when the matching source term appears):")
-        for term_source, term_target in terminology:
-            lines.append(f"- {term_source} => {term_target}")
-    for pair_source, pair_target in context_pairs:
-        lines.append(f"{source_name}: {pair_source}")
-        lines.append(f"{target_name}: {pair_target}")
-    lines.append(f"{source_name}: {text}")
-    lines.append(f"{target_name}:")
-    return "\n".join(lines)
-
-
-MAX_CONTEXT_PAIRS = 3
-MAX_CONTEXT_PAIR_CHARS = 500
-MAX_TERMINOLOGY_ENTRIES = 16
-MAX_TERMINOLOGY_TERM_CHARS = 80
-
-
-def source_term_occurs(source_text: str, term_source: str) -> bool:
-    source_folded = source_text.casefold()
-    term_folded = term_source.casefold()
-    if not term_folded:
-        return False
-    pattern = rf"(?<!\w){re.escape(term_folded)}(?!\w)"
-    return re.search(pattern, source_folded) is not None
-
-
-def normalize_context_pairs(raw_pairs: object, host: dict) -> "list[tuple[str, str]]":
-    if not isinstance(raw_pairs, list):
-        return []
-    pairs: "list[tuple[str, str]]" = []
-    for raw_pair in raw_pairs[-MAX_CONTEXT_PAIRS:]:
-        if not isinstance(raw_pair, (list, tuple)) or len(raw_pair) != 2:
-            continue
-        source = host["compact_runtime_text"](raw_pair[0], MAX_CONTEXT_PAIR_CHARS)
-        target = host["compact_runtime_text"](raw_pair[1], MAX_CONTEXT_PAIR_CHARS)
-        if source and target:
-            pairs.append((source, target))
-    return pairs
-
-
-def normalize_terminology_entries(
-    raw_entries: object,
-    source_language: str,
-    target_language: str,
-    source_text: str,
-    host: dict,
-) -> "list[tuple[str, str]]":
-    if not isinstance(raw_entries, list) or source_language == target_language:
-        return []
-    entries: "list[tuple[str, str]]" = []
-    seen: set[tuple[str, str]] = set()
-    for raw_entry in raw_entries:
-        if not isinstance(raw_entry, dict):
-            continue
-        indonesian = host["compact_runtime_text"](
-            raw_entry.get("indonesian", ""), MAX_TERMINOLOGY_TERM_CHARS
-        )
-        english = host["compact_runtime_text"](
-            raw_entry.get("english", ""), MAX_TERMINOLOGY_TERM_CHARS
-        )
-        if not indonesian or not english:
-            continue
-        if source_language == "id" and target_language == "en":
-            term_source, term_target = indonesian, english
-        elif source_language == "en" and target_language == "id":
-            term_source, term_target = english, indonesian
-        else:
-            continue
-        if not source_term_occurs(source_text, term_source):
-            continue
-        source_key = term_source.casefold()
-        target_key = term_target.casefold()
-        if any(
-            source_key == existing_source or target_key == existing_target
-            for existing_source, existing_target in seen
-        ):
-            continue
-        seen.add((source_key, target_key))
-        entries.append((term_source, term_target))
-        if len(entries) >= MAX_TERMINOLOGY_ENTRIES:
-            break
-    return entries
+    return (
+        f"Translate this from {source_name} to {target_name}:\n"
+        f"{source_name}: {text}\n"
+        f"{target_name}:"
+    )
 
 
 def translation_model_for_direction(source_language: str, target_language: str):
@@ -383,31 +284,9 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
         )
         tokenizer = runtime["tokenizer"]
         model = runtime["model"]
-        context_pairs = normalize_context_pairs(payload.get("context_pairs"), host)
-        terminology = normalize_terminology_entries(
-            payload.get("terminology"),
-            source_language,
-            target_language,
-            text,
-            host,
-        )
-        alternative_of = host["compact_runtime_text"](
-            payload.get("alternative_of", ""), host["MAX_TRANSLATION_TEXT_CHARS"]
-        )
-        translation_style = (
-            "formal"
-            if str(payload.get("translation_style", "")).strip().lower() == "formal"
-            else "natural"
-        )
-        prompt = build_prompt(
-            source_language,
-            target_language,
-            text,
-            context_pairs,
-            terminology,
-            alternative_of,
-            translation_style,
-        )
+        # Retired options must never influence the canonical inference prompt.
+        # Compatibility payload keys remain accepted but are intentionally ignored.
+        prompt = build_prompt(source_language, target_language, text)
         tokenization_started = time.perf_counter()
         inputs = tokenizer(
             prompt,
@@ -495,9 +374,9 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
             "translation_fallback_reason": runtime["translation_fallback_reason"],
             "runtime_reused": runtime_warm,
             "model_asset_check_performed": model_asset_check_performed,
-            "context_pairs_used": len(context_pairs),
-            "terminology_entries_used": len(terminology),
-            "translation_style": translation_style,
+            "context_pairs_used": 0,
+            "terminology_entries_used": 0,
+            "translation_style": "natural",
             "input_tokens": prompt_tokens,
             "prompt_tokens": prompt_tokens,
             "input_token_limit": INPUT_CONTEXT_LIMIT,

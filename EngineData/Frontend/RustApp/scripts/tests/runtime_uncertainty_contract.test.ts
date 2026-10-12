@@ -20,13 +20,14 @@ test("virtual microphone evidence distinguishes missing devices from bridge fail
 const source = (relative: string) =>
   readFileSync(new URL(`../../src/${relative}`, import.meta.url), "utf8");
 
-test("Meeting, Settings and First Setup share route evidence without assuming ok=false means bridge failure", () => {
+test("Settings and First Setup own virtual-route evidence; Meeting only navigates for recovery", () => {
   const meeting = source("pages/Meeting.svelte");
   const settings = source("pages/Settings.svelte");
   const setup = source("pages/FirstSetup.svelte");
   const voice = source("components/setup/SetupVoiceChoice.svelte");
 
-  assert.match(meeting, /classifyVirtualMicRoute\(routeStatus\)/);
+  assert.doesNotMatch(meeting, /classifyVirtualMicRoute\(routeStatus\)/);
+  assert.match(meeting, /onNavigate\("settings"\)/);
   assert.doesNotMatch(meeting, /routeStatus\?\.ok === false/);
   assert.match(settings, /classifyVirtualMicRoute\(routeStatus\)/);
   assert.match(settings, /routeCheck === "unavailable" \? "Unable to check"/);

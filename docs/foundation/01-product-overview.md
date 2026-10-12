@@ -87,7 +87,9 @@ Removed/deferred from current product:
 - Push to Talk;
 - Pause/Resume;
 - user-facing Realtime/Quality translation modes;
-- Auto/Casual tone controls; the only current wording styles are Natural (default) and Formal;
+- user-selectable translation styles including Natural/Formal;
+- Meeting Presets, custom Spoken Terms/Preferred Words and ASR/translation bias;
+- alternative Text wording and clipboard-to-caption Quick Translate;
 - Document/file translation;
 - general History/Saved workspace;
 - Audio Studio/broadcast workflows;
@@ -105,8 +107,7 @@ Normal translation uses one canonical ID ↔ EN pipeline.
 
 ```text
 Meeting outbound
-→ current finalized Indonesian utterance
-+ up to last 3 committed own-voice ID→EN pairs from same live session
+→ current finalized Indonesian utterance only (no previous translated examples)
 
 Meeting incoming
 → current finalized English utterance only
@@ -189,7 +190,7 @@ My Voice
 Settings
 ```
 
-Normal UI exposes product states/actions, not Python/model/CUDA/VAD/queue/checkpoint internals. Technical details belong in Advanced/Diagnostics.
+Meeting uses one state-dependent action (Start/Stop, or contextual setup recovery) and displays finalized dialogue when Live. Text is source/swap/Translate/Copy/Clear. Settings offers a Discord-like left navigation with Voice & Audio, Meeting Captions and Help. All technical internals stay in Help/Diagnostics.
 
 ## Proof standard
 

@@ -52,7 +52,6 @@ fn process_incoming_wav_with_direction(
         return IncomingAudioProcessResult::Complete;
     }
     let settings = load_settings();
-    let asr_hotwords = settings.asr_hotwords();
     let (source_language, target_language, translation_style) = deferred_direction
         .unwrap_or_else(|| (
             settings.meeting_listen_source_language,
@@ -74,7 +73,6 @@ fn process_incoming_wav_with_direction(
             "language": source_language,
             "beam_size": 1,
             "vad_filter": super::FINALIZED_MEETING_ASR_WORKER_VAD,
-            "hotwords": asr_hotwords,
             "meeting_session_id": session_id,
             "meeting_lane": "incoming",
             "meeting_sequence": event_sequence,
@@ -231,7 +229,6 @@ fn translate_and_commit_incoming_transcript(
         "",
         "Final Meeting Sound transcript is being translated.",
     );
-    let terminology = load_settings().terminology;
     let translation = send_helper_worker_task(
         "translate",
         json!({
@@ -239,8 +236,6 @@ fn translate_and_commit_incoming_transcript(
             "source_language": source_language,
             "target_language": target_language,
             "max_new_tokens": 96,
-            "translation_style": translation_style,
-            "terminology": terminology,
             "meeting_session_id": session_id,
             "meeting_lane": "incoming",
             "meeting_sequence": event_sequence,

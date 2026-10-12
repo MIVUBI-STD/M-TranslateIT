@@ -6,30 +6,31 @@ const meeting = readFileSync(new URL("../../src/pages/Meeting.svelte", import.me
 const live = readFileSync(new URL("../../src/components/meeting/MeetingActivity.svelte", import.meta.url), "utf8");
 const review = readFileSync(new URL("../../src/components/meeting/MeetingSessionReview.svelte", import.meta.url), "utf8");
 
-test("Meeting Ready remains one task-first surface, with outbound direction independent of Text", () => {
-  assert.match(meeting, /const outboundSourceName = "Indonesian"/);
-  assert.match(meeting, /const outboundTargetName = "English"/);
-  assert.match(meeting, /Microphone<\/span>/);
-  assert.match(meeting, /Meeting voice/);
-  assert.match(meeting, /disabled=\{!primaryControl\.enabled\}/);
-  assert.match(meeting, />\{primaryControl\.label\}<\/button>/);
-  assert.doesNotMatch(meeting, /grid-cols-3 divide-x|<StatusBadge label=\{audioQuality/);
-  assert.match(meeting, /lg:grid-cols-2/);
+test("Meeting has a single primary button that can Start, Stop, or guide recovery", () => {
+  assert.match(meeting, /Indonesian speech → English voice/);
+  assert.match(meeting, /meetingControlState\(/);
+  assert.match(meeting, /disabled=\{!actionEnabled\}/);
+  assert.match(meeting, /onclick=\{handlePrimary\}/);
+  assert.match(meeting, /needsSetup \? "Finish Setup"/);
+  assert.match(meeting, /needsVoice \? "Choose Voice"/);
+  assert.equal((meeting.match(/onclick=\{/g) ?? []).length, 1);
+  for (const retired of ["MeetingPresetPanel", "meeting-presets", "swapListenDirection",
+    "detectMeetingApp", "Meeting options", "Mic Test"]) {
+    assert.equal(meeting.includes(retired), false, retired);
+  }
 });
-
-test("Meeting options preserve real controls but are disclosed on demand, including Quick Actions focus", () => {
-  assert.match(meeting, /<details bind:open=\{optionsOpen\}/);
-  assert.match(meeting, /optionsOpen = true;\s*void tick\(\)\.then/);
-  assert.match(meeting, /id="utility-meeting-presets"/);
-  assert.match(meeting, /id="utility-meeting-transcript"/);
-  assert.match(meeting, /<MeetingPresetPanel/);
-  assert.match(meeting, /<MeetingTranscriptExport/);
-  assert.match(meeting, /Translate what you hear:/);
-  assert.match(meeting, /classifyVirtualMicRoute\(routeStatus\)/);
-  assert.match(meeting, /routeCheck === "unavailable"/);
-  assert.match(meeting, /cannot verify your calling app's input selection/);
+test("deferred setup has a real recovery path without creating another Meeting start", () => {
+  assert.match(meeting, /async function continueSetup\(\)/);
+  assert.match(meeting, /meeting_setup_state: "new"/);
+  assert.match(meeting, /onNavigate\("settings"\)/);
+  assert.match(meeting, /onNavigate\("my-voice"\)/);
+  assert.match(meeting, /meeting\.canStop/);
 });
-
+test("live Meeting retains committed conversation and optional session review", () => {
+  assert.match(meeting, /<MeetingActivity status=\{meetingStatus\} turns=\{meetingTurns\}/);
+  assert.match(meeting, /<MeetingSessionReview/);
+  assert.match(meeting, /meeting\.canStop \|\| meeting\.hasSession/);
+});
 test("Meeting Live reports local output truth, not fabricated participant delivery", () => {
   assert.match(live, /if \(status\.outbound\.output_active\)/);
   assert.match(live, /label: "Speaking"/);

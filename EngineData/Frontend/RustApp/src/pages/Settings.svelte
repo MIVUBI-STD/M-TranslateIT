@@ -12,7 +12,8 @@
   import { deviceId } from "../app/shared/state";
   import type { AudioDeviceListReport, RuntimeSettings } from "../app/shared/types";
   import MeetingNoiseSuppression from "../components/settings/MeetingNoiseSuppression.svelte";
-  import TranslationPreferences from "../components/settings/TranslationPreferences.svelte";
+  import FloatingCaptionPreferences from "../components/settings/FloatingCaptionPreferences.svelte";
+  import TranslationFeedbackReview from "../components/settings/TranslationFeedbackReview.svelte";
   import SettingsDiagnostics from "../components/settings/SettingsDiagnostics.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
   import StatusRow from "../components/ui/StatusRow.svelte";
@@ -181,13 +182,11 @@
     const request = utilityRequest;
     if (!target || !target.startsWith("settings-")) return;
     activeUtility = target;
-    tab = ["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)
-      ? "translation" : target === "settings-diagnostics" ? "advanced" : "meeting";
+    tab = target === "settings-captions" ? "translation"
+      : target === "settings-diagnostics" ? "advanced" : "meeting";
     diagnosticsOpen = target === "settings-diagnostics";
-    // Translation-specific navigation belongs to TranslationPreferences,
-    // which opens its collapsed details before focusing the actual control.
-    if (["settings-captions", "settings-spoken-terms", "settings-preferred-words", "settings-feedback"].includes(target)) return;
-    const anchor = target === "settings-diagnostics" ? "utility-diagnostics" : "utility-microphone";
+    const anchor = target === "settings-diagnostics" ? "utility-diagnostics"
+      : target === "settings-captions" ? "utility-captions" : "utility-microphone";
     void tick().then(() => {
       if (utilityRequest !== request || utilityTarget !== target || activeUtility !== target) return;
       const element = document.getElementById(anchor);
@@ -203,41 +202,34 @@
 </script>
 
 <section class="min-h-0 overflow-y-auto">
-  <div class="ti-page">
+  <div class="ti-page" style="max-width: 1220px;">
     <header class="ti-page-header">
       <div>
         <h2 class="ti-page-title">Settings</h2>
-        <p class="ti-page-copy">Microphone, translation preferences, and help.</p>
+        <p class="ti-page-copy">Audio and meeting preferences.</p>
       </div>
-
-      <nav class="flex gap-1 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-1" aria-label="Settings sections">
-        <button
-          type="button"
-          class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "meeting" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
-          aria-current={tab === "meeting" ? "page" : undefined}
-          onclick={() => { activeUtility = null; tab = "meeting"; diagnosticsOpen = false; }}
-        >Meeting</button>
-        <button
-          type="button"
-          class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "translation" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
-          aria-current={tab === "translation" ? "page" : undefined}
-          onclick={() => { activeUtility = null; tab = "translation"; diagnosticsOpen = false; }}
-        >Translation</button>
-        <button
-          type="button"
-          class={`min-h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors ${tab === "advanced" ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"}`}
-          aria-current={tab === "advanced" ? "page" : undefined}
-          onclick={() => { activeUtility = null; tab = "advanced"; diagnosticsOpen = false; }}
-        >Help</button>
-      </nav>
     </header>
-
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
+      <nav class="flex flex-col gap-1 self-start rounded-[var(--ti-radius-md)] bg-[var(--ti-surface-soft)] p-3" aria-label="Settings categories">
+        <p class="px-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ti-text-soft)]">App Settings</p>
+        <button type="button" class={"rounded-[8px] px-3 py-2.5 text-left text-[13px] " + (tab === "meeting" ? "bg-[var(--ti-surface-raised)] font-semibold" : "hover:bg-[var(--ti-surface-raised)]")}
+          aria-current={tab === "meeting" ? "page" : undefined}
+          onclick={() => { activeUtility = null; tab = "meeting"; diagnosticsOpen = false; }}>Voice &amp; Audio</button>
+        <button type="button" class={"rounded-[8px] px-3 py-2.5 text-left text-[13px] " + (tab === "translation" ? "bg-[var(--ti-surface-raised)] font-semibold" : "hover:bg-[var(--ti-surface-raised)]")}
+          aria-current={tab === "translation" ? "page" : undefined}
+          onclick={() => { activeUtility = null; tab = "translation"; diagnosticsOpen = false; }}>Meeting Captions</button>
+        <p class="mt-3 px-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ti-text-soft)]">Support</p>
+        <button type="button" class={"rounded-[8px] px-3 py-2.5 text-left text-[13px] " + (tab === "advanced" ? "bg-[var(--ti-surface-raised)] font-semibold" : "hover:bg-[var(--ti-surface-raised)]")}
+          aria-current={tab === "advanced" ? "page" : undefined}
+          onclick={() => { activeUtility = null; tab = "advanced"; diagnosticsOpen = false; }}>Help</button>
+      </nav>
+      <div class="min-w-0">
     {#if tab === "meeting"}
       <article id="utility-microphone" tabindex="-1" class="ti-panel overflow-hidden">
         <header class="flex items-start justify-between gap-5 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
           <div>
-            <h3 class="m-0 text-[15px] font-semibold tracking-[-0.015em]">Meeting audio</h3>
-            <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Your spoken microphone, the incoming meeting sound device, and the virtual microphone sent to the call are three separate routes.</p>
+            <h3 class="m-0 text-[15px] font-semibold tracking-[-0.015em]">Voice &amp; Audio</h3>
+            <p class="mb-0 mt-1 text-[12px] text-[var(--ti-text-muted)]">Choose devices here once. Meeting uses your saved preferences automatically.</p>
           </div>
           {#if meetingResourcesLocked}
             <StatusBadge label="In Use" tone="neutral" />
@@ -321,7 +313,9 @@
         </footer>
       </article>
     {:else if tab === "translation"}
-      <TranslationPreferences {settings} {onSettingsChange} {onNotice} utilityTarget={activeUtility} {utilityRequest} />
+      <div id="utility-captions" tabindex="-1">
+        <FloatingCaptionPreferences {onNotice} />
+      </div>
     {:else if !diagnosticsOpen}
       <article class="ti-panel overflow-hidden">
         <header class="border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
@@ -350,6 +344,12 @@
           <button type="button" class="ti-button ti-button-secondary" disabled={diagnosticsLoading} onclick={() => void refreshDiagnostics()}>{diagnosticsLoading ? "Opening..." : "Open Diagnostics"}</button>
         </footer>
       </article>
+      <details class="ti-panel mt-4">
+        <summary class="cursor-pointer px-5 py-4 text-sm font-medium">Past translation issue reports</summary>
+        <div class="border-t border-[var(--ti-border)] p-4">
+          <TranslationFeedbackReview {onNotice} />
+        </div>
+      </details>
     {:else}
       <div id="utility-diagnostics" tabindex="-1">
       <SettingsDiagnostics
@@ -363,5 +363,7 @@
       />
       </div>
     {/if}
+      </div>
+    </div>
   </div>
 </section>

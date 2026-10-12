@@ -14,13 +14,6 @@ use crate::engine::settings::RuntimeSettings;
 use crate::engine::state::{CommandResult, LifecycleState};
 
 #[derive(Debug, Clone, Serialize)]
-pub struct MeetingPresetApplyResult {
-    pub ok: bool,
-    pub message: String,
-    pub settings: RuntimeSettings,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct AudioDeviceSelectionResult {
     pub ok: bool,
     pub kind: String,
@@ -139,71 +132,6 @@ pub fn save_runtime_settings(settings: RuntimeSettings) -> CommandResult {
         format!("state={}", result.state),
     );
     result
-}
-
-fn validated_meeting_preset_settings(
-    current: &RuntimeSettings,
-    requested: RuntimeSettings,
-) -> RuntimeSettings {
-    let mut candidate = requested.sanitized();
-    // The Meeting outbound direction is fixed ID -> EN. Text's chosen
-    // direction is independent, including for legacy v1 Meeting presets.
-    candidate.source_language = current.source_language.clone();
-    candidate.target_language = current.target_language.clone();
-    candidate
-}
-
-pub fn apply_meeting_preset(settings: RuntimeSettings) -> MeetingPresetApplyResult {
-    let started = trace_command_start("apply_meeting_preset", "validating and applying Meeting preset");
-    let current = engine::load_settings();
-    if runtime_session_owns_audio_resources() {
-        trace_command_end("apply_meeting_preset", started, "active_runtime_session_locked");
-        return MeetingPresetApplyResult {
-            ok: false,
-            message: audio_resource_lock_message("applying a Meeting preset")
-                .replace("audio preferences", "setup"),
-            settings: current,
-        };
-    }
-
-    let candidate = validated_meeting_preset_settings(&current, settings);
-    let input_probe = probe_input_device_candidate(candidate.audio.input_device_id.clone());
-    if !(input_probe.prepared && input_probe.functional_verified) {
-        trace_command_end("apply_meeting_preset", started, "microphone_unavailable");
-        return MeetingPresetApplyResult {
-            ok: false,
-            message: "Preset not applied: the saved microphone is unavailable. The current setup was kept.".to_string(),
-            settings: current,
-        };
-    }
-
-    let output_probe = probe_output_device_candidate(candidate.audio.output_device_id.clone());
-    if !output_probe.ok {
-        trace_command_end("apply_meeting_preset", started, "meeting_sound_unavailable");
-        return MeetingPresetApplyResult {
-            ok: false,
-            message: "Preset not applied: the saved Meeting Sound device is unavailable. The current setup was kept.".to_string(),
-            settings: current,
-        };
-    }
-
-    let save = persist_runtime_settings(candidate);
-    if !save.ok {
-        trace_command_end("apply_meeting_preset", started, "save_failed");
-        return MeetingPresetApplyResult {
-            ok: false,
-            message: "The preset was validated, but it could not be saved. The previous setup was kept.".to_string(),
-            settings: current,
-        };
-    }
-
-    let saved = engine::load_settings();
-    trace_command_end("apply_meeting_preset", started, "ok");
-    MeetingPresetApplyResult {
-        ok: true,
-        message: "Meeting preset applied.".to_string(),
-        settings: saved,
-    }
 }
 
 pub fn select_audio_device(kind: String, device_id: Option<String>) -> AudioDeviceSelectionResult {
@@ -327,29 +255,8 @@ pub fn select_audio_device(kind: String, device_id: Option<String>) -> AudioDevi
 
 #[cfg(test)]
 mod tests {
-    use super::{audio_preferences_changed, validated_meeting_preset_settings};
+    use super::audio_preferences_changed;
     use crate::engine::settings::RuntimeSettings;
-
-    #[test]
-    fn meeting_presets_cannot_override_standalone_text_direction() {
-        let mut current = RuntimeSettings::default();
-        current.source_language = "en".to_string();
-        current.target_language = "id".to_string();
-
-        let mut legacy_preset = RuntimeSettings::default();
-        legacy_preset.source_language = "id".to_string();
-        legacy_preset.target_language = "en".to_string();
-        legacy_preset.meeting_listen_source_language = "id".to_string();
-        legacy_preset.meeting_listen_target_language = "en".to_string();
-        legacy_preset.translation_style = "formal".to_string();
-
-        let candidate = validated_meeting_preset_settings(&current, legacy_preset);
-        assert_eq!(candidate.source_language, "en");
-        assert_eq!(candidate.target_language, "id");
-        assert_eq!(candidate.meeting_listen_source_language, "id");
-        assert_eq!(candidate.meeting_listen_target_language, "en");
-        assert_eq!(candidate.translation_style, "formal");
-    }
 
     #[test]
     fn audio_preference_change_detects_only_audio_drift() {

@@ -10,20 +10,11 @@ export type TextTranslationCacheEntry = {
 const MAX_ENTRIES = 32;
 const entries: TextTranslationCacheEntry[] = [];
 
-function normalizedTerms(settings: RuntimeSettings): string {
-  return settings.terminology
-    .map((entry) => `${entry.indonesian.trim().toLowerCase()}=>${entry.english.trim().toLowerCase()}`)
-    .sort()
-    .join("|");
-}
-
 export function textTranslationCacheKey(source: string, settings: RuntimeSettings): string {
   return JSON.stringify([
     source.trim(),
     settings.source_language,
     settings.target_language,
-    settings.translation_style,
-    normalizedTerms(settings),
   ]);
 }
 

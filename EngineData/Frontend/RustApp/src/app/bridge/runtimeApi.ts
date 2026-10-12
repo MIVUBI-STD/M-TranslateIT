@@ -35,12 +35,6 @@ export type AudioDeviceProbeReport = {
   note: string;
 };
 
-export type MeetingPresetApplyResult = {
-  ok: boolean;
-  message: string;
-  settings: RuntimeSettings;
-};
-
 export type AudioDeviceSelectionCommandResult = {
   ok: boolean;
   kind: string;
@@ -68,18 +62,6 @@ export type VirtualMicRouteContractStatus = {
   updated_unix_ms: number;
 };
 
-export type QuickTranslationCommandResult = {
-  ok: boolean;
-  state: string;
-  translated_text: string;
-  user_message: string;
-  blocker: string;
-  needs_review: boolean;
-  review_hints: string[];
-  source_language: string;
-  target_language: string;
-};
-
 export type TextTranslationCommandResult = {
   ok: boolean;
   state: string;
@@ -88,16 +70,6 @@ export type TextTranslationCommandResult = {
   blocker: string;
   needs_review: boolean;
   review_hints: string[];
-};
-
-export type MeetingAppDetection = {
-  supported: boolean;
-  detected: boolean;
-  provider: string | null;
-  confidence: "high" | "medium" | "none" | "unsupported" | string;
-  evidence: string;
-  note: string;
-  updated_unix_ms: number;
 };
 
 export type MeetingSessionPreflightStatus = {
@@ -246,14 +218,6 @@ function commandFallback(message: string, state = "frontend_bridge_error"): Comm
   return { ok: false, state, message };
 }
 
-function quickTranslationFallback(): QuickTranslationCommandResult {
-  return {
-    ...textTranslationFallback(),
-    source_language: "",
-    target_language: "",
-  };
-}
-
 function textTranslationFallback(): TextTranslationCommandResult {
   return {
     ok: false,
@@ -367,18 +331,6 @@ function virtualMicRouteFallback(): VirtualMicRouteContractStatus {
   };
 }
 
-function meetingAppDetectionFallback(): MeetingAppDetection {
-  return {
-    supported: false,
-    detected: false,
-    provider: null,
-    confidence: "unsupported",
-    evidence: "frontend_bridge_unavailable",
-    note: "Meeting app detection is unavailable right now.",
-    updated_unix_ms: Date.now(),
-  };
-}
-
 function transcriptExportStatusFallback(): MeetingTranscriptExportStatus {
   return {
     available: false,
@@ -432,14 +384,6 @@ async function loadRuntimeSettings(): Promise<RuntimeSettings | null> {
 export const runtimeApi = {
   getCommandErrors(): RuntimeCommandError[] {
     return getRuntimeCommandErrors().slice(0, MAX_COMMAND_ERRORS);
-  },
-
-  async detectMeetingApp(): Promise<MeetingAppDetection> {
-    return invokeOr<MeetingAppDetection>(
-      "detect_meeting_app",
-      undefined,
-      meetingAppDetectionFallback(),
-    );
   },
 
   async getMeetingSessionStatus(): Promise<MeetingSessionStatus> {
@@ -543,42 +487,14 @@ export const runtimeApi = {
     );
   },
 
-  async applyMeetingPreset(settings: RuntimeSettings): Promise<MeetingPresetApplyResult> {
-    return invokeOr<MeetingPresetApplyResult>(
-      "apply_product_meeting_preset",
-      { settings },
-      {
-        ok: false,
-        message: "Meeting preset could not reach the desktop runtime.",
-        settings,
-      },
-    );
-  },
-
   async selectAudioDevice(kind: "microphone" | "meeting-sound", deviceId: string | null): Promise<AudioDeviceSelectionCommandResult | null> {
     return invokeNullable<AudioDeviceSelectionCommandResult>("select_product_audio_device", { kind, deviceId });
-  },
-
-  async quickTranslateText(source: string): Promise<QuickTranslationCommandResult> {
-    return invokeOr<QuickTranslationCommandResult>(
-      "quick_translate_text",
-      { source },
-      quickTranslationFallback(),
-    );
   },
 
   async translateText(source: string): Promise<TextTranslationCommandResult> {
     return invokeOr<TextTranslationCommandResult>(
       "translate_text",
       { source },
-      textTranslationFallback(),
-    );
-  },
-
-  async translateTextAlternative(source: string, currentTranslation: string): Promise<TextTranslationCommandResult> {
-    return invokeOr<TextTranslationCommandResult>(
-      "translate_text_alternative",
-      { source, currentTranslation },
       textTranslationFallback(),
     );
   },

@@ -94,7 +94,10 @@ test("Rust preserves no-session cleanup until Stop succeeds and blocks Start mea
 
 test("Meeting page, handler, header and command palette share the exact action resolver", () => {
   assert.match(page, /const primaryControl = \$derived\(meetingControlState\(/);
-  assert.match(page, /disabled=\{!primaryControl\.enabled\}/);
+  assert.match(page, /disabled=\{!actionEnabled\}/);
+  assert.match(page, /needsSetup \? "Finish Setup"/);
+  assert.match(page, /meeting_setup_state: "new"/);
+  assert.match(page, /onclick=\{handlePrimary\}/);
   assert.match(app, /const control = meetingControlState\(/);
   assert.match(app, /const action = control\.action/);
   assert.match(header, /const meetingControl = \$derived\(meetingControlState\(/);

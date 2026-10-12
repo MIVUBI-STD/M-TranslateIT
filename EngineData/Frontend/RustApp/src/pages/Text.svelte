@@ -1,36 +1,16 @@
 <script lang="ts">
-  import { ArrowLeftRight, Check, Copy, Eraser, PictureInPicture2, RefreshCw, ShieldAlert, Undo2 } from "@lucide/svelte";
+  import { ArrowLeftRight, Copy, Check, X } from "@lucide/svelte";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { runtimeProductFacade } from "../app/bridge/runtimeProductFacade";
-  import { publishTranslationOverlay } from "../app/runtime/translationOverlayRuntime";
-  import { getCachedTextTranslation, putCachedTextTranslation, textTranslationCacheKey } from "../app/runtime/textTranslationCache";
+  import { textTranslationCacheKey, getCachedTextTranslation, putCachedTextTranslation } from "../app/runtime/textTranslationCache";
   import { canUseCurrentTextResult, type TextResultState } from "../app/runtime/textResultPolicy";
   import { languageName } from "../app/shared/state";
   import type { RuntimeSettings } from "../app/shared/types";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
-  import TranslationFeedback from "../components/text/TranslationFeedback.svelte";
 
-  const MAX_MANUAL_TRANSLATION_CHARS = 2000;
-  type CopyState = "idle" | "copied" | "error";
-  type CopyMode = "translation" | "source" | "bilingual";
-  type ClearedDraft = {
-    source: string;
-    target: string;
-    translatedSource: string | null;
-    translationSettings: string | null;
-    reviewHints: string[];
-    manuallyEdited: boolean;
-    result: { state: TextResultState; label: string; message: string };
-  };
-
-  let {
-    settings,
-    textStatus,
-    onSettingsChange,
-    onNotice,
-  }: {
-    settings: RuntimeSettings;
-    textStatus: string;
+  const MAX_LENGTH = 2000;
+  let { settings, textStatus, onSettingsChange, onNotice }: {
+    settings: RuntimeSettings; textStatus: string;
     onSettingsChange: (settings: RuntimeSettings) => void | Promise<void>;
     onNotice: (message: string) => void;
   } = $props();
@@ -40,356 +20,135 @@
   let translating = $state(false);
   let settingsSaving = $state(false);
   let resultState = $state<TextResultState>("idle");
-  let resultLabel = $state("Ready");
-  let resultMessage = $state("Enter text, then choose Translate.");
+  let resultMessage = $state("Type or paste text to translate.");
   let lastTranslatedSource = $state<string | null>(null);
   let lastTranslatedSettingsKey = $state<string | null>(null);
-  let copyState = $state<CopyState>("idle");
-  let copyMode = $state<CopyMode>("translation");
-  let moreActionsOpen = $state(false);
-  let reviewHints = $state<string[]>([]);
-  let manuallyEdited = $state(false);
-  let alternativeBusy = $state(false);
-  let clearedDraft = $state<ClearedDraft | null>(null);
   let targetRevision = 0;
+  let copied = $state(false);
 
   const sourceLanguageName = $derived(languageName(settings.source_language));
   const targetLanguageName = $derived(languageName(settings.target_language));
   const currentTextSettingsKey = $derived(textTranslationCacheKey("", settings));
   const currentResultUsable = $derived(canUseCurrentTextResult({
-    source: sourceText,
-    target: targetText,
-    translatedSource: lastTranslatedSource,
+    source: sourceText, target: targetText, translatedSource: lastTranslatedSource,
     translatedSettingsKey: lastTranslatedSettingsKey,
-    currentSettingsKey: currentTextSettingsKey,
-    state: resultState,
+    currentSettingsKey: currentTextSettingsKey, state: resultState,
   }));
 
-  // A preserved Text workspace must not label old-direction results as current.
   $effect(() => {
-    if (lastTranslatedSource !== null && lastTranslatedSettingsKey !== null
-      && lastTranslatedSettingsKey !== currentTextSettingsKey && !translating) {
-      setResult("stale", "Needs update", "Translation settings changed. Translate again to update the result.");
+    if (lastTranslatedSource !== null && lastTranslatedSettingsKey !== currentTextSettingsKey && !translating) {
+      resultState = "stale";
+      resultMessage = "Language direction changed. Translate again.";
     }
   });
 
-  function setResult(state: TextResultState, label: string, message: string): void {
-    resultState = state;
-    resultLabel = label;
-    resultMessage = message;
+  function sourceChanged(): void {
+    copied = false;
+    if (lastTranslatedSource !== null && (sourceText.trim() !== lastTranslatedSource
+      || lastTranslatedSettingsKey !== currentTextSettingsKey)) {
+      resultState = "stale";
+      resultMessage = "Text changed. Translate again.";
+    }
   }
 
-  function handleSourceInput(): void {
-    clearedDraft = null;
-    if (lastTranslatedSource === null) {
-      if (resultState === "error") setResult("idle", "Ready", "Enter text, then choose Translate.");
-      return;
-    }
-    if (lastTranslatedSettingsKey !== currentTextSettingsKey) {
-      setResult("stale", "Needs update", "Translation settings changed. Translate again.");
-      return;
-    }
-    if (sourceText.trim() === lastTranslatedSource) {
-      setResult(
-        manuallyEdited ? "edited" : reviewHints.length > 0 ? "review" : "success",
-        manuallyEdited ? "Edited" : reviewHints.length > 0 ? "Check details" : "Translated",
-        manuallyEdited ? "Review your edited translation before using it."
-          : reviewHints.length > 0 ? "Translation is ready. Review the noted details before using it."
-          : "Translation is up to date.",
-      );
-      return;
-    }
-    setResult("stale", "Needs update", "Source text changed. Translate again to refresh the result.");
-  }
-
-  function handleTargetInput(): void {
-    clearedDraft = null;
-    if (lastTranslatedSource !== null
-      && sourceText.trim() === lastTranslatedSource
-      && lastTranslatedSettingsKey === currentTextSettingsKey) {
-      manuallyEdited = true;
-      setResult("edited", "Edited", "Review your edited translation before using it.");
-    } else {
-      setResult("stale", "Needs update", "Translate the current source before using this result.");
-    }
+  function targetChanged(): void {
     targetRevision += 1;
-    copyState = "idle";
+    copied = false;
+    resultState = lastTranslatedSource !== null && sourceText.trim() === lastTranslatedSource
+      && lastTranslatedSettingsKey === currentTextSettingsKey ? "edited" : "stale";
   }
 
   function clearWorkspace(): void {
-    if (translating || alternativeBusy || settingsSaving || (!sourceText && !targetText)) return;
-    clearedDraft = {
-      source: sourceText, target: targetText,
-      translatedSource: lastTranslatedSource,
-      translationSettings: lastTranslatedSettingsKey,
-      reviewHints: [...reviewHints],
-      manuallyEdited,
-      result: { state: resultState, label: resultLabel, message: resultMessage },
-    };
-    sourceText = "";
-    targetText = "";
-    lastTranslatedSource = null;
-    lastTranslatedSettingsKey = null;
-    reviewHints = [];
-    manuallyEdited = false;
-    copyState = "idle";
-    targetRevision += 1;
-    setResult("idle", "Ready", "Workspace cleared. Undo is available until the next edit.");
-    onNotice("Text cleared. Use Undo to restore it during this app session.");
-  }
-
-  function undoClear(): void {
-    const draft = clearedDraft;
-    if (!draft || translating || alternativeBusy || settingsSaving) return;
-    clearedDraft = null;
-    sourceText = draft.source;
-    targetText = draft.target;
-    lastTranslatedSource = draft.translatedSource;
-    lastTranslatedSettingsKey = draft.translationSettings;
-    reviewHints = [...draft.reviewHints];
-    manuallyEdited = draft.manuallyEdited;
-    targetRevision += 1;
-    copyState = "idle";
-    setResult(draft.result.state, draft.result.label, draft.result.message);
-    if (draft.translationSettings !== null && draft.translationSettings !== currentTextSettingsKey) {
-      setResult("stale", "Needs update", "Translation settings changed. Translate again.");
-    }
-    onNotice("Text restored from this app session.");
+    if (translating || settingsSaving) return;
+    sourceText = ""; targetText = ""; copied = false;
+    lastTranslatedSource = null; lastTranslatedSettingsKey = null;
+    targetRevision += 1; resultState = "idle";
+    resultMessage = "Type or paste text to translate.";
   }
 
   async function submitText(): Promise<void> {
-    const source = sourceText.trim();
-    if (!source) {
-      setResult("error", "Enter text", "Type or paste something to translate.");
-      onNotice("Type or paste something to translate.");
-      return;
+    const requestSource = sourceText.trim();
+    if (!requestSource || translating || settingsSaving) return;
+    if (Array.from(requestSource).length > MAX_LENGTH) {
+      resultState = "error"; resultMessage = "Text is too long."; return;
     }
-    if (Array.from(source).length > MAX_MANUAL_TRANSLATION_CHARS) {
-      const message = `Text is too long. Limit: ${MAX_MANUAL_TRANSLATION_CHARS} characters.`;
-      setResult("error", "Text too long", message);
-      onNotice(message);
-      return;
-    }
-    if (translating || alternativeBusy) return;
-    clearedDraft = null;
-
-    const requestSource = source;
-    const requestTargetRevision = targetRevision;
-    const previousTarget = targetText;
-    const cacheKey = textTranslationCacheKey(requestSource, settings);
-    const requestSettingsKey = currentTextSettingsKey;
-    const cached = getCachedTextTranslation(cacheKey);
+    const key = textTranslationCacheKey(requestSource, settings);
+    const currentKey = currentTextSettingsKey;
+    const revision = targetRevision;
+    const cached = getCachedTextTranslation(key);
     if (cached) {
+      if (sourceText.trim() !== requestSource || currentTextSettingsKey !== currentKey) return;
       targetText = cached.translated;
-      targetRevision += 1;
-      copyState = "idle";
-      reviewHints = cached.reviewHints;
-      manuallyEdited = false;
-      lastTranslatedSource = requestSource;
-      lastTranslatedSettingsKey = requestSettingsKey;
-      setResult(
-        cached.needsReview ? "review" : "success",
-        cached.needsReview ? "Check details" : "Translated",
-        "Translation restored from this app session.",
-      );
-      onNotice("Translation restored instantly from the local session cache.");
-      return;
+      lastTranslatedSource = requestSource; lastTranslatedSettingsKey = currentKey;
+      targetRevision += 1; copied = false;
+      resultState = "success"; resultMessage = "Translation ready."; return;
     }
-    translating = true;
-    copyState = "idle";
-    reviewHints = [];
-    setResult("translating", "Translating", "Translating...");
-    onNotice("Translating...");
-
+    translating = true; copied = false;
+    resultState = "translating"; resultMessage = "Translating...";
     try {
       const result = await runtimeProductFacade.runProductTranslation(requestSource);
-      const userEditedTargetWhileRunning = targetRevision !== requestTargetRevision;
-      if (currentTextSettingsKey !== requestSettingsKey || sourceText.trim() !== requestSource) {
-        setResult("stale", "Needs update", "Source or translation settings changed. Translate again.");
-        onNotice("Source or translation settings changed; the previous result was not applied.");
-        return;
+      if (sourceText.trim() !== requestSource || currentTextSettingsKey !== currentKey) {
+        resultState = "stale"; resultMessage = "Text changed while translating. Try again."; return;
       }
       if (!result.ok) {
-        if (!userEditedTargetWhileRunning) targetText = previousTarget;
-        setResult("error", "Couldn't translate", result.message);
-        onNotice(`Couldn't translate: ${result.message}`);
-        return;
+        resultState = "error"; resultMessage = result.message; return;
       }
-
-      if (userEditedTargetWhileRunning) {
-        setResult("stale", "Edit kept", "Translation finished, but your newer edit was kept.");
-        onNotice("Your newer edit was kept.");
-        return;
+      if (targetRevision !== revision) {
+        resultState = "stale"; resultMessage = "Your newer edit was kept."; return;
       }
-
       targetText = result.translated;
-      targetRevision += 1;
-      reviewHints = result.reviewHints;
-      manuallyEdited = false;
-      lastTranslatedSource = requestSource;
-      lastTranslatedSettingsKey = requestSettingsKey;
+      lastTranslatedSource = requestSource; lastTranslatedSettingsKey = currentKey;
+      targetRevision += 1; resultState = "success"; resultMessage = "Translation ready.";
       putCachedTextTranslation({
-        key: cacheKey,
-        translated: result.translated,
-        reviewHints: result.reviewHints,
-        needsReview: result.needsReview,
+        key, translated: result.translated,
+        reviewHints: result.reviewHints, needsReview: result.needsReview,
       });
-      if (sourceText.trim() === requestSource) {
-        setResult(
-          result.needsReview ? "review" : "success",
-          result.needsReview ? "Check details" : "Translated",
-          result.message,
-        );
-        onNotice(result.message);
-      } else {
-        setResult("stale", "Needs update", "The source text changed. Translate again to update the result.");
-        onNotice("Translation finished for the previous text.");
-      }
     } catch {
-      if (targetRevision === requestTargetRevision && sourceText.trim() === requestSource && currentTextSettingsKey === requestSettingsKey) targetText = previousTarget;
-      const message = "Translation is unavailable right now. Try again in a moment.";
-      setResult("error", "Couldn't translate", message);
-      onNotice(message);
+      resultState = "error"; resultMessage = "Translation is unavailable. Try again.";
     } finally {
       translating = false;
     }
   }
 
-  async function requestAlternative(): Promise<void> {
-    if (alternativeBusy || translating || settingsSaving) return;
-    if (!currentResultUsable) {
-      onNotice("Translate the current source before requesting another wording.");
-      return;
-    }
-    const source = sourceText.trim();
-    const current = targetText.trim();
-    alternativeBusy = true;
-    clearedDraft = null;
-    const requestTargetRevision = targetRevision;
-    const requestSettingsKey = currentTextSettingsKey;
+  async function copyTranslation(): Promise<void> {
+    if (!currentResultUsable) return;
     try {
-      const result = await runtimeProductFacade.runProductTranslationAlternative(source, current);
-      if (!result.ok) {
-        onNotice(result.message);
-        return;
-      }
-      if (targetRevision !== requestTargetRevision || sourceText.trim() !== source || currentTextSettingsKey !== requestSettingsKey) {
-        onNotice("Try another wording finished, but your newer edit was kept.");
-        return;
-      }
-      targetText = result.translated;
-      reviewHints = result.reviewHints;
-      manuallyEdited = false;
-      targetRevision += 1;
-      setResult(
-        result.needsReview ? "review" : "success",
-        result.needsReview ? "Check details" : "Alternative",
-        result.message,
-      );
-      onNotice("Alternative wording ready.");
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(targetText.trim());
+      copied = true; onNotice("Translation copied.");
     } catch {
-      onNotice("Try another wording is unavailable right now.");
-    } finally {
-      alternativeBusy = false;
-    }
-  }
-
-  async function showFloatingCaption(): Promise<void> {
-    if (!currentResultUsable || translating || alternativeBusy || settingsSaving) {
-      onNotice("Translate the current source before showing it in a floating caption.");
-      return;
-    }
-    try {
-      const result = await publishTranslationOverlay({
-        text: targetText.trim(),
-        // A valid provenance check also verifies the current direction.
-        language: settings.target_language,
-        source: "text",
-        revision: `text:${targetRevision}:${Date.now()}`,
-      }, true);
-      onNotice(result === "shown" ? "Floating caption updated." : "Floating caption is unavailable right now.");
-    } catch {
-      onNotice("Floating caption is unavailable right now.");
-    }
-  }
-
-  async function copySelection(): Promise<void> {
-    if (copyMode !== "source" && !currentResultUsable) {
-      copyState = "error";
-      onNotice("Translate the current source before copying the result.");
-      return;
-    }
-    const source = sourceText.trim();
-    const target = targetText.trim();
-    const value = copyMode === "source"
-      ? source
-      : copyMode === "bilingual"
-        ? `${sourceLanguageName}\n${source}\n\n${targetLanguageName}\n${target}`
-        : target;
-    if (!value) {
-      copyState = "error";
-      onNotice("There is no text to copy.");
-      return;
-    }
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error("Clipboard is unavailable.");
-      await navigator.clipboard.writeText(value);
-      copyState = "copied";
-      onNotice(copyMode === "bilingual" ? "Bilingual text copied." : copyMode === "source" ? "Source text copied." : "Translation copied.");
-    } catch {
-      copyState = "error";
-      onNotice("Couldn't copy the text. Try again.");
+      copied = false; onNotice("Couldn't copy the translation.");
     }
   }
 
   async function swapLanguages(): Promise<void> {
-    if (settingsSaving || translating || alternativeBusy) return;
+    if (translating || settingsSaving) return;
     settingsSaving = true;
-    clearedDraft = null;
+    const originalInput = sourceText;
+    const originalOutput = targetText;
+    // Swap preserves both editable panes. A source-only draft stays intact.
+    const nextInput = originalOutput.trim() ? originalOutput : originalInput;
+    const nextTarget = originalOutput.trim() ? originalInput : "";
     const candidate: RuntimeSettings = {
-      ...settings,
-      source_language: settings.target_language,
-      target_language: settings.source_language,
-      audio: { ...settings.audio },
+      ...settings, source_language: settings.target_language,
+      target_language: settings.source_language, audio: { ...settings.audio },
     };
-    const visibleTarget = targetText;
-
     try {
       const result = await runtimeApi.saveSettings(candidate);
-      if (!result.ok) throw new Error(result.message || "Language direction could not be saved.");
+      if (!result.ok) throw new Error("save failed");
       const saved = (await runtimeApi.loadSettings()) ?? candidate;
       await onSettingsChange(saved);
-      if (visibleTarget.trim()) {
-        sourceText = visibleTarget;
-        targetText = "";
-        targetRevision += 1;
-        lastTranslatedSource = null;
-        lastTranslatedSettingsKey = null;
-        reviewHints = [];
-        manuallyEdited = false;
-        copyState = "idle";
-        setResult("idle", "Ready", "Previous translation moved to the source side.");
-      }
-      onNotice(`${languageName(saved.source_language)} → ${languageName(saved.target_language)}`);
-    } catch {
-      onNotice("Couldn't change the language direction. Try again.");
-    } finally {
-      settingsSaving = false;
-    }
+      sourceText = nextInput; targetText = nextTarget;
+      lastTranslatedSource = null; lastTranslatedSettingsKey = null;
+      targetRevision += 1; copied = false; resultState = "idle";
+      resultMessage = "Type or paste text to translate.";
+    } catch { onNotice("Couldn't change language direction."); }
+    finally { settingsSaving = false; }
   }
-
-  function handleKeydown(event: KeyboardEvent): void {
+  function keydown(event: KeyboardEvent): void {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      void submitText();
+      event.preventDefault(); void submitText();
     }
-  }
-
-  function stateClass(state: TextResultState): string {
-    if (state === "success") return "text-[var(--ti-success)]";
-    if (state === "error") return "text-[var(--ti-danger)]";
-    if (state === "stale" || state === "review") return "text-[var(--ti-warning)]";
-    return "text-[var(--ti-text-muted)]";
   }
 </script>
 
@@ -397,104 +156,51 @@
   <header class="ti-page-header">
     <div>
       <h2 class="ti-page-title">Translate text</h2>
-      <p class="ti-page-copy">Translate between Indonesian and English, then edit or copy the result.</p>
+      <p class="ti-page-copy">Indonesian ↔ English</p>
     </div>
     {#if textStatus !== "Ready"}
-      <StatusBadge
-        label={textStatus}
-        tone={textStatus === "Unavailable" ? "danger" : textStatus === "Setup Needed" ? "warning" : "neutral"}
-      />
+      <StatusBadge label={textStatus} tone={textStatus === "Unavailable" ? "danger" : "warning"} />
     {/if}
   </header>
-
   <article class="ti-panel overflow-hidden">
-    <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-3.5">
-      <div class="flex items-baseline gap-2">
-        <span class="ti-field-label">From</span>
-        <strong class="text-[14px] font-semibold">{sourceLanguageName}</strong>
-      </div>
-
-      <button type="button" class="ti-button ti-button-secondary min-h-9 px-3" aria-label="Swap source and target languages" disabled={settingsSaving || translating || alternativeBusy} onclick={() => void swapLanguages()}>
-        <ArrowLeftRight size={15} /><span>Swap</span>
+    <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[var(--ti-border)] px-5 py-3">
+      <strong class="text-sm">{sourceLanguageName}</strong>
+      <button type="button" class="ti-button ti-button-secondary min-h-9 px-3" aria-label="Swap languages"
+        disabled={translating || settingsSaving} onclick={() => void swapLanguages()}>
+        <ArrowLeftRight size={15} /> Swap
       </button>
-
-      <div class="flex items-baseline justify-end gap-2 text-right">
-        <span class="ti-field-label">To</span>
-        <strong class="text-[14px] font-semibold">{targetLanguageName}</strong>
-      </div>
+      <strong class="text-right text-sm">{targetLanguageName}</strong>
     </div>
-
     <div class="ti-text-editor-grid">
-      <label class="ti-editor-pane grid gap-3 border-r border-[var(--ti-border)]">
+      <div class="ti-editor-pane grid gap-3 border-r border-[var(--ti-border)]">
         <div class="flex items-center justify-between gap-3">
-          <span class="ti-field-label">Enter text</span>
-          <span class="text-[11px] text-[var(--ti-text-soft)]">{Array.from(sourceText).length}/{MAX_MANUAL_TRANSLATION_CHARS}</span>
+          <span class="ti-field-label">Original text</span>
+          {#if sourceText || targetText}
+            <button type="button" class="ti-button ti-button-secondary min-h-8 px-2"
+              aria-label="Clear text" title="Clear" disabled={translating || settingsSaving}
+              onclick={clearWorkspace}><X size={14} /></button>
+          {/if}
         </div>
-        <textarea
-          class="ti-editor"
-          placeholder="Type or paste text"
-          maxlength={MAX_MANUAL_TRANSLATION_CHARS}
-          bind:value={sourceText}
-          oninput={handleSourceInput}
-          onkeydown={handleKeydown}
-          aria-label="Source text"
-        ></textarea>
-      </label>
-
-      <label class="ti-editor-pane grid gap-3">
-        <div class="flex items-center justify-between gap-3">
-          <span class="ti-field-label">Translation</span>
-          <strong class={`text-[11px] font-semibold ${stateClass(resultState)}`}>{resultLabel}</strong>
-        </div>
-        <textarea
-          class="ti-editor"
-          placeholder="Translation appears here"
-          bind:value={targetText}
-          oninput={handleTargetInput}
-          aria-label="Translated text"
-        ></textarea>
-      </label>
+        <textarea class="ti-editor" placeholder="Type or paste text"
+          maxlength={MAX_LENGTH} bind:value={sourceText} oninput={sourceChanged}
+          onkeydown={keydown} aria-label="Original text"></textarea>
+      </div>
+      <div class="ti-editor-pane grid gap-3">
+        <span class="ti-field-label">Translation</span>
+        <textarea class="ti-editor" placeholder="Translation appears here"
+          bind:value={targetText} oninput={targetChanged} aria-label="Translated text"></textarea>
+      </div>
     </div>
-
-    {#if reviewHints.length > 0 && currentResultUsable}
-      <section class="border-t border-[var(--ti-warning-border)] bg-[var(--ti-warning-surface)] px-5 py-3.5" aria-live="polite">
-        <div class="flex items-start gap-2.5">
-          <ShieldAlert size={15} class="mt-0.5 shrink-0 text-[var(--ti-warning)]" />
-          <div>
-            <strong class="text-[12px] font-semibold">Review important details</strong>
-            <p class="mb-0 mt-1 text-[11.5px] leading-5 text-[var(--ti-text-muted)]">{reviewHints.join(" ")}</p>
-          </div>
-        </div>
-      </section>
-    {/if}
-
-    <footer class="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
-      <div class="min-w-0 flex-1">
-        <p class="m-0 text-[12.5px] text-[var(--ti-text-muted)]" aria-live="polite">{resultMessage}</p>
-        <p class="mb-0 mt-1 text-[11px] text-[var(--ti-text-soft)]">Ctrl + Enter to translate</p>
-      </div>
+    <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ti-border)] px-5 py-4">
+      <p class="m-0 text-[12px] text-[var(--ti-text-muted)]" aria-live="polite">{resultMessage}</p>
       <div class="ti-action-row ml-auto">
-        <button type="button" class="ti-button min-w-28" disabled={translating || alternativeBusy} onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={copyMode === "source" ? !sourceText.trim() : !currentResultUsable} onclick={() => void copySelection()}>
-          {#if copyState === "copied"}<Check size={15} />{:else}<Copy size={15} />{/if}
-          {copyState === "copied" ? "Copied" : copyMode === "source" ? "Copy source" : copyMode === "bilingual" ? "Copy bilingual" : "Copy translation"}
+        <button type="button" class="ti-button ti-button-secondary" disabled={!currentResultUsable}
+          onclick={() => void copyTranslation()}>
+          {#if copied}<Check size={15} /> Copied{:else}<Copy size={15} /> Copy{/if}
         </button>
-        <button type="button" class="ti-button ti-button-secondary" aria-expanded={moreActionsOpen} aria-controls="text-secondary-actions" onclick={() => { moreActionsOpen = !moreActionsOpen; }}>{moreActionsOpen ? "Fewer options" : "More options"}</button>
-      </div>
-      <div id="text-secondary-actions" class="ti-text-secondary-actions" hidden={!moreActionsOpen}>
-        <button type="button" class="ti-button ti-button-secondary" disabled={translating || alternativeBusy || settingsSaving || (!sourceText && !targetText)} onclick={clearWorkspace}><Eraser size={15} /> Clear</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!clearedDraft || translating || alternativeBusy || settingsSaving} onclick={undoClear}><Undo2 size={15} /> Undo Clear</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!currentResultUsable || translating || alternativeBusy || settingsSaving} onclick={() => void showFloatingCaption()}><PictureInPicture2 size={15} /> Floating caption</button>
-        <button type="button" class="ti-button ti-button-secondary" disabled={!currentResultUsable || translating || alternativeBusy || settingsSaving || Array.from(sourceText.trim()).length > 1000} onclick={() => void requestAlternative()}><RefreshCw size={15} /> {alternativeBusy ? "Trying..." : "Try another wording"}</button>
-        <label class="flex items-center gap-2">
-          <span class="text-[12px] text-[var(--ti-text-muted)]">Copy format</span>
-          <select class="ti-field min-h-9 w-[126px] px-2 text-[11.5px]" bind:value={copyMode} onchange={() => { copyState = "idle"; }} aria-label="Copy format">
-            <option value="translation">Translation</option>
-            <option value="source">Source</option>
-            <option value="bilingual">Bilingual</option>
-          </select>
-        </label>
-        <TranslationFeedback source={currentResultUsable ? sourceText.trim() : ""} translation={currentResultUsable ? targetText.trim() : ""} sourceLanguage={settings.source_language} targetLanguage={settings.target_language} {onNotice} />
+        <button type="button" class="ti-button min-w-28"
+          disabled={!sourceText.trim() || translating || settingsSaving}
+          onclick={() => void submitText()}>{translating ? "Translating..." : "Translate"}</button>
       </div>
     </footer>
   </article>

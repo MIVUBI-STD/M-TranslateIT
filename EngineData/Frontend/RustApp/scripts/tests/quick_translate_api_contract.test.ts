@@ -2,36 +2,23 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const registry = readFileSync(new URL("../../src-tauri/src/commands/registry.rs", import.meta.url), "utf8");
-const command = readFileSync(new URL("../../src-tauri/src/commands/text_translation.rs", import.meta.url), "utf8");
-const api = readFileSync(new URL("../../src/app/bridge/runtimeApi.ts", import.meta.url), "utf8");
-const productivity = readFileSync(new URL("../../src/components/runtime/ProductivityActions.svelte", import.meta.url), "utf8");
-const facade = readFileSync(new URL("../../src/app/bridge/runtimeProductFacade.ts", import.meta.url), "utf8");
+const source = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+const registry = source("src-tauri/src/commands/registry.rs");
+const commands = source("src-tauri/src/commands/text_translation.rs");
+const api = source("src/app/bridge/runtimeApi.ts");
+const product = source("src/app/bridge/runtimeProductFacade.ts");
+const productivity = source("src/components/runtime/ProductivityActions.svelte");
+const shortcuts = source("src/app/runtime/productCommandRegistry.ts");
 
-test("quick translate is explicit user-facing UI over the canonical runtime API", () => {
-  assert.match(registry, /quick_translate_text/);
-  assert.match(api, /quickTranslateText/);
-  assert.match(productivity, /Quick Translate Clipboard/);
-  assert.match(productivity, /navigator\.clipboard\?\.readText/);
-  assert.match(productivity, /runtimeApi\.quickTranslateText/);
-  assert.doesNotMatch(facade, /runProductQuickTranslation|ProductQuickTranslationResult/);
+test("quick clipboard and alternative wording have no frontend or native command entrypoints", () => {
+  assert.doesNotMatch(shortcuts, /quick-translate-clipboard|quickTranslateClipboard/);
+  assert.doesNotMatch(productivity, /quickTranslateClipboard|publishTranslationOverlay|navigator\.clipboard/);
+  assert.doesNotMatch(api, /quickTranslateText|translateTextAlternative/);
+  assert.doesNotMatch(product, /runProductTranslationAlternative/);
+  assert.doesNotMatch(registry, /quick_translate_text|translate_text_alternative/);
+  assert.doesNotMatch(commands, /pub fn quick_translate_text|pub fn translate_text_alternative/);
 });
-
-test("quick translate reuses the canonical text translation core", () => {
-  assert.match(command, /translate_with_persistent_helper\(&source, "quick_text"\)/);
-  assert.match(command, /translate_with_persistent_helper\(&source, "standalone_text"\)\.0/);
-  assert.equal((command.match(/send_helper_worker_task\("translate"/g) ?? []).length, 2);
-});
-
-test("quick translate has no clipboard watcher or default global OS shortcut", () => {
-  assert.doesNotMatch(productivity, /setInterval|clipboardchange|globalShortcut|register_all|SetWindowsHookEx/i);
-  assert.match(productivity, /Ctrl\+K/);
-  assert.doesNotMatch([command, api].join("\n"), /globalShortcut|SetWindowsHookEx/i);
-});
-
-test("quick translate returns the exact configured language direction", () => {
-  assert.match(command, /source_language: String/);
-  assert.match(command, /target_language: String/);
-  assert.match(api, /source_language: string/);
-  assert.match(api, /target_language: string/);
+test("the remaining Text function uses exactly one canonical worker request", () => {
+  assert.match(commands, /translate_with_persistent_helper\(&source, "standalone_text"\)\.0/);
+  assert.match(api, /async translateText\(source: string\)/);
 });

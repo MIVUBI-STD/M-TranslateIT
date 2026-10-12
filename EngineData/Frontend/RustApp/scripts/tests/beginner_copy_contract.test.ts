@@ -19,7 +19,6 @@ const primarySurfaces = [
   "src/components/meeting/MeetingActivity.svelte",
   "src/components/my-voice/MyVoiceBuild.svelte",
   "src/components/setup/SetupNavigation.svelte",
-  "src/components/settings/TranslationPreferences.svelte",
   "src/components/layout/Sidebar.svelte",
 ];
 

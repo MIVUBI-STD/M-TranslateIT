@@ -5,10 +5,9 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::engine::paths::ProjectPaths;
-use crate::engine::runtime_settings::load_settings;
 
 use super::committed_turns::{
-    commit_meeting_turn, recent_outbound_context_pairs, update_committed_turn_delivery_state,
+    commit_meeting_turn, update_committed_turn_delivery_state,
     update_committed_turn_outbound_timing,
 };
 use super::super::helper_bridge::{required_outbound_voice_actor_token, send_helper_worker_task};
@@ -123,9 +122,6 @@ pub(super) fn process_outbound_wav(
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
 
-    let settings = load_settings();
-    let asr_hotwords = settings.asr_hotwords();
-
     update_outbound_status(
         generation,
         session_id,
@@ -145,7 +141,6 @@ pub(super) fn process_outbound_wav(
             "language": "id",
             "beam_size": 1,
             "vad_filter": super::FINALIZED_MEETING_ASR_WORKER_VAD,
-            "hotwords": asr_hotwords,
             "meeting_session_id": session_id,
             "meeting_lane": "you",
             "meeting_generation": generation,
@@ -210,8 +205,6 @@ pub(super) fn process_outbound_wav(
         "Final Indonesian transcript is being translated to English.",
     );
     let translation_started_at = Instant::now();
-    let context_pairs = recent_outbound_context_pairs(session_id, 3);
-    let terminology = settings.terminology;
     let translation = send_helper_worker_task(
         "translate",
         json!({
@@ -219,9 +212,6 @@ pub(super) fn process_outbound_wav(
             "source_language": "id",
             "target_language": "en",
             "max_new_tokens": 96,
-            "translation_style": settings.translation_style,
-            "context_pairs": context_pairs,
-            "terminology": terminology,
             "meeting_session_id": session_id,
             "meeting_lane": "you",
             "meeting_generation": generation,

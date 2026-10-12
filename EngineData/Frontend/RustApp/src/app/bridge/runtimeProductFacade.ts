@@ -21,7 +21,6 @@ import {
 } from "./productAudioFacade";
 import {
   runProductTranslation,
-  runProductTranslationAlternative,
 } from "./productTranslationFacade";
 import {
   runProductRecoveryAction,
@@ -41,7 +40,6 @@ export {
 } from "./productAudioFacade";
 export {
   runProductTranslation,
-  runProductTranslationAlternative,
 } from "./productTranslationFacade";
 export {
   runProductRecoveryAction,
@@ -93,7 +91,6 @@ const WORKER_REUSE_SAFE_REASONS = new Set([
   "stop_mic_test",
   "select_audio_device",
   "save_settings",
-  "apply_meeting_preset",
   "start_voice_recording",
   "stop_voice_recording",
   "start_voice_build",
@@ -113,7 +110,6 @@ const VOICE_REUSE_SAFE_REASONS = new Set([
   "ensure_runtime_ready",
   "select_audio_device",
   "save_settings",
-  "apply_meeting_preset",
   "start_voice_recording",
   "stop_voice_recording",
 ]);
@@ -246,7 +242,6 @@ export const runtimeProductFacade = {
   mapProductReadiness,
   runProductMeetingAction,
   runProductTranslation,
-  runProductTranslationAlternative,
   runProductSetupAction,
   runProductRecoveryAction,
 };

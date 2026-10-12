@@ -461,13 +461,10 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
             {snapshot}
             {meetingStatus}
             meetingTurns={meetingViewState.turns}
-            {utilityTarget}
-            {utilityRequest}
             actionBusy={meetingActionBusy}
             onMeetingAction={handleMeetingAction}
             onRefresh={refreshSnapshot}
-            onFixSetup={fixSetup}
-            onOpenMyVoice={() => navigate("my-voice")}
+            onNavigate={navigate}
           />
         {:else if route === "text"}
           <!-- Text workspace stays mounted below during navigation. -->

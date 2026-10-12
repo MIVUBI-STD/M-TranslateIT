@@ -29,7 +29,7 @@ This file contains **current law only**. Superseded choices belong in `docs/know
 ### PR-004 — Product boundary
 **MUST:** Normal top-level product remain `Meeting | Text | My Voice | Settings`.
 
-**NOT CURRENT CORE:** Document Translation, general History/Saved UI, Audio Studio, Push to Talk, Pause/Resume, Realtime/Quality user modes, Auto/Casual tone styles, additional languages, partial translated subtitles, incoming Indonesian TTS, imported-audio/quick-clone My Voice, multiple normal voice engines/providers. Current translation wording style is intentionally bounded to Natural (default) and Formal.
+**NOT CURRENT CORE:** Document Translation, general History/Saved UI, Audio Studio, Push to Talk, Pause/Resume, Realtime/Quality user modes, Auto/Casual tone styles, additional languages, partial translated subtitles, incoming Indonesian TTS, imported-audio/quick-clone My Voice, multiple normal voice engines/providers. Style selectors, Spoken Terms, Preferred Words, Meeting Presets and Text floating captions are retired from active product behavior.
 
 ## 2. Platform and runtime
 
@@ -130,28 +130,20 @@ Indonesian speech
 ### PR-042 — Mixed language
 **SHOULD:** Common Indonesian/English code-switching and technical terms remain understandable without a speculative glossary subsystem becoming prerequisite.
 
-### PR-043 — Technical terminology
-**SHOULD:** Preserve established technical terms when translating them reduces clarity.
+### PR-043 — Technical terminology without user bias
+**SHOULD:** Preserve established technical terms through the canonical translator. Stored user terminology and Spoken Terms remain inert; they must not enter Text, Meeting or ASR requests.
 
-**MUST:** Support a small user-managed Indonesian ↔ English terminology list for names, product terms, and recurring technical wording. Only entries relevant to the current source text enter the model prompt, direction reverses automatically for EN→ID, and terminology remains bounded so it cannot displace the current utterance or required Meeting context.
+### PR-044 — Single translation behavior
+**MUST:** Use one natural baseline translation behavior. Do not expose Natural/Formal or other user-selectable style instructions.
 
-**MUST NOT:** Implement terminology as blind post-translation search/replace.
+### PR-044A — No alternative text generation UI
+**MUST NOT:** Expose alternative wording or clipboard-to-caption tools on the Text page or normal Quick Actions.
 
-**MUST:** Keep terminology directionally unambiguous: one Indonesian term maps to one preferred English term, and one preferred English term maps back to one Indonesian term. Conflicting entries are rejected/sanitized rather than sent together to the model.
-
-### PR-044 — Bounded translation style
-**MUST:** Translation wording style remain bounded to `Natural` (default) and `Formal`, using the same canonical translation model and preserving meaning, facts, names, numbers, terminology, and completion guarantees.
-
-**MUST NOT:** Add Auto/Casual or open-ended tone/persona controls without a new explicit product decision.
-
-### PR-044A — Alternative wording
-**SHOULD:** Text translation may offer one on-demand alternative wording using the same canonical translation model. Alternative generation must preserve meaning and facts, must not run on every translation by default, and must not introduce a second translation provider.
-
-### PR-044B — Review cues
-**MUST NOT:** Present heuristic review cues as model confidence. When source text contains high-risk surface features such as numbers, explicit correction/negation, or context-dependent references, Text may surface a bounded “check details” cue so the user knows what deserves manual verification.
+### PR-044B — Truthful output and review
+**MUST NOT:** Treat EOS/response framing as proof of semantic fidelity. Known prompt echoes, language mismatches and incomplete text must be rejected rather than promoted to spoken audio or a reusable result. A generic warning is not a replacement for quality validation.
 
 ### PR-045 — Context asymmetry
-**MUST:** Outbound Meeting translation may use only the current finalized Indonesian utterance plus up to the last three committed own-voice ID→EN pairs from the same live session.
+**MUST:** Outbound Meeting translation uses only the current finalized Indonesian utterance. Previously committed translations may not become prompt examples.
 
 **MUST:** Incoming Meeting translation remain context-free.
 
@@ -282,14 +274,14 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 **MUST NOT:** Silently truncate large Text input; expose a clear bounded limit/failure.
 
 ### PR-094 — Text cache
-**MAY:** Reuse identical Text translations from a small in-memory per-launch cache keyed by source, direction, style, and terminology state.
+**MAY:** Reuse identical Text translations from a small in-memory per-launch cache keyed only by source and translation direction. Cache must be invalidated on translation-contract changes.
 
 **MUST:** Cache remain bounded and process-local. **MUST NOT:** Persist translation results across app launches or use cached Meeting context.
 
 ### PR-095 — Quick Translate
-**MAY:** Offer explicit user-invoked Quick Translate from clipboard/selected-text workflows.
+**MUST NOT:** Expose clipboard-to-caption Quick Translate. No retired Quick Translate or alternative-wording native commands may remain registered.
 
-**MUST NOT:** Run a background clipboard watcher or assign a default global OS shortcut without a new explicit product decision.
+**MUST NOT:** Run a background clipboard watcher.
 
 ## 11. Privacy and storage
 
@@ -360,20 +352,18 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 **MUST:** Meeting is default workspace.
 
 ### PR-162 — Meeting Ready
-**MUST:** Emphasize required devices, selected Meeting voice, language direction and Start Translation; hide engine/model/queue internals from normal users.
+**MUST:** Show only one primary Meeting control: Start when ready, Stop while active, or an appropriate single recovery action when blocked. Show finalized chronological conversation during Live. Do not expose device selectors or Meeting presets on the main Meeting page.
 
 ### PR-163 — Meeting Live
 **MUST:** Emphasize Translation Live, finalized chronological transcript, simple activity and Stop Translation.
 
 ### PR-164 — Settings
-**MUST:** Meeting settings own device/setup preferences; Advanced owns diagnostics. My Voice creation remains on My Voice.
+**MUST:** Use left navigation for Voice & Audio, Meeting Captions and Help; retain device selection/probe only under Settings. My Voice creation remains on My Voice. Technical diagnostics belong in Help.
 
-### PR-164A — Meeting presets
-**MAY:** Users may save a small bounded set of Meeting presets for language/style/audio preferences.
+### PR-164A — Meeting Presets retired
+**MUST NOT:** Offer, suggest, automatically apply or mutate Meeting Presets in the active product.
 
-**MUST:** Applying a preset is explicit, validates required devices before persistence, and never silently auto-applies from meeting-app detection. Detection may only suggest the last explicitly used preset for that provider.
-
-**MUST:** Meeting presets cannot modify the independent Text source/target language direction, including when restoring older saved presets. Meeting outbound remains Indonesian → English; optional incoming Meeting language direction and shared translation style may follow the selected preset.
+**MUST:** No legacy preset-apply command may remain registered or callable. Existing local preference data must not be erased automatically.
 
 ### PR-165 — Vocabulary
 **MUST:** Normal users see product states such as Ready, Live, Setup Needed, Unavailable, Checking, Training, Needs Review rather than internal runtime vocabulary.

@@ -1,3 +1,13 @@
+## Active continuation — UI reduction and audit follow-up (2026-10-12)
+
+**Working branch:** `Local`. Commit `5136a263` fixes the transcript export message in the global header; it adds a local receipt, a Copy location action, and an explicit partial-export warning. This is source implementation, not Windows UI acceptance.
+
+**Next integrated change:** simplify Meeting to one contextual action, Text to source/swap/translate/copy, Settings to Voice & Audio / Meeting Captions / Help; retire Meeting Presets, Spoken Terms, Preferred Words, Natural/Formal, and Text floating captions; stop inserting previous translated pairs into outbound Meeting prompts. Preserve stored user preference data without enabling it.
+
+**Known blocker to solve before calling this done:** staged UI had a text-losing language Swap and inaccessible deferred Meeting setup; both require explicit source regression contracts. Prior feature-oriented tests and current foundation documents must be updated together, not ignored. Compile and real-runtime proof remain unexecuted for the revised candidate.
+
+**Proof to request only when authorized for local testing:** full frontend/runtime contracts, Rust/Python, actual model sentence and 20+ utterance sequential repetition, native Windows physical mic/virtual device route, repeated Start/Stop, last-session export and caption display. Do not claim this candidate is LocalTest-ready before those checks.
+
 # TranslateIT Development
 
 ## Active continuation — Developer acceptance paused for ChatGPT source work (2026-10-12)

@@ -27,15 +27,17 @@ test("Text result is reusable only for its original source and settings", () => 
   assert.equal(canUseCurrentTextResult({ ...valid, translatedSettingsKey: null }), false);
 });
 
-test("changed direction, style or terminology invalidates prior translation actions", () => {
-  const enId = { ...base, source_language: "en", target_language: "id" };
+test("only active translation direction invalidates a result; retired preferences do not", () => {
+  const reverse = { ...base, source_language: "en", target_language: "id" };
   const formal = { ...base, translation_style: "formal" };
-  const vocabulary = { ...base, terminology: [{ indonesian: "arsip", english: "archive" }] };
-  for (const next of [enId, formal, vocabulary]) {
+  const terms = { ...base, terminology: [{ indonesian: "arsip", english: "archive" }] };
+  assert.equal(canUseCurrentTextResult({
+    ...valid, currentSettingsKey: textTranslationCacheKey("", reverse),
+  }), false);
+  for (const inactive of [formal, terms]) {
     assert.equal(canUseCurrentTextResult({
-      ...valid,
-      currentSettingsKey: textTranslationCacheKey("", next),
-    }), false);
+      ...valid, currentSettingsKey: textTranslationCacheKey("", inactive),
+    }), true);
   }
 });
 
@@ -47,14 +49,13 @@ test("idle, pending, outdated and failed results cannot enter downstream actions
 
 const ui = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
 
-test("Text UI checks result provenance for alternative, caption, copy and feedback", () => {
+test("minimal Text guards Copy and preserves source during Swap", () => {
   assert.match(ui, /const currentResultUsable = \$derived\(canUseCurrentTextResult\(/);
-  const handlers = ["requestAlternative", "showFloatingCaption", "copySelection"];
-  for (const name of handlers) {
-    const start = ui.indexOf(`async function ${name}(`);
-    assert.ok(start >= 0, `${name} missing`);
-    assert.match(ui.slice(start, start + 600), /currentResultUsable/, `${name} lacks action guard`);
-  }
-  assert.match(ui, /disabled=\{!currentResultUsable \|\|/);
-  assert.match(ui, /source=\{currentResultUsable \? sourceText\.trim\(\) : ""\}/);
+  assert.match(ui, /async function copyTranslation\(\)/);
+  assert.match(ui, /if \(!currentResultUsable\) return/);
+  assert.match(ui, /disabled=\{!currentResultUsable\}/);
+  assert.match(ui, /const originalInput = sourceText/);
+  assert.match(ui, /originalOutput\.trim\(\) \? originalOutput : originalInput/);
+  assert.match(ui, /originalOutput\.trim\(\) \? originalInput : ""/);
+  assert.doesNotMatch(ui, /publishTranslationOverlay|showFloatingCaption|requestAlternative/);
 });
