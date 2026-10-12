@@ -84,6 +84,23 @@ def test_protocol_bounds_unexpected_handler_diagnostics(monkeypatch) -> None:
     assert "\n" not in payload["note"]
 
 
+def test_provider_prints_do_not_corrupt_json_protocol(monkeypatch) -> None:
+    worker = load_worker_module()
+
+    def noisy_handler(_payload):
+        print("Loading provider weights")
+        return {"ok": True, "stage": "ping"}
+
+    monkeypatch.setitem(worker.runtime.HANDLERS, "ping", noisy_handler)
+    stdout, stderr = io.StringIO(), io.StringIO()
+    monkeypatch.setattr(worker.sys, "stdin", io.StringIO('{"command":"ping"}\n'))
+    monkeypatch.setattr(worker.sys, "stdout", stdout)
+    monkeypatch.setattr(worker.sys, "stderr", stderr)
+    assert worker.main() == 0
+    assert json.loads(stdout.getvalue()) == {"ok": True, "stage": "ping"}
+    assert stderr.getvalue() == "Loading provider weights\n"
+
+
 def test_protocol_rejects_non_object_handler_response(monkeypatch) -> None:
     worker = load_worker_module()
     monkeypatch.setitem(worker.runtime.HANDLERS, "ping", lambda _payload: ["not", "an", "object"])

@@ -107,6 +107,11 @@ def _install_english_only_import_shims() -> None:
 
 def _install_english_only_tts_model_init() -> None:
     tts_module = importlib.import_module("TTS_infer_pack.TTS")
+    # Use the locked SoundFile decoder; torchaudio 2.11 load requires TorchCodec.
+    tts_module.torchaudio = types.SimpleNamespace(
+        load=_load_reference_audio,
+        transforms=tts_module.torchaudio.transforms,
+    )
     tts_class = tts_module.TTS
     if getattr(tts_class, "_translateit_english_only_model_init", False):
         return
@@ -120,6 +125,14 @@ def _install_english_only_tts_model_init() -> None:
 
     tts_class._init_models = _init_models
     tts_class._translateit_english_only_model_init = True
+
+
+def _load_reference_audio(path: Any) -> tuple[Any, int]:
+    import soundfile
+    import torch
+
+    audio, sample_rate = soundfile.read(path, dtype="float32", always_2d=True)
+    return torch.from_numpy(audio.T.copy()), sample_rate
 
 
 def _run_english_text_stage() -> None:

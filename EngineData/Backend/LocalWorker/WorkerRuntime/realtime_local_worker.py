@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import sys
+from contextlib import redirect_stdout
 
 import milmmt_translation_provider
 import realtime_local_worker_base as runtime
@@ -413,7 +414,9 @@ def main() -> int:
             )
             continue
         try:
-            _respond_protocol(handler(request), request_id)
+            with redirect_stdout(sys.stderr):
+                response = handler(request)
+            _respond_protocol(response, request_id)
         except Exception as exc:
             _respond_protocol(_handler_failure(exc), request_id)
     return 0
