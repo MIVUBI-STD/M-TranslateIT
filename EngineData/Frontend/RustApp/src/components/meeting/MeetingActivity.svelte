@@ -4,7 +4,7 @@
   import type { MeetingCommittedTurn, MeetingCommittedTurnsSnapshot, MeetingSessionStatus } from "../../app/bridge/runtimeApi";
   import { mapProductMeetingState } from "../../app/bridge/productMeetingState";
   import { languageName } from "../../app/shared/state";
-  import { meetingSessionTitle, meetingSpeakerLabel, meetingTime } from "../../app/runtime/meetingTranscriptPresentation";
+  import { meetingSessionTitle, meetingSpeakerLabel, meetingTime, meetingTranslationDisplay } from "../../app/runtime/meetingTranscriptPresentation";
   import MeetingTurnBubble from "./MeetingTurnBubble.svelte";
 
   let {
@@ -107,6 +107,8 @@
   }
 
   function deliveryLabel(turn: MeetingCommittedTurn): string {
+    if (turn.translation_state === "failed") return "Translation unavailable";
+    if (turn.translation_state === "pending") return "Translating";
     switch (turn.delivery_state) {
       case "speaking": return "Playing";
       case "output_complete": return "Played";
@@ -117,7 +119,7 @@
   }
 
   async function copyTurn(turn: MeetingCommittedTurn): Promise<void> {
-    const value = `${meetingSpeakerLabel(turn.lane)} · ${meetingTime(turn.created_unix_ms)}\n${languageName(turn.source_language)}: ${turn.source_text}\n${languageName(turn.target_language)}: ${turn.translated_text}`;
+    const value = `${meetingSpeakerLabel(turn.lane)} · ${meetingTime(turn.created_unix_ms)}\n${languageName(turn.source_language)}: ${turn.source_text}\n${languageName(turn.target_language)}: ${meetingTranslationDisplay(turn)}`;
     copyFailedSequence = null;
     try {
       if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");

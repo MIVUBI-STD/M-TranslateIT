@@ -5,6 +5,7 @@ use std::sync::{Mutex, OnceLock};
 use crate::engine::audio::live_segment_writer::remove_finalized_meeting_utterance_wav;
 
 use super::{worker_blocker, worker_text};
+use super::committed_turns::finish_meeting_turn_translation;
 use super::super::helper_bridge::HelperBridgeWorkerResponse;
 
 pub(super) const MAX_DEFERRED_INCOMING: usize = 4;
@@ -85,8 +86,18 @@ pub(super) fn deferred_enqueue_unix_ms(
 }
 
 fn cleanup_deferred_incoming_job(job: DeferredIncomingJob) {
-    if let DeferredIncomingStage::NeedsAsr { audio_path, .. } = job.stage {
-        remove_finalized_meeting_utterance_wav(&audio_path);
+    match job.stage {
+        DeferredIncomingStage::NeedsAsr { audio_path, .. } => {
+            remove_finalized_meeting_utterance_wav(&audio_path);
+        }
+        DeferredIncomingStage::NeedsTranslation { .. } => {
+            // A stable ASR source has already been committed. Expiration or
+            // queue eviction must not leave its translation forever "pending".
+            let _ = finish_meeting_turn_translation(
+                &job.session_id, job.event_sequence, None, job.utterance_id,
+                "incoming", None,
+            );
+        }
     }
 }
 
@@ -98,11 +109,14 @@ fn enqueue_with_admission(
     admitted: impl FnOnce(&str) -> bool,
 ) -> usize {
     let Ok(mut guard) = deferred_incoming_queue().lock() else {
+        cleanup_deferred_incoming_job(job);
         return 0;
     };
-    // Reuse the current Meeting status/runtime owners, inside the same mutex
-    // used by clear_deferred_incoming_queue. No second session authority.
+    // Admission and state mutation remain serialized with Stop/queue clear.
+    // All file cleanup and transcript updates happen AFTER releasing the lock.
     if !admitted(&job.session_id) {
+        drop(guard);
+        cleanup_deferred_incoming_job(job);
         return 0;
     }
     if front {
@@ -110,18 +124,20 @@ fn enqueue_with_admission(
     } else {
         guard.push_back(job);
     }
+    let mut evicted_jobs = Vec::new();
     while guard.len() > MAX_DEFERRED_INCOMING {
-        let evicted = if front {
-            guard.pop_back()
-        } else {
-            guard.pop_front()
-        };
+        let evicted = if front { guard.pop_back() } else { guard.pop_front() };
         if let Some(evicted) = evicted {
-            cleanup_deferred_incoming_job(evicted);
+            evicted_jobs.push(evicted);
         }
         DEFERRED_DROPPED_OVERFLOW.fetch_add(1, Ordering::Relaxed);
     }
-    guard.len()
+    let len = guard.len();
+    drop(guard);
+    for evicted in evicted_jobs {
+        cleanup_deferred_incoming_job(evicted);
+    }
+    len
 }
 
 pub(super) fn enqueue_deferred_incoming(job: DeferredIncomingJob) -> usize {
@@ -137,24 +153,27 @@ pub(super) fn take_due_deferred_incoming(
     now_unix_ms: u64,
 ) -> Option<DeferredIncomingJob> {
     let mut guard = deferred_incoming_queue().lock().ok()?;
-    while let Some(front) = guard.front() {
-        if front.session_id != session_id {
+    let mut removed = Vec::new();
+    let due = loop {
+        let Some(front) = guard.front() else {
+            break None;
+        };
+        if front.session_id != session_id
+            || now_unix_ms.saturating_sub(front.enqueued_unix_ms) > MAX_DEFERRED_INCOMING_AGE_MS
+        {
             if let Some(stale) = guard.pop_front() {
-                cleanup_deferred_incoming_job(stale);
+                removed.push(stale);
+                DEFERRED_DROPPED_STALE.fetch_add(1, Ordering::Relaxed);
             }
-            DEFERRED_DROPPED_STALE.fetch_add(1, Ordering::Relaxed);
             continue;
         }
-        if now_unix_ms.saturating_sub(front.enqueued_unix_ms) > MAX_DEFERRED_INCOMING_AGE_MS {
-            if let Some(stale) = guard.pop_front() {
-                cleanup_deferred_incoming_job(stale);
-            }
-            DEFERRED_DROPPED_STALE.fetch_add(1, Ordering::Relaxed);
-            continue;
-        }
-        return guard.pop_front();
+        break guard.pop_front();
+    };
+    drop(guard);
+    for stale in removed {
+        cleanup_deferred_incoming_job(stale);
     }
-    None
+    due
 }
 
 pub(super) fn reset_deferred_incoming_drop_counters() {
@@ -178,7 +197,9 @@ pub(super) fn clear_deferred_incoming_queue() -> Result<(), String> {
     let mut guard = deferred_incoming_queue()
         .lock()
         .map_err(|_| "meeting_incoming:deferred_queue_lock_failed".to_string())?;
-    while let Some(job) = guard.pop_front() {
+    let jobs: Vec<_> = guard.drain(..).collect();
+    drop(guard);
+    for job in jobs {
         cleanup_deferred_incoming_job(job);
     }
     Ok(())

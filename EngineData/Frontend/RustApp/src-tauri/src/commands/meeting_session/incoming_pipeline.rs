@@ -3,7 +3,9 @@ use serde_json::json;
 use crate::engine::audio::live_segment_writer::remove_finalized_meeting_utterance_wav;
 use crate::engine::runtime_settings::load_settings;
 
-use super::committed_turns::commit_meeting_turn;
+use super::committed_turns::{
+    commit_meeting_turn, finish_meeting_turn_translation,
+};
 use super::incoming_deferred::{
     classify_incoming_asr_response, deferred_enqueue_unix_ms, enqueue_deferred_incoming,
     incoming_deferred_for_required_outbound, requeue_deferred_incoming_front,
@@ -155,6 +157,19 @@ fn process_incoming_wav_with_direction(
         IncomingAsrDisposition::Transcript(transcript) => transcript,
     };
 
+    // Retain a source-first Person 1 turn even if MiLMMT later fails,
+    // is deferred, or the helper becomes unavailable.
+    if !commit_meeting_turn(
+        session_id, event_sequence, None, utterance_id, "incoming",
+        &source_language, &target_language, &transcript, "", None, None,
+    ) {
+        update_incoming_status(
+            session_id, "degraded", true, "meeting_incoming:source_record_failed",
+            "Incoming speech was recognized but could not enter the Meeting transcript.",
+        );
+        return IncomingAudioProcessResult::Complete;
+    }
+
     let held = translate_and_commit_incoming_transcript(
         session_id,
         event_sequence,
@@ -280,6 +295,9 @@ fn translate_and_commit_incoming_transcript(
         target_language,
     );
     if translated_text.is_none() {
+        let _ = finish_meeting_turn_translation(
+            session_id, event_sequence, None, utterance_id, "incoming", None,
+        );
         let blocker = if translation.ok {
             "translation:invalid_meeting_response".to_string()
         } else {
@@ -296,18 +314,8 @@ fn translate_and_commit_incoming_transcript(
     }
 
     let translated_text = translated_text.unwrap_or_default();
-    let committed = commit_meeting_turn(
-        session_id,
-        event_sequence,
-        None,
-        utterance_id,
-        "incoming",
-        source_language,
-        target_language,
-        transcript,
-        &translated_text,
-        None,
-        None,
+    let committed = finish_meeting_turn_translation(
+        session_id, event_sequence, None, utterance_id, "incoming", Some(&translated_text),
     );
     update_incoming_status(
         session_id,

@@ -312,6 +312,10 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **SHOULD:** Future full-session capture, if approved, use a bounded temporary store with explicit cleanup and privacy; do not silently convert manual export into persistent background recording.
 
+**MUST:** Record the immutable recognized source turn before translation begins. Keep `translation_state` independent of outbound `delivery_state`. On translation failure, retain the source and show an explicit unavailable state; an empty result is never a successful translation.
+
+**MUST:** Reject late translation completion after Stop or a session/generation change. Deferred incoming translation that expires or is evicted must mark an already-recognized source as failed without affecting outbound. Pending turns may not remain "Translating" after Meeting ends.
+
 ### PR-105 — Translation feedback
 **MAY:** Store opt-in local translation issue reports for quality review.
 

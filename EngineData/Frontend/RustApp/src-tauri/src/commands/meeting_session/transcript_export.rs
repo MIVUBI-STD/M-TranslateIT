@@ -75,7 +75,13 @@ fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
             language_label(&turn.source_language),
             language_label(&turn.target_language),
             turn.source_text,
-            turn.translated_text,
+            if turn.translation_state == "translated" {
+                turn.translated_text.as_str()
+            } else if turn.translation_state == "failed" {
+                "Translation unavailable"
+            } else {
+                "Translating..."
+            },
         ));
     }
     out
@@ -100,7 +106,13 @@ fn format_text(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
             language_label(&turn.source_language),
             language_label(&turn.target_language),
             turn.source_text,
-            turn.translated_text,
+            if turn.translation_state == "translated" {
+                turn.translated_text.as_str()
+            } else if turn.translation_state == "failed" {
+                "Translation unavailable"
+            } else {
+                "Translating..."
+            },
         ));
     }
     out

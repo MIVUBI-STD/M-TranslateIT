@@ -65,6 +65,9 @@ impl MeetingCommittedTurnStore {
         {
             return false;
         }
+        if source_text.trim().is_empty() {
+            return false;
+        }
         if lane == "you"
             && (generation.is_none() || delivery_state.is_none() || outbound_timing.is_none())
         {
@@ -93,6 +96,11 @@ impl MeetingCommittedTurnStore {
             target_language: target_language.to_string(),
             source_text: source_text.to_string(),
             translated_text: translated_text.to_string(),
+            translation_state: if translated_text.trim().is_empty() {
+                "pending".to_string()
+            } else {
+                "translated".to_string()
+            },
             delivery_state: delivery_state.map(str::to_string),
             outbound_timing,
             created_unix_ms: now_unix_ms,
@@ -112,6 +120,50 @@ impl MeetingCommittedTurnStore {
         true
     }
 
+    fn finish_translation_at(
+        &mut self,
+        session_id: &str,
+        sequence: u64,
+        generation: Option<u64>,
+        utterance_id: u64,
+        lane: &str,
+        translated: Option<&str>,
+        now_unix_ms: u128,
+    ) -> bool {
+        if self.session_id != session_id || sequence == 0 || !matches!(lane, "you" | "incoming") {
+            return false;
+        }
+        let Some(turn) = self.turns.iter_mut().find(|turn| {
+            turn.session_id == session_id && turn.sequence == sequence
+                && turn.generation == generation && turn.utterance_id == utterance_id
+                && turn.lane == lane
+        }) else {
+            return false;
+        };
+        // Once a turn is complete, failed, or interrupted, stale results cannot
+        // rewrite its recognized text, translation or playback state.
+        if turn.translation_state != "pending"
+            || terminal_delivery_state(turn.delivery_state.as_deref())
+        {
+            return false;
+        }
+        if let Some(text) = translated.filter(|text| !text.trim().is_empty()) {
+            turn.translated_text = text.trim().to_string();
+            turn.translation_state = "translated".to_string();
+            if lane == "you" {
+                turn.delivery_state = Some("preparing_voice".to_string());
+            }
+        } else {
+            turn.translated_text.clear();
+            turn.translation_state = "failed".to_string();
+            if lane == "you" {
+                turn.delivery_state = Some("output_failed".to_string());
+            }
+        }
+        turn.updated_unix_ms = now_unix_ms;
+        true
+    }
+
     fn update_delivery_state_at(
         &mut self,
         session_id: &str,
@@ -123,7 +175,8 @@ impl MeetingCommittedTurnStore {
         if self.session_id != session_id
             || !matches!(
                 delivery_state,
-                "preparing_voice"
+                "translating"
+                    | "preparing_voice"
                     | "speaking"
                     | "output_complete"
                     | "output_failed"
@@ -179,6 +232,9 @@ impl MeetingCommittedTurnStore {
                 && !terminal_delivery_state(turn.delivery_state.as_deref())
             {
                 turn.delivery_state = Some("interrupted".to_string());
+                if turn.translation_state == "pending" {
+                    turn.translation_state = "failed".to_string();
+                }
                 turn.updated_unix_ms = now_unix_ms;
             }
         }
@@ -296,6 +352,16 @@ pub(super) fn retain_committed_turns_for_export(session_id: &str) -> bool {
     }
     let mut snapshot = store.snapshot();
     snapshot.has_session = false;
+    // Ending a session also ends all uncompleted incoming/outgoing work. The
+    // last-session review must never display "Translating..." forever.
+    for turn in &mut snapshot.turns {
+        if turn.translation_state == "pending" {
+            turn.translation_state = "failed".to_string();
+            if turn.lane == "you" {
+                turn.delivery_state = Some("interrupted".to_string());
+            }
+        }
+    }
     drop(guard);
     let Ok(mut ended) = ended_transcript_store().lock() else {
         return false;
@@ -367,6 +433,40 @@ pub(super) fn commit_meeting_turn(
         emit_meeting_runtime_event("turn_committed", Some(session_id), Some(sequence));
     }
     committed
+}
+
+pub(super) fn finish_meeting_turn_translation(
+    session_id: &str,
+    sequence: u64,
+    generation: Option<u64>,
+    utterance_id: u64,
+    lane: &str,
+    translated: Option<&str>,
+) -> bool {
+    let Some(session) = latest_runtime_session_state().snapshot else {
+        return false;
+    };
+    if session.owner_id != APPLICATION_MEETING_OWNER_ID
+        || session.session_id != session_id
+        || session.phase != "live"
+        || generation.is_some_and(|current| session.generation != current)
+    {
+        return false;
+    }
+    let Ok(mut guard) = committed_turn_store().lock() else {
+        return false;
+    };
+    let Some(store) = guard.as_mut() else {
+        return false;
+    };
+    let updated = store.finish_translation_at(
+        session_id, sequence, generation, utterance_id, lane, translated, unix_ms(),
+    );
+    drop(guard);
+    if updated {
+        emit_meeting_runtime_event("translation_state_changed", Some(session_id), Some(sequence));
+    }
+    updated
 }
 
 pub(super) fn update_committed_turn_delivery_state(
@@ -554,6 +654,64 @@ mod tests {
             output_stream_build_ms: None,
             output_stream_start_to_first_audio_ms: None,
         }
+    }
+
+    #[test]
+    fn source_first_turn_keeps_original_when_translation_fails() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        assert!(store.commit_at(
+            "s1", 1, Some(7), 51, "you", "id", "en",
+            "Saya tidak setuju", "", Some("translating"), Some(timing(1)), 1_000,
+        ));
+        assert_eq!(store.turns.front().unwrap().translation_state, "pending");
+        assert!(store.finish_translation_at("s1", 1, Some(7), 51, "you", None, 1_050));
+        let turn = store.turns.front().unwrap();
+        assert_eq!(turn.source_text, "Saya tidak setuju");
+        assert_eq!(turn.translated_text, "");
+        assert_eq!(turn.translation_state, "failed");
+        assert_eq!(turn.delivery_state.as_deref(), Some("output_failed"));
+        assert!(!store.finish_translation_at(
+            "s1", 1, Some(7), 51, "you", Some("I agree"), 1_100,
+        ));
+        assert_eq!(store.turns.front().unwrap().source_text, "Saya tidak setuju");
+    }
+
+    #[test]
+    fn delayed_incoming_translation_is_bound_to_source_and_session() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        assert!(store.commit_at(
+            "s1", 5, None, 31, "incoming", "en", "id", "Please confirm", "",
+            None, None, 5_000,
+        ));
+        assert!(!store.finish_translation_at(
+            "s2", 5, None, 31, "incoming", Some("Mohon konfirmasi"), 5_001,
+        ));
+        assert!(!store.finish_translation_at(
+            "s1", 5, None, 32, "incoming", Some("Mohon konfirmasi"), 5_002,
+        ));
+        assert!(store.finish_translation_at(
+            "s1", 5, None, 31, "incoming", Some("Mohon konfirmasi"), 5_003,
+        ));
+        let turn = store.turns.front().unwrap();
+        assert_eq!(turn.translation_state, "translated");
+        assert_eq!(turn.translated_text, "Mohon konfirmasi");
+        assert_eq!(turn.source_text, "Please confirm");
+        assert!(!store.finish_translation_at("s1", 5, None, 31, "incoming", None, 5_004));
+    }
+
+    #[test]
+    fn interrupted_source_first_turn_cannot_receive_late_voice() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        assert!(store.commit_at(
+            "s1", 1, Some(7), 51, "you", "id", "en",
+            "Tunggu sebentar", "", Some("translating"), Some(timing(1)), 1_000,
+        ));
+        store.interrupt_generation_at(7, 1_010);
+        assert_eq!(store.turns.front().unwrap().translation_state, "failed");
+        assert_eq!(store.turns.front().unwrap().delivery_state.as_deref(), Some("interrupted"));
+        assert!(!store.finish_translation_at(
+            "s1", 1, Some(7), 51, "you", Some("Wait a moment"), 1_020,
+        ));
     }
 
     #[test]

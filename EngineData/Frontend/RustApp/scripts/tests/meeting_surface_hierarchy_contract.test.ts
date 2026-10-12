@@ -54,7 +54,7 @@ test("Transcript tools follow user intent and preserve focus, reading position, 
   const bubble = readFileSync(new URL("../../src/components/meeting/MeetingTurnBubble.svelte", import.meta.url), "utf8");
   assert.match(live, /<MeetingTurnBubble \{turn\}/);
   assert.match(bubble, /languageName\(turn\.source_language\)/);
-  assert.match(bubble, /lang=\{turn\.target_language\}/);
+  assert.match(bubble, /lang=\{turn\.translation_state === "translated" \? turn\.target_language : undefined\}/);
 });
 
 test("Last-session transcript is private-by-default and export remains explicit", () => {
@@ -78,4 +78,15 @@ test("live and last-session transcript reuse one WhatsApp-style lane-aware bubbl
   assert.match(review, /Person 1 groups incoming audio/);
   assert.match(bubble, /Translation/);
   assert.doesNotMatch(bubble, /Person 2|speaker_id|diarizationResult/);
+});
+
+test("failed Meeting translation retains source and cannot look completed", () => {
+  const bubble = readFileSync(new URL("../../src/components/meeting/MeetingTurnBubble.svelte", import.meta.url), "utf8");
+  const display = readFileSync(new URL("../../src/app/runtime/meetingTranscriptPresentation.ts", import.meta.url), "utf8");
+  const native = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/committed_turns.rs", import.meta.url), "utf8");
+  assert.match(bubble, /meetingTranslationDisplay\(turn\)/);
+  assert.match(display, /Translation unavailable/);
+  assert.match(native, /fn finish_translation_at\(/);
+  assert.match(native, /translation_state = "failed"/);
+  assert.match(native, /session\.phase != "live"/);
 });

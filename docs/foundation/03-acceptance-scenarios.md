@@ -59,6 +59,7 @@ Requires relevant A/B capability first.
 | C4 | Stop lifecycle | TARGET_WINDOWS | output authority revoked, work/capture cleaned, no dangling handles/stale output |
 | C5 | Repeated session stability | TARGET_WINDOWS | repeated start/stop remains stable and bounded |
 | C6 | Multi-speaker honesty | TARGET_WINDOWS | browser output can be captured when routed correctly; mixed audio stays one unverified incoming lane, with no false diarization or speaker assignment |
+| C8 | Source-first transcript and bounded failure | source/Rust plus TARGET_WINDOWS | ASR source appears before translation; translation failure/deferred expiry preserves it with unavailable status; stale completion after Stop cannot alter text or output |
 | C7 | Hardware-aware performance baseline | TARGET_WINDOWS | with RTX 3070, i7-14700-class CPU, 32 GB RAM and browser active, record post-finalization delay, approximate speech onset/end latency, scheduler wait, stream-build cost, full GPU/WDDM peak VRAM and P50/P95; do not claim meeting-app receipt from local callback |
 
 ## Group D — Desktop product surfaces

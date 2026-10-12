@@ -4,7 +4,7 @@
   import { languageName } from "../../app/shared/state";
   import MeetingTranscriptExport from "./MeetingTranscriptExport.svelte";
   import MeetingTurnBubble from "./MeetingTurnBubble.svelte";
-  import { meetingFirstRecordedTime, meetingSessionTitle, meetingSpeakerLabel, meetingTime } from "../../app/runtime/meetingTranscriptPresentation";
+  import { meetingFirstRecordedTime, meetingSessionTitle, meetingSpeakerLabel, meetingTime, meetingTranslationDisplay } from "../../app/runtime/meetingTranscriptPresentation";
 
   let {
     sessionActive,
@@ -39,7 +39,7 @@
   async function copyAll(): Promise<void> {
     if (!snapshot?.turns.length) return;
     const value = snapshot.turns.map((turn: MeetingCommittedTurn) =>
-      `${meetingSpeakerLabel(turn.lane)} · ${meetingTime(turn.created_unix_ms)}\n${languageName(turn.source_language)}: ${turn.source_text}\n${languageName(turn.target_language)}: ${turn.translated_text}`
+      `${meetingSpeakerLabel(turn.lane)} · ${meetingTime(turn.created_unix_ms)}\n${languageName(turn.source_language)}: ${turn.source_text}\n${languageName(turn.target_language)}: ${meetingTranslationDisplay(turn)}`
     ).join("\n\n");
     try {
       await navigator.clipboard.writeText(value);

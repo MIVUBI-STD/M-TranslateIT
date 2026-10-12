@@ -28,3 +28,12 @@ export function meetingFirstRecordedTime(turns: readonly MeetingCommittedTurn[])
       ? earliest === null ? turn.created_unix_ms : Math.min(earliest, turn.created_unix_ms)
       : earliest, null);
 }
+
+/** Missing AI output is a distinct status; never render it as translated text. */
+export function meetingTranslationDisplay(
+  turn: Pick<MeetingCommittedTurn, "translation_state" | "translated_text">,
+): string {
+  if (turn.translation_state === "failed") return "Translation unavailable";
+  if (turn.translation_state === "pending") return "Translating...";
+  return turn.translated_text.trim() || "Translation unavailable";
+}

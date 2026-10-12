@@ -59,3 +59,10 @@ test("manual exports describe Person 1 honestly instead of fabricating participa
   assert.match(exporter, /"Person 1"/);
   assert.match(exporter, /"PERSON 1"/);
 });
+
+test("manual transcript export retains original source after translation failure", () => {
+  assert.match(exporter, /turn\.translation_state == "failed"/);
+  assert.match(exporter, /"Translation unavailable"/);
+  assert.match(committed, /snapshot\.has_session = false/);
+  assert.match(committed, /turn\.translation_state == "pending"/);
+});

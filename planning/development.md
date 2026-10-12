@@ -1,3 +1,11 @@
+## Meeting V2 Batch 1A — Source-first transcript and deferred cleanup (2026-10-12)
+
+**Candidate:** canonical Meeting turn store now represents pending/translated/failed translation separately from playback. Incoming and outgoing recognized source is stored before model translation. Invalid output retains original source and displays "Translation unavailable". Stop invalidates pending work; all async completion checks session, generation and utterance identity.
+
+**Incoming deferral:** queue expiry/overflow/rejected jobs are cleaned outside queue mutex; an already-recognized transcript is marked failed instead of left forever pending. Existing bounded age, admission limit and outbound precedence stay intact.
+
+**Proof ceiling:** source code plus Rust and TS tests added, but neither compiler nor local model/RTX 3070/browser have been run. Current 240-turn retention cap remains and needs a separate bounded full-session export revision. No new model, streaming worker, scheduler, GPU setting or UI mode added.
+
 ## Meeting V2 — Source-first implementation continuation (2026-10-12)
 
 **New plan:** [Meeting V2 Implementation Plan](./meeting-v2-implementation-plan.md). The user's PC is not currently available; build source and deterministic regression safety before any hardware-specific promotion. Preserve one Meeting Start/Stop flow and one RTX 3070 GPU scheduler. Next: Batch 0 (remove inert incoming style, audit capture callback blocking) then Batch 1 (reliable capture and source-first transcript state). No latency/VRAM improvement is claimed before Windows execution.

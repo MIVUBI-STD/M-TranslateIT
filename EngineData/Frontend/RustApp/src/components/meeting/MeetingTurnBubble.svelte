@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { MeetingCommittedTurn } from "../../app/bridge/runtimeApi";
   import { languageName } from "../../app/shared/state";
-  import { meetingSpeakerDescription, meetingSpeakerLabel, meetingTime } from "../../app/runtime/meetingTranscriptPresentation";
+  import { meetingSpeakerDescription, meetingSpeakerLabel, meetingTime, meetingTranslationDisplay } from "../../app/runtime/meetingTranscriptPresentation";
 
   let { turn, statusLabel = "" }: { turn: MeetingCommittedTurn; statusLabel?: string } = $props();
   const own = $derived(turn.lane === "you");
@@ -24,7 +24,11 @@
     </div>
     <div class="mt-3 border-t border-[var(--ti-border)] pt-2">
       <span class="text-[11px] text-[var(--ti-text-muted)]">{languageName(turn.target_language)} · Translation</span>
-      <p class="mb-0 mt-1 break-words text-[14px] font-medium leading-6" lang={turn.target_language}>{turn.translated_text}</p>
+      <p class={"mb-0 mt-1 break-words text-[14px] leading-6 " +
+        (turn.translation_state === "translated" ? "font-medium" : "text-[var(--ti-text-muted)]")}
+        lang={turn.translation_state === "translated" ? turn.target_language : undefined}
+        role={turn.translation_state === "failed" ? "status" : undefined}
+      >{meetingTranslationDisplay(turn)}</p>
     </div>
     {#if statusLabel}
       <p class="mb-0 mt-2 text-right text-[11px] text-[var(--ti-text-muted)]">{statusLabel}</p>

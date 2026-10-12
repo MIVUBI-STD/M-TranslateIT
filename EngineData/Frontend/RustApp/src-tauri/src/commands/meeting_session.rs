@@ -168,6 +168,8 @@ pub struct MeetingCommittedTurn {
     pub target_language: String,
     pub source_text: String,
     pub translated_text: String,
+    /// Recognition/translation state is separate from virtual microphone delivery.
+    pub translation_state: String,
     pub delivery_state: Option<String>,
     pub outbound_timing: Option<MeetingOutboundTiming>,
     pub created_unix_ms: u128,

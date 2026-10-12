@@ -174,6 +174,7 @@ export type MeetingCommittedTurn = {
   target_language: string;
   source_text: string;
   translated_text: string;
+  translation_state: "pending" | "translated" | "failed";
   delivery_state: "preparing_voice" | "queued" | "speaking" | "output_complete" | "output_failed" | "interrupted" | string | null;
   outbound_timing: MeetingOutboundTiming | null;
   created_unix_ms: number;

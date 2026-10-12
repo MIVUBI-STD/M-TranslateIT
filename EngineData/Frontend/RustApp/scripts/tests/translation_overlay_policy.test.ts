@@ -90,3 +90,16 @@ test("visibility admission denies hidden or disabled Meeting content", () => {
   assert.equal(mayPresentOverlayCaption({ ...p, meetingEnabled: false }, c), false);
   assert.equal(mayPresentOverlayCaption({ ...p, meetingEnabled: false }, { ...c, source: "text" }), true);
 });
+
+test("a newer source-only turn clears obsolete captions until translation succeeds", () => {
+  const current = { sequence: 2, lane: "incoming", target_language: "id",
+    translated_text: "Sudah selesai", translation_state: "translated" as const };
+  const pending = { sequence: 3, lane: "incoming", target_language: "id",
+    translated_text: "", translation_state: "pending" as const };
+  const snapshot = { ok: true, has_session: true, session_id: "meeting-1", turns: [current, pending] };
+  assert.equal(latestMeetingCaption(snapshot), null);
+  assert.equal(latestMeetingCaption({ ...snapshot, turns: [current,
+    { ...pending, translation_state: "failed" as const }] }), null);
+  assert.equal(latestMeetingCaption({ ...snapshot, turns: [current,
+    { ...pending, translation_state: "translated" as const, translated_text: "Coba lagi" }] })?.revision, "meeting-1:3");
+});

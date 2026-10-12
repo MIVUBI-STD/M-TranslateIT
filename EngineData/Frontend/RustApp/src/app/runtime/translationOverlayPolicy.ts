@@ -64,6 +64,7 @@ type MeetingTurnLike = {
   source_language?: string;
   target_language?: string;
   translated_text: string;
+  translation_state?: "pending" | "translated" | "failed";
   created_unix_ms?: number;
 };
 type MeetingTurnsLike = { ok: boolean; has_session: boolean; session_id: string | null; turns: MeetingTurnLike[]; };
@@ -75,9 +76,11 @@ export function normalizeOverlayText(value: string): string {
 export function latestMeetingCaption(snapshot: MeetingTurnsLike | null): TranslationOverlayPayload | null {
   if (!snapshot?.ok || !snapshot.has_session || !snapshot.session_id) return null;
   const latest = snapshot.turns
-    .filter((turn) => normalizeOverlayText(turn.translated_text).length > 0)
     .reduce<MeetingTurnLike | null>((current, turn) => !current || turn.sequence > current.sequence ? turn : current, null);
-  if (!latest) return null;
+  // A new recognized source supersedes the previous caption even if its
+  // translation is pending or failed. Never display an older phrase as live.
+  if (!latest || latest.translation_state === "pending" || latest.translation_state === "failed"
+      || !normalizeOverlayText(latest.translated_text)) return null;
   return {
     text: normalizeOverlayText(latest.translated_text),
     language: latest.target_language === "id" || latest.target_language === "en"

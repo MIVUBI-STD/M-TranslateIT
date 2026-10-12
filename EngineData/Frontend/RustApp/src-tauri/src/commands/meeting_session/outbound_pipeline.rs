@@ -7,7 +7,8 @@ use std::time::Instant;
 use crate::engine::paths::ProjectPaths;
 
 use super::committed_turns::{
-    commit_meeting_turn, update_committed_turn_delivery_state,
+    commit_meeting_turn, finish_meeting_turn_translation,
+    update_committed_turn_delivery_state,
     update_committed_turn_outbound_timing,
 };
 use super::super::helper_bridge::{required_outbound_voice_actor_token, send_helper_worker_task};
@@ -194,6 +195,38 @@ pub(super) fn process_outbound_wav(
         };
     }
     let transcript = transcript.unwrap_or_default();
+    // Record recognized speech before requesting a translation. A failed model
+    // must not erase what was already recognized from the Meeting transcript.
+    let recorded = commit_meeting_turn(
+        session_id,
+        event_sequence,
+        Some(generation),
+        utterance_id,
+        "you",
+        "id",
+        "en",
+        &transcript,
+        "",
+        Some("translating"),
+        Some(timing.metrics.clone()),
+    );
+    if !recorded {
+        update_outbound_status(
+            generation, session_id, "attention_needed", event_sequence, false, false,
+            "meeting_outbound:source_record_failed",
+            "Recognized speech could not be recorded safely. No translated voice was generated.",
+        );
+        return MeetingOutboundProcessResult {
+            ok: false,
+            delivered: false,
+            state: "source_record_failed".to_string(),
+            blocker: "meeting_outbound:source_record_failed".to_string(),
+            note: "Recognized source was unavailable in the canonical session store.".to_string(),
+            generation,
+            utterance_sequence: event_sequence,
+            runtime_claim: "meeting_outbound_source_not_committed".to_string(),
+        };
+    }
 
     update_outbound_status(
         generation,
@@ -233,6 +266,9 @@ pub(super) fn process_outbound_wav(
     }
     let translated_text = validated_meeting_translation(&translation, "id", "en");
     if translated_text.is_none() {
+        let _ = finish_meeting_turn_translation(
+            session_id, event_sequence, Some(generation), utterance_id, "you", None,
+        );
         let blocker = if translation.ok {
             "translation:invalid_meeting_response".to_string()
         } else {
@@ -260,20 +296,25 @@ pub(super) fn process_outbound_wav(
         };
     }
     let translated_text = translated_text.unwrap_or_default();
-
-    let _ = commit_meeting_turn(
-        session_id,
-        event_sequence,
-        Some(generation),
-        utterance_id,
-        "you",
-        "id",
-        "en",
-        &transcript,
-        &translated_text,
-        Some("preparing_voice"),
-        Some(timing.metrics.clone()),
-    );
+    if !finish_meeting_turn_translation(
+        session_id, event_sequence, Some(generation), utterance_id, "you", Some(&translated_text),
+    ) {
+        update_outbound_status(
+            generation, session_id, "attention_needed", event_sequence, false, false,
+            "meeting_outbound:translation_record_failed",
+            "Translated speech could not be committed to its original source turn; playback was blocked.",
+        );
+        return MeetingOutboundProcessResult {
+            ok: false,
+            delivered: false,
+            state: "translation_record_failed".to_string(),
+            blocker: "meeting_outbound:translation_record_failed".to_string(),
+            note: "Translation was not linked to an authoritative source turn.".to_string(),
+            generation,
+            utterance_sequence: event_sequence,
+            runtime_claim: "meeting_outbound_translation_not_committed".to_string(),
+        };
+    }
 
     update_outbound_status(
         generation,

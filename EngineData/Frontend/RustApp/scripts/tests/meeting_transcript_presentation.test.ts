@@ -6,6 +6,7 @@ import {
   meetingFirstRecordedTime,
   meetingSessionTitle,
   meetingTime,
+  meetingTranslationDisplay,
 } from "../../src/app/runtime/meetingTranscriptPresentation.ts";
 import type { MeetingCommittedTurn } from "../../src/app/bridge/runtimeApi.ts";
 
@@ -25,4 +26,11 @@ test("a last-session label uses the earliest retained turn, never reuses a prior
   assert.equal(meetingFirstRecordedTime([]), null);
   assert.equal(meetingFirstRecordedTime([turn(90), turn(60), turn(130)]), 60);
   assert.equal(meetingFirstRecordedTime([turn(0), turn(60)]), 60);
+});
+
+test("source-first transcript never manufactures a translated string", () => {
+  assert.equal(meetingTranslationDisplay({ translation_state: "pending", translated_text: "" }), "Translating...");
+  assert.equal(meetingTranslationDisplay({ translation_state: "failed", translated_text: "" }), "Translation unavailable");
+  assert.equal(meetingTranslationDisplay({ translation_state: "translated", translated_text: "Try again" }), "Try again");
+  assert.equal(meetingTranslationDisplay({ translation_state: "translated", translated_text: "" }), "Translation unavailable");
 });
