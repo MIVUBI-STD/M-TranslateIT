@@ -1,10 +1,10 @@
-## Active continuation — Meeting PCM session/lane isolation (2026-10-12)
+## Active continuation — bounded CPU PCM replay worker (2026-10-12)
 
-**Source candidate:** test-only `pcm_handoff.rs` and `pcm_handoff_replay.rs` now require an explicit session ID, lane (`You` or `Incoming`), and generation at construction. Replay rejects a foreign session, wrong lane, expired generation and a stopped queue instead of forwarding to the existing VAD. No new VAD, worker, scheduler or UI surface was created.
+**Source candidate:** The existing `pcm_handoff.rs` now supports nonblocking admission revocation (`request_stop`), separate from final PCM erasure. Test-only `pcm_handoff_replay.rs` now has one bounded CPU drain thread per authorized session/lane/generation. It sends samples into the **existing** VAD, polls a bounded interval while idle, and handles gap/Stop/poison as distinct outcomes. Stop revokes admission, wakes the thread, waits for a fixed deadline and joins only after it has exited. A deadline breach is an explicit error, retains the join handle for retry and **does not** authorize production cutover. Drop revokes but cannot guarantee an in-flight VAD callback completed if Stop failed.
 
-**Evidence:** exact `Local` source review and added deterministic Rust assertions only. Cargo, target Windows, GPU latency, browser audio, and full meeting acceptance are **NOT EXECUTED** for this revision. Existing finalized-utterance capture and WAV playback remain the live control path.
+**Evidence:** new Rust behavioral tests cover real VAD delivery on the CPU thread, successful Stop/erasure, and a deliberately blocked worker producing explicit timeout followed by safe retry/join without stale audio. Source review only. **Rust compile/test, Windows/RTX, virtual mic and browser meeting remain NOT EXECUTED for this revision.** The module is still `#[cfg(test)]`; production CPAL, GPU scheduler, ASR and TTS remain untouched.
 
-**Single next source step:** design and implement a bounded CPU consumer Stop/join boundary around this existing handoff, keeping production CPAL untouched until matching Rust compilation/tests and reversible device cutover are available. Preserve the existing [Meeting V2 implementation plan](./meeting-v2-implementation-plan.md) as the one streaming design authority.
+**Single next step:** resolve any Rust compile/test failures on the exact integrated candidate before a guarded and reversible CPAL handoff; capture callback deadline, source device stop order and actual Windows audio behavior remain unproven. Continue from [Meeting V2 implementation plan](./meeting-v2-implementation-plan.md).
 
 ## Meeting V2 Batch 2A.2 — VAD callback contention observation (2026-10-12)
 

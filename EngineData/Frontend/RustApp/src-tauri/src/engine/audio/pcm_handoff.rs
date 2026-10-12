@@ -262,10 +262,18 @@ impl PcmHandoff {
         PcmDrain::Samples(count)
     }
 
-    /// Canonical Stop owner must drop CPAL stream, call stop, then join the CPU
-    /// consumer. A stopped instance can never be restarted for a later session.
-    pub fn stop(&self) {
+    /// Revoke admission immediately without waiting for the CPU drain mutex.
+    /// The owner must stop the input stream before revocation, then join its
+    /// consumer (with an explicit deadline) before buffer erasure/release.
+    /// Revocation alone does not guarantee an in-flight VAD call has returned.
+    pub fn request_stop(&self) {
         self.stopped.store(true, Ordering::Release);
+    }
+
+    /// Erase retained samples after the worker has left. Existing test-only
+    /// direct callers may use this without a separate consumer.
+    pub fn stop(&self) {
+        self.request_stop();
         if let Ok(mut ring) = self.ring.lock() {
             ring.erase();
         }

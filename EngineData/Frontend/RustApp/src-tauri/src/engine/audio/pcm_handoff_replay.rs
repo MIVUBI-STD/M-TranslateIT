@@ -10,6 +10,9 @@ use super::finalized_utterance::{
     reset_finalized_incoming_speech_boundary, reset_finalized_outbound_speech_boundary,
 };
 use super::pcm_handoff::{PcmDrain, PcmDrainCursor, PcmHandoff, PcmLane};
+use std::sync::Arc;
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
 struct IncomingPcmVadReplay {
     session_id: String,
@@ -113,9 +116,126 @@ impl OutboundPcmVadReplay {
     }
 }
 
+// Source-only CPU consumer seam. No CPAL capture or production Meeting owner
+// uses this yet. Reuse the same canonical VAD replay types; do not spawn a
+// second capture/segmentation engine or run inference on this thread.
+enum CpuVadReplay {
+    Incoming(IncomingPcmVadReplay),
+    Outbound(OutboundPcmVadReplay),
+}
+
+impl CpuVadReplay {
+    fn pump(&mut self, handoff: &PcmHandoff) -> PcmDrain {
+        match self {
+            Self::Incoming(replay) => replay.pump(handoff),
+            Self::Outbound(replay) => replay.pump(handoff),
+        }
+    }
+}
+
+struct PcmCpuConsumer {
+    handoff: Arc<PcmHandoff>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl PcmCpuConsumer {
+    fn start(
+        handoff: Arc<PcmHandoff>,
+        sample_rate_hz: u32,
+        max_samples_per_pump: usize,
+    ) -> Result<Self, &'static str> {
+        Self::start_with_hook(handoff, sample_rate_hz, max_samples_per_pump, || {})
+    }
+
+    // The one-shot hook is used only to reproduce a stalled CPU worker in
+    // deterministic source tests. It is never invoked by the audio callback.
+    fn start_with_hook(
+        handoff: Arc<PcmHandoff>,
+        sample_rate_hz: u32,
+        max_samples_per_pump: usize,
+        before_first_pump: impl FnOnce() + Send + 'static,
+    ) -> Result<Self, &'static str> {
+        if handoff.metrics().stopped {
+            return Err("pcm_consumer:already_stopped");
+        }
+        let replay = match handoff.lane() {
+            PcmLane::Incoming => CpuVadReplay::Incoming(IncomingPcmVadReplay::new(
+                &handoff, sample_rate_hz, max_samples_per_pump,
+            )?),
+            PcmLane::You => CpuVadReplay::Outbound(OutboundPcmVadReplay::new(
+                &handoff, sample_rate_hz, max_samples_per_pump,
+            )?),
+        };
+        let for_worker = Arc::clone(&handoff);
+        let handle = thread::Builder::new()
+            .name("translateit-pcm-cpu-replay".to_owned())
+            .spawn(move || {
+                let mut replay = replay;
+                before_first_pump();
+                loop {
+                    if for_worker.metrics().stopped {
+                        break;
+                    }
+                    match replay.pump(&for_worker) {
+                        PcmDrain::Samples(_) | PcmDrain::Discontinuity => {}
+                        // Bounded idle poll; the real-time producer only pushes
+                        // PCM and does not perform OS wakeups or extra locking.
+                        PcmDrain::Empty => thread::park_timeout(Duration::from_millis(5)),
+                        PcmDrain::Stopped | PcmDrain::Poisoned => break,
+                    }
+                }
+            })
+            .map_err(|_| "pcm_consumer:spawn_failed")?;
+        Ok(Self { handoff, thread: Some(handle) })
+    }
+
+    /// Revoke first, wake the idle worker, and only join if it actually exited.
+    /// A timeout keeps the handle owned for a later retry; it is not a
+    /// successful Stop and must never authorize production capture cutover.
+    fn stop(&mut self, timeout: Duration) -> Result<(), &'static str> {
+        self.handoff.request_stop();
+        if let Some(handle) = self.thread.as_ref() {
+            handle.thread().unpark();
+            let deadline = Instant::now()
+                .checked_add(timeout)
+                .ok_or("pcm_consumer:invalid_stop_deadline")?;
+            while !handle.is_finished() {
+                if Instant::now() >= deadline {
+                    return Err("pcm_consumer:stop_deadline_exceeded");
+                }
+                thread::sleep(Duration::from_millis(1));
+            }
+        }
+        if let Some(handle) = self.thread.take() {
+            let joined = handle.join().is_ok();
+            self.handoff.stop();
+            if !joined {
+                return Err("pcm_consumer:worker_panicked");
+            }
+        } else {
+            self.handoff.stop();
+        }
+        Ok(())
+    }
+}
+
+impl Drop for PcmCpuConsumer {
+    fn drop(&mut self) {
+        // Drop must not block the caller. A previous Stop timeout means the
+        // worker may still be active; this is not a production-safe fallback.
+        self.handoff.request_stop();
+        if let Some(handle) = self.thread.as_ref() {
+            handle.thread().unpark();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{IncomingPcmVadReplay, OutboundPcmVadReplay, PcmDrain, PcmHandoff, PcmLane};
+    use super::{IncomingPcmVadReplay, OutboundPcmVadReplay, PcmCpuConsumer, PcmDrain, PcmHandoff, PcmLane};
+    use std::sync::{mpsc, Arc};
+    use std::thread;
+    use std::time::Duration;
     use crate::engine::audio::finalized_utterance::{
         clear_finalized_incoming_utterance_producer, clear_finalized_outbound_utterance_producer,
         clear_finalized_meeting_sequence, reset_finalized_incoming_utterance_producer,
@@ -253,5 +373,91 @@ mod tests {
         fixture.handoff.stop();
         assert_eq!(fixture.worker.pump(&fixture.handoff), PcmDrain::Stopped);
         assert!(try_take_finalized_incoming_utterance(fixture.session_id).is_none());
+    }
+
+    #[test]
+    fn cpu_consumer_forwards_to_canonical_vad_and_joins_after_stop() {
+        let _guard = crate::engine::runtime_state::runtime_test_guard();
+        let session_id = "pcm-cpu-replay-incoming";
+        reset_finalized_meeting_sequence(session_id);
+        reset_finalized_incoming_utterance_producer(session_id, 16_000);
+        let handoff = Arc::new(
+            PcmHandoff::new(session_id, PcmLane::Incoming, 31, 16_000).unwrap(),
+        );
+        let mut worker = PcmCpuConsumer::start(Arc::clone(&handoff), 16_000, 6_400)
+            .expect("start canonical VAD consumer");
+        assert_eq!(
+            handoff.try_push(&[0.10; 6_400]),
+            super::super::pcm_handoff::PcmPush::Accepted(6_400),
+        );
+        assert_eq!(
+            handoff.try_push(&[0.0; 6_400]),
+            super::super::pcm_handoff::PcmPush::Accepted(6_400),
+        );
+
+        let mut recognized = None;
+        for _ in 0..200 {
+            recognized = try_take_finalized_incoming_utterance(session_id);
+            if recognized.is_some() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        let recognized = recognized.expect("CPU replay must drive canonical VAD");
+        assert_eq!(recognized.session_id, session_id);
+        assert_eq!(recognized.lane, "incoming");
+        assert!(worker.stop(Duration::from_secs(1)).is_ok());
+        assert_eq!(handoff.metrics().buffered_samples, 0);
+        assert!(handoff.metrics().stopped);
+        assert_eq!(
+            handoff.try_push(&[0.20]),
+            super::super::pcm_handoff::PcmPush::Dropped(
+                super::super::pcm_handoff::PcmDropReason::Stopped
+            ),
+        );
+        assert!(try_take_finalized_incoming_utterance(session_id).is_none());
+        clear_finalized_incoming_utterance_producer();
+        clear_finalized_meeting_sequence();
+    }
+
+    #[test]
+    fn stalled_cpu_worker_timeout_is_reported_and_retry_joins_without_stale_audio() {
+        let _guard = crate::engine::runtime_state::runtime_test_guard();
+        let session_id = "pcm-cpu-replay-stall";
+        reset_finalized_meeting_sequence(session_id);
+        reset_finalized_incoming_utterance_producer(session_id, 16_000);
+        let handoff = Arc::new(
+            PcmHandoff::new(session_id, PcmLane::Incoming, 32, 16_000).unwrap(),
+        );
+        let (started_tx, started_rx) = mpsc::sync_channel::<()>(1);
+        let (release_tx, release_rx) = mpsc::sync_channel::<()>(1);
+        let mut worker = PcmCpuConsumer::start_with_hook(
+            Arc::clone(&handoff), 16_000, 6_400, move || {
+                started_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            },
+        ).unwrap();
+        started_rx.recv_timeout(Duration::from_secs(1)).expect("worker reached hook");
+        assert_eq!(
+            handoff.try_push(&[0.10; 6_400]),
+            super::super::pcm_handoff::PcmPush::Accepted(6_400),
+        );
+        assert_eq!(
+            worker.stop(Duration::from_millis(5)),
+            Err("pcm_consumer:stop_deadline_exceeded"),
+        );
+        assert!(handoff.metrics().stopped);
+        assert_eq!(
+            handoff.try_push(&[0.20]),
+            super::super::pcm_handoff::PcmPush::Dropped(
+                super::super::pcm_handoff::PcmDropReason::Stopped
+            ),
+        );
+        release_tx.send(()).expect("release controlled worker stall");
+        worker.stop(Duration::from_secs(1)).expect("reap revoked CPU worker");
+        assert_eq!(handoff.metrics().buffered_samples, 0);
+        assert!(try_take_finalized_incoming_utterance(session_id).is_none());
+        clear_finalized_incoming_utterance_producer();
+        clear_finalized_meeting_sequence();
     }
 }
