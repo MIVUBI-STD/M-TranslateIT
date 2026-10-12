@@ -165,10 +165,16 @@ def _run_english_text_stage() -> None:
 
 
 def install_headless_my_utils(source_root: Path) -> None:
+    import nltk
+
     source_root = source_root.resolve()
     gpt_sovits_root = source_root / "GPT_SoVITS"
     if not gpt_sovits_root.is_dir():
         raise RuntimeError("voice_lab:gpt_sovits_source_missing")
+
+    nltk_root = str(source_root / "nltk_data")
+    if nltk_root not in nltk.data.path:
+        nltk.data.path.insert(0, nltk_root)
 
     for path in (str(gpt_sovits_root), str(source_root)):
         if path not in sys.path:
