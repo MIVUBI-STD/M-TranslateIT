@@ -38,6 +38,25 @@ const workerEntrypointPath = join(workerRoot, "realtime_local_worker.py");
 const workerCommonPath = join(workerRoot, "worker_runtime_common.py");
 const workerPyprojectPath = join(workerRoot, "pyproject.toml");
 const defaultCapabilityPath = join(tauriRoot, "capabilities", "default.json");
+const overlayCapabilityPath = join(tauriRoot, "capabilities", "translation-overlay.json");
+
+export function validateWindowCapabilities(main, overlay) {
+  const issues = [];
+  for (const [capability, identifier, window, permissions] of [
+    [main, "default", "main", ["core:default", "core:window:allow-destroy", "core:window:allow-show", "core:window:allow-hide"]],
+    [overlay, "translation-overlay", "translation-overlay", ["core:default", "core:window:allow-set-size", "core:window:allow-set-position", "core:window:allow-start-dragging", "core:window:allow-set-ignore-cursor-events", "core:window:allow-hide"]],
+  ]) {
+    if (capability.identifier !== identifier) issues.push(`${identifier} capability identifier must be ${identifier}.`);
+    if (!Array.isArray(capability.windows) || capability.windows.length !== 1 || capability.windows[0] !== window) {
+      issues.push(`${identifier} capability must apply only to ${window}.`);
+    }
+    if (!Array.isArray(capability.permissions) || capability.permissions.length !== permissions.length
+      || !permissions.every((permission) => capability.permissions.includes(permission))) {
+      issues.push(`${identifier} capability must retain its exact least-privilege permissions.`);
+    }
+  }
+  return issues;
+}
 
 for (const path of [
   packageJsonPath,
@@ -56,6 +75,7 @@ for (const path of [
   workerCommonPath,
   workerPyprojectPath,
   defaultCapabilityPath,
+  overlayCapabilityPath,
 ]) requireFile(path);
 if (errors.length) {
   for (const error of errors) console.error(`[tauri-package-preflight] ${error}`);
@@ -66,6 +86,7 @@ const packageJson = readJson(packageJsonPath);
 const tauriConfig = readJson(tauriConfigPath);
 const releaseConfig = readJson(releaseConfigPath);
 const defaultCapability = readJson(defaultCapabilityPath);
+const overlayCapability = readJson(overlayCapabilityPath);
 const scripts = packageJson.scripts ?? {};
 
 for (const [name, command] of Object.entries(scripts)) {
@@ -92,8 +113,7 @@ if (releaseConfig.bundle?.createUpdaterArtifacts !== true) fail("R3 release over
 const mainWindow = tauriConfig.app?.windows?.find((window) => window.label === "main");
 if (!mainWindow) fail("Tauri config must declare the main window.");
 if (mainWindow && (mainWindow.width < 1280 || mainWindow.height < 760)) fail("Main window size is below the desktop UI contract.");
-if (defaultCapability.identifier !== "default") fail("Default capability identifier must be default.");
-if (!Array.isArray(defaultCapability.windows) || !defaultCapability.windows.includes("main")) fail("Default capability must apply to main.");
+errors.push(...validateWindowCapabilities(defaultCapability, overlayCapability));
 const overlayWindow = tauriConfig.app?.windows?.find((window) => window.label === "translation-overlay");
 if (!overlayWindow) fail("Tauri config must declare the translation-overlay window.");
 if (overlayWindow) {
@@ -102,17 +122,6 @@ if (overlayWindow) {
   if (overlayWindow.visible !== false) fail("Translation overlay must start hidden.");
   if (overlayWindow.decorations !== false) fail("Translation overlay must remain frameless.");
   if (overlayWindow.resizable !== false) fail("Translation overlay size must remain preference-controlled.");
-}
-if (!Array.isArray(defaultCapability.windows) || !defaultCapability.windows.includes("translation-overlay")) fail("Default capability must apply to translation-overlay.");
-if (!Array.isArray(defaultCapability.permissions) || !defaultCapability.permissions.includes("core:default")) fail("Default capability must include core:default.");
-for (const permission of [
-  "core:window:allow-destroy",
-  "core:window:allow-show",
-  "core:window:allow-hide",
-  "core:window:allow-set-size",
-  "core:window:allow-set-position",
-]) {
-  if (!defaultCapability.permissions.includes(permission)) fail(`Default capability missing overlay permission: ${permission}`);
 }
 
 const cargoToml = readText(cargoTomlPath);

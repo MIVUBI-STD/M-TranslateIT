@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { validateWindowCapabilities } from "../validate_tauri_package_preflight.mjs";
 
 function capability(name: string) {
   return JSON.parse(
@@ -44,4 +45,17 @@ test("capabilities do not overlap window ownership", () => {
   const overlay = capability("translation-overlay.json");
   assert.equal(main.windows.includes("translation-overlay"), false);
   assert.equal(overlay.windows.includes("main"), false);
+});
+
+test("package preflight accepts separated permissions and rejects broadened or incomplete capabilities", () => {
+  const main = capability("default.json");
+  const overlay = capability("translation-overlay.json");
+  assert.deepEqual(validateWindowCapabilities(main, overlay), []);
+  assert.ok(validateWindowCapabilities({ ...main, windows: ["main", "translation-overlay"] }, overlay).length > 0);
+  assert.ok(validateWindowCapabilities({ ...main, permissions: [...main.permissions, "core:window:allow-set-size"] }, overlay).length > 0);
+  assert.ok(validateWindowCapabilities(main, { ...overlay, windows: ["main"] }).length > 0);
+  for (const permission of overlay.permissions) {
+    assert.ok(validateWindowCapabilities(main, { ...overlay, permissions: overlay.permissions.filter((item) => item !== permission) }).length > 0);
+  }
+  assert.ok(validateWindowCapabilities(main, { ...overlay, permissions: [...overlay.permissions, "core:window:allow-destroy"] }).length > 0);
 });
