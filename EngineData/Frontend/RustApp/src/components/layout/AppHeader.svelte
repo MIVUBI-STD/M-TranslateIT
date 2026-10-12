@@ -54,7 +54,7 @@
     </div>
   </div>
 
-  <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite" title={notice}>{notice}</p>
+  <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite">{notice}</p>
 
   <ProductivityActions
     {snapshot}

@@ -31,3 +31,17 @@ test("export contains source and translated text and writes only to app-owned sa
   assert.match(exporter, /user_saved_dir/);
   assert.match(exporter, /join\("Transcripts"\)/);
 });
+
+test("export feedback remains local and avoids putting absolute file paths in header", () => {
+  const header = readFileSync(new URL("../../src/components/layout/AppHeader.svelte", import.meta.url), "utf8");
+  assert.doesNotMatch(ui, /onNotice\(result\.file_path/);
+  assert.match(ui, /onNotice\("Transcript exported\."\)/);
+  assert.match(ui, /Copy location/);
+  assert.match(ui, /navigator\.clipboard\.writeText\(receipt\.path\)/);
+  assert.doesNotMatch(header, /title=\{notice\}/);
+});
+test("partial transcript export shows an explicit warning", () => {
+  assert.match(ui, /status\?\.truncated && !receipt/);
+  assert.match(ui, /result\.truncated/);
+  assert.match(ui, /Earlier phrases were not retained/);
+});
