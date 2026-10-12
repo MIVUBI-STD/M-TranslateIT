@@ -1,4 +1,4 @@
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::MutexGuard;
 use std::time::Instant;
 
 use super::finalized_utterance::{
@@ -22,13 +22,8 @@ use crate::engine::runtime_state::{
     revoke_runtime_session_authority,
 };
 
-static AUDIO_CONTRACT_TEST_SERIAL: OnceLock<Mutex<()>> = OnceLock::new();
-
 fn audio_test_guard() -> MutexGuard<'static, ()> {
-    AUDIO_CONTRACT_TEST_SERIAL
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
+    crate::engine::runtime_state::runtime_test_guard()
 }
 
 fn clear_audio_contract_state() {

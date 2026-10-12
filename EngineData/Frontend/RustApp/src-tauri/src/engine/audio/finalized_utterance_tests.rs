@@ -5,6 +5,7 @@ use super::*;
 
 #[test]
 fn incoming_lane_segmentation_eviction_and_overflow_are_observable() {
+    let _serial = crate::engine::runtime_state::runtime_test_guard();
     // Scenario 1: three finalized utterances against the bounded pending
     // queue. The oldest must be evicted (observable counter) instead of
     // growing an unbounded realtime backlog.

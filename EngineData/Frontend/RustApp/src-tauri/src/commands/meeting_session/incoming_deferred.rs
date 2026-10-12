@@ -295,7 +295,7 @@ mod tests {
         assert!(deferred_incoming_queue().lock().unwrap().is_empty());
 
         enqueue_with_admission(job("sess", 1, "t", 1_000), false, |_| true);
-        let stale_before = DEFERRED_DROPPED_STALE.fetch_and(0, Ordering::Relaxed);
+        let stale_before = DEFERRED_DROPPED_STALE.load(Ordering::Relaxed);
         assert!(take_due_deferred_incoming("other-sess", 2_000).is_none());
         assert_eq!(
             DEFERRED_DROPPED_STALE.load(Ordering::Relaxed) - stale_before,

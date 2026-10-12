@@ -74,6 +74,7 @@ fn assert_parser_blocker(label: &str, bytes: &[u8], expected_blocker: &str) {
 
 #[test]
 fn stale_generation_is_rejected_before_file_or_device_access() {
+    let _serial = crate::engine::runtime_state::runtime_test_guard();
     let _ = clear_runtime_session_state();
     let report = deliver_meeting_output_wav(
         "definitely-missing-output.wav",
@@ -87,6 +88,7 @@ fn stale_generation_is_rejected_before_file_or_device_access() {
 
 #[test]
 fn malformed_wav_contracts_fail_before_device_access() {
+    let _serial = crate::engine::runtime_state::runtime_test_guard();
     assert_parser_blocker(
         "invalid-riff",
         b"not a wav",
@@ -162,6 +164,7 @@ fn malformed_wav_contracts_fail_before_device_access() {
 
 #[test]
 fn valid_pcm16_reaches_prepared_device_boundary_without_execution() {
+    let _serial = crate::engine::runtime_state::runtime_test_guard();
     let generation = authoritative_generation();
     let wav = pcm16_wav(16_000, 1, &[0, 8_000, -8_000, 0]);
     let path = write_fixture("valid-pcm16", &wav);

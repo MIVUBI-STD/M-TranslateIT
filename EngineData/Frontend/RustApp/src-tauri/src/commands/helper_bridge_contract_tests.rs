@@ -34,6 +34,7 @@ fn response_blocker(response: &HelperBridgeWorkerResponse) -> String {
 
 #[test]
 fn bridge_priority_and_stale_guards_follow_production_payload_contract() {
+    let _serial = crate::engine::runtime_state::runtime_test_guard();
     let _ = clear_runtime_session_state();
     reset_bridge_runtime();
 

@@ -411,10 +411,15 @@ fn current_unix_ms() -> u128 {
 }
 
 #[cfg(test)]
+pub(crate) fn runtime_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    // Every fixture touching shared session/audio state must use the same lock.
+    static TEST_SERIAL: Mutex<()> = Mutex::new(());
+    TEST_SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-
-    static TEST_SERIAL: Mutex<()> = Mutex::new(());
 
     fn reset_test_state() {
         let store = RUNTIME_SESSION_STATE.get_or_init(|| Mutex::new(None));
@@ -426,7 +431,7 @@ mod tests {
 
     #[test]
     fn competing_runtime_claims_never_overwrite_the_existing_owner() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let meeting = begin_application_meeting_session();
@@ -468,7 +473,7 @@ mod tests {
 
     #[test]
     fn duplicate_application_meeting_claim_preserves_generation_and_session() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let first = begin_application_meeting_session();
@@ -492,7 +497,7 @@ mod tests {
 
     #[test]
     fn stale_live_commit_does_not_promote_current_session() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let meeting = begin_application_meeting_session();
@@ -526,7 +531,7 @@ mod tests {
 
     #[test]
     fn revoke_invalidates_generation_before_cleanup() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let meeting = begin_application_meeting_session();
@@ -547,7 +552,7 @@ mod tests {
 
     #[test]
     fn stale_cleanup_generation_cannot_clear_a_newer_owner() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let meeting = begin_application_meeting_session();
@@ -580,7 +585,7 @@ mod tests {
 
     #[test]
     fn stale_revoke_cannot_cancel_a_newer_owner() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let meeting = begin_application_meeting_session();
@@ -611,7 +616,7 @@ mod tests {
 
     #[test]
     fn cleanup_incomplete_retains_owner_until_successful_retry_clear() {
-        let _serial = TEST_SERIAL.lock().expect("runtime-state test lock");
+        let _serial = runtime_test_guard();
         reset_test_state();
 
         let meeting = begin_application_meeting_session();
