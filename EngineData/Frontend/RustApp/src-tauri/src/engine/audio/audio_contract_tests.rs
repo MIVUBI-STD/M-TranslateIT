@@ -356,3 +356,43 @@ fn finalized_source_rate_transition_resets_old_preroll_and_resamples_to_target()
 
     clear_audio_contract_state();
 }
+
+#[test]
+fn stream_error_marker_resets_incoming_epoch_without_cross_session_replay() {
+    use super::finalized_utterance::{
+        bind_finalized_incoming_capture_errors, clear_finalized_incoming_utterance_producer,
+        clear_finalized_meeting_sequence, observe_finalized_incoming_f32_samples,
+        reset_finalized_incoming_utterance_producer, reset_finalized_meeting_sequence,
+        try_take_finalized_incoming_utterance,
+    };
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+    let _guard = audio_test_guard();
+    clear_audio_contract_state();
+    reset_finalized_meeting_sequence("stream-error-a");
+    reset_finalized_incoming_utterance_producer("stream-error-a", 16_000);
+    let epoch = Arc::new(AtomicU64::new(0));
+    assert!(bind_finalized_incoming_capture_errors("stream-error-a", Arc::clone(&epoch)));
+    observe_finalized_incoming_f32_samples(&speech_of(16_000, 400), 16_000, 1);
+    epoch.fetch_add(1, Ordering::Release);
+    observe_finalized_incoming_f32_samples(&silence_of(16_000, 400), 16_000, 1);
+    assert!(try_take_finalized_incoming_utterance("stream-error-a").is_none());
+    observe_finalized_incoming_f32_samples(&speech_of(16_000, 400), 16_000, 1);
+    observe_finalized_incoming_f32_samples(&silence_of(16_000, 400), 16_000, 1);
+    assert_eq!(
+        try_take_finalized_incoming_utterance("stream-error-a")
+            .expect("post-error speech").capture_provenance.unwrap().audio_epoch, 2,
+    );
+    // The new producer does NOT inherit the old stream's marker.
+    reset_finalized_meeting_sequence("stream-error-b");
+    reset_finalized_incoming_utterance_producer("stream-error-b", 16_000);
+    epoch.fetch_add(1, Ordering::Release);
+    observe_finalized_incoming_f32_samples(&speech_of(16_000, 400), 16_000, 1);
+    observe_finalized_incoming_f32_samples(&silence_of(16_000, 400), 16_000, 1);
+    assert_eq!(
+        try_take_finalized_incoming_utterance("stream-error-b")
+            .expect("new stream unaffected").capture_provenance.unwrap().audio_epoch, 1,
+    );
+    clear_finalized_incoming_utterance_producer();
+    clear_finalized_meeting_sequence();
+}

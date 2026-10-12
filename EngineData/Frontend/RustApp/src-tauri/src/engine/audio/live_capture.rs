@@ -8,7 +8,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::device_selection::resolve_unique_named_device;
 use super::finalized_utterance::{
-    clear_finalized_outbound_utterance_producer, observe_finalized_outbound_f32_samples,
+    bind_finalized_outbound_capture_errors, clear_finalized_outbound_utterance_producer,
+    observe_finalized_outbound_f32_samples,
     observe_finalized_outbound_mono_f32_samples, reset_finalized_outbound_utterance_producer,
 };
 use super::guided_take::append_guided_f32;
@@ -64,6 +65,7 @@ struct LiveCaptureRuntime {
     started_unix_ms: u128,
     frames_received: Arc<AtomicU64>,
     callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_error_epoch: Arc<AtomicU64>,
 }
 
 static LIVE_CAPTURE_RUNTIME: OnceLock<Mutex<Option<LiveCaptureRuntime>>> = OnceLock::new();
@@ -112,10 +114,12 @@ pub fn start_live_capture_runtime(
 
     let frames_received = Arc::new(AtomicU64::new(0));
     let callback_errors = Arc::new(Mutex::new(Vec::new()));
+    let callback_error_epoch = Arc::new(AtomicU64::new(0));
     let (ready_tx, ready_rx) = mpsc::sync_channel(1);
     let (stop_tx, stop_rx) = mpsc::channel();
     let thread_frames = Arc::clone(&frames_received);
     let thread_errors = Arc::clone(&callback_errors);
+    let thread_error_epoch = Arc::clone(&callback_error_epoch);
     let capture_session_id = session.session_id.clone();
     let capture_generation = session.generation;
     let finalized_outbound_enabled = session.owner_id == APPLICATION_MEETING_OWNER_ID;
@@ -123,6 +127,7 @@ pub fn start_live_capture_runtime(
         if let Err(error) = run_capture_thread(
             thread_frames,
             thread_errors,
+            thread_error_epoch,
             stop_rx,
             &ready_tx,
             capture_session_id,
@@ -165,6 +170,7 @@ pub fn start_live_capture_runtime(
         started_unix_ms: ready.started_unix_ms,
         frames_received,
         callback_errors,
+        callback_error_epoch,
     };
 
     *guard = Some(runtime);
@@ -324,6 +330,7 @@ fn build_stream_for_format(
     sample_format: cpal::SampleFormat,
     frames_received: Arc<AtomicU64>,
     callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_error_epoch: Arc<AtomicU64>,
     finalized_outbound_enabled: bool,
 ) -> Result<cpal::Stream, String> {
     let channels = config.channels;
@@ -333,6 +340,7 @@ fn build_stream_for_format(
         cpal::SampleFormat::F32 => {
             let frames = Arc::clone(&frames_received);
             let errors = Arc::clone(&callback_errors);
+            let error_epoch = Arc::clone(&callback_error_epoch);
             let mut mono_scratch = Vec::<f32>::new();
             device
                 .build_input_stream(
@@ -360,7 +368,10 @@ fn build_stream_for_format(
                         // take owns capture state.
                         append_guided_f32(data, sample_rate_hz, channels);
                     },
-                    move |error| push_callback_error(&errors, error),
+                    move |error| {
+                        error_epoch.fetch_add(1, Ordering::AcqRel);
+                        push_callback_error(&errors, error);
+                    },
                     None,
                 )
                 .map_err(|error| error.to_string())
@@ -368,6 +379,7 @@ fn build_stream_for_format(
         cpal::SampleFormat::I16 => {
             let frames = Arc::clone(&frames_received);
             let errors = Arc::clone(&callback_errors);
+            let error_epoch = Arc::clone(&callback_error_epoch);
             let mut mono_scratch = Vec::<f32>::new();
             device
                 .build_input_stream(
@@ -386,7 +398,10 @@ fn build_stream_for_format(
                         );
                         append_guided_f32(&mono_scratch, sample_rate_hz, 1);
                     },
-                    move |error| push_callback_error(&errors, error),
+                    move |error| {
+                        error_epoch.fetch_add(1, Ordering::AcqRel);
+                        push_callback_error(&errors, error);
+                    },
                     None,
                 )
                 .map_err(|error| error.to_string())
@@ -394,6 +409,7 @@ fn build_stream_for_format(
         cpal::SampleFormat::U16 => {
             let frames = Arc::clone(&frames_received);
             let errors = Arc::clone(&callback_errors);
+            let error_epoch = Arc::clone(&callback_error_epoch);
             let mut mono_scratch = Vec::<f32>::new();
             device
                 .build_input_stream(
@@ -409,7 +425,10 @@ fn build_stream_for_format(
                         );
                         append_guided_f32(&mono_scratch, sample_rate_hz, 1);
                     },
-                    move |error| push_callback_error(&errors, error),
+                    move |error| {
+                        error_epoch.fetch_add(1, Ordering::AcqRel);
+                        push_callback_error(&errors, error);
+                    },
                     None,
                 )
                 .map_err(|error| error.to_string())
@@ -449,6 +468,7 @@ fn select_input_device(host: &cpal::Host) -> Result<cpal::Device, String> {
 fn run_capture_thread(
     frames_received: Arc<AtomicU64>,
     callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_error_epoch: Arc<AtomicU64>,
     stop_rx: mpsc::Receiver<()>,
     ready_tx: &mpsc::SyncSender<Result<LiveCaptureReady, String>>,
     session_id: String,
@@ -469,6 +489,11 @@ fn run_capture_thread(
     reset_live_audio_buffer(sample_rate_hz, channels);
     if finalized_outbound_enabled {
         reset_finalized_outbound_utterance_producer(&session_id, generation, sample_rate_hz);
+        if !bind_finalized_outbound_capture_errors(
+            &session_id, generation, Arc::clone(&callback_error_epoch),
+        ) {
+            return Err("live_capture:discontinuity_binding_failed".to_string());
+        }
     } else {
         clear_finalized_outbound_utterance_producer();
     }
@@ -478,6 +503,7 @@ fn run_capture_thread(
         sample_format,
         frames_received,
         callback_errors,
+        callback_error_epoch,
         finalized_outbound_enabled,
     ) {
         Ok(stream) => stream,
@@ -516,7 +542,7 @@ fn record_frames(sample_count: usize, channels: u16, frames_received: &Arc<Atomi
 }
 
 fn push_callback_error(callback_errors: &Arc<Mutex<Vec<String>>>, error: cpal::StreamError) {
-    if let Ok(mut errors) = callback_errors.lock() {
+    if let Ok(mut errors) = callback_errors.try_lock() {
         errors.push(error.to_string());
         if errors.len() > 20 {
             errors.remove(0);
@@ -545,7 +571,8 @@ fn build_status_from_guard(runtime: Option<&LiveCaptureRuntime>) -> LiveCaptureS
                 started_unix_ms: Some(runtime.started_unix_ms),
                 active_age_ms: Some(active_age_ms),
                 frames_received: runtime.frames_received.load(Ordering::Relaxed),
-                callback_error_count: errors.len(),
+                callback_error_count: runtime.callback_error_epoch.load(Ordering::Acquire)
+                    .min(usize::MAX as u64) as usize,
                 latest_callback_error: errors.last().cloned(),
                 blocker: String::new(),
                 note: format!(

@@ -1,3 +1,13 @@
+## Active continuation — CPAL error-to-VAD source epoch (2026-10-13)
+
+**Source candidate:** Production microphone and optional Meeting Sound loopback each own an atomic CPAL callback-error counter, bound before stream start to the corresponding canonical VAD producer. Error callbacks increment without waiting for a VAD lock; diagnostic error strings use `try_lock` while the public error count derives from the atomic counter. The current VAD observation lock checks the stream marker before and after ingest and invalidates speech/pre-roll plus producer sample epoch on a known CPAL error, including a newly finalized phrase if an error races during ingest. Stale stream markers cannot cross session/lane/generation reset boundaries. Existing finalized ASR→MT→TTS, virtual mic output and test-only PCM handoff remain unchanged.
+
+**Proof ceiling:** Static Local source review and authored domain scenario only; Rust/Cargo, real Windows callbacks, CUDA/VRAM, VB-CABLE and receiver checks remain **NOT EXECUTED**. CPAL errors report unknown gaps, not the number/timing of missing samples. The pre-existing blocking VAD mutex is still used on capture callbacks; this change introduces no *additional* callback lock for discontinuity delivery.
+
+**Unresolved:** Physical capture error ordering, unreported device-frame loss, pre-existing VAD lock contention, and long/partial speech semantic commit.
+
+**Single next step:** Implement bounded semantic-boundary eligibility for anchored stable source observations; retain finalized production and run integrated native acceptance only when source is ready.
+
 ## Active continuation — Batch B.4 scoped capture gap-to-VAD epoch (2026-10-13)
 
 **Source candidate:** The existing producer's VAD gap-reset now checks the incoming source session ID and the outbound source session/generation before clearing speech/pre-roll and advancing capture epoch. A stale incoming PCM consumer or old suppression guard can no longer reset another session's VAD. The existing test-only PCM cursor invokes the same reset callback for both dropped PCM callbacks and poisoned ring state. Replay scenarios exercise incoming/outbound epoch transition after loss and the stale-incoming-worker boundary. A finalized post-gap utterance retains producer-owned epoch coordinates compatible with the existing test-only SourceScope. No extra audio engine, queue, model or user control; CPAL capture still runs through the finalized path.

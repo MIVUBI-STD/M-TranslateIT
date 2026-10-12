@@ -8,7 +8,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::device_selection::resolve_unique_named_device;
 use super::finalized_utterance::{
-    clear_finalized_incoming_utterance_producer, observe_finalized_incoming_f32_samples,
+    bind_finalized_incoming_capture_errors, clear_finalized_incoming_utterance_producer,
+    observe_finalized_incoming_f32_samples,
     observe_finalized_incoming_mono_f32_samples,
     observe_finalized_incoming_i16_samples, observe_finalized_incoming_i32_samples,
     observe_finalized_incoming_i64_samples, observe_finalized_incoming_u8_samples,
@@ -62,6 +63,7 @@ struct MeetingSoundCaptureRuntime {
     suppressed_frames: Arc<AtomicU64>,
     suppression: Arc<AtomicBool>,
     callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_error_epoch: Arc<AtomicU64>,
 }
 
 struct MeetingSoundReady {
@@ -120,6 +122,7 @@ pub fn start_meeting_sound_capture_runtime(
     let frames_received = Arc::new(AtomicU64::new(0));
     let suppressed_frames = Arc::new(AtomicU64::new(0));
     let callback_errors = Arc::new(Mutex::new(Vec::new()));
+    let callback_error_epoch = Arc::new(AtomicU64::new(0));
     let (ready_tx, ready_rx) = mpsc::sync_channel(1);
     let (stop_tx, stop_rx) = mpsc::channel();
 
@@ -129,6 +132,7 @@ pub fn start_meeting_sound_capture_runtime(
     let thread_suppression = Arc::clone(&suppression);
     let thread_virtual_playback_device = virtual_playback_device.to_string();
     let thread_errors = Arc::clone(&callback_errors);
+    let thread_error_epoch = Arc::clone(&callback_error_epoch);
     let capture_thread = thread::spawn(move || {
         if let Err(error) = run_capture_thread(
             &thread_session_id,
@@ -137,6 +141,7 @@ pub fn start_meeting_sound_capture_runtime(
             thread_suppressed,
             thread_suppression,
             thread_errors,
+            thread_error_epoch,
             stop_rx,
             &ready_tx,
         ) {
@@ -180,6 +185,7 @@ pub fn start_meeting_sound_capture_runtime(
         suppressed_frames,
         suppression,
         callback_errors,
+        callback_error_epoch,
     });
 
     MeetingSoundCaptureStartReport {
@@ -263,6 +269,7 @@ fn run_capture_thread(
     suppressed_frames: Arc<AtomicU64>,
     suppression: Arc<AtomicBool>,
     callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_error_epoch: Arc<AtomicU64>,
     stop_rx: mpsc::Receiver<()>,
     ready_tx: &mpsc::SyncSender<Result<MeetingSoundReady, String>>,
 ) -> Result<(), String> {
@@ -281,6 +288,9 @@ fn run_capture_thread(
     let channels = stream_config.channels;
 
     reset_finalized_incoming_utterance_producer(session_id, sample_rate_hz);
+    if !bind_finalized_incoming_capture_errors(session_id, Arc::clone(&callback_error_epoch)) {
+        return Err("meeting_sound:discontinuity_binding_failed".to_string());
+    }
     let stream = build_loopback_stream(
         &device,
         &stream_config,
@@ -289,6 +299,7 @@ fn run_capture_thread(
         suppressed_frames,
         suppression,
         callback_errors,
+        callback_error_epoch,
     )?;
     stream
         .play()
@@ -331,6 +342,7 @@ fn build_loopback_stream(
     suppressed_frames: Arc<AtomicU64>,
     suppression: Arc<AtomicBool>,
     callback_errors: Arc<Mutex<Vec<String>>>,
+    callback_error_epoch: Arc<AtomicU64>,
 ) -> Result<cpal::Stream, String> {
     let channels = config.channels;
     let sample_rate_hz = config.sample_rate.0;
@@ -341,6 +353,7 @@ fn build_loopback_stream(
             let suppressed = Arc::clone(&suppressed_frames);
             let suppression_flag = Arc::clone(&suppression);
             let errors = Arc::clone(&callback_errors);
+            let error_epoch = Arc::clone(&callback_error_epoch);
             device
                 .build_input_stream(
                     config,
@@ -356,7 +369,10 @@ fn build_loopback_stream(
                         }
                         $observe(data, sample_rate_hz, channels);
                     },
-                    move |error| push_callback_error(&errors, error),
+                    move |error| {
+                        error_epoch.fetch_add(1, Ordering::AcqRel);
+                        push_callback_error(&errors, error);
+                    },
                     None,
                 )
                 .map_err(|error| error.to_string())
@@ -369,6 +385,7 @@ fn build_loopback_stream(
             let suppressed = Arc::clone(&suppressed_frames);
             let suppression_flag = Arc::clone(&suppression);
             let errors = Arc::clone(&callback_errors);
+            let error_epoch = Arc::clone(&callback_error_epoch);
             let mut mono_scratch = Vec::<f32>::new();
             device
                 .build_input_stream(
@@ -387,7 +404,10 @@ fn build_loopback_stream(
                             observe_finalized_incoming_mono_f32_samples(&mono_scratch, sample_rate_hz);
                         }
                     },
-                    move |error| push_callback_error(&errors, error),
+                    move |error| {
+                        error_epoch.fetch_add(1, Ordering::AcqRel);
+                        push_callback_error(&errors, error);
+                    },
                     None,
                 )
                 .map_err(|error| error.to_string())
@@ -447,7 +467,8 @@ fn build_status_from_guard(runtime: Option<&MeetingSoundCaptureRuntime>) -> Meet
                 frames_received: runtime.frames_received.load(Ordering::Relaxed),
                 suppressed_frames: runtime.suppressed_frames.load(Ordering::Relaxed),
                 suppression_active: runtime.suppression.load(Ordering::Acquire),
-                callback_error_count: errors.len(),
+                callback_error_count: runtime.callback_error_epoch.load(Ordering::Acquire)
+                    .min(usize::MAX as u64) as usize,
                 latest_callback_error: errors.last().cloned(),
                 blocker: String::new(),
                 note: "Meeting Sound capture owns one Windows output-loopback stream for the current Meeting session. Actual device audio and suppression behavior require Windows runtime proof."
@@ -491,7 +512,7 @@ fn frame_count(sample_count: usize, channels: u16) -> u64 {
 }
 
 fn push_callback_error(callback_errors: &Arc<Mutex<Vec<String>>>, error: cpal::StreamError) {
-    if let Ok(mut errors) = callback_errors.lock() {
+    if let Ok(mut errors) = callback_errors.try_lock() {
         errors.push(error.to_string());
         if errors.len() > 20 {
             errors.remove(0);

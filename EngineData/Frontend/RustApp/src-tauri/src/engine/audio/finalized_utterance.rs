@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Condvar, Mutex, OnceLock};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::evidence::AudioEvidenceReport;
@@ -99,6 +99,8 @@ struct FinalizedProducerState {
     capture_epoch: u64,
     input_sample_cursor: u64,
     current_input_start: Option<u64>,
+    capture_error_signal: Option<Arc<AtomicU64>>,
+    observed_error_epoch: u64,
     profile: RuntimeVadProfile,
     pre_roll: VecDeque<f32>,
     in_utterance: bool,
@@ -254,6 +256,52 @@ pub fn reset_finalized_incoming_speech_boundary(session_id: &str) -> Option<u64>
     Some(state.capture_epoch)
 }
 
+// Bind a per-stream CPAL error epoch BEFORE stream.play. Stale stream signals
+// cannot reset the producer belonging to a newer session or generation.
+fn bind_capture_error_signal(
+    sync: &FinalizedProducerSync,
+    session_id: &str,
+    generation: Option<u64>,
+    lane: &str,
+    signal: Arc<AtomicU64>,
+) -> bool {
+    let Ok(mut guard) = sync.state.lock() else { return false };
+    let Some(state) = guard.as_mut() else { return false };
+    if state.session_id != session_id || state.generation != generation || state.lane != lane {
+        return false;
+    }
+    state.observed_error_epoch = signal.load(Ordering::Acquire);
+    state.capture_error_signal = Some(signal);
+    true
+}
+
+pub fn bind_finalized_outbound_capture_errors(
+    session_id: &str, generation: u64, signal: Arc<AtomicU64>,
+) -> bool {
+    runtime_generation_is_authoritative(generation)
+        && bind_capture_error_signal(outbound_sync(), session_id, Some(generation), LANE_YOU, signal)
+}
+
+pub fn bind_finalized_incoming_capture_errors(
+    session_id: &str, signal: Arc<AtomicU64>,
+) -> bool {
+    bind_capture_error_signal(incoming_sync(), session_id, None, LANE_INCOMING, signal)
+}
+
+// Invoked under the ALREADY-existing VAD producer mutex, never from the
+// CPAL error callback. A detected error means unknown PCM loss, not a known
+// number of missing samples.
+fn apply_capture_discontinuity(state: &mut FinalizedProducerState) -> bool {
+    let Some(signal) = state.capture_error_signal.as_ref() else { return false };
+    let current = signal.load(Ordering::Acquire);
+    if current == state.observed_error_epoch { return false; }
+    state.observed_error_epoch = current;
+    state.capture_epoch = state.capture_epoch.saturating_add(1);
+    state.input_sample_cursor = 0;
+    reset_current_utterance(state);
+    true
+}
+
 fn reset_producer(
     sync: &FinalizedProducerSync,
     session_id: &str,
@@ -286,6 +334,8 @@ fn reset_producer(
             capture_epoch: 1,
             input_sample_cursor: 0,
             current_input_start: None,
+            capture_error_signal: None,
+            observed_error_epoch: 0,
             profile,
             // Reserve normal working capacity before the audio callback starts so
             // ordinary speech does not repeatedly grow these buffers in realtime.
@@ -434,6 +484,7 @@ fn observe_finalized_mono_samples(
     let Some(state) = guard.as_mut() else {
         return;
     };
+    let _ = apply_capture_discontinuity(state);
     if state.sample_rate_hz != sample_rate_hz {
         state.sample_rate_hz = sample_rate_hz;
         state.capture_epoch = state.capture_epoch.saturating_add(1);
@@ -457,9 +508,13 @@ fn observe_finalized_mono_samples(
     let evidence = AudioEvidenceReport::from_samples(samples);
     let gate = evaluate_vad_gate(evidence.clone(), &state.profile.gate);
     let queued = ingest_observation(state, samples, &evidence, &gate);
-    if queued {
-        sync.ready.notify_one();
+    // Handle an error callback racing with the same VAD observation. Never
+    // publish an uncertain just-finalized phrase as continuous speech.
+    if apply_capture_discontinuity(state) {
+        if queued { let _ = state.pending.pop_back(); }
+        return;
     }
+    if queued { sync.ready.notify_one(); }
 }
 
 pub fn wait_take_finalized_outbound_utterance(
