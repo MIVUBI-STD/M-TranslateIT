@@ -11,7 +11,6 @@ const tauriRoot = join(appRoot, "src-tauri");
 const manifestPath = join(tauriRoot, "Cargo.toml");
 const targetPath = join(tauriRoot, "target");
 const frontendDistPath = join(appRoot, "dist", "index.html");
-const isWindows = process.platform === "win32";
 const cleanTarget = process.env.TRANSLATEIT_CLEAN_RUST_TARGET === "1";
 const expectedSha = String(process.env.TRANSLATEIT_EXPECTED_SHA ?? "").trim().toLowerCase();
 mkdirSync(reportDir, { recursive: true });
@@ -43,17 +42,11 @@ const fail = (message) => {
   process.exit(1);
 };
 
-const commandName = (command) => {
-  if (!isWindows) return command;
-  if (command === "npm") return "npm.cmd";
-  return command;
-};
-
 const quoteArgs = (args) => args.map((arg) => JSON.stringify(arg)).join(" ");
 
 const run = (label, command, args, options = {}) => {
   console.log(`${color.cyan}[local-tauri-compile] ${label}: ${command} ${quoteArgs(args)}${color.reset}`);
-  const result = spawnSync(commandName(command), args, {
+  const result = spawnSync(command, args, {
     cwd: appRoot,
     shell: false,
     stdio: "inherit",
@@ -66,7 +59,7 @@ const run = (label, command, args, options = {}) => {
 const runCaptured = (label, command, args) => {
   const header = `[local-tauri-compile] ${label}: ${command} ${quoteArgs(args)}`;
   console.log(`${color.cyan}${header}${color.reset}`);
-  const result = spawnSync(commandName(command), args, {
+  const result = spawnSync(command, args, {
     cwd: appRoot,
     shell: false,
     encoding: "utf8",
@@ -126,7 +119,11 @@ run("cargo version", "cargo", ["--version"]);
 
 // Never trust an old dist/index.html from a different source revision.
 console.log(`${color.cyan}[local-tauri-compile] Rebuilding frontend for the exact source SHA...${color.reset}`);
-run("frontend build", "npm", ["run", "build:frontend"]);
+// Launch npm's JavaScript entrypoint directly; Windows .cmd files cannot use shell:false.
+const npmCli = process.env.npm_execpath
+  ?? join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+if (!existsSync(npmCli)) fail("Cannot locate the npm CLI for the frontend build.");
+run("frontend build", process.execPath, [npmCli, "run", "build:frontend"]);
 if (!existsSync(frontendDistPath)) {
   fail("Frontend build returned success but did not produce dist/index.html.");
 }

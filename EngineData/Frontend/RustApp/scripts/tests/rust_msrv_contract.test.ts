@@ -56,7 +56,9 @@ test("integrated Cargo source check uses exact SHA, fresh frontend and locked de
   assert.match(compile, /gitResult\(\["rev-parse", "HEAD"\]\)/);
   assert.match(compile, /gitResult\(\["status", "--porcelain", "--untracked-files=no"\]\)/);
   assert.match(compile, /sourceSha !== expectedSha/);
-  assert.match(compile, /run\("frontend build", "npm", \["run", "build:frontend"\]\)/);
+  assert.match(compile, /run\("frontend build", process\.execPath, \[npmCli, "run", "build:frontend"\]\)/);
+  assert.match(compile, /process\.env\.npm_execpath/);
+  assert.doesNotMatch(compile, /npm\.cmd/);
   assert.doesNotMatch(compile, /if \(!existsSync\(frontendDistPath\)\)\s*\{[\s\S]*?run\("frontend build"/);
   assert.match(compile, /\["check", "--locked", `--manifest-path=\$\{manifestPath\}`\]/);
 });
