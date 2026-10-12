@@ -25,6 +25,8 @@ Use the latest completed matching verifier for the exact `Local` SHA and changed
 
 Do not preserve mutable “latest PASS” snapshots here. Historic GitHub Actions runs are not proof of the current `Local` commit.
 
+The Batch 2B.1 bounded PCM handoff is test-only on Local, with six unexecuted Rust tests and **no production capture activation**; it must not be described as reducing callback latency or improving browser audio until an exact-SHA compiler and device gate runs.
+
 ## Meeting Performance Foundation — source audit (2026-10-12)
 
 - Audited source baseline: `77f95bc65630a46c7f86d6a79667fc64b1ea1044` on `Local`.

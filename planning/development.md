@@ -1,3 +1,13 @@
+## Meeting V2 Batch 2B.1 — bounded PCM handoff prototype (2026-10-12)
+
+**New test-only Rust implementation:** `src-tauri/src/engine/audio/pcm_handoff.rs` is compiled via `#[cfg(test)]` and is **not the live capture path**. It implements an explicit per-generation, fixed-capacity mono-F32 ring created before capture; callback-side `try_push` uses `Mutex::try_lock` with zero waiting or per-chunk heap allocation, while CPU-side `PcmDrainCursor` drains chunks and sends a discontinuity signal to the caller when a buffer overflows or a callback cannot acquire the ring. No missing audio is silently bridged into one utterance. `stop()` invalidates the generation-bound queue and erases remaining samples. Numeric-only drop/epoch metrics are provided.
+
+**Actual behavior tests (six Rust unit cases, not static marker tests):** FIFO wrap-around, no silent overflow, lock contention, invalid float sanitization, CPU driver gap handling, and Stop's inability to replay stale audio. They have not been executed yet because the available environment has no Cargo or network clone. Existing production capture, VAD thresholds, GPU worker, WAV playback and settings are unchanged.
+
+**Important limitation:** this is a *prototype* rather than a hard real-time proof. `try_lock` fails promptly but still uses a mutex internally, and producer-side copying/downmixing still consumes CPU. A later integration must use the canonical session/generation owner, connect the CPU worker, record overflow in Meeting Diagnostics, keep a safe fallback, and pass replay/Windows proof before replacing the callback path. Other capture components currently use locks independently; no claim is made that the entire callback is nonblocking.
+
+**Next implementation step:** add a non-production CPU worker replay adapter that calls existing finalized-utterance functions and resets VAD on `Discontinuity`; then run source compilation/Rust tests, assess callback deadline and only after that switch capture through the handoff. Do not stage persistent playback or ASR streaming in the same patch.
+
 ## Meeting V2 Batch 2A.2 — VAD callback contention observation (2026-10-12)
 
 **Change:** the existing producer records callback lock-admission count and maximum wait in nanoseconds for You/incoming separately. Explicit support export includes four numeric aggregates only. It does not capture raw audio or transcript data and does not change the scheduler, output delivery, VAD thresholds or wait behavior. **It is not a fully nonblocking callback solution.** Observation overhead itself requires target-PC validation.

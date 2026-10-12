@@ -47,6 +47,9 @@
 - **Proof:** Rust/Python/TS unit source tests and full compiler checks in a matching environment; no target-latency claims.
 
 ### Batch 1 — Reliable capture and full-turn records
+
+**Batch 2B PCM proof addition (2026-10-12):** a CPU-only, test-gated fixed-capacity handoff is in source at `engine/audio/pcm_handoff.rs`. It has a bounded ring, `try_lock` callback admission, explicit dropped-frame/discontinuity counters, a CPU-drain cursor, and Stop cancellation with memory erase. It is **not yet wired to CPAL live capture** and does not improve observed latency until hardware proof. Next: offline worker integration replay, then guarded production handoff only after Rust compilation and test execution.
+
 - Replace blocking callback-side state manipulation with a bounded, preallocated capture handoff designed for audio thread deadlines. Track queue-full and OS callback errors; don't silently drop.
 - Carry monotonic capture time and sample offset through segmentation, ASR, translation and first-audio events. Distinguish onset estimate from observed audio frame boundaries.
 - Preserve stable source transcript on translation/TTS failure; UI shows failed translation without fabricating it.
