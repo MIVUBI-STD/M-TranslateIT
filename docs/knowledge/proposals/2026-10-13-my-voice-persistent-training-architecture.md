@@ -602,3 +602,51 @@ boundary with fake model and optimizer states; it is not training evidence.
 
 References: https://docs.pytorch.org/docs/stable/multiprocessing.html
 and https://docs.pytorch.org/docs/stable/notes/amp_examples.html.
+
+
+## Source implementation continuation — developer GPT Lightning worker restore probe
+
+The opt-in module \`EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_resume_gpt_probe.py\`
+implements a strict one-GPU diagnostic wrapper for the pinned GPT
+\`GPT_SoVITS/s1_train.py\`, entered only with the new reserved
+\`--translateit-dev-strict-gpt-probe <absolute-local-plan>\` stage flag.
+The ordinary stage executes \`run_stage\` without this flag and is unchanged.
+The developer plan fixes recovery/dataset/run identities, source root,
+checkpoint SHA-256, GPT config SHA-256, saved epoch/global step and a
+local output directory. \`_engine_source\` checks exact pinned trainer Git blobs.
+
+Only in the explicit probe process, \`pytorch_lightning.Trainer\` is wrapped
+before the pinned \`s1_train.py\` module imports its Trainer alias. A missing
+\`ckpt_path\`, wrong file/config hash or uninspectable full checkpoint exits the
+diagnostic worker; no fallback to a fresh pretrained GPT run is accepted.
+\`torch.load(..., weights_only=True)\` performs developer-selected,
+trusted-checkpoint preflight. On Lightning's actual \`on_train_start\`, a
+callback compares the active model, optimizer and scheduler state to the saved
+checkpoint, verifies restored epoch and global step, and emits the
+\`checkpoint_loaded\` diagnostic event. For a first training-step event, the
+probe wraps the real optimizer \`step()\` and requires an increase in the
+Lightning \`global_step\` at \`on_train_batch_end\`: neither epoch entry nor
+an AMP-skipped optimizer call is sufficient. The probe is deliberately
+restricted to a single CUDA device to avoid unobserved distributed ranks.
+Nonmatching Lightning APIs, unsupported state serialization or DDP
+subprocess changes must **fail closed**, not produce a verified result.
+
+GPT and SoVITS diagnostic traces currently remain **separate**: their local
+sequence numbers are not a combined, independently attested cross-process
+timeline. No event log can by itself prove the origin of a spawned worker,
+and none authorizes the Resume UI. The existing strict acknowledgment
+protocol still reports \`worker_provenance_verified=false\`,
+\`trainer_load_verified=false\` and \`resume_available=false\`. SoVITS
+upstream does not persist the full AMP GradScaler state and reconstructs
+scheduler state; exact state/precision continuity remains an unresolved
+blocker independent of GPT callbacks. A real native Windows proof must
+demonstrate that both pinned trainers resume optimizer state under the exact
+same frozen dataset and that no implicit fallback occurs before enabling a
+real Resume action.
+
+**Proof ceiling:** GitHub source review and pure fake-Trainer regression
+fixtures only. No imported PyTorch Lightning runtime, Svelte, Windows spawn,
+GPU first optimization step, target installation, file backup restoration or
+real voice listening tests have executed for this source revision. Both
+existing VoiceVersion and safe \`Improve My Voice\` rebuilt-dataset flows
+remain independent from this developer instrumentation.

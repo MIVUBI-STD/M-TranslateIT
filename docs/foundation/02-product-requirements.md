@@ -456,6 +456,17 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Route ordinary My Voice creation or Improve My Voice through this probe. An explicit \`--translateit-dev-strict-sovits-probe <plan>\` flag is mandatory and disabled on all ordinary production command paths. Do not modify the pinned GPT-SoVITS source or models, auto-resume any checkpoint, change the selected Meeting voice, or expose the end-user Resume action.
 
+### PR-127 — Developer-only GPT Lightning worker restore probe
+**MUST:** GPT resume diagnostics may instrument the pinned \`GPT_SoVITS/s1_train.py\` only behind a separately named, explicit developer CLI flag. Ordinary \`Create My Voice\`, \`Improve My Voice\`, inference, and Meeting must not invoke this probe or change the pretrained engine.
+
+**MUST:** Before calling Lightning \`Trainer.fit\`, require a matching explicit full checkpoint, SHA-256, training config SHA-256, frozen dataset/recovery/run identities, expected epoch and global step. A missing checkpoint must hard-fail the developer probe rather than silently trigger fresh training. Verify the exact pinned GPT-SoVITS trainer source before installing any probe code.
+
+**MUST:** Observe the real Lightning training lifecycle after restoration; compare the active model, optimizer and scheduler states to the full checkpoint in a bounded, strict way, verify restored epoch and global step, then emit an initial checkpoint-load diagnostic event. Emit a separate first-training-step event only after an actual optimizer step followed by an increment of Lightning's \`global_step\`. A skipped AMP optimizer step, a failure to restore state, mismatched scheduler, or a completed run without verified progress cannot be acknowledged as resume success.
+
+**MUST:** Keep developer event logs diagnostic and explicitly untrusted as standalone evidence. Even when both GPT and SoVITS traces are syntactically complete, the existing strict acknowledgment validator must retain \`worker_provenance_verified=false\`, \`trainer_load_verified=false\`, and \`resume_available=false\` until cross-process provenance, AMP/scheduler continuity and target-Windows GPU execution have been demonstrated.
+
+**MUST NOT:** Introduce a second TTS engine or replacement model, patch upstream GPT-SoVITS files on disk, automatically select a different personal voice, delete training checkpoints, use unsafe checkpoint deserialization as a fallback, or expose an active end-user Resume button.
+
 ## 13. UI
 
 ### PR-160 — Navigation
