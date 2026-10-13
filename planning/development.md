@@ -1,3 +1,13 @@
+## Active continuation — Preserve active Meeting turns if Stop archive fails (2026-10-13)
+
+**Confirmed source defect:** `stop_meeting_translation_impl` first calls `retain_committed_turns_for_export`, but previously always called `clear_committed_turns_for_session` even if retention failed. The Stop correctly reported `cleanup_incomplete` yet could destroy the only available unexported transcript before the user retried Stop.
+
+**Bounded repair:** In the existing Meeting lifecycle owner, active-transcript cleanup is now conditional on successful last-session retention. When archive retention fails, the revoked session remains in cleanup-incomplete state and its active turns remain available for a later retry; other capture, worker, playback and temporary audio cleanup continue normally. A small closure-based guard is used by the actual Stop path and tested with a deterministic failing-archive fixture, without changing global transcript test state. No new store, provider, manager, background persistence or UI.
+
+**Source/REA evidence:** Exact `Local` call-chain inspection through `lifecycle.rs` and the existing `committed_turns.rs` lock-failure contract. Regression test authored only. `STATIC_SOURCE` verified; Rust compiler/tests, actual lock failure/retry, REA CLI/MCP, Windows/GPU/audio, receiver and export UI **NOT EXECUTED**.
+
+**Next:** Review source admission of cleanup retries and recoverability of other Meeting resources. Stop source changes when no independent concrete defect is shown; preserve a single integrated local acceptance phase for runtime proof.
+
 ## Active continuation — Idempotent Stop preserves last Meeting transcript (2026-10-13)
 
 **Confirmed source defect:** The normal Stop retains the last-ended Meeting transcript for manual export, but the no-session/idempotent Stop path called `clear_all_committed_turns()`, which erased both active turns and `LAST_ENDED_MEETING_TRANSCRIPT`. A second Stop therefore silently deleted the only available unexported recent transcript. `transcript_export.rs` explicitly expects active **or recently ended** Meeting records.

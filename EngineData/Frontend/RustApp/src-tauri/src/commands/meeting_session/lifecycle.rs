@@ -143,6 +143,15 @@ fn rollback_starting_meeting_resources(
     )
 }
 
+// Preserve the only recoverable active transcript when its last-session
+// archive could not be written. The retry Stop must see the original turns.
+fn clear_transcript_only_after_retention(
+    retention_succeeded: bool,
+    clear_active: impl FnOnce() -> bool,
+) -> bool {
+    retention_succeeded && clear_active()
+}
+
 fn rollback_completion_state() -> &'static str {
     if transient_stop_cleanup_pending() { "cleanup_incomplete" } else { "rolled_back" }
 }
@@ -150,6 +159,25 @@ fn rollback_completion_state() -> &'static str {
 #[cfg(test)]
 mod rollback_cleanup_contract_tests {
     use super::starting_rollback_cleanup_complete;
+
+    #[test]
+    fn failed_transcript_archive_must_not_clear_active_turns() {
+        use super::clear_transcript_only_after_retention;
+
+        let mut cleared = false;
+        assert!(!clear_transcript_only_after_retention(false, || {
+            cleared = true;
+            true
+        }));
+        assert!(!cleared, "failed archive must preserve active turns for Stop retry");
+
+        assert!(clear_transcript_only_after_retention(true, || {
+            cleared = true;
+            true
+        }));
+        assert!(cleared);
+        assert!(!clear_transcript_only_after_retention(true, || false));
+    }
 
     #[test]
     fn failed_start_cannot_treat_any_required_cleanup_as_complete() {
@@ -594,7 +622,10 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
 
     let suppression_cleanup_ok = clear_self_output_suppression_for_session(&session_id);
     clear_finalized_meeting_sequence();
-    let transcript_cleanup_ok = clear_committed_turns_for_session(&session_id);
+    let transcript_cleanup_ok = clear_transcript_only_after_retention(
+        transcript_retained_for_export,
+        || clear_committed_turns_for_session(&session_id),
+    );
     let finalized_audio_cleanup = cleanup_finalized_meeting_session_wavs(&session_id);
     let tts_cache_cleanup = cleanup_meeting_tts_for_session(&session_id, generation);
     let transient_audio_cleanup_ok =
