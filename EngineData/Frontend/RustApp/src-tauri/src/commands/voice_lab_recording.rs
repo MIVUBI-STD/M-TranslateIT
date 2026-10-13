@@ -22,6 +22,7 @@ mod guided_lines;
 mod storage_transaction;
 
 use guided_lines::{guided_lines, prompt_metadata};
+pub(crate) use guided_lines::RecordingSuggestion;
 use storage_transaction::{accept_review_take_with_native_rate, discard_review_take};
 
 const MAX_REPLAY_WAV_BYTES: u64 = 8 * 1024 * 1024;
@@ -161,6 +162,13 @@ pub(crate) fn guided_training_prompts() -> &'static [(u32, &'static str)] {
 
 pub(crate) fn guided_training_coverage(line_id: u32) -> Option<&'static str> {
     guided_lines::coverage_for_id(line_id)
+}
+
+pub(crate) fn guided_recording_recommendations(
+    accepted_line_ids: &[u32],
+    required_coverage: Option<&str>,
+) -> Vec<RecordingSuggestion> {
+    guided_lines::recommend_lines(accepted_line_ids, required_coverage, 3)
 }
 
 pub(crate) fn accepted_guided_recordings() -> Vec<AcceptedGuidedRecording> {

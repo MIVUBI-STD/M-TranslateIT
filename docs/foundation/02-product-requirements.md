@@ -400,6 +400,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST:** Suggest missing training categories using semantic metadata, not numeric legacy ranges, and preserve the legacy five-group eligibility behavior for all existing guided IDs. Do not conflate the size of a prompt library with acoustic, phoneme, or voice-model quality guarantees. Optional pronunciation review must not replace application-authored transcript text.
 
+### PR-121 — Advisory sound-pattern recording guidance
+**MUST:** Recommend optional English training lines based on documented, deterministic *text-derived* sound-pattern coverage from the immutable authored prompt corpus and the exact set of accepted guided line IDs. Recommendations may prioritize unrepresented training coverage groups, estimated pronunciation symbols, selected within-word sound transitions, varied sentence focus and beginner-readable prompts. Neither suggestions nor estimated phone/transition coverage may become a new training eligibility gate.
+
+**MUST:** Bind generated pronunciation metadata to exact prompt text and ID. A missing, mismatched or stale inventory must fail closed to no phonetic recommendation, not falsely claim that a line adds acoustic variation. Keep the existing five coverage requirements, one-minute minimum, reference duration and current 128-take per-build limit unchanged.
+
+**MUST:** Explain suggestions as *estimated from written English* rather than verified pronunciation, a percentage of model quality, a required number of recordings or a judgment of non-US accents. Dictionary-unknown words are uncertain, not incorrect speech. Users may ignore suggestions, choose another line, or stop recording without losing accepted takes.
+
+**MUST NOT:** Run a new ASR, G2P or voice model automatically on every UI status refresh; upload raw audio or transcripts for recommendations; install a second TTS engine; overwrite existing exact guided texts. Generate compact metadata in developer tooling from a reviewed pronunciation source; do not bundle an unrelated cloud API or runtime dictionary merely to display suggestions.
+
 ## 13. UI
 
 ### PR-160 — Navigation

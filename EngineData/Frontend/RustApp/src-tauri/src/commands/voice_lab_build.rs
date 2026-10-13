@@ -28,7 +28,8 @@ use super::voice_lab::{
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::{
-    accepted_guided_recordings, guided_training_prompts, guided_training_coverage, voice_lab_recording_active,
+    accepted_guided_recordings, guided_training_prompts, guided_training_coverage,
+    guided_recording_recommendations, RecordingSuggestion, voice_lab_recording_active,
 };
 
 mod evaluation;
@@ -123,6 +124,7 @@ pub struct VoiceLabBuildStatus {
     pub accepted_duration_ms: u64,
     pub minimum_duration_ms: u64,
     pub missing_coverage: Option<VoiceLabCoverageGuidance>,
+    pub recording_suggestions: Vec<RecordingSuggestion>,
     pub can_build: bool,
     pub evaluation_ready: bool,
     pub evaluation_review_id: Option<String>,
@@ -321,6 +323,11 @@ fn current_status() -> VoiceLabBuildStatus {
     let recording_active = voice_lab_recording_active();
     let (takes, duration_ms, reference_take_ready) = accepted_contract();
     let missing_coverage = missing_training_coverage_group(&takes);
+    let accepted_ids: Vec<u32> = takes.iter().map(|take| take.line_id).collect();
+    // Advisory written-English patterns. This never gates training or edits WAVs.
+    let recording_suggestions = guided_recording_recommendations(
+        &accepted_ids, missing_coverage.map(|group| group.coverage),
+    );
     let evaluation = reviewable_evaluation(&paths);
     let preview_active = super::voice_lab_preview::quick_voice_preview_active();
     let child = if preview_active { None } else { child_status(&paths) };
@@ -399,6 +406,7 @@ fn current_status() -> VoiceLabBuildStatus {
                 suggested_line_id,
             }
         }),
+        recording_suggestions,
         can_build: !snapshot.active
             && !recording_active
             && takes.len() <= MAX_TRAINING_TAKES

@@ -34,6 +34,7 @@
     accepted_duration_ms: 0,
     minimum_duration_ms: 60_000,
     missing_coverage: null,
+    recording_suggestions: [],
     can_build: false,
     evaluation_ready: false,
     evaluation_review_id: null,

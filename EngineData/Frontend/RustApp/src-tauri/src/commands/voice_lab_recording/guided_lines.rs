@@ -138,6 +138,12 @@ mod short;
 mod natural;
 #[path = "guided_corpus_detailed.rs"]
 mod detailed;
+#[path = "guided_phonetic_inventory.rs"]
+mod phonetic_inventory;
+#[path = "guided_phonetic_guidance.rs"]
+mod phonetic_guidance;
+pub(super) use phonetic_guidance::recommend_lines;
+pub(crate) use phonetic_guidance::RecordingSuggestion;
 
 use std::sync::OnceLock;
 

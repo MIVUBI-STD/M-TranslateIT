@@ -995,15 +995,31 @@
               <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]">{buildSnapshot.accepted_take_count} accepted recordings</p>
               {#if buildSnapshot.missing_coverage && buildSnapshot.accepted_duration_ms >= buildSnapshot.minimum_duration_ms}
                 <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">Next: Add a sentence covering {buildSnapshot.missing_coverage.label}.</p>
-                {#if buildSnapshot.missing_coverage.suggested_line_id !== null}
-                  <button type="button" class="mt-2 text-left text-xs font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
-                    disabled={busy || recordingStatusUnknown || isRecording || pendingLineId !== null}
-                    onclick={() => void chooseBrowseLine(buildSnapshot!.missing_coverage!.suggested_line_id!)}>
-                    Try suggested line {buildSnapshot.missing_coverage.suggested_line_id}
-                  </button>
-                {/if}
+
               {:else if !buildSnapshot.can_build}
                 <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">{buildSnapshot.message}</p>
+              {/if}
+              {#if buildSnapshot.recording_suggestions?.length > 0 && !buildSnapshot.active && !isRecording && pendingLineId === null}
+                <div class="mt-4" aria-label="Optional recording suggestions">
+                  <p class="mb-1 text-xs font-semibold">Suggested next lines</p>
+                  <p class="mb-2 text-xs leading-5 text-[var(--ti-text-muted)]">
+                    Optional examples of different English sound patterns. These are text-based estimates, not ratings of your pronunciation or voice quality.
+                  </p>
+                  <div class="space-y-2">
+                    {#each buildSnapshot.recording_suggestions as suggestion (suggestion.line_id)}
+                      {@const suggestedLine = recordingState.lines.find((line) => line.line_id === suggestion.line_id)}
+                      {#if suggestedLine}
+                        <button type="button"
+                          class="w-full rounded-[var(--ti-radius-sm)] border border-[var(--ti-border)] px-3 py-2 text-left hover:bg-[var(--ti-surface-soft)]"
+                          disabled={busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null}
+                          onclick={() => void chooseBrowseLine(suggestion.line_id)}>
+                          <span class="block text-xs font-semibold">Line {suggestion.line_id} · {suggestedLine.text}</span>
+                          <span class="mt-1 block text-xs text-[var(--ti-text-muted)]">{suggestion.reason}</span>
+                        </button>
+                      {/if}
+                    {/each}
+                  </div>
+                </div>
               {/if}
               {#if buildSnapshot.can_build && !buildSnapshot.active && !isRecording && pendingLineId === null}
                 <button type="button" class="ti-button mt-4 w-full" disabled={voiceChangesLocked || buildStatusUnavailable || recordingStatusUnknown} onclick={() => { selectedPane = "create"; }}>Continue to Create</button>

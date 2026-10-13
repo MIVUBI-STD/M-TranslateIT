@@ -320,3 +320,46 @@ distribution, listening similarity and training performance remain
 **NOT EXECUTED**. Reference context:
 https://commonvoice.mozilla.org/en/guidelines and
 https://psi.engr.tamu.edu/l2-arctic-corpus/.
+
+
+## Source implementation continuation — optional phonetic-aware guidance
+
+The Rust My Voice guided catalog has an additional static text-derived
+pronunciation inventory. A developer-only standard-library Python script
+\`tools/generate_my_voice_phonetics.py\` takes an explicitly supplied,
+offline CMUdict dictionary file and regenerates the 600-entry inventory
+without installing a package or accessing the network. The pinned upstream
+CMUdict Git blob is
+\`2c0411740cce3e2026a80b90b650d5f6a7258164\`. Source:
+https://github.com/cmusphinx/cmudict.
+CMUdict is Copyright (C) 1993–2015 Carnegie Mellon University; attribution
+and redistribution terms: https://github.com/cmusphinx/cmudict/blob/master/LICENSE.
+No dictionary text is copied into TranslateIT's shipped product; generated
+per-line bitsets hold an FNV64 text fingerprint, a 39-symbol unstressed
+ARPABET presence mask, 64 selected within-word symbol-pair bits, and the
+known-word fraction. The GitHub-reviewed generation pass recognized ~99.81%
+of tokens among the 600 English sentences with that US-English dictionary.
+This is NOT measured pronunciation accuracy, accent conformity, intelligibility
+or quality of any generated voice. Homographs, speaker accents, rhythm and
+expressive intonation cannot be inferred reliably from these bitsets.
+
+The low-cost deterministic Rust recommender computes masks over already
+accepted line IDs, ranks unused guided prompts by new text-estimated sound
+patterns, and can prioritize a missing legacy-compatible speech category.
+It intentionally never modifies take status, training datasets, minimum
+requirements, voice versions or Meeting voice selection. Results are capped
+at three suggestions; the Svelte UI presents the prompt and reason in the
+existing recording progress area without a separate runtime worker or
+additional status-polling owner. Previously accepted recordings remain
+immutable. A fingerprint mismatch disables phonetic suggestions rather than
+silently attaching the wrong annotation to edited prompt text.
+
+Upstream GPT-SoVITS English G2P/CMUdict references:
+https://huggingface.co/spaces/lj1995/GPT-SoVITS-ProPlus/blob/main/text/english.py .
+No engine, model weights, inference behavior or training epochs are changed.
+Actual English phone coverage is not fully measured: only the 39
+unstressed dictionary phoneme symbols and a fixed subset of 64 within-word
+transitions were tracked, not all diphones, contextual prosody or a speaker's
+real acoustic production. Full human review remains a separate acceptance
+gate. The previous source-only proof limit still applies: Cargo/Svelte/Node,
+Windows mic, training quality and native crash recovery NOT EXECUTED.
