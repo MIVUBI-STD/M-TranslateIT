@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Check, ChevronRight, Circle, Mic, Play, RotateCcw, SkipForward, Square } from "@lucide/svelte";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import {
     myVoiceApi,
     type GuidedRecordingActionResult,
@@ -49,6 +49,11 @@
   let buildStatusUnavailable = $state(false);
   let selectedPane = $state<"auto" | "record" | "create">("auto");
   let browseLinesOpen = $state(false);
+  // Focus targets are used only after explicit recording or line-selection actions.
+  // Polling and background status reconciliation never move keyboard focus.
+  let lineHeading: HTMLHeadingElement | undefined;
+  let recordActionButton: HTMLButtonElement | undefined;
+  let reviewReplayButton: HTMLButtonElement | undefined;
 
   const lineGroups = [
     { start: 1, end: 24, label: "Conversation" },
@@ -382,7 +387,14 @@
     if (busy || recordingState.recording_line_id === null) return;
     busy = true;
     try {
-      applyResult(await myVoiceApi.stopTake(recordingState.recording_line_id));
+      const result = await myVoiceApi.stopTake(recordingState.recording_line_id);
+      applyResult(result);
+      if (result.recording?.pending_review && result.state === "needs_review") {
+        // Stop is replaced by Replay; give keyboard users a stable next action.
+        busy = false;
+        await tick();
+        if (!disposed) reviewReplayButton?.focus();
+      }
     } catch {
       if (!disposed) {
         onNotice("Couldn't confirm whether recording stopped. Check the recording status.");
@@ -398,7 +410,13 @@
     stopReplay();
     busy = true;
     try {
-      applyResult(await myVoiceApi.retryTake(pendingLineId));
+      const result = await myVoiceApi.retryTake(pendingLineId);
+      applyResult(result);
+      if (result.ok && result.recording && !result.recording.pending_review) {
+        busy = false;
+        await tick();
+        if (!disposed) recordActionButton?.focus();
+      }
     } catch {
       if (!disposed) onNotice("Couldn't retry this recording. Try again.");
     } finally {
@@ -414,9 +432,14 @@
       const result = await myVoiceApi.acceptTake(pendingLineId);
       applyResult(result);
       if (result.ok && result.recording) {
-        selectedPane = "auto";
+        // Keep the recording workspace stable after an explicit Accept.
+        // The backend may already permit Create; the user controls that transition.
+        selectedPane = "record";
         buildRefreshRevision += 1;
         selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
+        busy = false;
+        await tick();
+        if (!disposed) recordActionButton?.focus();
       }
     } catch {
       if (!disposed) onNotice("Couldn't confirm that this recording was saved. Check your recordings before trying again.");
@@ -425,7 +448,7 @@
     }
   }
 
-  function skipLine(): void {
+  async function skipLine(): Promise<void> {
     if (busy || recordingStatusUnknown || replaying || isRecording || recordingState.pending_review !== null || selectedLineId === null) return;
 
     const currentIndex = recordingState.lines.findIndex((line) => line.line_id === selectedLineId);
@@ -440,6 +463,17 @@
 
     selectedLineId = nextLine.line_id;
     onNotice("Skipped this line. You can come back to it anytime.");
+    await tick();
+    if (!disposed) lineHeading?.focus();
+  }
+
+  async function chooseBrowseLine(lineId: number): Promise<void> {
+    if (busy || recordingStatusUnknown || replaying || isRecording || recordingState.pending_review !== null) return;
+    selectedLineId = lineId;
+    browseLinesOpen = false;
+    // The selected row disappears when the disclosure closes.
+    await tick();
+    if (!disposed) lineHeading?.focus();
   }
 
   function stopReplay(): void {
@@ -577,7 +611,7 @@
           {#if currentLine}
             <div class="mt-5 rounded-[var(--ti-radius-lg)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] p-5 sm:p-6">
               <div class="flex items-center justify-between gap-3">
-                <span class="ti-field-label">Line {currentLine.line_id}</span>
+                <h5 class="ti-field-label m-0" tabindex="-1" bind:this={lineHeading} aria-live="polite">Line {currentLine.line_id}</h5>
                 {#if currentLine.accepted}
                   <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--ti-success)]"><Check size={14} />Saved</span>
                 {/if}
@@ -608,7 +642,7 @@
                 </button>
                 <span role="status" class="flex items-center gap-2 text-sm text-[var(--ti-danger)]"><span class="size-2 animate-pulse rounded-full bg-current"></span>Recording</span>
               {:else if recordingState.pending_review && pendingLineId === currentLine.line_id}
-                <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
+                <button type="button" class="ti-button ti-button-secondary" bind:this={reviewReplayButton} disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
                   <Play size={15} /><span>{replaying ? "Playing..." : "Replay"}</span>
                 </button>
                 <button type="button" class={recordingState.pending_review.quality_blocker ? "ti-button" : "ti-button ti-button-secondary"} disabled={busy || recordingStatusUnknown} onclick={() => void retryTake()}>
@@ -620,10 +654,10 @@
                   </button>
                 {/if}
               {:else}
-                <button type="button" class="ti-button" disabled={busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
+                <button type="button" class="ti-button" bind:this={recordActionButton} disabled={busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
                   <Mic size={15} /><span>{currentLine.accepted ? "Record again" : "Record"}</span>
                 </button>
-                <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={skipLine}>
+                <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void skipLine()}>
                   <SkipForward size={15} /><span>Skip</span>
                 </button>
                 {#if currentLine.accepted}
@@ -678,7 +712,8 @@
                         class={selectedLineId === line.line_id ? "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] bg-[var(--ti-surface-raised)] px-2 py-2 text-left text-sm" : "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] px-2 py-2 text-left text-sm text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
                         disabled={isRecording || recordingStatusUnknown || recordingState.pending_review !== null}
                         aria-pressed={selectedLineId === line.line_id}
-                        onclick={() => { selectedLineId = line.line_id; browseLinesOpen = false; }}
+                        aria-label={`Line ${line.line_id}, ${line.accepted ? "saved" : "not recorded"}`}
+                        onclick={() => void chooseBrowseLine(line.line_id)}
                       >
                         {#if line.accepted}
                           <Check size={14} class="shrink-0 text-[var(--ti-success)]" />

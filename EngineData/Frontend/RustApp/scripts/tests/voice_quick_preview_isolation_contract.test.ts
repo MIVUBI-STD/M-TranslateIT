@@ -72,6 +72,22 @@ test("My Voice UI has one collapsible voice selector and a stage-aware recording
   assert.match(recordingUi, /buildSnapshot\.minimum_duration_ms/);
 });
 
+test("keyboard focus follows explicit recording and Browse lines actions, not background polling", () => {
+  const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  assert.match(page, /import \{ onMount, tick \} from "svelte"/);
+  assert.match(page, /bind:this=\{lineHeading\}/);
+  assert.match(page, /bind:this=\{reviewReplayButton\}/);
+  assert.match(page, /bind:this=\{recordActionButton\}/);
+  assert.match(page, /async function chooseBrowseLine\(lineId: number\)/);
+  assert.match(page, /browseLinesOpen = false;[\s\S]*?await tick\(\);[\s\S]*?lineHeading\?\.focus\(\)/);
+  assert.match(page, /aria-label=\{`Line \$\{line\.line_id\}, \$\{line\.accepted/);
+  assert.match(page, /result\.state === "needs_review"[\s\S]*?reviewReplayButton\?\.focus\(\)/);
+  assert.match(page, /selectedPane = "record";[\s\S]*?recordActionButton\?\.focus\(\)/);
+  const status = page.slice(page.indexOf("function applyState("), page.indexOf("async function checkMicrophone()"));
+  assert.doesNotMatch(status, /\.focus\(/);
+  assert.match(page, /xl:grid-cols-\[minmax\(0,1fr\)_280px\]/);
+});
+
 test("native Stop and Retry remain visible when recording and creation status disagree", () => {
   const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
   assert.match(page, /showRecordPanel = \$derived\(activeStage === "record" \|\| isRecording \|\| recordingStatusUnknown\)/);
