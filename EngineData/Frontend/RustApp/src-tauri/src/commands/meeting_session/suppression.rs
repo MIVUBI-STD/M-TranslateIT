@@ -2,11 +2,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::engine::audio::finalized_utterance::{
-    clear_finalized_incoming_utterance_producer, reset_finalized_incoming_speech_boundary,
+    clear_finalized_incoming_utterance_producer_for_session,
+    reset_finalized_incoming_speech_boundary,
 };
-use crate::engine::audio::meeting_sound_capture::stop_meeting_sound_capture_runtime;
+use crate::engine::audio::meeting_sound_capture::stop_meeting_sound_capture_runtime_for_session;
 
-use super::incoming_deferred::clear_deferred_incoming_queue;
+use super::incoming_deferred::clear_deferred_incoming_queue_for_session;
 use super::session_state::update_incoming_status;
 
 struct MeetingSelfOutputSuppression {
@@ -83,13 +84,19 @@ pub(super) fn disable_optional_incoming_for_outbound(session_id: &str) -> String
         "meeting_incoming:self_output_suppression_unavailable",
         "Incoming Meeting Sound was disabled because TranslateIT could not establish self-output suppression. Required outbound translation continues through the Meeting Microphone.",
     );
-    clear_finalized_incoming_utterance_producer();
-    let deferred_cleanup = clear_deferred_incoming_queue();
-    let capture_stop = stop_meeting_sound_capture_runtime();
-    match deferred_cleanup {
-        Ok(()) => capture_stop.message,
-        Err(error) => format!("{} Deferred incoming cleanup: {error}", capture_stop.message),
+    // A delayed suppression failure from the prior Meeting must never
+    // discard the current Meeting's producer, queue or sound-capture stream.
+    let producer_cleared = clear_finalized_incoming_utterance_producer_for_session(session_id);
+    let deferred_cleanup = clear_deferred_incoming_queue_for_session(session_id);
+    let capture_stop = stop_meeting_sound_capture_runtime_for_session(session_id);
+    let mut result = capture_stop.message;
+    if !producer_cleared {
+        result.push_str(" Incoming producer cleanup could not be verified.");
     }
+    if let Err(error) = deferred_cleanup {
+        result.push_str(&format!(" Deferred incoming cleanup: {error}"));
+    }
+    result
 }
 
 pub(super) fn clear_self_output_suppression_for_session(session_id: &str) -> bool {

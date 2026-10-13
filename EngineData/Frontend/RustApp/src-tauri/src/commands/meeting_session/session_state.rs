@@ -5,6 +5,9 @@ use crate::engine::audio::finalized_utterance::{
     evicted_pending_utterance_count, overflow_dropped_utterance_count, FinalizedMeetingUtterance,
 };
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
+use crate::engine::runtime_state::{
+    latest_runtime_session_state, RuntimeSessionSnapshot, APPLICATION_MEETING_OWNER_ID,
+};
 
 use super::super::helper_bridge_runtime::unix_ms;
 use super::super::incident_log::record_runtime_incident;
@@ -116,11 +119,23 @@ pub(super) fn current_outbound_status() -> MeetingOutboundRuntimeStatus {
 // A failed self-output suppression permanently disables optional incoming
 // for this Meeting session. Delayed worker/capture completion may not replace
 // that decision; the next session resets the canonical status owner.
+// Only the authoritative Live Meeting may publish its optional-lane status.
+// Session rebinding is done by the canonical Start reset, never by a late
+// worker result from a different Meeting.
 fn incoming_status_update_allowed(
     status: &MeetingIncomingRuntimeStatus,
     session_id: &str,
+    current: Option<&RuntimeSessionSnapshot>,
 ) -> bool {
-    !(status.session_id.as_deref() == Some(session_id) && status.stage == "disabled")
+    let authoritative = current.is_some_and(|session| {
+        session.owner_id == APPLICATION_MEETING_OWNER_ID
+            && session.session_id == session_id
+            && session.authority_active
+            && session.phase == "live"
+    });
+    authoritative
+        && status.session_id.as_deref().is_none_or(|owner| owner == session_id)
+        && !(status.session_id.as_deref() == Some(session_id) && status.stage == "disabled")
 }
 
 pub(super) fn incoming_lane_enabled(session_id: &str) -> bool {
@@ -139,16 +154,19 @@ pub(super) fn current_incoming_status() -> MeetingIncomingRuntimeStatus {
         .unwrap_or_else(|_| idle_incoming_status());
     let capture = meeting_sound_capture_status();
     if status.session_id.is_some() {
+        // One global capture may already belong to the next Meeting. Never
+        // project its activity or callback errors onto a stale transcript lane.
+        let capture_matches_session = capture.session_id.as_deref() == status.session_id.as_deref();
         if status.stage == "cleanup_incomplete"
             && capture.blocker == "meeting_sound:state_lock_failed"
         {
             status.capture_active = true;
             status.suppressed = false;
         } else {
-            status.capture_active = capture.stream_active;
-            status.suppressed = capture.suppression_active;
+            status.capture_active = capture_matches_session && capture.stream_active;
+            status.suppressed = capture_matches_session && capture.suppression_active;
         }
-        if capture.stream_active && capture.callback_error_count > 0 {
+        if capture_matches_session && capture.stream_active && capture.callback_error_count > 0 {
             status.degraded = true;
             if status.blocker.is_empty() {
                 status.blocker = "meeting_incoming:capture_callback_error".to_string();
@@ -324,9 +342,11 @@ pub(super) fn update_incoming_status(
     note: &str,
 ) {
     let applied = if let Ok(mut status) = incoming_status_store().lock() {
-        // The status mutation and terminal-state check must share this lock:
-        // an in-flight ASR/translation cannot resurrect disabled incoming.
-        if !incoming_status_update_allowed(&status, session_id) {
+        // Check the runtime owner while holding the status lock. Stop first
+        // revokes authority, then resets status; therefore an old completion
+        // cannot republish after the next Meeting claims this surface.
+        let owner = latest_runtime_session_state();
+        if !incoming_status_update_allowed(&status, session_id, owner.snapshot.as_ref()) {
             return;
         }
         let capture = meeting_sound_capture_status();
@@ -389,28 +409,76 @@ pub(super) fn mark_incoming_cleanup_incomplete_status(
 #[cfg(test)]
 mod incoming_status_terminal_tests {
     use super::{idle_incoming_status, incoming_status_update_allowed};
+    use crate::engine::runtime_state::{
+        RuntimeSessionSnapshot, APPLICATION_MEETING_OWNER_ID,
+    };
+
+    fn live_session(session_id: &str) -> RuntimeSessionSnapshot {
+        RuntimeSessionSnapshot {
+            started_unix_ms: 0,
+            owner_id: APPLICATION_MEETING_OWNER_ID.to_string(),
+            session_id: session_id.to_string(),
+            generation: 42,
+            authority_active: true,
+            phase: "live".to_string(),
+            live_capture_stream_active: true,
+            safe_to_stop: true,
+            note: String::new(),
+        }
+    }
 
     #[test]
-    fn disabled_incoming_rejects_late_statuses_until_session_reset() {
+    fn disabled_and_foreign_session_updates_are_rejected() {
         let mut status = idle_incoming_status();
+        let session_a = live_session("session-a");
+        let session_b = live_session("session-b");
+        assert!(incoming_status_update_allowed(
+            &status, "session-a", Some(&session_a),
+        ));
+
         status.session_id = Some("session-a".to_string());
         status.stage = "disabled".to_string();
-
-        // All old-session completions, including a late suppression guard,
-        // must leave the incoming lane disabled.
         for late_stage in ["listening", "transcribing", "translating", "suppressed", "degraded"] {
             assert!(
-                !incoming_status_update_allowed(&status, "session-a"),
+                !incoming_status_update_allowed(&status, "session-a", Some(&session_a)),
                 "late {late_stage} must not revive disabled incoming"
             );
         }
         assert!(
-            incoming_status_update_allowed(&status, "session-b"),
-            "a different Meeting session must be independently eligible"
+            !incoming_status_update_allowed(&status, "session-a", Some(&session_b)),
+            "an obsolete session cannot overwrite the new live Meeting"
+        );
+        assert!(
+            !incoming_status_update_allowed(&status, "session-b", Some(&session_b)),
+            "a different session cannot bypass the canonical Start reset"
         );
 
-        // The canonical lifecycle reset explicitly removes the terminal state.
-        let reset = idle_incoming_status();
-        assert!(incoming_status_update_allowed(&reset, "session-a"));
+        let mut reset = idle_incoming_status();
+        assert!(incoming_status_update_allowed(
+            &reset, "session-b", Some(&session_b),
+        ));
+        reset.session_id = Some("session-b".to_string());
+        reset.stage = "listening".to_string();
+        assert!(!incoming_status_update_allowed(
+            &reset, "session-a", Some(&session_a),
+        ));
+    }
+
+    #[test]
+    fn only_authoritative_live_meeting_can_update_incoming_status() {
+        let status = idle_incoming_status();
+        let mut live = live_session("session-a");
+        assert!(!incoming_status_update_allowed(&status, "session-a", None));
+        live.phase = "stopping".to_string();
+        assert!(!incoming_status_update_allowed(&status, "session-a", Some(&live)));
+        live.phase = "live".to_string();
+        live.authority_active = false;
+        assert!(!incoming_status_update_allowed(&status, "session-a", Some(&live)));
+        live.authority_active = true;
+        live.owner_id = "translateit_mic_test".to_string();
+        assert!(!incoming_status_update_allowed(&status, "session-a", Some(&live)));
+        live.owner_id = APPLICATION_MEETING_OWNER_ID.to_string();
+        assert!(!incoming_status_update_allowed(&status, "session-other", Some(&live)));
+        assert!(incoming_status_update_allowed(&status, "session-a", Some(&live)));
     }
 }
