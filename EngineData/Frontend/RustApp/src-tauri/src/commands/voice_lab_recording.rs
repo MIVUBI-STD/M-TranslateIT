@@ -371,6 +371,7 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
     let canonical_old = accepted_path(line_id);
     let native_old = accepted_native_rate_path(line_id);
     let Some(exact_text) = guided_text(line_id) else {
+        drop(guard);
         return result(false, "invalid_line", "The selected guided prompt is no longer available.");
     };
     if fs::symlink_metadata(&canonical_old).is_ok() {
@@ -378,6 +379,7 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
         if let Err(error) = archive_guided_take(
             &storage, line_id, exact_text, &canonical_old, old_native,
         ) {
+            drop(guard);
             return result(false, "save_failed", format!(
                 "The existing accepted recording could not be archived safely; nothing was replaced: {error}"
             ));
@@ -386,6 +388,7 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
     if let Err(error) = archive_guided_take(
         &storage, line_id, exact_text, &draft.path, Some(&draft.native_rate_path),
     ) {
+        drop(guard);
         return result(false, "save_failed", format!(
             "The new recording could not be archived safely; the previous accepted recording was kept: {error}"
         ));
