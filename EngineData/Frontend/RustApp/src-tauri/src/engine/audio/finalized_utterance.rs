@@ -201,6 +201,17 @@ pub fn clear_finalized_outbound_utterance_producer() {
     clear_producer(outbound_sync());
 }
 
+// Only stop the producer still owned by the requested Meeting generation.
+// Returning false means cleanup could not be verified (e.g., poisoned mutex).
+pub fn clear_finalized_outbound_utterance_producer_for_generation(generation: u64) -> bool {
+    if generation == 0 {
+        return false;
+    }
+    clear_producer_if(outbound_sync(), |producer| {
+        producer.generation == Some(generation) && producer.lane == LANE_YOU
+    })
+}
+
 pub fn reset_finalized_incoming_utterance_producer(session_id: &str, sample_rate_hz: u32) {
     reset_producer(
         incoming_sync(),
@@ -213,6 +224,18 @@ pub fn reset_finalized_incoming_utterance_producer(session_id: &str, sample_rate
 
 pub fn clear_finalized_incoming_utterance_producer() {
     clear_producer(incoming_sync());
+}
+
+// A delayed Stop from a previous Meeting cannot clear a newer incoming lane.
+pub fn clear_finalized_incoming_utterance_producer_for_session(session_id: &str) -> bool {
+    if session_id.is_empty() {
+        return false;
+    }
+    clear_producer_if(incoming_sync(), |producer| {
+        producer.session_id == session_id
+            && producer.lane == LANE_INCOMING
+            && producer.generation.is_none()
+    })
 }
 
 // Offline replay hook only. Production may adopt this exact owner reset
@@ -357,6 +380,20 @@ fn clear_producer(sync: &FinalizedProducerSync) {
         *guard = None;
         sync.ready.notify_all();
     }
+}
+
+// The owner check and mutation must use the SAME producer lock. An identity
+// precheck followed by unconditional clear would race a newer producer reset.
+fn clear_producer_if(
+    sync: &FinalizedProducerSync,
+    belongs_to_request: impl FnOnce(&FinalizedProducerState) -> bool,
+) -> bool {
+    let Ok(mut guard) = sync.state.lock() else { return false };
+    if guard.as_ref().is_some_and(belongs_to_request) {
+        *guard = None;
+        sync.ready.notify_all();
+    }
+    true
 }
 
 pub fn observe_finalized_outbound_f32_samples(

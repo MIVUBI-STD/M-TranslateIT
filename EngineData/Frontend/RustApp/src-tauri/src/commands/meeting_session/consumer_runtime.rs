@@ -3,7 +3,8 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use crate::engine::audio::finalized_utterance::{
-    clear_finalized_incoming_utterance_producer, clear_finalized_outbound_utterance_producer,
+    clear_finalized_incoming_utterance_producer_for_session,
+    clear_finalized_outbound_utterance_producer_for_generation,
     try_take_finalized_incoming_utterance, wait_take_finalized_incoming_utterance,
     wait_take_finalized_incoming_utterance_for, wait_take_finalized_outbound_utterance,
     IncomingTimedWait,
@@ -168,7 +169,7 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
 }
 
 pub(super) fn stop_meeting_outbound_consumer(generation: u64) -> MeetingConsumerCleanupResult {
-    clear_finalized_outbound_utterance_producer();
+    let producer_cleared = clear_finalized_outbound_utterance_producer_for_generation(generation);
 
     let store = outbound_consumer_store();
     let runtime = match store.lock() {
@@ -193,8 +194,12 @@ pub(super) fn stop_meeting_outbound_consumer(generation: u64) -> MeetingConsumer
 
     let Some(mut runtime) = runtime else {
         return MeetingConsumerCleanupResult {
-            ok: true,
-            message: "No matching Meeting outbound consumer required cleanup.".to_string(),
+            ok: producer_cleared,
+            message: if producer_cleared {
+                "No matching Meeting outbound consumer required cleanup.".to_string()
+            } else {
+                "Meeting outbound producer cleanup could not be verified.".to_string()
+            },
         };
     };
     let session_id = runtime.session_id.clone();
@@ -204,8 +209,10 @@ pub(super) fn stop_meeting_outbound_consumer(generation: u64) -> MeetingConsumer
         .map(|handle| handle.join().is_ok())
         .unwrap_or(true);
     MeetingConsumerCleanupResult {
-        ok: joined,
-        message: if joined {
+        ok: joined && producer_cleared,
+        message: if !producer_cleared {
+            format!("Meeting outbound producer cleanup could not be verified for {session_id} generation {generation}.")
+        } else if joined {
             format!("Meeting outbound consumer stopped for {session_id} generation {generation}.")
         } else {
             format!("Meeting outbound consumer for {session_id} generation {generation} exited unexpectedly during cleanup.")
@@ -313,7 +320,7 @@ pub(super) fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), St
 }
 
 pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsumerCleanupResult {
-    clear_finalized_incoming_utterance_producer();
+    let producer_cleared = clear_finalized_incoming_utterance_producer_for_session(session_id);
     let deferred_cleanup = clear_deferred_incoming_queue();
     let store = incoming_consumer_store();
     let runtime = match store.lock() {
@@ -338,12 +345,16 @@ pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsume
 
     let Some(mut runtime) = runtime else {
         return MeetingConsumerCleanupResult {
-            ok: deferred_cleanup.is_ok(),
-            message: match deferred_cleanup {
-                Ok(()) => "No matching Meeting incoming consumer required cleanup.".to_string(),
-                Err(error) => format!(
-                    "No matching Meeting incoming consumer required cleanup, but deferred incoming cleanup failed: {error}"
-                ),
+            ok: producer_cleared && deferred_cleanup.is_ok(),
+            message: if !producer_cleared {
+                "Meeting incoming producer cleanup could not be verified.".to_string()
+            } else {
+                match deferred_cleanup {
+                    Ok(()) => "No matching Meeting incoming consumer required cleanup.".to_string(),
+                    Err(error) => format!(
+                        "No matching Meeting incoming consumer required cleanup, but deferred incoming cleanup failed: {error}"
+                    ),
+                }
             },
         };
     };
@@ -354,18 +365,22 @@ pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsume
         .unwrap_or(true);
     let queue_ok = deferred_cleanup.is_ok();
     MeetingConsumerCleanupResult {
-        ok: joined && queue_ok,
-        message: match (joined, deferred_cleanup) {
-            (true, Ok(())) => format!("Meeting incoming consumer stopped for session {session_id}."),
-            (false, Ok(())) => format!(
-                "Meeting incoming consumer for session {session_id} exited unexpectedly during cleanup."
-            ),
-            (true, Err(error)) => format!(
-                "Meeting incoming consumer stopped, but deferred incoming cleanup failed: {error}"
-            ),
-            (false, Err(error)) => format!(
-                "Meeting incoming consumer exited unexpectedly and deferred incoming cleanup failed: {error}"
-            ),
+        ok: joined && queue_ok && producer_cleared,
+        message: if !producer_cleared {
+            format!("Meeting incoming producer cleanup could not be verified for session {session_id}.")
+        } else {
+            match (joined, deferred_cleanup) {
+                (true, Ok(())) => format!("Meeting incoming consumer stopped for session {session_id}."),
+                (false, Ok(())) => format!(
+                    "Meeting incoming consumer for session {session_id} exited unexpectedly during cleanup."
+                ),
+                (true, Err(error)) => format!(
+                    "Meeting incoming consumer stopped, but deferred incoming cleanup failed: {error}"
+                ),
+                (false, Err(error)) => format!(
+                    "Meeting incoming consumer exited unexpectedly and deferred incoming cleanup failed: {error}"
+                ),
+            }
         },
     }
 }

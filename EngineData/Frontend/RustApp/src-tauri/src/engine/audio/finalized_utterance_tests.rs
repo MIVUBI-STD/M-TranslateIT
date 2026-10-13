@@ -286,3 +286,49 @@ fn incoming_bounded_wait_distinguishes_deferred_retry_from_stopped_producer() {
 fn silence_of(rate: u32, ms: u32) -> Vec<f32> {
     vec![0.0f32; rate as usize * ms as usize / 1000]
 }
+
+
+#[test]
+fn scoped_producer_stop_rejects_stale_generation_or_session_atomically() {
+    // Local instance rather than the global VAD producer: no test fixture
+    // can interrupt production-like session state or parallel test cases.
+    let sync = FinalizedProducerSync {
+        state: Mutex::new(Some(FinalizedProducerState {
+            session_id: "new-meeting".to_string(),
+            generation: Some(42),
+            lane: LANE_YOU,
+            sample_rate_hz: 16_000,
+            capture_epoch: 1,
+            input_sample_cursor: 0,
+            current_input_start: None,
+            capture_error_signal: None,
+            observed_error_epoch: 0,
+            profile: runtime_vad_profile(),
+            pre_roll: VecDeque::new(),
+            in_utterance: false,
+            current_samples: Vec::new(),
+            speech_samples: 0,
+            trailing_silence_samples: 0,
+            overflowed: false,
+            next_utterance_id: 1,
+            pending: VecDeque::new(),
+        })),
+        ready: Condvar::new(),
+        callback_lock_observations: AtomicU64::new(0),
+        callback_lock_wait_max_ns: AtomicU64::new(0),
+    };
+    assert!(clear_producer_if(&sync, |owner| owner.generation == Some(41)));
+    assert_eq!(sync.state.lock().unwrap().as_ref().unwrap().generation, Some(42));
+    assert!(clear_producer_if(&sync, |owner| owner.generation == Some(42)));
+    assert!(sync.state.lock().unwrap().is_none());
+    assert!(clear_producer_if(&sync, |owner| owner.generation == Some(42)));
+
+    reset_producer(&sync, "new-incoming", None, LANE_INCOMING, 16_000);
+    assert!(clear_producer_if(&sync, |owner| owner.session_id == "old-incoming"));
+    assert_eq!(
+        sync.state.lock().unwrap().as_ref().unwrap().session_id,
+        "new-incoming",
+    );
+    assert!(clear_producer_if(&sync, |owner| owner.session_id == "new-incoming"));
+    assert!(sync.state.lock().unwrap().is_none());
+}

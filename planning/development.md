@@ -1,3 +1,13 @@
+## Active continuation — Session-scoped finalized audio producer cleanup (2026-10-13)
+
+**Confirmed source defect:** The consumer Stop functions cleared finalized outbound/incoming VAD producers *before* checking whether the consumer belonged to the requested Meeting. Delayed stale Stop could therefore remove the next Meeting's producer. Incoming is keyed by session, outbound by generation; producers already store both owners.
+
+**Bounded repair:** In the canonical `finalized_utterance.rs` owner, introduce generation-bound outbound and session-bound incoming cleanup, with identity comparison and state clear under the **same existing mutex**. The two existing consumer Stop callsites now use scoped clearing, propagate poisoned-producer-lock failure in their cleanup result, and keep existing consumer join / deferred-queue behavior. Other intentional global capture reset paths stay unchanged. A deterministic local-producer Rust fixture exercises stale and matching generation/session across both lanes without touching global VAD state. No new producer, supervisor, storage, worker or transport.
+
+**REA-style evidence ceiling:** Actual `Local` producer/consumer source mapping, exact identity contract and regression fixture authored (`STATIC_SOURCE`). REA executable/MCP inspection, Cargo compilation/test execution, Windows callbacks, simultaneous cross-session Stop, RTX GPU and meeting receiver are **NOT EXECUTED**. This correction does NOT establish isolation of other cleanup owners; the incoming deferred queue and Meeting Sound capture must be assessed separately, not silently treated as fixed.
+
+**Single next step:** Source-check whether delayed incoming Stop can clear another session's deferred queue; implement only an independently demonstrated narrow ownership fix, or stop if no issue. Integrated Windows acceptance remains the runtime proof gate.
+
 ## Active continuation — Stop regression fixture isolation (2026-10-13)
 
 **Confirmed test defect:** The repeated-Stop transcript regression modified the canonical singleton active/last-ended stores without acquiring the already available `runtime_test_guard`, and restored state only after its final assertion. A failed assertion could leak fixture data into other tests, undermining regression reliability. This is an authoring/test-isolation issue, not a newly observed production data-loss bug.
