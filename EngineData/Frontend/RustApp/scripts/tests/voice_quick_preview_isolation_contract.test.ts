@@ -55,6 +55,23 @@ test("typed Quick Preview bridge exposes only generation, cancellation and readi
   assert.doesNotMatch(preview, /get_meeting_session_status|start_meeting_translation/);
 });
 
+test("My Voice UI has one collapsible voice selector and a stage-aware recording workspace", () => {
+  const selector = readFileSync(new URL("../../src/components/my-voice/BuiltinVoicePicker.svelte", import.meta.url), "utf8");
+  assert.match(selector, /Voice for meetings/);
+  assert.match(selector, /aria-expanded={choicesOpen \|\| builtinPendingId !== null}/);
+  assert.match(selector, /hidden={!choicesOpen && !builtinPendingId}/);
+  assert.match(recordingUi, /Create My Voice/);
+  assert.match(recordingUi, /const activeStage = \$derived/);
+  assert.match(recordingUi, /hidden={activeStage !== "record"}/);
+  assert.match(recordingUi, /hidden={activeStage === "record"}/);
+  assert.match(recordingUi, /<MyVoiceBuild \{onNotice\}/);
+  assert.match(ui, /onBuildStatus\?\.\(next\)/);
+  assert.match(recordingUi, /Browse lines/);
+  assert.match(recordingUi, /You don't have to record all 128/);
+  assert.match(recordingUi, /!buildSnapshot\.can_build/);
+  assert.match(recordingUi, /buildSnapshot\.minimum_duration_ms/);
+});
+
 test("Quick Preview remains training-only in the visible My Voice UI", () => {
   assert.match(ui, /<QuickVoicePreview/);
   assert.match(quickPreviewUi, /not for meetings|never usable in Meeting/i);

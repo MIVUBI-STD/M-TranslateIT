@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Check, Circle, Mic, Play, RotateCcw, SkipForward, Square } from "@lucide/svelte";
+  import { Check, ChevronRight, Circle, Mic, Play, RotateCcw, SkipForward, Square } from "@lucide/svelte";
   import { onMount } from "svelte";
   import {
     myVoiceApi,
     type GuidedRecordingActionResult,
     type GuidedRecordingState,
   } from "../app/bridge/myVoiceApi";
-  import { myVoiceBuildApi } from "../app/bridge/myVoiceBuildApi";
+  import { myVoiceBuildApi, type MyVoiceBuildStatus } from "../app/bridge/myVoiceBuildApi";
   import { runtimeApi } from "../app/bridge/runtimeApi";
   import { probeProductAudioDevice } from "../app/bridge/productAudioFacade";
   import MyVoiceBuild from "../components/my-voice/MyVoiceBuild.svelte";
@@ -44,6 +44,44 @@
   let recordingStatusUnknown = $state(false);
   let microphoneCheck = $state<"idle" | "checking" | "ready" | "unavailable">("idle");
   let microphoneCheckMessage = $state("");
+  // Presentation-only copy of the build owner's VERIFIED snapshot. No second polling loop.
+  let buildSnapshot = $state<MyVoiceBuildStatus | null>(null);
+  let buildStatusUnavailable = $state(false);
+  let selectedPane = $state<"auto" | "record" | "create">("auto");
+  let browseLinesOpen = $state(false);
+
+  const lineGroups = [
+    { start: 1, end: 24, label: "Conversation" },
+    { start: 25, end: 30, label: "Questions & intonation" },
+    { start: 31, end: 64, label: "Natural sentences" },
+    { start: 65, end: 96, label: "Names, numbers & technical details" },
+    { start: 97, end: 128, label: "Longer explanations" },
+  ];
+
+  const activeStage = $derived(
+    recordingStatusUnknown || isRecording || pendingLineId !== null
+      ? "record"
+      : buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active
+        ? "create"
+        : selectedPane === "record"
+          ? "record"
+          : selectedPane === "create"
+            ? "create"
+            : buildSnapshot?.evaluation_ready
+              ? "review"
+              : buildSnapshot?.can_build ? "create" : "record",
+  );
+  const acceptedCount = $derived(recordingState.lines.filter((line) => line.accepted).length);
+  const minimumProgress = $derived(
+    buildSnapshot && buildSnapshot.minimum_duration_ms > 0 && !buildStatusUnavailable
+      ? Math.min(100, Math.round(buildSnapshot.accepted_duration_ms / buildSnapshot.minimum_duration_ms * 100))
+      : 0,
+  );
+
+  function formatRecordingDuration(milliseconds: number): string {
+    const seconds = Math.max(0, Math.floor(milliseconds / 1000));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
 
   async function refreshVoiceSelection(): Promise<void> {
     try {
@@ -322,6 +360,7 @@
     }
     busy = true;
     try {
+      selectedPane = "record";
       applyResult(await myVoiceApi.startTake(selectedLineId, authorized));
     } catch {
       if (!disposed) {
@@ -369,6 +408,7 @@
       const result = await myVoiceApi.acceptTake(pendingLineId);
       applyResult(result);
       if (result.ok && result.recording) {
+        selectedPane = "auto";
         buildRefreshRevision += 1;
         selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
       }
@@ -454,8 +494,7 @@
   <header class="ti-page-header">
     <div>
       <h2 class="ti-page-title">My Voice</h2>
-      <p class="ti-page-copy">Choose a voice to use immediately, or record and create a personalized voice later.</p>
-      <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">1. Choose a voice · 2. Record samples (optional) · 3. Create and review My Voice (optional)</p>
+      <p class="ti-page-copy">Choose a voice for meetings or create your own.</p>
     </div>
   </header>
 
@@ -467,152 +506,204 @@
     {selectedBuiltinVoiceId}
     {savedPersonalVoiceAvailable}
     {selectedVoiceVerified}
-    voiceChangesLocked={voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null}
+    voiceChangesLocked={voiceChangesLocked || buildSnapshot?.active === true || recordingStatusUnknown || isRecording || pendingLineId !== null}
     onPreview={previewBuiltin}
     onSelect={selectBuiltin}
     onSelectPersonal={selectStoredPersonalVoice}
     onConfirm={confirmPendingBuiltin}
     onCancel={() => { builtinPendingId = null; }}
+    onRetry={refreshVoiceSelection}
   />
 
   {#if recordingStatusUnknown}
-    <div class="mb-5 flex flex-wrap items-center justify-between gap-3 border border-[var(--ti-warning-border)] px-4 py-3" role="alert">
-      <p class="m-0 text-sm text-[var(--ti-warning)]">Recording status couldn't be verified. The last confirmed state was preserved.</p>
-      <button type="button" class="ti-button ti-button-secondary min-h-9" disabled={busy} onclick={() => void refresh()}>Retry status</button>
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] p-4" role="alert">
+      <p class="m-0 text-sm text-[var(--ti-warning)]">Couldn't verify recording status. The last confirmed state was kept.</p>
+      <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void refresh()}>Retry status</button>
     </div>
   {/if}
 
-  <div class="mb-5 border-t border-[var(--ti-border)] pt-5">
-    <span class="ti-kicker">Optional</span>
-    <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Personalize your voice (optional)</h3>
-    <p class="mb-0 mt-1.5 text-sm leading-6 text-[var(--ti-text-muted)]">Record varied English lines to prepare a personalized voice. Your accepted recordings remain on this computer, and you review the result before using it.</p>
-  </div>
-
-  <div class="grid grid-cols-[minmax(0,1fr)_300px] gap-5">
-    <article class="ti-panel p-6">
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <span class="ti-kicker">My Voice</span>
-          <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 2 · Record the sample lines</h3>
-          <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read every word exactly as shown, in your natural voice. You can skip a line and return later.</p>
-        </div>
+  <section class="border-t border-[var(--ti-border)] pt-5" aria-labelledby="my-voice-create-title">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h3 id="my-voice-create-title" class="mb-0 text-xl font-semibold tracking-[-0.02em]">Create My Voice</h3>
+        <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">Record natural English samples, create your voice, then listen before using it.</p>
       </div>
+    </div>
+    <div class="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold" aria-label="My Voice creation stages">
+      <span aria-current={activeStage === "record" ? "step" : undefined} class={activeStage === "record" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>1. Record</span>
+      <ChevronRight size={14} class="text-[var(--ti-text-soft)]" />
+      <span aria-current={activeStage === "create" ? "step" : undefined} class={activeStage === "create" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>2. Create</span>
+      <ChevronRight size={14} class="text-[var(--ti-text-soft)]" />
+      <span aria-current={activeStage === "review" ? "step" : undefined} class={activeStage === "review" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>3. Review</span>
+    </div>
 
-      <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-4">
-        <div class="min-w-0 flex-1">
-          <strong class="text-sm font-semibold">Microphone check</strong>
-          <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Check that your selected mic can capture audio. Record and review a sample to assess noise and volume.</p>
-        </div>
-        <button type="button" class="ti-button ti-button-secondary" disabled={busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => void checkMicrophone()}>
-          <Mic size={15} /><span>{microphoneCheck === "checking" ? "Checking..." : "Check microphone"}</span>
-        </button>
-        {#if microphoneCheck !== "idle"}
-          <p role="status" class={`mb-0 w-full text-xs leading-5 ${microphoneCheck === "unavailable" ? "text-[var(--ti-danger)]" : "text-[var(--ti-text-muted)]"}`}>{microphoneCheckMessage}</p>
-        {/if}
-      </div>
+    <div class="mt-4" hidden={activeStage !== "record"}>
+      <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <article class="ti-panel min-w-0 p-5 sm:p-6" aria-labelledby="my-voice-record-title">
+          <h4 id="my-voice-record-title" class="mb-0 text-lg font-semibold">Record your voice</h4>
+          <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read every word exactly as shown, in your natural voice.</p>
 
-      <label class="mt-6 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-4">
-        <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} disabled={isRecording} />
-        <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm this is my voice, or I have permission to use it.</span>
-      </label>
-
-      {#if currentLine}
-        <div class="mt-6 rounded-[var(--ti-radius-lg)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] p-6">
-          <div class="flex items-center justify-between gap-3">
-            <span class="ti-field-label">Line {currentLine.line_id}</span>
-            {#if currentLine.accepted}
-              <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--ti-success)]"><Check size={14} />Accepted</span>
+          <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] bg-[var(--ti-surface-soft)] p-4">
+            <div class="min-w-0 flex-1">
+              <strong class="text-sm font-semibold">Microphone</strong>
+              <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Check the connection before recording. Sound quality is checked after each take.</p>
+            </div>
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => void checkMicrophone()}>
+              <Mic size={15} /><span>{microphoneCheck === "checking" ? "Checking..." : "Check microphone"}</span>
+            </button>
+            {#if microphoneCheck !== "idle"}
+              <p role="status" class={microphoneCheck === "unavailable" ? "mb-0 w-full text-xs leading-5 text-[var(--ti-danger)]" : "mb-0 w-full text-xs leading-5 text-[var(--ti-text-muted)]"}>{microphoneCheckMessage}</p>
             {/if}
           </div>
-          <p class="mb-0 mt-5 text-[20px] font-medium leading-8 tracking-[-0.015em]">{currentLine.text}</p>
-        </div>
 
-        {#if recordingState.pending_review && pendingLineId === currentLine.line_id}
-          <div class="mt-5 border-l-2 border-[var(--ti-border-strong)] pl-4">
-            <strong class="text-sm font-semibold">Review this recording</strong>
-            <p class={`mb-0 mt-1 text-sm leading-5 ${recordingState.pending_review.quality_blocker ? "text-[var(--ti-danger)]" : "text-[var(--ti-text-muted)]"}`}>
-              {recordingState.pending_review.quality_blocker
-                ? recordingQualityGuidance(recordingState.pending_review.quality_blocker)
-                : "Listen once. Accept it if the recording sounds clear and natural."}
-            </p>
-            {#if !recordingState.pending_review.quality_blocker}
-              {#each recordingState.pending_review.review_advice ?? [] as advice}
-                <p class="mb-0 mt-2 text-sm leading-5 text-[var(--ti-warning)]">{recordingReviewAdvice(advice)}</p>
-              {/each}
-            {/if}
-          </div>
-        {/if}
+          <label class="mt-4 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
+            <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} disabled={isRecording} />
+            <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm this is my voice, or I have permission to use it.</span>
+          </label>
 
-        <div class="mt-6 flex flex-wrap items-center gap-3">
-          {#if isRecording && recordingState.recording_line_id === currentLine.line_id}
-            <button type="button" class="ti-button ti-button-danger" disabled={busy} onclick={() => void stopRecording()}>
-              <Square size={15} fill="currentColor" /><span>{busy ? "Stopping..." : recordingStatusUnknown ? "Retry Stop" : "Stop"}</span>
-            </button>
-            <span class="flex items-center gap-2 text-sm text-[var(--ti-danger)]"><span class="size-2 animate-pulse rounded-full bg-current"></span>Recording</span>
-          {:else if recordingState.pending_review && pendingLineId === currentLine.line_id}
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
-              <Play size={15} /><span>{replaying ? "Playing..." : "Replay"}</span>
-            </button>
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown} onclick={() => void retryTake()}>
-              <RotateCcw size={15} /><span>Retry</span>
-            </button>
-            {#if !recordingState.pending_review.quality_blocker}
-              <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown} onclick={() => void acceptTake()}>
-                <Check size={15} /><span>{busy ? "Saving..." : "Accept"}</span>
-              </button>
-            {/if}
-          {:else}
-            <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
-              <Mic size={15} /><span>{currentLine.accepted ? "Record Again" : "Record"}</span>
-            </button>
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={skipLine}>
-              <SkipForward size={15} /><span>Skip</span>
-            </button>
-            {#if currentLine.accepted}
-              <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
-                <Play size={15} /><span>{replaying ? "Playing..." : "Replay Accepted"}</span>
-              </button>
-            {/if}
+          {#if buildSnapshot?.evaluation_ready}
+            <p class="mb-0 mt-4 text-xs leading-5 text-[var(--ti-warning)]">Replacing an accepted recording will invalidate the current voice review. You can create and review another candidate afterward.</p>
           {/if}
-        </div>
-      {:else}
-        <div class="mt-6 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-5 text-sm text-[var(--ti-text-muted)]">My Voice recording lines are unavailable right now.</div>
-      {/if}
 
-      <p class="mb-0 mt-7 text-xs leading-5 text-[var(--ti-text-soft)]">Accepted recordings stay on this computer and are only used to create My Voice.</p>
-    </article>
-
-    <aside class="ti-panel overflow-hidden">
-      <div class="border-b border-[var(--ti-border)] px-4 py-3.5">
-        <strong class="text-sm font-semibold">Your sample lines</strong>
-        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">{recordingState.lines.filter((line) => line.accepted).length} of {recordingState.lines.length} accepted · Select a line to record or replay.</p>
-      </div>
-      <div class="max-h-[590px] overflow-y-auto p-2">
-        {#each recordingState.lines as line}
-          <button
-            type="button"
-            class={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2.5 text-left text-sm transition-colors ${selectedLineId === line.line_id ? "bg-[var(--ti-surface-raised)] text-[var(--ti-text)]" : "text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}`}
-            disabled={isRecording || recordingStatusUnknown || recordingState.pending_review !== null}
-            aria-pressed={selectedLineId === line.line_id}
-            onclick={() => { selectedLineId = line.line_id; }}
-          >
-            {#if line.accepted}
-              <Check size={15} class="shrink-0 text-[var(--ti-success)]" />
-            {:else}
-              <Circle size={13} class="shrink-0 text-[var(--ti-text-soft)]" />
+          {#if currentLine}
+            <div class="mt-5 rounded-[var(--ti-radius-lg)] border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] p-5 sm:p-6">
+              <div class="flex items-center justify-between gap-3">
+                <span class="ti-field-label">Line {currentLine.line_id}</span>
+                {#if currentLine.accepted}
+                  <span class="flex items-center gap-1.5 text-xs font-semibold text-[var(--ti-success)]"><Check size={14} />Saved</span>
+                {/if}
+              </div>
+              <p class="mb-0 mt-4 text-[20px] font-medium leading-8 tracking-[-0.015em]">{currentLine.text}</p>
+            </div>
+            {#if recordingState.pending_review && pendingLineId === currentLine.line_id}
+              <div class="mt-4 rounded-[var(--ti-radius-md)] border p-4 {recordingState.pending_review.quality_blocker ? 'border-[var(--ti-danger-border)]' : 'border-[var(--ti-border)]'}">
+                <strong class="text-sm font-semibold">{recordingState.pending_review.quality_blocker ? "Recording needs another take" : (recordingState.pending_review.review_advice?.length ? "Check this recording" : "Listen before saving")}</strong>
+                <p class={recordingState.pending_review.quality_blocker ? "mb-0 mt-1 text-sm leading-5 text-[var(--ti-danger)]" : "mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]"}>
+                  {recordingState.pending_review.quality_blocker
+                    ? recordingQualityGuidance(recordingState.pending_review.quality_blocker)
+                    : "Listen once. Keep it only if the voice sounds clear and natural."}
+                </p>
+                {#if !recordingState.pending_review.quality_blocker}
+                  {#each recordingState.pending_review.review_advice ?? [] as advice}
+                    <p class="mb-0 mt-2 text-sm leading-5 text-[var(--ti-warning)]">{recordingReviewAdvice(advice)}</p>
+                  {/each}
+                {/if}
+              </div>
             {/if}
-            <span class="min-w-0 flex-1 truncate">Line {line.line_id}</span>
-          </button>
-        {/each}
-      </div>
-    </aside>
-  </div>
+            <div class="mt-5 flex flex-wrap items-center gap-3">
+              {#if isRecording && recordingState.recording_line_id === currentLine.line_id}
+                <button type="button" class="ti-button ti-button-danger" disabled={busy} onclick={() => void stopRecording()}>
+                  <Square size={15} fill="currentColor" /><span>{busy ? "Stopping..." : "Stop recording"}</span>
+                </button>
+                <span role="status" class="flex items-center gap-2 text-sm text-[var(--ti-danger)]"><span class="size-2 animate-pulse rounded-full bg-current"></span>Recording</span>
+              {:else if recordingState.pending_review && pendingLineId === currentLine.line_id}
+                <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
+                  <Play size={15} /><span>{replaying ? "Playing..." : "Replay"}</span>
+                </button>
+                <button type="button" class={recordingState.pending_review.quality_blocker ? "ti-button" : "ti-button ti-button-secondary"} disabled={busy || recordingStatusUnknown} onclick={() => void retryTake()}>
+                  <RotateCcw size={15} /><span>Record again</span>
+                </button>
+                {#if !recordingState.pending_review.quality_blocker}
+                  <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown} onclick={() => void acceptTake()}>
+                    <Check size={15} /><span>{busy ? "Saving..." : "Keep recording"}</span>
+                  </button>
+                {/if}
+              {:else}
+                <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
+                  <Mic size={15} /><span>{currentLine.accepted ? "Record again" : "Record"}</span>
+                </button>
+                <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={skipLine}>
+                  <SkipForward size={15} /><span>Skip</span>
+                </button>
+                {#if currentLine.accepted}
+                  <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={() => void replayTake()}>
+                    <Play size={15} /><span>{replaying ? "Playing..." : "Replay saved"}</span>
+                  </button>
+                {/if}
+              {/if}
+            </div>
+          {:else}
+            <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-5 text-sm text-[var(--ti-text-muted)]">Recording lines are unavailable. Retry status.</div>
+          {/if}
+          <p class="mb-0 mt-6 text-xs leading-5 text-[var(--ti-text-soft)]">Your accepted recordings stay on this computer.</p>
+        </article>
 
-  <MyVoiceBuild {onNotice}
-    voiceChangesLocked={voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null}
-    onMeetingVoiceChanged={async (message) => {
-      await refreshVoiceSelection();
-      await onMeetingVoiceChanged(message);
-    }}
-    refreshRevision={buildRefreshRevision} />
+        <aside class="ti-panel min-w-0 overflow-hidden" aria-label="Recording progress and lines">
+          <div class="p-4">
+            <h4 class="mb-0 text-sm font-semibold">Recording progress</h4>
+            {#if buildSnapshot && !buildStatusUnavailable}
+              <p class="mb-0 mt-3 text-2xl font-semibold tabular-nums">{formatRecordingDuration(buildSnapshot.accepted_duration_ms)}</p>
+              <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">of {formatRecordingDuration(buildSnapshot.minimum_duration_ms)} minimum</p>
+              <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--ti-border)]" role="progressbar" aria-label="Minimum recording duration" aria-valuemin="0" aria-valuemax="100" aria-valuenow={minimumProgress} aria-valuetext={formatRecordingDuration(buildSnapshot.accepted_duration_ms) + " of " + formatRecordingDuration(buildSnapshot.minimum_duration_ms) + " minimum"}>
+                <div class="h-full rounded-full bg-[var(--ti-accent)]" style:width={minimumProgress + "%"}></div>
+              </div>
+              <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]">{buildSnapshot.accepted_take_count} accepted recordings</p>
+              {#if buildSnapshot.missing_coverage && buildSnapshot.accepted_duration_ms >= buildSnapshot.minimum_duration_ms}
+                <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">Next: Record a line from {buildSnapshot.missing_coverage.label} (Lines {buildSnapshot.missing_coverage.start_line_id}–{buildSnapshot.missing_coverage.end_line_id}).</p>
+              {:else if !buildSnapshot.can_build}
+                <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">{buildSnapshot.message}</p>
+              {/if}
+              {#if buildSnapshot.can_build && !buildSnapshot.active && !isRecording && pendingLineId === null}
+                <button type="button" class="ti-button mt-4 w-full" disabled={voiceChangesLocked || recordingStatusUnknown} onclick={() => { selectedPane = "create"; }}>Continue to Create</button>
+              {/if}
+            {:else}
+              <p role="status" class="mb-0 mt-3 text-sm text-[var(--ti-text-muted)]">Checking recording progress…</p>
+            {/if}
+            {#if acceptedCount > 0 && !buildSnapshot?.active}
+              <button type="button" class="mt-4 text-left text-xs font-medium text-[var(--ti-text-muted)] underline underline-offset-4" disabled={busy || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => { selectedPane = "create"; }}>Optional Quick Preview</button>
+            {/if}
+          </div>
+          <div class="border-t border-[var(--ti-border)] px-4 py-3">
+            <details bind:open={browseLinesOpen}>
+              <summary class="cursor-pointer text-sm font-medium">Browse lines <span class="ml-1 text-xs font-normal text-[var(--ti-text-muted)]">({acceptedCount} saved)</span></summary>
+              <p class="mb-2 mt-2 text-xs leading-5 text-[var(--ti-text-muted)]">Choose any line. You don't have to record all 128.</p>
+              <div class="max-h-[320px] overflow-y-auto">
+                {#each lineGroups as group}
+                  <div class="mt-3">
+                    <strong class="text-xs font-semibold text-[var(--ti-text-muted)]">{group.label}</strong>
+                    {#each recordingState.lines.filter((line) => line.line_id >= group.start && line.line_id <= group.end) as line (line.line_id)}
+                      <button
+                        type="button"
+                        class={selectedLineId === line.line_id ? "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] bg-[var(--ti-surface-raised)] px-2 py-2 text-left text-sm" : "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] px-2 py-2 text-left text-sm text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
+                        disabled={isRecording || recordingStatusUnknown || recordingState.pending_review !== null}
+                        aria-pressed={selectedLineId === line.line_id}
+                        onclick={() => { selectedLineId = line.line_id; browseLinesOpen = false; }}
+                      >
+                        {#if line.accepted}
+                          <Check size={14} class="shrink-0 text-[var(--ti-success)]" />
+                        {:else}
+                          <Circle size={12} class="shrink-0 text-[var(--ti-text-soft)]" />
+                        {/if}
+                        <span>Line {line.line_id}</span>
+                      </button>
+                    {/each}
+                  </div>
+                {/each}
+              </div>
+            </details>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="mt-4" hidden={activeStage === "record"}>
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p class="mb-0 text-xs leading-5 text-[var(--ti-text-muted)]">
+          {activeStage === "review" ? "Review every generated sample before selecting your new voice." : "Your current Meeting voice stays unchanged until you approve a new one."}
+        </p>
+        <button type="button" class="ti-button ti-button-secondary" disabled={recordingStatusUnknown || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || busy} onclick={() => { selectedPane = "record"; }}>
+          Record more
+        </button>
+      </div>
+      <MyVoiceBuild {onNotice}
+        voiceChangesLocked={voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null}
+        onMeetingVoiceChanged={async (message) => {
+          await refreshVoiceSelection();
+          await onMeetingVoiceChanged(message);
+        }}
+        onBuildStatus={(status) => { buildSnapshot = status; buildStatusUnavailable = false; }}
+        onBuildStatusUnavailable={() => { buildStatusUnavailable = true; }}
+        refreshRevision={buildRefreshRevision} />
+    </div>
+  </section>
 </section>

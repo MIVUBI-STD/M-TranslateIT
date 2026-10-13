@@ -11,11 +11,15 @@
   let {
     onNotice,
     onMeetingVoiceChanged,
+    onBuildStatus,
+    onBuildStatusUnavailable,
     refreshRevision = 0,
     voiceChangesLocked = false,
   }: {
     onNotice: (message: string) => void;
     onMeetingVoiceChanged: (message?: string) => void | Promise<void>;
+    onBuildStatus?: (status: MyVoiceBuildStatus) => void;
+    onBuildStatusUnavailable?: () => void;
     refreshRevision?: number;
     voiceChangesLocked?: boolean;
   } = $props();
@@ -98,6 +102,7 @@
       stopAudio();
     }
     build = next;
+    onBuildStatus?.(next);
     if (!next.evaluation_ready) {
       reviewedLineIds = [];
       qualityConfirmed = false;
@@ -201,6 +206,7 @@
     if (disposed) return;
     if (result.build.phase === "unavailable") {
       statusCheckUnavailable = true;
+      onBuildStatusUnavailable?.();
     } else {
       // A verified native response supersedes a previous bridge failure.
       statusCheckUnavailable = false;
@@ -215,6 +221,7 @@
       if (disposed) return;
       if (next.phase === "unavailable") {
         statusCheckUnavailable = true;
+        onBuildStatusUnavailable?.();
         return;
       }
       statusCheckUnavailable = false;
@@ -223,6 +230,7 @@
       if (disposed) return;
       if (!statusCheckUnavailable) onNotice("Couldn't check My Voice progress. Select Retry status.");
       statusCheckUnavailable = true;
+      onBuildStatusUnavailable?.();
       schedulePoll();
     }
   }
@@ -403,9 +411,8 @@
   {/if}
   <div class="flex items-start justify-between gap-5">
     <div>
-      <span class="ti-kicker">My Voice</span>
-      <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 3 · Create and review My Voice</h3>
-      <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use your accepted recordings to create a personalized English voice. You can listen before choosing it.</p>
+      <h4 class="mb-0 text-lg font-semibold">{build.evaluation_ready ? "Review your voice" : build.active ? activeTitle() : "Create your voice"}</h4>
+      <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">{build.evaluation_ready ? "Listen to the new voice before selecting it for meetings." : "Use your accepted recordings to create a personal English voice."}</p>
     </div>
     {#if build.selected_voice_kind === "personal"}
       <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Personal voice selected</span>
@@ -488,6 +495,15 @@
         <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
       {/if}
     </div>
+  {:else if build.approved_voice_ready && build.selected_voice_kind === "personal"}
+    <p class="mb-0 mt-5 text-sm text-[var(--ti-text-muted)]">My Voice is selected for meetings. Your recordings remain available if you want to create another candidate.</p>
+    {#if build.can_build}
+      <label class="mt-4 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
+        <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} />
+        <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
+      </label>
+      <button type="button" class="ti-button ti-button-secondary mt-4" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+    {/if}
   {:else}
     {#if !build.can_build}
       <p class="mb-0 mt-5 text-sm leading-5 text-[var(--ti-text-muted)]">{idleGuidance()}</p>
@@ -497,7 +513,7 @@
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
       </label>
       <button type="button" class="ti-button mt-4" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>
-        <span>{busy ? "Starting..." : build.approved_voice_ready ? "Create Again" : "Create My Voice"}</span>
+        <span>{busy ? "Starting..." : "Create My Voice"}</span>
       </button>
     {/if}
   {/if}

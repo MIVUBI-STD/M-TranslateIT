@@ -20,10 +20,10 @@
 </script>
 
 <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <strong class="text-sm font-semibold">Quick Preview · Not for meetings</strong>
-        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Optional temporary preview; never usable in Meeting.</p>
+        <strong class="text-sm font-semibold">Optional Quick Preview · Not for meetings</strong>
+        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Listen to a temporary sample before training. Not for meetings.</p>
       </div>
       <button
         type="button"
@@ -35,7 +35,7 @@
       >{quickPreviewOptionsOpen || quickPreviewBusy || build.preview_active ? "Hide options" : "Show options"}</button>
     </div>
     <div id="my-voice-quick-preview-options" hidden={!quickPreviewOptionsOpen && !quickPreviewBusy && !build.preview_active}>
-        <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">Try a short accepted recording before full training. A temporary sample is not an approved Meeting voice.</p>
+        <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">This temporary sample is for checking your recordings. It cannot be selected for meetings.</p>
         <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
           <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={previewAuthorized} />
           I own this voice or have permission to create a preview.
