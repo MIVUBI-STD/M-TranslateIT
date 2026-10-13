@@ -447,6 +447,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Automatically resume training, modify selected Meeting voice, touch accepted takes/immutable archives, intercept unrelated process state, or expose a working Resume button merely because the event-contract parser exists. The existing SoVITS broad pretrained fallback, reconstructed scheduler, and absent AMP GradScaler checkpoint remain blocking acceptance conditions. Pinned GPT-SoVITS model/engine source must remain unchanged.
 
+### PR-126 — Opt-in spawned SoVITS child-origin resume probe
+**MUST:** An explicitly invoked developer-only SoVITS checkpoint probe may replace only the pinned trainer's checkpoint loader boundary inside the actual \`torch.multiprocessing.spawn\` child. The producer must have an importable module entry point on Windows and verify the pinned upstream trainer files and source path in both launcher and child.
+
+**MUST:** Before reporting SoVITS Generator/Discriminator checkpoint loaded, verify the exact planned paths and SHA-256, safeload trusted checkpoint data using \`weights_only=True\`, require matching complete model state keys/shapes and nonempty optimizer state, and confirm both paired checkpoints use the same saved epoch. A mismatch must hard-fail the probe child BEFORE the pinned \`s2_train.py\` broad \`except\` can fall back to pretrained weights. Do not treat a successful model-only weight load as optimizer-resume proof.
+
+**MUST:** Emit the initial SoVITS training-step event only after the first real Generator \`optimizer.step()\` call completes at the expected next epoch, not merely when the epoch starts (AMP may skip the step). Bind emitted evidence to run/recovery/dataset/checkpoint identities and child PID. Treat a writable JSONL file as diagnostic evidence, **not authenticated proof of worker origin**; the separate fail-closed acknowledgment protocol must continue returning \`resume_available=false\` until independent native cross-process provenance, GPT Lightning restoration and scheduler/GradScaler continuity have been established.
+
+**MUST NOT:** Route ordinary My Voice creation or Improve My Voice through this probe. An explicit \`--translateit-dev-strict-sovits-probe <plan>\` flag is mandatory and disabled on all ordinary production command paths. Do not modify the pinned GPT-SoVITS source or models, auto-resume any checkpoint, change the selected Meeting voice, or expose the end-user Resume action.
+
 ## 13. UI
 
 ### PR-160 — Navigation

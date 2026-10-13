@@ -207,6 +207,16 @@ def run_upstream_script(source_root: Path, script: Path, script_args: list[str])
         _run_english_text_stage()
         return
 
+    # Developer-only explicit CLI gate. Production run_stage() passes no
+    # script args and retains its original pinned GPT-SoVITS behavior.
+    if script_args[:1] == ["--translateit-dev-strict-sovits-probe"]:
+        if (relative_script.as_posix() != "GPT_SoVITS/s2_train.py"
+                or len(script_args) != 2):
+            raise RuntimeError("voice_lab:strict_probe_wrong_stage_or_arguments")
+        from voice_lab_resume_child_probe import install_opt_in_sovits_spawn_probe
+        install_opt_in_sovits_spawn_probe(source_root, Path(script_args[1]))
+        script_args = []
+
     sys.argv = [str(script), *script_args]
     runpy.run_path(str(script), run_name="__main__")
 

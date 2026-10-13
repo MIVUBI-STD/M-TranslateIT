@@ -556,3 +556,49 @@ the same frozen dataset. This remains independent from the existing safe
 **Proof ceiling:** GitHub exact-source inspection and source-authored
 unit fixtures; no Python/Cargo/Svelte tests, spawned trainer, Windows
 checkpoint load or voice quality test executed.
+
+
+## Source implementation continuation — opt-in SoVITS spawned-child probe
+
+The strictly optional developer module
+\`EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_resume_child_probe.py\`
+contains an importable \`sovits_child_entry\` compatible in *source form* with
+PyTorch's Windows \`torch.multiprocessing.spawn\` requirement. The existing
+\`voice_lab_upstream_stage.py\` recognizes **only** an explicit reserved
+\`--translateit-dev-strict-sovits-probe <local-json-plan>\` argument when the
+requested pinned script is exactly \`GPT_SoVITS/s2_train.py\`. Normal My Voice
+training passes no such argument and is unchanged.
+
+An explicitly armed parent checks the pinned upstream trainer SHA/source
+identity and installs a narrow \`mp.spawn\` wrapper; that wrapper dispatches
+an importable child entry with an immutable plan. The child independently
+checks the pinned source path, wraps \`utils.load_checkpoint\` for the pinned
+SoVITS Generator and Discriminator, and uses
+\`torch.load(..., weights_only=True)\` on trusted, plan-bound local files.
+It verifies exact checkpoint hash, epoch, full model state key/shape layout and
+loaded nonempty optimizer state. Unexpected source/optimizer states fail closed
+by terminating the *developer child* with exit code 78; this is necessary
+because upstream has a bare \`except:\` that would otherwise retry with
+pretrained weights. No upstream source file is patched on disk.
+
+The child also wraps \`train_and_evaluate\` to check the expected next epoch
+and observes the first real Generator \`optimizer.step()\` completion; when
+AMP skips the step, the callback does not fire and no successful start is
+asserted. It emits bounded diagnostic events to a local developer-controlled
+JSONL path bound to run ID, dataset ID, source checkpoint SHA and child PID.
+
+**Evidence caveats:** This is a developer-only probe, **not** an operational
+resume feature. The generator's events are not proof of process provenance
+just because a JSONL file contains the claimed PID or hashes; the independent
+acknowledgment validator continues to set
+\`worker_provenance_verified=false\`, \`trainer_load_verified=false\`,
+\`resume_available=false\`. GPT Lightning's equivalent worker callback and
+SoVITS AMP GradScaler/scheduler restoration still need a separate strict
+adapter and actual native target-Windows validation before any user-facing
+Resume can be enabled. The probe's Windows multiprocessing compatibility,
+checkpoint deserialization, optimizer step and actual audio impact have
+**not been executed**. The new pure unit fixture simulates the real-loader
+boundary with fake model and optimizer states; it is not training evidence.
+
+References: https://docs.pytorch.org/docs/stable/multiprocessing.html
+and https://docs.pytorch.org/docs/stable/notes/amp_examples.html.
