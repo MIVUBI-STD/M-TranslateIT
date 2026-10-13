@@ -363,3 +363,50 @@ transitions were tracked, not all diphones, contextual prosody or a speaker's
 real acoustic production. Full human review remains a separate acceptance
 gate. The previous source-only proof limit still applies: Cargo/Svelte/Node,
 Windows mic, training quality and native crash recovery NOT EXECUTED.
+
+
+## Source implementation continuation — portable verified My Voice backup
+
+The Rust-owned \`voice_lab/storage/backup.rs\` adds a bounded, explicit
+folder-format backup, containing only immutable:
+- \`Recordings\`
+- \`DatasetSnapshots\`
+- \`TrainingLineage\`
+- \`VoiceVersions\`
+
+Before exporting, the current and separately saved personal actors are
+preserved as immutable package versions. Recognized legacy cached WAVs and
+\`*.previous\` recovery takes are protected through the existing copy-only
+migration. A previous incomplete voice swap stops export instead of silently
+guessing which package to keep.
+
+The user selects an **existing absolute folder**. TranslateIT creates a unique
+\`TranslateIT-MyVoice-<timestamp>\` child directory via verified staging, with
+\`data/\` and \`my-voice-backup.json\`. The manifest names only whitelisted,
+portable archive paths and includes bounded file sizes and SHA-256 hashes.
+An exact backup can be verified without restoring; verification checks file
+hashes and references between recordings, datasets, lineage, and model files.
+The format is not a signature or authenticity guarantee.
+
+Restore is **additive-only**: it never changes the currently selected Meeting
+voice, never overwrites existing saved archives, and never alters active cache
+takes or audio devices. Existing matching files are reused, conflicting files
+block the import in preflight, and newly imported immutable files are written
+through per-file staging with verification. Interrupted valid staging is
+recoverable; corrupt partial staging is reported rather than deleted. The
+user may then explicitly choose an imported personal voice using the existing
+Safe Restore mechanism and human approval.
+
+The secondary \`Storage & backup\` UI provides Create, Verify, and Import.
+Without an installed native file-dialog dependency, this iteration accepts
+user-pasted absolute folder paths from File Explorer; it does not silently
+write to or upload an unknown provider and warns users to store a backup on
+another drive. This is a bounded UX compromise rather than a permanent
+folder-picker design.
+
+**Source-only proof:** the GitHub edit includes Windows-scoped native fixture
+tests and Node source-contract tests, but they have NOT EXECUTED. The
+packaged Windows filesystem, actual external drive/NTFS behavior, multi-file
+crash recovery and copied model usability still require integrated target
+acceptance. Do not infer production-ready disaster recovery from a committed
+source module or self-consistent manifest.

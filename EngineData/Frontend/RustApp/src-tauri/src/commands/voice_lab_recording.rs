@@ -16,7 +16,7 @@ use crate::engine::runtime_state::{
     revoke_runtime_session_authority, VOICE_RECORDING_OWNER_ID,
 };
 
-use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, saved_recordings_page, saved_recording_audio, VoiceLabStoragePaths};
+use super::voice_lab::{create_voice_backup, check_voice_backup, restore_voice_backup, voice_backup_active, BackupReport, archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, saved_recordings_page, saved_recording_audio, VoiceLabStoragePaths};
 
 mod guided_lines;
 mod storage_transaction;
@@ -204,6 +204,9 @@ pub fn start_voice_lab_guided_take(
     line_id: u32,
     authorized_voice_confirmed: bool,
 ) -> GuidedRecordingActionResult {
+    if voice_backup_active() {
+        return result(false, "backup_active", "Finish backing up or restoring My Voice before recording.");
+    }
     if !authorized_voice_confirmed {
         return result(false, "authorization_required", "Confirm that you own or are authorized to use this voice before recording.");
     }
@@ -360,6 +363,9 @@ pub fn retry_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult 
 
 #[tauri::command]
 pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
+    if voice_backup_active() {
+        return result(false, "backup_active", "Finish backing up or restoring My Voice before saving another recording.");
+    }
     if current_voice_lab_build_snapshot().active {
         return result(false, "build_active", "Wait for My Voice creation to finish before accepting a new recording.");
     }
@@ -464,6 +470,57 @@ pub fn list_voice_lab_saved_recordings(after: Option<String>) -> Result<SavedRec
 pub fn get_voice_lab_saved_recording_audio(archive_id: String) -> Result<tauri::ipc::Response, String> {
     let bytes = saved_recording_audio(&storage_paths(), &archive_id)?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+
+fn backup_operation_allowed() -> Result<(), String> {
+    if voice_backup_active()
+        || voice_lab_recording_active()
+        || current_voice_lab_build_snapshot().active
+        || super::voice_lab_preview::quick_voice_preview_active()
+        || super::builtin_voice::meeting_blocks_voice_change()
+    {
+        return Err("Finish Meeting, recording, or voice creation before using backup and restore.".into());
+    }
+    let draft = draft_store().lock()
+        .map_err(|_| "Could not verify pending recording status.".to_string())?;
+    if draft.is_some() {
+        return Err("Finish reviewing the pending recording before backup or restore.".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn create_voice_lab_backup(destination_dir: String) -> Result<BackupReport, String> {
+    let _selection_guard = super::voice_lab_build::voice_selection_guard()
+        .map_err(|_| "Another voice change or backup is in progress.".to_string())?;
+    backup_operation_allowed()?;
+    let migration = migrate_legacy_recordings(&storage_paths(), guided_lines());
+    if !migration.ok {
+        return Err("Older recordings still need protection. Review the saved recording warning before creating a complete backup.".into());
+    }
+    create_voice_backup(&storage_paths(), &destination_dir)
+}
+
+#[tauri::command]
+pub fn verify_voice_lab_backup(backup_folder: String) -> Result<BackupReport, String> {
+    let _selection_guard = super::voice_lab_build::voice_selection_guard()
+        .map_err(|_| "Another voice change or backup is in progress.".to_string())?;
+    backup_operation_allowed()?;
+    check_voice_backup(&backup_folder)
+}
+
+#[tauri::command]
+pub fn restore_voice_lab_backup(
+    backup_folder: String, confirmed: bool,
+) -> Result<BackupReport, String> {
+    let _selection_guard = super::voice_lab_build::voice_selection_guard()
+        .map_err(|_| "Another voice change or backup is in progress.".to_string())?;
+    backup_operation_allowed()?;
+    if !confirmed {
+        return Err("Confirm that this backup contains your own or an authorized voice.".into());
+    }
+    restore_voice_backup(&storage_paths(), &backup_folder)
 }
 
 #[tauri::command]

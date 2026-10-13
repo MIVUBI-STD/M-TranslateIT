@@ -409,6 +409,17 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Run a new ASR, G2P or voice model automatically on every UI status refresh; upload raw audio or transcripts for recommendations; install a second TTS engine; overwrite existing exact guided texts. Generate compact metadata in developer tooling from a reviewed pronunciation source; do not bundle an unrelated cloud API or runtime dictionary merely to display suggestions.
 
+### PR-122 — Explicit portable My Voice backup and additive restore
+**MUST:** Offer user-initiated local/offline backup creation to an existing chosen destination directory, in a new unique child folder. Include the durable, immutable Recording Library, DatasetSnapshots, TrainingLineage, and VoiceVersions; first preserve any current or separately saved personal actor and protect recognized legacy accepted takes. Do not include temporary Meeting recordings, Meeting transcripts, diagnostics, personal credentials, cache-only build intermediates, or unrelated files.
+
+**MUST:** Use a portable versioned manifest with safe relative filenames, bounded file sizes/counts, SHA-256 of copied bytes, complete reference checks, and a committed/verified export folder. Unknown, missing, corrupt, unrecognized, symlinked or unfinished archive objects prevent a misleading success notice. Keep failed partial staging for explicit recovery rather than automatically deleting user data.
+
+**MUST:** Support read-only backup verification separately from restore. Restore may only merge immutable archived objects after complete source verification and an explicit authorized-voice confirmation. Existing identical objects remain untouched; conflicting existing objects cause a failure before import writes. Never overwrite the current Meeting voice, select an imported model automatically, silently remove old versions, or erase original recordings.
+
+**MUST:** Label integrity verification accurately: a self-contained SHA-256 manifest does not prove authenticity of an untrusted backup. Explain that a backup on the same disk does not protect against disk failure; restoration and voice usability on another Windows device still require target-Windows validation. The native desktop may initially require copying an absolute destination/folder path while a later native folder picker is evaluated without a second storage authority.
+
+**MUST NOT:** Automatically sync My Voice content to a remote/cloud service. Never claim device-level recovery or backup durability before a real cross-path restore has been executed and verified on the target platform.
+
 ## 13. UI
 
 ### PR-160 — Navigation

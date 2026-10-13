@@ -50,6 +50,16 @@ export type LegacyMigrationResult = {
   message: string;
 };
 
+export type MyVoiceBackupReport = {
+  ok: boolean;
+  message: string;
+  backup_folder: string | null;
+  file_count: number;
+  total_bytes: number;
+  newly_imported: number;
+  already_present: number;
+};
+
 export type GuidedRecordingActionResult = {
   ok: boolean;
   state: string;
@@ -71,6 +81,17 @@ function normalizeAction(action: GuidedRecordingActionResult): GuidedRecordingAc
 }
 
 export const myVoiceApi = {
+  async createBackup(destinationDir: string): Promise<MyVoiceBackupReport | null> {
+    return runCommand<MyVoiceBackupReport>("create_voice_lab_backup", { destinationDir });
+  },
+
+  async verifyBackup(backupFolder: string): Promise<MyVoiceBackupReport | null> {
+    return runCommand<MyVoiceBackupReport>("verify_voice_lab_backup", { backupFolder });
+  },
+
+  async restoreBackup(backupFolder: string, confirmed: boolean): Promise<MyVoiceBackupReport | null> {
+    return runCommand<MyVoiceBackupReport>("restore_voice_lab_backup", { backupFolder, confirmed });
+  },
   async listSavedRecordings(after: string | null = null): Promise<SavedRecordingPage | null> {
     return runCommand<SavedRecordingPage>("list_voice_lab_saved_recordings", { after });
   },

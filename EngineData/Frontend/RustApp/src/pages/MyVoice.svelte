@@ -15,6 +15,7 @@
   import MyVoiceBuild from "../components/my-voice/MyVoiceBuild.svelte";
   import BuiltinVoicePicker from "../components/my-voice/BuiltinVoicePicker.svelte";
   import VoiceVersionBrowser from "../components/my-voice/VoiceVersionBrowser.svelte";
+  import VoiceBackupRestore from "../components/my-voice/VoiceBackupRestore.svelte";
 
   type BuiltinVoiceId = "MaleVoice" | "FemaleVoice";
 
@@ -747,6 +748,18 @@
     }}
   />
 
+
+  <VoiceBackupRestore
+    voiceChangesLocked={voiceChangesLocked || busy || improvementStarting || recordingStatusUnknown ||
+      isRecording || pendingLineId !== null || buildStatusUnavailable ||
+      buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+    {onNotice}
+    onRestored={async () => {
+      savedLibraryPage = null;
+      if (savedLibraryOpen) await loadSavedLibrary();
+      await refreshLegacyProtection();
+    }}
+  />
 
   {#if legacyProtectionUnknown || (legacyProtection && (legacyProtection.total_sources > 0 || legacyProtection.attention_sources > 0))}
     <section class="ti-panel mt-4 p-4 sm:p-5" aria-label="Saved recording protection">

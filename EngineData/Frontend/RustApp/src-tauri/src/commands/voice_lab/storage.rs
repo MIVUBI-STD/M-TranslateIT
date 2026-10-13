@@ -12,6 +12,8 @@ mod recording_migration;
 mod immutable_store;
 mod dataset_history;
 mod actor_history;
+mod backup;
+pub(crate) use backup::BackupReport;
 mod archive_dataset;
 pub(crate) use archive_dataset::{choose_archived_takes, ArchivedSelection};
 pub(crate) use dataset_history::archived_frozen_review_matches;
@@ -270,6 +272,42 @@ pub(crate) fn archive_selected_personal_voice(paths: &VoiceLabStoragePaths) -> R
 /// Activate a previously immutable, validated personal actor through the
 /// SAME selected-voice compatibility path that Meeting already consumes.
 /// Caller owns the existing Meeting/recording/build selection lock.
+
+/// Persist currently active and separately saved personal models to immutable
+/// VoiceVersions before packaging the permanent source-of-truth archives.
+pub(crate) fn create_voice_backup(
+    storage: &VoiceLabStoragePaths, target_folder: &str,
+) -> Result<BackupReport, String> {
+    fs::create_dir_all(&storage.saved_root)
+        .map_err(|_| "voice_backup:user_storage_unavailable")?;
+    for pending in [".MyVoice.previous", ".MyVoice.next", ".MyVoice.builtin-next",
+        ".MyVoice.builtin-previous", ".PersonalVoice.next", ".PersonalVoice.previous"] {
+        if fs::symlink_metadata(storage.saved_root.join(pending)).is_ok() {
+            return Err("voice_backup:resolve_previous_voice_recovery_before_export".into());
+        }
+    }
+    for source in [&storage.approved_actor_dir, &storage.stored_personal_actor_dir] {
+        match actor_kind(source) {
+            ActorKind::Personal => { actor_history::preserve_actor_version(storage, source)?; }
+            ActorKind::Builtin(_) | ActorKind::Missing => {}
+            ActorKind::Unverified => return Err("voice_backup:personal_actor_unverified".into()),
+        }
+    }
+    backup::export_backup(storage, target_folder)
+}
+
+pub(crate) fn check_voice_backup(folder: &str) -> Result<BackupReport, String> {
+    backup::verify_backup(folder)
+}
+
+pub(crate) fn restore_voice_backup(
+    storage: &VoiceLabStoragePaths, folder: &str,
+) -> Result<BackupReport, String> {
+    backup::restore_backup(storage, folder)
+}
+
+pub(crate) fn voice_backup_active() -> bool { backup::backup_active() }
+
 pub(crate) fn activate_archived_personal_voice(
     paths: &VoiceLabStoragePaths, version_id: &str,
 ) -> Result<(), String> {

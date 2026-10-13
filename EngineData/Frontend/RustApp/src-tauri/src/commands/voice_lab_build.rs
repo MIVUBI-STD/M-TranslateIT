@@ -22,7 +22,7 @@ use super::voice_lab::{
     request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, archive_selected_personal_voice,
     activate_stored_personal_voice, recover_selected_actor_if_missing,
-    selected_voice_info, actor_version_page, activate_archived_personal_voice,
+    selected_voice_info, actor_version_page, activate_archived_personal_voice, voice_backup_active,
     ActorVersionPage, GuidedDatasetManifest, GuidedTakeContract,
     VoiceLabStoragePaths, MAX_REFERENCE_MS, MIN_REFERENCE_MS, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
@@ -51,7 +51,8 @@ const CANCEL_WAIT: Duration = Duration::from_secs(10);
 
 // Guard select/approve on the shared worker actor path. No parallel promotion.
 static VOICE_SELECTION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-fn voice_selection_guard() -> Result<std::sync::MutexGuard<'static, ()>, ()> {
+pub(crate) fn voice_selection_guard() -> Result<std::sync::MutexGuard<'static, ()>, ()> {
+    if voice_backup_active() { return Err(()); }
     VOICE_SELECTION_LOCK.get_or_init(|| Mutex::new(())).lock().map_err(|_| ())
 }
 
@@ -502,6 +503,9 @@ fn start_voice_lab_build_selected(
     authorized_voice_confirmed: bool,
     selected_archives: Option<Vec<String>>,
 ) -> VoiceLabBuildActionResult {
+    if voice_backup_active() {
+        return result(false, "backup_active", "Finish the My Voice backup or restore before starting training.");
+    }
     if !authorized_voice_confirmed {
         return result(false, "authorization_required", "Confirm that this is your voice, or that you have permission to create it.");
     }
