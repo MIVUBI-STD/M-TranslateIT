@@ -26,6 +26,8 @@ pub(super) struct DatasetSnapshot {
     engine_revision: String,
     source_manifest: GuidedDatasetManifest,
     audio: Vec<TakeLink>,
+    #[serde(default)]
+    from_saved_archive: bool,
 }
 
 fn snapshots_root(storage: &VoiceLabStoragePaths) -> std::path::PathBuf {
@@ -61,6 +63,25 @@ pub(super) fn preserve_frozen_dataset(
     storage: &VoiceLabStoragePaths,
     manifest: &GuidedDatasetManifest,
 ) -> Result<String, String> {
+    preserve_frozen_dataset_inner(storage, manifest, None)
+}
+
+pub(super) fn preserve_frozen_dataset_with_archives(
+    storage: &VoiceLabStoragePaths,
+    manifest: &GuidedDatasetManifest,
+    archive_ids: &[String],
+) -> Result<String, String> {
+    if archive_ids.len() != manifest.takes.len() {
+        return Err("voice_lab:snapshot_archive_selection_mismatch".into());
+    }
+    preserve_frozen_dataset_inner(storage, manifest, Some(archive_ids))
+}
+
+fn preserve_frozen_dataset_inner(
+    storage: &VoiceLabStoragePaths,
+    manifest: &GuidedDatasetManifest,
+    expected_archives: Option<&[String]>,
+) -> Result<String, String> {
     let mut audio = Vec::with_capacity(manifest.takes.len());
     for take in &manifest.takes {
         let canonical = storage.build_dataset_dir.join(&take.wav_file);
@@ -73,6 +94,11 @@ pub(super) fn preserve_frozen_dataset(
         let archive_id = archive_guided_take(
             storage, take.line_id, &take.exact_text, &canonical, native,
         )?;
+        if let Some(ids) = expected_archives {
+            if ids[audio.len()] != archive_id {
+                return Err("voice_lab:snapshot_selected_take_changed".into());
+            }
+        }
         audio.push(TakeLink { line_id: take.line_id, wav_file: take.wav_file.clone(), archive_id });
     }
     let payload = DatasetSnapshot {
@@ -80,6 +106,7 @@ pub(super) fn preserve_frozen_dataset(
         engine_revision: VOICE_ACTOR_ENGINE_REVISION.into(),
         source_manifest: manifest.clone(),
         audio,
+        from_saved_archive: expected_archives.is_some(),
     };
     let bytes = serde_json::to_vec(&payload)
         .map_err(|_| "voice_lab:snapshot_serialize_failed")?;
@@ -155,6 +182,34 @@ pub(super) fn preserve_training_lineage(
     Ok(Some(id))
 }
 
+
+/// Review an archived-rebuild candidate against the exact frozen WAV bytes.
+/// Unlike a legacy build, new recordings accepted afterward do not invalidate
+/// an already frozen, self-contained saved-archive evaluation.
+pub(crate) fn archived_frozen_review_matches(
+    storage: &VoiceLabStoragePaths,
+) -> Result<Option<bool>, String> {
+    let Some(id) = frozen_dataset_snapshot_id(storage)? else { return Ok(None); };
+    let snapshot = verify_snapshot(storage, &id)?;
+    if !snapshot.from_saved_archive { return Ok(None); }
+    let current_manifest = read_regular_bounded(
+        &storage.build_dataset_dir.join("dataset.json"), 64 * 1024,
+    )?;
+    let frozen_manifest: GuidedDatasetManifest = serde_json::from_slice(&current_manifest)
+        .map_err(|_| "voice_lab:archived_review_manifest_invalid")?;
+    if frozen_manifest != snapshot.source_manifest { return Ok(Some(false)); }
+    for (take, link) in frozen_manifest.takes.iter().zip(snapshot.audio.iter()) {
+        let staged = read_regular_bounded(
+            &storage.build_dataset_dir.join(&take.wav_file), 4 * 1024 * 1024 + 4096,
+        )?;
+        let verified = super::recording_archive::saved_recording_audio(
+            storage, &link.archive_id,
+        )?;
+        if staged != verified { return Ok(Some(false)); }
+    }
+    Ok(Some(true))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,6 +272,7 @@ mod tests {
                 }],
                 held_out_lines: vec![],
             },
+            from_saved_archive: false,
             audio: vec![TakeLink {
                 line_id: line, wav_file: format!("take_{line:04}.wav"), archive_id: "a".repeat(64),
             }],

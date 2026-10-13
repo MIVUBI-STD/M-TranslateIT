@@ -9,6 +9,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::application_runtime::mutations::start_product_voice_recording,
         crate::commands::application_runtime::mutations::stop_product_voice_recording,
         crate::commands::application_runtime::mutations::start_product_voice_build,
+        crate::commands::application_runtime::mutations::start_product_voice_improvement,
         crate::commands::application_runtime::mutations::cancel_product_voice_build,
         crate::commands::application_runtime::mutations::approve_product_voice_candidate,
         crate::commands::application_runtime::mutations::select_product_builtin_voice,

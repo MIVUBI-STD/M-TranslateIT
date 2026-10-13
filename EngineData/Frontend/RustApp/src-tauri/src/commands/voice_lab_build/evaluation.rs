@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use super::super::voice_lab::{
     GuidedDatasetManifest, GuidedEvaluationLineContract, GuidedTakeContract, VoiceLabStoragePaths,
+    archived_frozen_review_matches,
     VOICE_ACTOR_ENGINE, VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION, sha256_digest,
 };
 
@@ -268,8 +269,15 @@ pub(super) fn reviewable_evaluation(
     let evaluation = evaluation_manifest(paths)?;
     let actor_bytes = fs::read(paths.candidate_actor_dir.join("actor.json")).ok()?;
     let actor_json = serde_json::from_slice::<serde_json::Value>(&actor_bytes).ok()?;
+    let matches_training = match archived_frozen_review_matches(paths) {
+        Ok(Some(matches)) => matches,
+        Ok(None) => frozen_dataset_matches_current(
+            &paths.takes_dir, &paths.build_dataset_dir, current_takes,
+        ),
+        Err(_) => false,
+    };
     if !candidate_selection_matches_actor_json(&evaluation, &actor_json)
-        || !frozen_dataset_matches_current(&paths.takes_dir, &paths.build_dataset_dir, current_takes)
+        || !matches_training
     {
         return None;
     }

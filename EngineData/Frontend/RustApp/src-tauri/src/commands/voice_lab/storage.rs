@@ -12,6 +12,9 @@ mod recording_migration;
 mod immutable_store;
 mod dataset_history;
 mod actor_history;
+mod archive_dataset;
+pub(crate) use archive_dataset::{choose_archived_takes, ArchivedSelection};
+pub(crate) use dataset_history::archived_frozen_review_matches;
 pub(crate) use actor_history::{actor_version_page, ActorVersionPage};
 pub(crate) use recording_archive::{archive_guided_take, saved_recordings_page, saved_recording_audio, SavedRecordingPage};
 pub(crate) use recording_migration::{legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus};
@@ -445,6 +448,14 @@ pub(super) fn prepare_guided_dataset_at(
     write_json(&manifest_path, manifest)?;
     dataset_history::preserve_frozen_dataset(storage, manifest)?;
     Ok(manifest_path)
+}
+
+pub(super) fn prepare_guided_dataset_from_archive_at(
+    storage: &VoiceLabStoragePaths,
+    manifest: &GuidedDatasetManifest,
+    archive_ids: &[String],
+) -> Result<(), String> {
+    archive_dataset::prepare_archived_dataset(storage, manifest, archive_ids)
 }
 
 pub(super) fn validate_actor_package(dir: &Path) -> Result<VoiceActorPackageManifest, String> {

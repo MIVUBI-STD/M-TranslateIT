@@ -149,6 +149,10 @@ pub(crate) fn voice_lab_recording_active() -> bool {
     active_guided_take_line_id().is_some()
 }
 
+pub(crate) fn guided_training_prompts() -> &'static [(u32, &'static str)] {
+    GUIDED_LINES
+}
+
 pub(crate) fn accepted_guided_recordings() -> Vec<AcceptedGuidedRecording> {
     GUIDED_LINES
         .iter()

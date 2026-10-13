@@ -346,6 +346,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Automatically delete older versions or imply an inference actor is a full optimizer resume checkpoint. Multi-version comparison, full backup/export, training checkpoint resume and off-device durability are separately scoped work.
 
+### PR-109 — Improve My Voice using earlier accepted recordings
+**MUST:** Rebuild from user-selected immutable, hash-verified accepted recordings using the existing pinned GPT-SoVITS V2ProPlus pretrained training pipeline. Only one recording per known, unchanged guided English prompt may be used in a run; selection must preserve exact prompt ID and transcript, enforce current bounded worker take count, speech duration, category variety and usable reference. No arbitrary ASR transcription changes.
+
+**MUST:** Freeze user-selected archive bytes into a new temporary GPT-SoVITS dataset and preserve a permanent snapshot tying each training take to its exact archive identity. A newer accepted take must never silently replace the frozen audio used for training, and must not invalidate a completed archive-backed held-out review. Corrupt, mismatched or missing snapshots/recordings block candidate review and approval.
+
+**MUST:** Keep every prior accepted recording and previously approved voice version intact while training or evaluating the new candidate. Activate only after the existing eight held-out sample checks and explicit human listening/quality approval. Failure, cancellation or rejection must not replace the active Meeting actor.
+
+**MUST NOT:** Label rebuilding with selected archived takes as warm-start training, optimizer checkpoint resume or proven quality improvement. Full 600+ prompt expansion and run capacities beyond the current validated bound are separate work.
+
 ## 12. My Voice and built-in voices
 
 ### PR-110 — My Voice workflow

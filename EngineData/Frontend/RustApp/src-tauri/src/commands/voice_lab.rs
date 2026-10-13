@@ -8,12 +8,12 @@ use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEE
 mod storage;
 
 pub use storage::VoiceLabStoragePaths;
-pub(crate) use storage::{actor_version_page, activate_archived_personal_voice, ActorVersionPage, archive_guided_take, legacy_protection_status, migrate_legacy_recordings, saved_recordings_page, saved_recording_audio, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, sha256_digest};
+pub(crate) use storage::{actor_version_page, activate_archived_personal_voice, ActorVersionPage, archive_guided_take, legacy_protection_status, migrate_legacy_recordings, saved_recordings_page, saved_recording_audio, choose_archived_takes, ArchivedSelection, archived_frozen_review_matches, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, sha256_digest};
 pub(crate) use storage::{
     activate_stored_personal_voice, archive_selected_personal_voice,
     recover_selected_actor_if_missing, selected_voice_info,
 };
-use storage::{prepare_guided_dataset_at, promote_voice_actor_candidate_at, validate_actor_package};
+use storage::{prepare_guided_dataset_at, prepare_guided_dataset_from_archive_at, promote_voice_actor_candidate_at, validate_actor_package};
 #[cfg(test)]
 use storage::{
     canonical_take_file_name, validate_guided_dataset_manifest, write_json,
@@ -293,6 +293,18 @@ pub fn prepare_guided_dataset(
 ) -> Result<PathBuf, String> {
     ensure_build_generation(generation, BuildPhase::Preparing)?;
     prepare_guided_dataset_at(&VoiceLabStoragePaths::from_project_paths(paths), manifest)
+}
+
+pub fn prepare_guided_dataset_from_archives(
+    paths: &ProjectPaths,
+    generation: u64,
+    manifest: &GuidedDatasetManifest,
+    archive_ids: &[String],
+) -> Result<(), String> {
+    ensure_build_generation(generation, BuildPhase::Preparing)?;
+    prepare_guided_dataset_from_archive_at(
+        &VoiceLabStoragePaths::from_project_paths(paths), manifest, archive_ids,
+    )
 }
 
 pub fn promote_voice_actor_candidate(paths: &ProjectPaths) -> Result<(), String> {

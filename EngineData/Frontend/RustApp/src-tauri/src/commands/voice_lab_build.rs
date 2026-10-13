@@ -16,7 +16,9 @@ use super::builtin_voice::{
 };
 use super::voice_lab::{
     approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
-    finish_voice_lab_build, prepare_guided_dataset, promote_voice_actor_candidate,
+    finish_voice_lab_build, prepare_guided_dataset,
+    prepare_guided_dataset_from_archives, choose_archived_takes,
+    promote_voice_actor_candidate,
     request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, archive_selected_personal_voice,
     activate_stored_personal_voice, recover_selected_actor_if_missing,
@@ -26,7 +28,7 @@ use super::voice_lab::{
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::{
-    accepted_guided_recordings, voice_lab_recording_active,
+    accepted_guided_recordings, guided_training_prompts, voice_lab_recording_active,
 };
 
 mod evaluation;
@@ -458,6 +460,22 @@ pub fn get_voice_lab_build_status() -> VoiceLabBuildStatus {
 }
 
 pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildActionResult {
+    start_voice_lab_build_selected(authorized_voice_confirmed, None)
+}
+
+/// User-selected archived recordings are rebuilt with the SAME pinned
+/// pretrained weights and existing training/evaluation worker pipeline.
+pub fn start_voice_lab_improvement(
+    authorized_voice_confirmed: bool,
+    archive_ids: Vec<String>,
+) -> VoiceLabBuildActionResult {
+    start_voice_lab_build_selected(authorized_voice_confirmed, Some(archive_ids))
+}
+
+fn start_voice_lab_build_selected(
+    authorized_voice_confirmed: bool,
+    selected_archives: Option<Vec<String>>,
+) -> VoiceLabBuildActionResult {
     if !authorized_voice_confirmed {
         return result(false, "authorization_required", "Confirm that this is your voice, or that you have permission to create it.");
     }
@@ -468,9 +486,43 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
     if current.active {
         return result(false, "build_active", "VoiceLab creation is already running.");
     }
-    if !current.can_build {
-        return result(false, "more_recording_needed", current.message);
+    if selected_archives.is_some() && (meeting_blocks_voice_change()
+        || super::voice_lab_preview::quick_voice_preview_active())
+    {
+        return result(false, "voice_busy",
+            "Stop Meeting or Quick Preview before improving My Voice.");
     }
+    // Inspect archive selection BEFORE claiming build ownership. The hard
+    // per-run maximum is 128; a 600+ prompt library is not a training cap.
+    let selection = if let Some(ids) = selected_archives.as_ref() {
+        match choose_archived_takes(&storage(), ids, guided_training_prompts()) {
+            Ok(selection) => {
+                if selection.duration_ms < MIN_TRAINING_SPEECH_MS {
+                    return result(false, "more_recording_needed",
+                        "Select at least one minute of usable saved recordings.");
+                }
+                if let Some(missing) = missing_training_coverage_group(&selection.takes) {
+                    return result(false, "more_recording_needed", format!(
+                        "Add one saved recording from {} (lines {}–{}).",
+                        missing.label, missing.start_line_id, missing.end_line_id,
+                    ));
+                }
+                if !selection.reference_ready {
+                    return result(false, "more_recording_needed",
+                        "Select at least one saved recording between three and ten seconds.");
+                }
+                Some(selection)
+            }
+            Err(error) => return result(false, "saved_recordings_invalid", format!(
+                "Can't use the selected saved recordings. Check the recording library: {error}"
+            )),
+        }
+    } else {
+        if !current.can_build {
+            return result(false, "more_recording_needed", current.message);
+        }
+        None
+    };
 
     let (script, source, asr_model_root) = match preflight_assets() {
         Ok(value) => value,
@@ -495,10 +547,16 @@ pub fn start_voice_lab_build(authorized_voice_confirmed: bool) -> VoiceLabBuildA
     let manifest = GuidedDatasetManifest {
         schema_version: VOICE_LAB_SCHEMA_VERSION,
         authorized_voice_confirmed: true,
-        takes,
+        takes: selection.as_ref().map(|selected| selected.takes.clone()).unwrap_or(takes),
         held_out_lines: held_out_contract(),
     };
-    if let Err(error) = prepare_guided_dataset(&project_paths, generation, &manifest) {
+    let preparation = match selection.as_ref() {
+        Some(selected) => prepare_guided_dataset_from_archives(
+            &project_paths, generation, &manifest, &selected.archive_ids,
+        ).map(|_| ()),
+        None => prepare_guided_dataset(&project_paths, generation, &manifest).map(|_| ()),
+    };
+    if let Err(error) = preparation {
         let _ = fail_voice_lab_build(generation);
         return result(false, "dataset_prepare_failed", error);
     }

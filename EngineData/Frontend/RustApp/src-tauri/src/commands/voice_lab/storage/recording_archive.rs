@@ -411,6 +411,40 @@ pub(crate) fn saved_recording_audio(
     Ok(audio)
 }
 
+
+/// Verified archive material for an explicitly selected training take.
+/// All paths are derived from a validated archive ID, never from a UI path.
+pub(crate) struct ArchivedTrainingTake {
+    pub line_id: u32,
+    pub exact_text: String,
+    pub canonical_audio: Vec<u8>,
+    pub native_audio: Option<Vec<u8>>,
+    pub duration_ms: u64,
+}
+
+pub(crate) fn archived_take_for_training(
+    storage: &VoiceLabStoragePaths,
+    archive_id: &str,
+) -> Result<ArchivedTrainingTake, String> {
+    let _guard = ARCHIVE_LOCK.get_or_init(|| Mutex::new(())).lock()
+        .map_err(|_| "voice_lab:archive_lock_unavailable")?;
+    let dir = saved_recording_location(storage, archive_id)?;
+    let receipt = receipt_for_archive(&dir, archive_id)?;
+    verified_archive(&dir, &receipt)?;
+    let canonical_audio = bounded_regular_bytes(&dir.join("canonical.wav"), MAX_CANONICAL_BYTES)?;
+    let duration_ms = inspect_canonical_wav(&dir.join("canonical.wav"))?.duration_ms;
+    let native_audio = if receipt.native_rate_sha256.is_some() {
+        Some(bounded_regular_bytes(&dir.join("native-rate.wav"), MAX_NATIVE_BYTES)?)
+    } else { None };
+    Ok(ArchivedTrainingTake {
+        line_id: receipt.line_id,
+        exact_text: receipt.exact_text,
+        canonical_audio,
+        native_audio,
+        duration_ms,
+    })
+}
+
 #[cfg(all(test, target_os = "windows"))]
 mod tests {
     use super::*;

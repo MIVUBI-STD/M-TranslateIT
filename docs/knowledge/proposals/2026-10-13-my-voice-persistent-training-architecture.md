@@ -239,3 +239,32 @@ or externally backed disaster recovery.
 
 **Proof limit:** this work is only REMOTE_GITHUB source-reviewed until an
 exact-SHA Windows Cargo/Svelte/Node and native version-switch regression run.
+
+
+## Source implementation extension — Improve My Voice archived rebuild
+
+A new explicit user-authorized \`start_product_voice_improvement\` command
+reuses the canonical Rust-owned \`start_voice_lab_build_selected\` and existing
+Python GPT-SoVITS V2ProPlus training worker. The default \`Create My Voice\`
+path remains unchanged. The saved-recordings disclosure now allows choosing
+exactly one archived take per guided sentence and creating a new candidate.
+
+The archive selection requires verified source bytes, exact immutable guided
+text, at least 60 seconds of accepted speech, five existing coverage groups,
+a 3–10 second reference candidate, and at most 128 selected takes per run.
+Every selection is ordered by line ID, copied into the existing flat WAV
+worker dataset, and bound to its own permanent content-addressed snapshot.
+
+Held-out evaluation for this explicitly archive-backed run verifies the exact
+frozen WAV and saved archive bindings, **not the current mutable active-take
+paths**. This allows accepting more new recordings without invalidating an
+already completed archived training review. Legacy non-archive review retains
+its original current-take byte comparison. Failure is fail-closed; there is no
+silently inferred dataset source.
+
+The user-facing action is \`Create improved version\`, but outcome quality is
+still unknown until a new candidate completes all existing held-out checks
+and human approval. This is \`REBUILD_WITH_MORE_DATA\`, **not** true optimizer
+resume, checkpoint warm start, or a claim that more audio always improves
+speaker identity. Actual Windows training, integrated frontend, GPU resource
+use, acoustics and source tests remain **NOT EXECUTED**.

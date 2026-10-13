@@ -7,6 +7,7 @@
     type GuidedRecordingState,
     type LegacyProtectionStatus,
     type SavedRecordingPage,
+    type SavedRecording,
   } from "../app/bridge/myVoiceApi";
   import { myVoiceBuildApi, type MyVoiceBuildStatus } from "../app/bridge/myVoiceBuildApi";
   import { runtimeApi } from "../app/bridge/runtimeApi";
@@ -54,6 +55,10 @@
   let savedLibraryError = $state(false);
   let savedLibraryPage = $state<SavedRecordingPage | null>(null);
   let savedPlayingId = $state<string | null>(null);
+  let improvementTakes = $state<Record<number, string>>({});
+  let improvementAuthorized = $state(false);
+  let improvementStarting = $state(false);
+  const improvementIds = $derived(Object.values(improvementTakes));
   let microphoneCheckMessage = $state("");
   // Presentation-only copy of the build owner's VERIFIED snapshot. No second polling loop.
   let buildSnapshot = $state<MyVoiceBuildStatus | null>(null);
@@ -131,6 +136,48 @@
   function toggleSavedLibrary(): void {
     savedLibraryOpen = !savedLibraryOpen;
     if (savedLibraryOpen) void loadSavedLibrary();
+  }
+
+
+  function selectSavedTake(take: SavedRecording): void {
+    if (improvementStarting || busy || buildSnapshot?.active || buildSnapshot?.preview_active) return;
+    const next = { ...improvementTakes };
+    if (next[take.line_id] === take.archive_id) delete next[take.line_id];
+    else next[take.line_id] = take.archive_id;
+    improvementTakes = next;
+  }
+
+  async function startImprovement(): Promise<void> {
+    if (improvementStarting || busy || !improvementAuthorized || !savedLibraryOpen ||
+        improvementIds.length < 2 || improvementIds.length > 128 ||
+        recordingStatusUnknown || isRecording || pendingLineId !== null ||
+        buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active ||
+        buildSnapshot?.evaluation_ready || activeStage === "review" || voiceChangesLocked) return;
+    improvementStarting = true;
+    stopReplay();
+    try {
+      const result = await myVoiceBuildApi.improve([...improvementIds], improvementAuthorized);
+      if (disposed) return;
+      if (result.build.phase === "unavailable" || result.state === "frontend_bridge_error") {
+        onNotice("Couldn't confirm whether improvement started. Check My Voice status before trying again.");
+        buildStatusUnavailable = true;
+        return;
+      }
+      onNotice(result.message);
+      buildSnapshot = result.build;
+      if (result.ok) {
+        improvementAuthorized = false;
+        selectedPane = "create";
+        buildRefreshRevision += 1;
+      }
+    } catch {
+      if (!disposed) {
+        buildStatusUnavailable = true;
+        onNotice("Couldn't verify the training request. Check status before starting another build.");
+      }
+    } finally {
+      improvementStarting = false;
+    }
   }
 
   async function playSavedRecording(id: string): Promise<void> {
@@ -759,6 +806,14 @@
                     <p class="m-0 text-xs font-semibold">Line {take.line_id} · {formatRecordingDuration(take.duration_ms)}</p>
                     <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{take.text}</p>
                   </div>
+
+                  <label class="flex shrink-0 items-center gap-2 text-xs text-[var(--ti-text-muted)]">
+                    <input type="checkbox" class="size-4 accent-[var(--ti-accent)]"
+                      checked={improvementTakes[take.line_id] === take.archive_id}
+                      disabled={improvementStarting || busy || isRecording || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+                      onchange={() => selectSavedTake(take)} />
+                    Include
+                  </label>
                   <button type="button" class="ti-button ti-button-secondary"
                     disabled={busy || replaying || voiceChangesLocked || isRecording || activeStage === "review" || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
                     onclick={() => void playSavedRecording(take.archive_id)}>
@@ -768,6 +823,28 @@
               {/each}
             </div>
           {/if}
+
+          <div class="mt-4 border-t border-[var(--ti-border)] pt-4">
+            <strong class="text-sm font-semibold">Improve My Voice</strong>
+            <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">
+              Choose one saved recording per sentence. You can mix earlier and newer recordings.
+              Your current Meeting voice and all saved takes will be kept.
+            </p>
+            <p class="mt-2 text-sm font-medium">{improvementIds.length} recordings chosen · maximum 128 per build</p>
+            <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
+              The training check requires at least one minute of speech, a short reference recording and varied sentence categories. You don't need to finish every line.
+            </p>
+            <label class="mt-3 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
+              <input type="checkbox" class="mt-0.5 size-4 accent-[var(--ti-accent)]"
+                bind:checked={improvementAuthorized} disabled={improvementStarting} />
+              <span class="text-sm text-[var(--ti-text-muted)]">I own these recordings or have permission to create this personal voice.</span>
+            </label>
+            <button type="button" class="ti-button mt-3"
+              disabled={improvementStarting || busy || !improvementAuthorized || improvementIds.length < 2 || improvementIds.length > 128 || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || activeStage === "review"}
+              onclick={() => void startImprovement()}>
+              {improvementStarting ? "Starting..." : "Create improved version"}
+            </button>
+          </div>
           {#if savedLibraryPage.next_cursor}
             <button type="button" class="ti-button ti-button-secondary mt-3" disabled={savedLibraryBusy}
               onclick={() => void loadSavedLibrary(true)}>

@@ -54,6 +54,20 @@ pub fn start_product_voice_build(
     })
 }
 
+
+#[tauri::command]
+pub fn start_product_voice_improvement(
+    app: tauri::AppHandle,
+    authorized_voice_confirmed: bool,
+    archive_ids: Vec<String>,
+) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
+    emit_after(&app, "start_voice_improvement", || {
+        super::super::voice_lab_build::start_voice_lab_improvement(
+            authorized_voice_confirmed, archive_ids,
+        )
+    })
+}
+
 #[tauri::command]
 pub fn cancel_product_voice_build(
     app: tauri::AppHandle,

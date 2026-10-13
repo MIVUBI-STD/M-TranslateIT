@@ -138,6 +138,15 @@ export const myVoiceBuildApi = {
       : unavailableAction("My Voice could not start creating your voice.");
   },
 
+  async improve(archiveIds: string[], authorizedVoiceConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
+    const action = await runCommand<MyVoiceBuildActionResult>("start_product_voice_improvement", {
+      archiveIds, authorizedVoiceConfirmed,
+    });
+    return action ? normalizeAction(action) : unavailableAction(
+      "Couldn't verify whether My Voice improvement started. Check status before trying again.",
+    );
+  },
+
   async cancel(): Promise<MyVoiceBuildActionResult> {
     const action = await runCommand<MyVoiceBuildActionResult>("cancel_product_voice_build");
     return action
