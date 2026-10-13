@@ -1,3 +1,13 @@
+## Active continuation — Production Meeting Starting rollback safety (2026-10-13)
+
+**Confirmed source defect:** `meeting_session/lifecycle.rs` previously ignored microphone, optional sound-capture, helper, outbound/playback consumer, suppression and transcript cleanup results during failed `Starting`, then unconditionally attempted to clear the Meeting session. Some Start failure messages unconditionally claimed "rolled back safely" although native cleanup was unknown.
+
+**Bounded source fix:** Reuse the existing `meeting_cleanup_complete` and revoked-session `mark_runtime_session_cleanup_incomplete`/retry-Stop mechanisms. Starting rollback now checks output cancellation, both capture stops, helper cancellation, outbound/playback shutdown, suppression/transcript release and session-owned temporary WAV/TTS cleanup. It releases Meeting ownership only when every check passed and matching-generation clear was confirmed; otherwise it retains/blocks the previous generation, marks cleanup incomplete and reports retry-Stop truthfully. No new worker, manager, model, user mode or streaming behavior. One Rust regression test exercises the exact cleanup decision used in production, including each individual failed requirement.
+
+**Evidence/REA:** Exact `Local` source comparison of failed-Start rollback versus the normal Stop path and public method contracts is **STATIC_SOURCE** only. REA executable/MCP, Cargo compilation/tests, actual concurrency/race reproduction, Windows/CPAL, GPU, Meet receiver, and long-session acceptance are **NOT EXECUTED**. The patch is a source candidate, not a proven runtime cleanup improvement.
+
+**Next:** Continue source-only audit of one distinct high-impact Meeting failure boundary. Change code only on an independently demonstrated defect; hold speculative streaming and model optimizations until the single integrated local acceptance phase.
+
 ## Active continuation — Batch C.3 bounded estimated ASR timing validation (2026-10-13)
 
 **Source candidate:** Extended only the existing Rust `meeting_session/source_observations.rs`, a `#[cfg(test)]` module, with a pure validator for C.2 opt-in word samples. It checks the exact active session/generation/lane/speech/audio epoch, latest revision, observed ASR window and frame count, bounded ordered word estimates, whitespace-normalized ASR transcript, and existing producer-supplied capture clock. Results are estimated capture-coordinate ranges only, **never `SourceSpanId` or a speech/translation commit permission**. No new worker, API task, model, pipeline, UI, dependency or production behavior. Two regression tests cover matching mapping and stale/misbound/malformed evidence.

@@ -66,30 +66,107 @@ pub(super) fn transient_stop_cleanup_pending() -> bool {
     STOP_CLEANUP_PENDING.load(Ordering::Acquire)
 }
 
+// A failed Starting transaction may release session ownership only after
+// every owned resource reports cleanup success. Incoming consumer starts later.
+fn starting_rollback_cleanup_complete(
+    output_cancelled: bool,
+    microphone_ok: bool,
+    sound_ok: bool,
+    helper_ok: bool,
+    outbound_ok: bool,
+    playback_ok: bool,
+    suppression_ok: bool,
+    transcript_ok: bool,
+    temporary_audio_ok: bool,
+) -> bool {
+    output_cancelled && meeting_cleanup_complete(
+        microphone_ok, sound_ok, helper_ok, outbound_ok, playback_ok,
+        true, suppression_ok, transcript_ok, temporary_audio_ok,
+    )
+}
+
 fn rollback_starting_meeting_resources(
     generation: u64,
     session_id: &str,
 ) -> (String, String) {
-    let _ = cancel_meeting_output_for_generation(generation);
-    let _ = stop_live_capture_runtime();
-    let _ = stop_meeting_sound_capture_runtime();
-    let helper_cancel = cancel_helper_bridge_meeting_session(session_id);
-    let consumer_cleanup = stop_meeting_outbound_consumer(generation);
-    let playback_cleanup = stop_meeting_playback_runtime(generation);
+    let output_cancelled = cancel_meeting_output_for_generation(generation);
+    let microphone = stop_live_capture_runtime();
+    let sound = stop_meeting_sound_capture_runtime();
+    let helper = cancel_helper_bridge_meeting_session(session_id);
+    let outbound = stop_meeting_outbound_consumer(generation);
+    let playback = stop_meeting_playback_runtime(generation);
     clear_finalized_meeting_sequence();
-    clear_self_output_suppression_for_session(session_id);
-    clear_committed_turns_for_session(session_id);
+    let suppression_ok = clear_self_output_suppression_for_session(session_id);
+    let transcript_ok = clear_committed_turns_for_session(session_id);
+    let wav_ok = cleanup_finalized_meeting_session_wavs(session_id).is_ok();
+    let tts_ok = cleanup_meeting_tts_for_session(session_id, generation).is_ok();
     clear_start_preflight_for_generation(generation);
     clear_prepared_meeting_output_device();
     clear_prepared_virtual_mic_route_selection();
-    let _ = clear_runtime_session_if_generation(generation);
+
+    // Starting has no optional incoming consumer; all other owned cleanup
+    // must pass before releasing the revoked generation to another session.
+    let cleanup_ok = starting_rollback_cleanup_complete(
+        output_cancelled, microphone.ok, sound.ok, helper.ok, outbound.ok,
+        playback.ok, suppression_ok, transcript_ok, wav_ok && tts_ok,
+    );
+    if cleanup_ok {
+        let cleared = clear_runtime_session_if_generation(generation);
+        STOP_CLEANUP_PENDING.store(
+            cleared.has_active_session || cleared.snapshot.is_some()
+                || cleared.blocker != "runtime_session:cleared",
+            Ordering::Release,
+        );
+    } else {
+        STOP_CLEANUP_PENDING.store(true, Ordering::Release);
+        let _ = mark_runtime_session_cleanup_incomplete(
+            generation,
+            !microphone.ok,
+            "Starting rollback cleanup is incomplete. Retry Stop Translation.",
+        );
+    }
+    let state = if transient_stop_cleanup_pending() {
+        "cleanup_incomplete: retry Stop Translation"
+    } else {
+        "cleaned"
+    };
     (
-        helper_cancel.message,
+        helper.message,
         format!(
-            "{} Playback cleanup: {}",
-            consumer_cleanup.message, playback_cleanup.message
+            "Microphone: {} Meeting Sound: {} Outbound: {} Playback: {} Suppression: {} Transcript: {} Temporary audio: {} Rollback: {}.",
+            microphone.message, sound.message, outbound.message, playback.message,
+            if suppression_ok { "clean" } else { "unverified" },
+            if transcript_ok { "clean" } else { "unverified" },
+            if wav_ok && tts_ok { "clean" } else { "unverified" },
+            state,
         ),
     )
+}
+
+fn rollback_completion_state() -> &'static str {
+    if transient_stop_cleanup_pending() { "cleanup_incomplete" } else { "rolled_back" }
+}
+
+#[cfg(test)]
+mod rollback_cleanup_contract_tests {
+    use super::starting_rollback_cleanup_complete;
+
+    #[test]
+    fn failed_start_cannot_treat_any_required_cleanup_as_complete() {
+        let all = [true; 9];
+        assert!(starting_rollback_cleanup_complete(
+            all[0], all[1], all[2], all[3], all[4], all[5],
+            all[6], all[7], all[8],
+        ));
+        for failure in 0..9 {
+            let mut results = all;
+            results[failure] = false;
+            assert!(!starting_rollback_cleanup_complete(
+                results[0], results[1], results[2], results[3], results[4],
+                results[5], results[6], results[7], results[8],
+            ), "cleanup requirement {failure} must prevent releasing session");
+        }
+    }
 }
 
 fn recover_helper_after_meeting_stop_if_needed() -> Result<(), String> {
@@ -252,9 +329,9 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
         let _ = rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation was rolled back safely because the microphone resource could not be opened: {}",
+                "Start Translation could not open the microphone: {}. Rollback attempted; retry Stop Translation if cleanup is incomplete.",
                 capture.message
             ),
         );
@@ -271,16 +348,16 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
         let _ = rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation was rolled back before Live because {stage} could not be functionally verified for the authoritative Meeting generation."
+                "Start Translation could not verify {stage} before Live. Rollback attempted; retry Stop Translation if cleanup is incomplete."
             ),
         );
     }
     if !generation_is_starting(generation) {
         let _ = rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             "Start Translation lost Starting authority while verifying the required local AI/My Voice path. No Meeting output was activated.".to_string(),
         );
     }
@@ -294,8 +371,8 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         let _ = rollback_starting_meeting_resources(generation, &session_id);
         return MeetingSessionActionResult {
             ok: false,
-            state: "rolled_back".to_string(),
-            message: "Start Translation verified My Voice, but another required Meeting prerequisite changed before native output activation. All opened resources were rolled back.".to_string(),
+            state: rollback_completion_state().to_string(),
+            message: "Start Translation verified the voice, but another prerequisite changed before Live. Rollback attempted; retry Stop Translation if cleanup is incomplete.".to_string(),
             status: status_from_report(latest_runtime_session_state(), ai_preflight),
         };
     }
@@ -313,9 +390,9 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         );
         let _ = rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation was rolled back because TranslateIT Meeting Microphone could not open a functional native output callback before Live: {blocker}"
+                "Start Translation could not open the Meeting output callback before Live: {blocker}. Rollback attempted; retry Stop Translation if cleanup is incomplete."
             ),
         );
     }
@@ -330,9 +407,9 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         let (helper_cleanup, runtime_cleanup) =
             rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation was rolled back before Live because bounded Meeting playback could not start: {error}. Helper cleanup: {} Runtime cleanup: {}",
+                "Start Translation could not start Meeting playback before Live: {error}. Helper cleanup: {} Runtime cleanup: {}",
                 helper_cleanup, runtime_cleanup
             ),
         );
@@ -349,9 +426,9 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         let (helper_cleanup, consumer_cleanup) =
             rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation was rolled back before Live because the serialized outbound consumer could not start: {error}. Helper cleanup: {} Consumer cleanup: {}",
+                "Start Translation could not start the outbound consumer before Live: {error}. Helper cleanup: {} Consumer cleanup: {}",
                 helper_cleanup, consumer_cleanup
             ),
         );
@@ -372,9 +449,9 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         let (helper_cleanup, consumer_cleanup) =
             rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation rolled back before Live because final My Voice readiness changed after native resources opened. Helper cleanup: {} Consumer cleanup: {}",
+                "Start Translation lost final voice readiness before Live. Helper cleanup: {} Consumer cleanup: {}",
                 helper_cleanup, consumer_cleanup
             ),
         );
@@ -394,9 +471,9 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         let (helper_cleanup, consumer_cleanup) =
             rollback_starting_meeting_resources(generation, &session_id);
         return blocked_result(
-            "rolled_back",
+            rollback_completion_state(),
             format!(
-                "Start Translation could not commit the Meeting generation Live, so all opened Meeting resources were rolled back. Helper cleanup: {} Consumer cleanup: {}",
+                "Start Translation could not commit the Meeting generation Live. Rollback attempted. Helper cleanup: {} Consumer cleanup: {}",
                 helper_cleanup, consumer_cleanup
             ),
         );
