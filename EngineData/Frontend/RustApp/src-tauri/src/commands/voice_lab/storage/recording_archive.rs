@@ -108,6 +108,67 @@ fn checked_dir(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+
+struct ArchiveInputs {
+    receipt: ArchivedTake,
+    receipt_bytes: Vec<u8>,
+    id: String,
+    canonical_bytes: Vec<u8>,
+    native_bytes: Option<Vec<u8>>,
+}
+
+fn archive_inputs(
+    line_id: u32, exact_text: &str, canonical_path: &Path, native_rate_path: Option<&Path>,
+) -> Result<ArchiveInputs, String> {
+    if line_id == 0 || exact_text.trim().is_empty() {
+        return Err("voice_lab:archive_prompt_invalid".to_string());
+    }
+    inspect_canonical_wav(canonical_path)?;
+    let canonical_bytes = bounded_regular_bytes(canonical_path, MAX_CANONICAL_BYTES)?;
+    let native_bytes = native_rate_path.map(|path| bounded_regular_bytes(path, MAX_NATIVE_BYTES)).transpose()?;
+    let receipt = ArchivedTake {
+        schema_version: ARCHIVE_VERSION, line_id,
+        exact_text: exact_text.to_string(),
+        canonical_sha256: sha256_hex(&canonical_bytes)?,
+        native_rate_sha256: native_bytes.as_ref().map(|v| sha256_hex(v)).transpose()?,
+    };
+    let receipt_bytes = serde_json::to_vec(&receipt)
+        .map_err(|_| "voice_lab:archive_receipt_serialize_failed")?;
+    let id = sha256_hex(&receipt_bytes)?;
+    Ok(ArchiveInputs { receipt, receipt_bytes, id, canonical_bytes, native_bytes })
+}
+
+/// Read-only verification, never generates or repairs the archive on a status read.
+pub(crate) fn guided_take_is_archived(
+    storage: &VoiceLabStoragePaths, line_id: u32, exact_text: &str,
+    canonical_path: &Path, native_rate_path: Option<&Path>,
+) -> Result<bool, String> {
+    let _guard = ARCHIVE_LOCK.get_or_init(|| Mutex::new(())).lock()
+        .map_err(|_| "voice_lab:archive_lock_unavailable")?;
+    let prepared = archive_inputs(line_id, exact_text, canonical_path, native_rate_path)?;
+    let shard = storage.saved_root.join("Recordings").join(&prepared.id[..2]);
+    let complete = shard.join(&prepared.id);
+    match fs::symlink_metadata(&complete) {
+        Ok(_) => {
+            verified_archive(&complete, &prepared.receipt)?;
+            Ok(true)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let pending = shard.join(format!(".pending-{}", prepared.id));
+            match fs::symlink_metadata(&pending) {
+                Ok(_) => {
+                    verified_archive(&pending, &prepared.receipt)
+                        .map_err(|_| "voice_lab:archive_pending_recovery_required")?;
+                    Ok(false)
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                Err(error) => Err(format!("voice_lab:archive_pending_metadata_failed:{error}")),
+            }
+        }
+        Err(error) => Err(format!("voice_lab:archive_metadata_failed:{error}")),
+    }
+}
+
 /// Archive a guided take BEFORE permitting the legacy accepted-take replacement.
 ///
 /// Idempotent on exact line/text/audio bytes. A different recording of the
@@ -120,28 +181,10 @@ pub(crate) fn archive_guided_take(
     canonical_path: &Path,
     native_rate_path: Option<&Path>,
 ) -> Result<String, String> {
-    if line_id == 0 || exact_text.trim().is_empty() {
-        return Err("voice_lab:archive_prompt_invalid".to_string());
-    }
     let _guard = ARCHIVE_LOCK.get_or_init(|| Mutex::new(())).lock()
         .map_err(|_| "voice_lab:archive_lock_unavailable")?;
-    inspect_canonical_wav(canonical_path)?;
-    let canonical_bytes = bounded_regular_bytes(canonical_path, MAX_CANONICAL_BYTES)?;
-    let native_bytes = native_rate_path
-        .map(|path| bounded_regular_bytes(path, MAX_NATIVE_BYTES))
-        .transpose()?;
-    let receipt = ArchivedTake {
-        schema_version: ARCHIVE_VERSION,
-        line_id,
-        exact_text: exact_text.to_string(),
-        canonical_sha256: sha256_hex(&canonical_bytes)?,
-        native_rate_sha256: native_bytes.as_ref().map(|value| sha256_hex(value)).transpose()?,
-    };
-    // The receipt includes exact text, line identity, and both source hashes.
-    // Equal bytes with a different historical transcript cannot collide here.
-    let receipt_bytes = serde_json::to_vec(&receipt)
-        .map_err(|_| "voice_lab:archive_receipt_serialize_failed")?;
-    let id = sha256_hex(&receipt_bytes)?;
+    let ArchiveInputs { receipt, receipt_bytes, id, canonical_bytes, native_bytes } =
+        archive_inputs(line_id, exact_text, canonical_path, native_rate_path)?;
     let root = storage.saved_root.join("Recordings");
     checked_dir(&root)?;
     let shard: PathBuf = root.join(&id[..2]);

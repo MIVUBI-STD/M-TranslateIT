@@ -8,7 +8,9 @@ use std::sync::{Mutex, OnceLock};
 use crate::engine::paths::ProjectPaths;
 
 mod recording_archive;
+mod recording_migration;
 pub(crate) use recording_archive::archive_guided_take;
+pub(crate) use recording_migration::{legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus};
 
 #[cfg(target_os = "windows")]
 #[link(name = "bcrypt")]

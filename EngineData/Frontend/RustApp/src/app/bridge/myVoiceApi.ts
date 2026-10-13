@@ -19,6 +19,20 @@ export type GuidedRecordingState = {
   lines: GuidedLineStatus[];
 };
 
+export type LegacyProtectionStatus = {
+  total_sources: number;
+  protected_sources: number;
+  unprotected_sources: number;
+  attention_sources: number;
+};
+
+export type LegacyMigrationResult = {
+  ok: boolean;
+  newly_archived: number;
+  report: LegacyProtectionStatus;
+  message: string;
+};
+
 export type GuidedRecordingActionResult = {
   ok: boolean;
   state: string;
@@ -40,6 +54,13 @@ function normalizeAction(action: GuidedRecordingActionResult): GuidedRecordingAc
 }
 
 export const myVoiceApi = {
+  async getLegacyProtection(): Promise<LegacyProtectionStatus | null> {
+    return runCommand<LegacyProtectionStatus>("get_voice_lab_legacy_archive_status");
+  },
+
+  async protectLegacyRecordings(): Promise<LegacyMigrationResult | null> {
+    return runCommand<LegacyMigrationResult>("protect_voice_lab_legacy_recordings");
+  },
   async getState(): Promise<GuidedRecordingState | null> {
     // A failed bridge read is unknown, never evidence that recording stopped.
     return runCommand<GuidedRecordingState>("get_voice_lab_guided_recording_state");

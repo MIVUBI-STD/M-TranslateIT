@@ -293,13 +293,13 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 **MUST NOT:** General History/Saved persistence be required for Meeting/Text.
 
 ### PR-101 — Temporary data
-**DEFAULT:** Raw mic/Meeting Sound/generated Meeting TTS/live transcripts and My Voice build intermediates are temporary until a resulting actor is explicitly approved.
+**DEFAULT:** Raw mic/Meeting Sound/generated Meeting TTS/live transcripts and unfinished My Voice review drafts/build intermediates are temporary. My Voice **explicitly accepted** guided takes are separately retained locally for future improvement under PR-106; this exception never turns Meeting audio or transcripts into durable history.
 
 ### PR-102 — Diagnostics privacy
 **MUST:** Diagnostics remain minimal/redacted; no full conversation/raw audio logging by default.
 
 ### PR-103 — Storage roots
-**MUST:** Preserve `CacheData` temporary, `LogData` redacted diagnostics, `SavedProject/VoiceLab` approved persistent My Voice actor. `VoiceLab` is storage compatibility vocabulary only.
+**MUST:** Preserve `CacheData` as temporary workspace and legacy current-take compatibility, `LogData` redacted diagnostics, and `SavedProject/VoiceLab` as the existing approved actor location plus protected copies of explicitly accepted My Voice recordings. `VoiceLab` is storage compatibility vocabulary only. Do not delete legacy takes during migration.
 
 ### PR-104 — Temporary session review
 **MAY:** Retain only the most recently ended Meeting transcript in memory for explicit review/copy/export until a new Meeting starts or the app exits.
@@ -320,6 +320,13 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 **MAY:** Store opt-in local translation issue reports for quality review.
 
 **MUST:** Feedback remain bounded, explicitly reviewable/exportable/clearable, and never become automatic model context.
+
+### PR-106 — Durable accepted My Voice recordings
+**MUST:** Once the user explicitly accepts a guided take, preserve an immutable, verified on-device copy tied to the exact guided line and transcript before replacing an older active take. A new take of the same line must not delete a prior saved version. A failed archive verification must be reported as an unsuccessful save, not hidden or presented as protected.
+
+**MUST:** Legacy recording migration only copies and verifies recognized source files, including interrupted `.wav.previous` recovery backups when present. Never delete, rename or silently reinterpret originals during migration. Unknown, corrupt, unpaired or unverified files remain visible as attention, not claimed protected.
+
+**MUST:** Keep durable user recordings distinct from temporary training work, Meeting audio and transcripts. No automatic network upload, automatic garbage collection of accepted takes, or voice-audio diagnostics logging. Backups/export and user-directed deletion require their own explicit, verified interfaces before being described as available.
 
 ## 12. My Voice and built-in voices
 

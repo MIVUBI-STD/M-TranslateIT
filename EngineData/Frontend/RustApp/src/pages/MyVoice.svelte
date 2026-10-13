@@ -5,6 +5,7 @@
     myVoiceApi,
     type GuidedRecordingActionResult,
     type GuidedRecordingState,
+    type LegacyProtectionStatus,
   } from "../app/bridge/myVoiceApi";
   import { myVoiceBuildApi, type MyVoiceBuildStatus } from "../app/bridge/myVoiceBuildApi";
   import { runtimeApi } from "../app/bridge/runtimeApi";
@@ -43,6 +44,9 @@
   let selectedVoiceVerified = $state(false);
   let recordingStatusUnknown = $state(false);
   let microphoneCheck = $state<"idle" | "checking" | "ready" | "unavailable">("idle");
+  let legacyProtection = $state<LegacyProtectionStatus | null>(null);
+  let legacyProtectionUnknown = $state(false);
+  let legacyProtectionBusy = $state(false);
   let microphoneCheckMessage = $state("");
   // Presentation-only copy of the build owner's VERIFIED snapshot. No second polling loop.
   let buildSnapshot = $state<MyVoiceBuildStatus | null>(null);
@@ -92,6 +96,48 @@
   function formatRecordingDuration(milliseconds: number): string {
     const seconds = Math.max(0, Math.floor(milliseconds / 1000));
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+
+  async function refreshLegacyProtection(): Promise<void> {
+    try {
+      const status = await myVoiceApi.getLegacyProtection();
+      if (disposed) return;
+      if (status === null) {
+        legacyProtectionUnknown = true;
+        return;
+      }
+      legacyProtection = status;
+      legacyProtectionUnknown = false;
+    } catch {
+      if (!disposed) legacyProtectionUnknown = true;
+    }
+  }
+
+  async function protectLegacyRecordings(): Promise<void> {
+    if (legacyProtectionBusy || busy || voiceChangesLocked || isRecording ||
+        pendingLineId !== null || recordingStatusUnknown || buildStatusUnavailable ||
+        buildSnapshot?.active || buildSnapshot?.preview_active) return;
+    legacyProtectionBusy = true;
+    try {
+      const result = await myVoiceApi.protectLegacyRecordings();
+      if (disposed) return;
+      if (!result) {
+        legacyProtectionUnknown = true;
+        onNotice("Couldn't verify recording protection. Retry status.");
+        return;
+      }
+      legacyProtection = result.report;
+      legacyProtectionUnknown = false;
+      onNotice(result.message);
+    } catch {
+      if (!disposed) {
+        legacyProtectionUnknown = true;
+        onNotice("Couldn't verify recording protection. Your older files were not intentionally removed.");
+      }
+    } finally {
+      legacyProtectionBusy = false;
+    }
   }
 
   async function refreshVoiceSelection(): Promise<void> {
@@ -436,6 +482,7 @@
         // The backend may already permit Create; the user controls that transition.
         selectedPane = "record";
         buildRefreshRevision += 1;
+        void refreshLegacyProtection();
         selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
         busy = false;
         await tick();
@@ -522,6 +569,7 @@
     disposed = false;
     void refresh();
     void refreshVoiceSelection();
+    void refreshLegacyProtection();
     return () => {
       disposed = true;
       stopReplay();
@@ -554,6 +602,40 @@
     onCancel={() => { builtinPendingId = null; }}
     onRetry={refreshVoiceSelection}
   />
+
+
+  {#if legacyProtectionUnknown || (legacyProtection && (legacyProtection.total_sources > 0 || legacyProtection.attention_sources > 0))}
+    <section class="ti-panel mt-4 p-4 sm:p-5" aria-label="Saved recording protection">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <strong class="text-sm font-semibold">Protect earlier recordings</strong>
+          {#if legacyProtectionUnknown}
+            <p role="status" class="mb-0 mt-1 text-sm text-[var(--ti-warning)]">
+              Couldn't verify older recordings. Their original files were not intentionally removed.
+            </p>
+          {:else if legacyProtection}
+            <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">
+              {legacyProtection.protected_sources} of {legacyProtection.total_sources} older recordings verified in saved storage. Original files stay on this computer.
+            </p>
+            {#if legacyProtection.attention_sources > 0}
+              <p role="alert" class="mb-0 mt-2 text-sm text-[var(--ti-warning)]">
+                {legacyProtection.attention_sources} recording file issues need attention. Files have not been deleted.
+              </p>
+            {/if}
+          {/if}
+        </div>
+        {#if legacyProtectionUnknown}
+          <button type="button" class="ti-button ti-button-secondary" disabled={legacyProtectionBusy} onclick={() => void refreshLegacyProtection()}>Retry status</button>
+        {:else if legacyProtection && (legacyProtection.unprotected_sources > 0 || legacyProtection.attention_sources > 0)}
+          <button type="button" class="ti-button ti-button-secondary"
+            disabled={legacyProtectionBusy || busy || voiceChangesLocked || isRecording || pendingLineId !== null || recordingStatusUnknown || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+            onclick={() => void protectLegacyRecordings()}>
+            {legacyProtectionBusy ? "Protecting..." : "Save protected copies"}
+          </button>
+        {/if}
+      </div>
+    </section>
+  {/if}
 
   {#if recordingStatusUnknown}
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] p-4" role="alert">

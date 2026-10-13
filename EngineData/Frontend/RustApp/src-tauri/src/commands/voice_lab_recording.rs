@@ -16,7 +16,7 @@ use crate::engine::runtime_state::{
     revoke_runtime_session_authority, VOICE_RECORDING_OWNER_ID,
 };
 
-use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, VoiceLabStoragePaths};
+use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, VoiceLabStoragePaths};
 
 mod guided_lines;
 mod storage_transaction;
@@ -385,6 +385,30 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
             ));
         }
     }
+    // Interrupted old backups may be the only surviving previous take.
+    // Preserve them before the legacy accept transaction can clear *.previous.
+    let previous = canonical_old.with_extension("wav.previous");
+    let native_previous = native_old.with_extension("wav.previous");
+    match fs::symlink_metadata(&previous) {
+        Ok(_) => {
+            let old_native = fs::symlink_metadata(&native_previous)
+                .ok().map(|_| native_previous.as_path());
+            if let Err(error) = archive_guided_take(
+                &storage, line_id, exact_text, &previous, old_native,
+            ) {
+                drop(guard);
+                return result(false, "save_failed", format!(
+                    "The previous take backup needs protection before replacing it: {error}"
+                ));
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => {
+            drop(guard);
+            return result(false, "save_failed",
+                "Couldn't check the previous recording backup. Nothing was replaced.");
+        }
+    }
     if let Err(error) = archive_guided_take(
         &storage, line_id, exact_text, &draft.path, Some(&draft.native_rate_path),
     ) {
@@ -405,6 +429,26 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
     *guard = None;
     drop(guard);
     result(true, "accepted", "Take accepted and saved for the Voice Actor dataset.")
+}
+
+
+#[tauri::command]
+pub fn get_voice_lab_legacy_archive_status() -> LegacyProtectionStatus {
+    legacy_protection_status(&storage_paths(), GUIDED_LINES)
+}
+
+#[tauri::command]
+pub fn protect_voice_lab_legacy_recordings() -> Result<LegacyMigrationResult, String> {
+    if voice_lab_recording_active() || current_voice_lab_build_snapshot().active {
+        return Err("Finish recording or voice creation before protecting previous recordings.".to_string());
+    }
+    let pending = draft_store().lock()
+        .map_err(|_| "Recording status is unavailable.".to_string())?
+        .is_some();
+    if pending {
+        return Err("Review the current recording before protecting earlier recordings.".to_string());
+    }
+    Ok(migrate_legacy_recordings(&storage_paths(), GUIDED_LINES))
 }
 
 #[tauri::command]
