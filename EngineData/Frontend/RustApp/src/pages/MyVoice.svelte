@@ -7,6 +7,8 @@
     type GuidedRecordingState,
   } from "../app/bridge/myVoiceApi";
   import { myVoiceBuildApi } from "../app/bridge/myVoiceBuildApi";
+  import { runtimeApi } from "../app/bridge/runtimeApi";
+  import { probeProductAudioDevice } from "../app/bridge/productAudioFacade";
   import MyVoiceBuild from "../components/my-voice/MyVoiceBuild.svelte";
   import BuiltinVoicePicker from "../components/my-voice/BuiltinVoicePicker.svelte";
 
@@ -40,6 +42,8 @@
   let savedPersonalVoiceAvailable = $state(false);
   let selectedVoiceVerified = $state(false);
   let recordingStatusUnknown = $state(false);
+  let microphoneCheck = $state<"idle" | "checking" | "ready" | "unavailable">("idle");
+  let microphoneCheckMessage = $state("");
 
   async function refreshVoiceSelection(): Promise<void> {
     try {
@@ -169,6 +173,35 @@
     onRecordingChange(next.recording_line_id !== null);
   }
 
+  async function checkMicrophone(): Promise<void> {
+    if (busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
+    busy = true;
+    microphoneCheck = "checking";
+    microphoneCheckMessage = "Checking the selected microphone...";
+    try {
+      const settings = await runtimeApi.loadSettings();
+      if (disposed) return;
+      if (!settings) {
+        microphoneCheck = "unavailable";
+        microphoneCheckMessage = "Couldn't read the selected microphone. Check Voice & Audio in Settings.";
+        return;
+      }
+      const result = await probeProductAudioDevice("microphone", settings.audio.input_device_id);
+      if (disposed) return;
+      microphoneCheck = result.ok ? "ready" : "unavailable";
+      microphoneCheckMessage = result.ok
+        ? `${result.deviceName} responds to audio capture. Record a sample to check its sound quality.`
+        : `${result.deviceName} could not be checked. Select a working microphone in Settings → Voice & Audio.`;
+    } catch {
+      if (!disposed) {
+        microphoneCheck = "unavailable";
+        microphoneCheckMessage = "Couldn't check the microphone. Check Voice & Audio in Settings.";
+      }
+    } finally {
+      busy = false;
+    }
+  }
+
   function recordingQualityGuidance(blocker: string): string {
     switch (blocker) {
       case "voice_lab:take_signal_unusable:rejected_silence":
@@ -190,6 +223,10 @@
         return "Some peaks may sound distorted. Replay the recording; if it sounds harsh, lower the microphone level and retry.";
       case "voice_lab:review:verify_all_words":
         return "This recording is unusually short for this line. Replay it and check that no words were skipped.";
+      case "voice_lab:review:long_edge_pause":
+        return "There is a long pause at the start or end. Replay it; next time, begin speaking promptly and stop shortly after finishing.";
+      case "voice_lab:review:possible_room_sound":
+        return "Sound may be noticeable between words. Replay with headphones; if you hear a fan, hum, or room noise, choose a quieter place and retry.";
       default:
         return "Replay this recording carefully before accepting it.";
     }
@@ -277,6 +314,8 @@
 
   async function startRecording(): Promise<void> {
     if (busy || recordingStatusUnknown || selectedLineId === null) return;
+    microphoneCheck = "idle";
+    microphoneCheckMessage = "";
     if (!authorized) {
       onNotice("Confirm that this is your voice, or that you have permission to use it.");
       return;
@@ -457,6 +496,19 @@
           <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 2 · Record the sample lines</h3>
           <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read every word exactly as shown, in your natural voice. You can skip a line and return later.</p>
         </div>
+      </div>
+
+      <div class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-4">
+        <div class="min-w-0 flex-1">
+          <strong class="text-sm font-semibold">Microphone check</strong>
+          <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Check that your selected mic can capture audio. Record and review a sample to assess noise and volume.</p>
+        </div>
+        <button type="button" class="ti-button ti-button-secondary" disabled={busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => void checkMicrophone()}>
+          <Mic size={15} /><span>{microphoneCheck === "checking" ? "Checking..." : "Check microphone"}</span>
+        </button>
+        {#if microphoneCheck !== "idle"}
+          <p role="status" class={`mb-0 w-full text-xs leading-5 ${microphoneCheck === "unavailable" ? "text-[var(--ti-danger)]" : "text-[var(--ti-text-muted)]"}`}>{microphoneCheckMessage}</p>
+        {/if}
       </div>
 
       <label class="mt-6 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] p-4">

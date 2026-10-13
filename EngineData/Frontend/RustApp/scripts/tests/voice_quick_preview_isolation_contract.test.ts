@@ -160,6 +160,26 @@ test("guided-take signal reasons provide actionable recording guidance without a
   assert.match(recordingUi, /recordingQualityGuidance\(recordingState\.pending_review\.quality_blocker\)/);
 });
 
+test("My Voice microphone check reuses the selected physical input functional probe", () => {
+  assert.match(recordingUi, /runtimeApi\.loadSettings\(\)/);
+  assert.match(recordingUi, /probeProductAudioDevice\("microphone", settings\.audio\.input_device_id\)/);
+  assert.match(recordingUi, /Record a sample to check its sound quality/);
+  assert.match(recordingUi, /microphoneCheck === "checking"/);
+  assert.doesNotMatch(recordingUi, /getUserMedia\(/);
+});
+
+test("guided take recording environment hints are advisory and do not rewrite the voice", () => {
+  assert.match(guidedAudio, /fn recording_environment_hints\(/);
+  assert.match(guidedAudio, /voice_lab:review:long_edge_pause/);
+  assert.match(guidedAudio, /voice_lab:review:possible_room_sound/);
+  assert.match(recordingUi, /voice_lab:review:long_edge_pause/);
+  assert.match(recordingUi, /voice_lab:review:possible_room_sound/);
+  assert.match(guidedAudio, /recording_environment_hints\(&samples_mono, &mut review_advice\)/);
+  assert.match(guidedAudio, /return; \/\/ No comparable quiet context/);
+  assert.match(guidedAudio, /samples_mono: Vec<f32>/);
+  assert.match(guidedAudio, /quality_blocker = guided_take_quality_blocker/);
+});
+
 test("guided take offers conservative replay advice without changing the approved engine or hard quality gates", () => {
   const recording = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_recording.rs", import.meta.url), "utf8");
   const bridge = readFileSync(new URL("../../src/app/bridge/myVoiceApi.ts", import.meta.url), "utf8");

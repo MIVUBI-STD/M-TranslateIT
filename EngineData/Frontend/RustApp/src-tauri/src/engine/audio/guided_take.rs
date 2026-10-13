@@ -172,11 +172,14 @@ pub fn take_guided_audio() -> Result<(CapturedGuidedTake, GuidedTakeReview), Str
     let quality_blocker = guided_take_quality_blocker(&samples_mono, &evidence);
     // A little clipping can be audible even below the existing hard 5% gate.
     // Offer replay guidance without changing the accepted-audio contract.
-    let review_advice = if quality_blocker.is_empty() && evidence.clipping_ratio >= 0.01 {
-        vec!["voice_lab:review:possible_clipping".to_string()]
-    } else {
-        Vec::new()
-    };
+    let mut review_advice = Vec::new();
+    if quality_blocker.is_empty() {
+        if evidence.clipping_ratio >= 0.01 {
+            review_advice.push("voice_lab:review:possible_clipping".to_string());
+        }
+        // These are replay hints, never calibrated noise scores or new blockers.
+        recording_environment_hints(&samples_mono, &mut review_advice);
+    }
     let review = GuidedTakeReview {
         line_id: take.line_id,
         duration_ms: samples_mono.len() as u64 * 1_000 / u64::from(GUIDED_TAKE_SAMPLE_RATE_HZ),
@@ -231,6 +234,64 @@ fn guided_take_quality_blocker(samples: &[f32], evidence: &AudioEvidenceReport) 
     String::new()
 }
 
+
+// Inspect the completed take, never the real-time audio callback.
+fn recording_environment_hints(samples: &[f32], advice: &mut Vec<String>) {
+    const FRAME_SAMPLES: usize = 640; // 20 ms at the fixed 32 kHz review rate
+    const MIN_QUIET_FRAMES: usize = 8; // 160 ms of observable quiet context
+    const LONG_EDGE_PAUSE_FRAMES: usize = 125; // 2.5 seconds
+    let frame_levels: Vec<f32> = samples
+        .chunks_exact(FRAME_SAMPLES)
+        .map(|frame| {
+            let energy = frame.iter().map(|sample| {
+                let value = f64::from(safe_sample(*sample));
+                value * value
+            }).sum::<f64>();
+            (energy / FRAME_SAMPLES as f64).sqrt() as f32
+        })
+        .collect();
+    if frame_levels.len() < 15 {
+        return;
+    }
+    let peak = frame_levels.iter().copied().fold(0.0_f32, f32::max);
+    if peak <= MIN_ACTIVE_RMS {
+        return;
+    }
+    // Frame-energy boundaries are evidence of quiet passages, not proof of
+    // actual background noise or the absence of background noise.
+    let quiet_limit = peak * 0.35;
+    let leading = frame_levels.iter().take_while(|level| **level < quiet_limit).count();
+    let trailing = frame_levels.iter().rev().take_while(|level| **level < quiet_limit).count();
+    if leading >= LONG_EDGE_PAUSE_FRAMES || trailing >= LONG_EDGE_PAUSE_FRAMES {
+        advice.push("voice_lab:review:long_edge_pause".to_string());
+    }
+    let mut quiet_frames: Vec<f32> = Vec::new();
+    if leading >= MIN_QUIET_FRAMES {
+        quiet_frames.extend_from_slice(&frame_levels[..leading]);
+    }
+    if trailing >= MIN_QUIET_FRAMES && leading + trailing <= frame_levels.len() {
+        quiet_frames.extend_from_slice(&frame_levels[frame_levels.len() - trailing..]);
+    }
+    if quiet_frames.is_empty() {
+        return; // No comparable quiet context: do not infer a noise floor.
+    }
+    quiet_frames.sort_by(|a, b| a.total_cmp(b));
+    let median_quiet = quiet_frames[quiet_frames.len() / 2];
+    let mut active_total = 0.0_f32;
+    let mut active_count = 0usize;
+    for level in &frame_levels {
+        if *level >= peak * 0.5 {
+            active_total += *level;
+            active_count += 1;
+        }
+    }
+    if active_count > 0 {
+        let active_mean = active_total / active_count as f32;
+        if active_mean > 0.0 && median_quiet / active_mean >= 0.18 {
+            advice.push("voice_lab:review:possible_room_sound".to_string());
+        }
+    }
+}
 
 fn resample_mono_fft(samples: &[f32], source_rate: u32, target_rate: u32) -> Result<Vec<f32>, String> {
     if samples.is_empty() || source_rate == 0 || target_rate == 0 {
@@ -346,6 +407,50 @@ mod tests {
         let (_, review) = take_guided_audio().expect("finalized review take");
         assert!(review.quality_blocker.is_empty());
         assert_eq!(review.review_advice, vec!["voice_lab:review:possible_clipping"]);
+    }
+
+    #[test]
+    fn continuous_clean_speech_does_not_invent_noise_evidence() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(6).expect("arm guided take");
+        let samples = (0..64_000)
+            .map(|index| if index % 2 == 0 { 0.10 } else { -0.10 })
+            .collect::<Vec<_>>();
+        append_guided_f32(&samples, 32_000, 1);
+        let (_, review) = take_guided_audio().expect("clean review");
+        assert!(review.quality_blocker.is_empty());
+        assert!(review.review_advice.is_empty());
+    }
+
+    #[test]
+    fn audible_quiet_edge_energy_is_replay_advice_not_a_training_blocker() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(7).expect("arm guided take");
+        let mut samples = Vec::new();
+        for (count, volume) in [(9_600, 0.03_f32), (140_800, 0.15), (9_600, 0.03)] {
+            samples.extend((0..count).map(|index| if index % 2 == 0 { volume } else { -volume }));
+        }
+        append_guided_f32(&samples, 32_000, 1);
+        let (captured, review) = take_guided_audio().expect("room-sound review");
+        assert!(review.quality_blocker.is_empty());
+        assert_eq!(captured.samples_mono.len(), samples.len());
+        assert_eq!(review.review_advice, vec!["voice_lab:review:possible_room_sound"]);
+    }
+
+    #[test]
+    fn long_edge_pause_is_review_only_and_does_not_trim_the_audio() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(8).expect("arm guided take");
+        let mut samples = vec![0.0_f32; 96_000];
+        samples.extend((0..64_000).map(|index| if index % 2 == 0 { 0.12 } else { -0.12 }));
+        append_guided_f32(&samples, 32_000, 1);
+        let (captured, review) = take_guided_audio().expect("long-pause review");
+        assert_eq!(captured.samples_mono.len(), samples.len());
+        assert!(review.quality_blocker.is_empty());
+        assert!(review.review_advice.iter().any(|item| item == "voice_lab:review:long_edge_pause"));
     }
 
     #[test]
