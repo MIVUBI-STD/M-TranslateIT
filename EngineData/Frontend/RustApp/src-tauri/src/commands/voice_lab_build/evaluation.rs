@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use super::super::voice_lab::{
     GuidedDatasetManifest, GuidedEvaluationLineContract, GuidedTakeContract, VoiceLabStoragePaths,
-    VOICE_ACTOR_ENGINE, VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
+    VOICE_ACTOR_ENGINE, VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION, sha256_digest,
 };
 
 pub(super) const MAX_EVALUATION_WAV_BYTES: u64 = 16 * 1024 * 1024;
@@ -18,48 +18,6 @@ fn valid_sha256(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-
-#[cfg(target_os = "windows")]
-#[link(name = "bcrypt")]
-unsafe extern "system" {
-    fn BCryptHash(
-        algorithm: *mut std::ffi::c_void,
-        secret: *mut u8,
-        secret_len: u32,
-        input: *mut u8,
-        input_len: u32,
-        output: *mut u8,
-        output_len: u32,
-    ) -> i32;
-}
-
-// Use the native Windows 10+ CNG SHA-256 algorithm pseudo-handle. This avoids
-// a second cryptographic implementation and an unnecessary Cargo dependency.
-#[cfg(target_os = "windows")]
-fn sha256_digest(bytes: &[u8]) -> Option<[u8; 32]> {
-    let len = u32::try_from(bytes.len()).ok()?;
-    let mut digest = [0_u8; 32];
-    // SAFETY: BCryptHash does not mutate the input, all buffers remain alive,
-    // the lengths are bounded, and 0x41 is the Windows SHA-256 pseudo-handle.
-    let status = unsafe {
-        BCryptHash(
-            0x41_usize as *mut std::ffi::c_void,
-            std::ptr::null_mut(),
-            0,
-            bytes.as_ptr() as *mut u8,
-            len,
-            digest.as_mut_ptr(),
-            digest.len() as u32,
-        )
-    };
-    (status == 0).then_some(digest)
-}
-
-// The desktop runtime is Windows-only. Unsupported build targets fail closed.
-#[cfg(not(target_os = "windows"))]
-fn sha256_digest(_bytes: &[u8]) -> Option<[u8; 32]> {
-    None
-}
 
 fn sha256_matches(bytes: &[u8], expected: &str) -> bool {
     if !valid_sha256(expected) {

@@ -16,7 +16,7 @@ use crate::engine::runtime_state::{
     revoke_runtime_session_authority, VOICE_RECORDING_OWNER_ID,
 };
 
-use super::voice_lab::{current_voice_lab_build_snapshot, VoiceLabStoragePaths};
+use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, VoiceLabStoragePaths};
 
 mod guided_lines;
 mod storage_transaction;
@@ -363,6 +363,32 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
             drop(guard);
             return result(false, "save_failed", format!("VoiceLab could not prepare take storage: {error}"));
         }
+    }
+    // Preserve the old accepted bytes and the newly approved draft in immutable
+    // SavedProject storage BEFORE the legacy active take can be replaced.
+    // A failed archive means no destructive active-take change is allowed.
+    let storage = storage_paths();
+    let canonical_old = accepted_path(line_id);
+    let native_old = accepted_native_rate_path(line_id);
+    let Some(exact_text) = guided_text(line_id) else {
+        return result(false, "invalid_line", "The selected guided prompt is no longer available.");
+    };
+    if fs::symlink_metadata(&canonical_old).is_ok() {
+        let old_native = fs::symlink_metadata(&native_old).ok().map(|_| native_old.as_path());
+        if let Err(error) = archive_guided_take(
+            &storage, line_id, exact_text, &canonical_old, old_native,
+        ) {
+            return result(false, "save_failed", format!(
+                "The existing accepted recording could not be archived safely; nothing was replaced: {error}"
+            ));
+        }
+    }
+    if let Err(error) = archive_guided_take(
+        &storage, line_id, exact_text, &draft.path, Some(&draft.native_rate_path),
+    ) {
+        return result(false, "save_failed", format!(
+            "The new recording could not be archived safely; the previous accepted recording was kept: {error}"
+        ));
     }
     if let Err(error) = accept_review_take_with_native_rate(
         &draft.path,

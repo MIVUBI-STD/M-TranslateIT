@@ -7,6 +7,50 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::engine::paths::ProjectPaths;
 
+mod recording_archive;
+pub(crate) use recording_archive::archive_guided_take;
+
+#[cfg(target_os = "windows")]
+#[link(name = "bcrypt")]
+unsafe extern "system" {
+    fn BCryptHash(
+        algorithm: *mut std::ffi::c_void,
+        secret: *mut u8,
+        secret_len: u32,
+        input: *mut u8,
+        input_len: u32,
+        output: *mut u8,
+        output_len: u32,
+    ) -> i32;
+}
+
+/// Native Windows CNG SHA-256, shared by held-out review and permanent audio.
+/// Non-Windows targets fail closed; the supported desktop runtime is Windows.
+#[cfg(target_os = "windows")]
+pub(crate) fn sha256_digest(bytes: &[u8]) -> Option<[u8; 32]> {
+    let len = u32::try_from(bytes.len()).ok()?;
+    let mut digest = [0_u8; 32];
+    // SAFETY: Windows CNG does not modify input and the 0x41 pseudo-handle is
+    // SHA-256 on supported Windows; buffers and bounded lengths remain valid.
+    let status = unsafe {
+        BCryptHash(
+            0x41_usize as *mut std::ffi::c_void,
+            std::ptr::null_mut(),
+            0,
+            bytes.as_ptr() as *mut u8,
+            len,
+            digest.as_mut_ptr(),
+            digest.len() as u32,
+        )
+    };
+    (status == 0).then_some(digest)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn sha256_digest(_bytes: &[u8]) -> Option<[u8; 32]> {
+    None
+}
+
 use super::{
     GuidedDatasetManifest, VoiceActorPackageManifest, ACTOR_MANIFEST_FILE,
     CANONICAL_BITS_PER_SAMPLE, CANONICAL_CHANNELS, CANONICAL_SAMPLE_RATE,
