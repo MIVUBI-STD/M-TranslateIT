@@ -508,3 +508,51 @@ it is not advertised as optimizer resume.
 unit fixtures exist on GitHub, but no Python/Cargo/Svelte execution, upstream
 checkpoint deserialization, native Windows model training or acoustic
 evaluation was performed during this source-only implementation turn.
+
+
+## Source implementation continuation — strict checkpoint *load acknowledgment protocol*
+
+Bounded source work added
+\`EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_strict_resume_ack.py\`
+and a pure unittest fixture at
+\`.../tests/test_voice_lab_strict_resume_ack.py\`.
+
+The module defines an intentionally **read-only, developer-only** event
+validator/correlation protocol. It does not start or modify training, edit an
+approved voice, or automatically process private audio. Expected identities
+are supplied by an authorized run controller after the existing immutable
+recovery/dataset preflight. Each worker event must match:
+- a unique run token (correlation, **not authentication**);
+- immutable recovery ID, dataset ID and pinned engine revision;
+- GPT, SoVITS Generator and Discriminator file SHA-256 digests;
+- worker PID, strictly increasing event sequence and precise stage;
+- model and optimizer-loaded flags, expected checkpoint epoch;
+- GPT scheduler restoration and global-step identity;
+- a separate first-training-step event on the *same* worker.
+
+Unobserved, wrong-order, duplicate, wrong-PID, wrong-checkpoint or explicit
+pretrained-fallback events invalidate the sequence. Even a syntactically
+complete JSONL trace returns \`worker_provenance_verified=false\`,
+\`trainer_load_verified=false\`, \`resume_available=false\`. A test fixture
+can simulate a complete sequence but does **not** prove the real trainer ran.
+
+**Critical upstream constraint:** pinned
+\`GPT_SoVITS/s2_train.py\` calls \`torch.multiprocessing.spawn\` and catches
+exceptions from both \`utils.load_checkpoint\` calls using bare \`except:\`;
+the child, not the launcher, must emit witnessed D/G loader successes.
+A parent-side monkeypatch or parsing \`loaded D\` logs is insufficient.
+GPT's Lightning \`trainer.fit(..., ckpt_path=...)\` likewise needs a
+worker-side checkpoint-restored and \`on_train_start\` contract, not an
+inferred return code. The strict protocol intentionally does **not** inject
+any hooks into the pinned model or upstream trainer.
+
+**Next bounded owner:** implement a separate, opt-in worker-origin adapter
+with tested child-process event provenance and hard-fail behavior before
+pretrained fallback, plus explicit optimizer/AMP/scheduler continuity checks.
+Only then should a target-Windows GPU run attempt bounded replay against
+the same frozen dataset. This remains independent from the existing safe
+\`Improve My Voice\` rebuild method, which does not claim optimizer resume.
+
+**Proof ceiling:** GitHub exact-source inspection and source-authored
+unit fixtures; no Python/Cargo/Svelte tests, spawned trainer, Windows
+checkpoint load or voice quality test executed.

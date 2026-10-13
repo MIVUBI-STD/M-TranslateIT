@@ -438,6 +438,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Automatically launch a resumed build, modify the pinned engine, overwrite a checkpoint or selected voice, delete unvalidated recovery files, or expose an enabled Resume control until both trainer load acknowledgment and target-Windows epoch/optimizer continuity are proven on the exact frozen dataset. The upstream SoVITS fallback-to-pretrained and missing AMP GradScaler state remain blockers.
 
+### PR-125 — Strict worker-origin checkpoint load acknowledgment
+**MUST:** A future opt-in resume execution must prove both (a) exact immutable checkpoint and dataset identity, and (b) actual load of model/optimizer states inside the trainer worker that continues training. Pinned SoVITS \`torch.multiprocessing.spawn\` means parent-only instrumentation does **not** establish what was loaded by spawned children.
+
+**MUST:** Bind acknowledgment events to one run token, recovery archive ID, dataset snapshot ID, pinned engine revision, expected checkpoint SHA-256 for GPT/SoVITS Generator/Discriminator, training epochs and worker process identity. A protocol validator must reject missing, duplicate, reordered, conflicting, wrong-process, wrong-checkpoint and false optimizer/scheduler acknowledgments. A reported pretrained-weight fallback irrevocably invalidates the attempt.
+
+**MUST:** Require separate evidence for worker-side checkpoint loading and first resumed training-step state. SoVITS Generator/Discriminator must be acknowledged by the same training worker at the same saved epoch; GPT must report a consistent checkpoint epoch, global step and scheduler state. A JSONL log or successful subprocess exit is *not* itself authenticated proof of worker origin. An apparently complete sequence must not be called \`resume_verified\` until native worker instrumentation and cross-process provenance have been validated.
+
+**MUST NOT:** Automatically resume training, modify selected Meeting voice, touch accepted takes/immutable archives, intercept unrelated process state, or expose a working Resume button merely because the event-contract parser exists. The existing SoVITS broad pretrained fallback, reconstructed scheduler, and absent AMP GradScaler checkpoint remain blocking acceptance conditions. Pinned GPT-SoVITS model/engine source must remain unchanged.
+
 ## 13. UI
 
 ### PR-160 — Navigation
