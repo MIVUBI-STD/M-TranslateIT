@@ -193,3 +193,25 @@ Record artifact identity, scope, source path or Evidence ID, confidence and UNKN
 - No user-entered data, voice audio, full logs or proprietary third-party captures belong in Git history.
 
 **Next bounded decision:** approve a single Rust-owned durable recording and actor-version contract, plus migration behavior and consent/retention defaults. Then integrate one coherent source implementation in existing owners. Maintain Meeting V2 as a separate active work track; this proposed document is not a competing active continuation ledger.
+
+
+## Source implementation addition — immutable snapshots and model version foundation
+
+A subsequent source candidate adds Rust-owned modules under \`commands/voice_lab/storage/\`:
+\`immutable_store.rs\`, \`dataset_history.rs\`, and \`actor_history.rs\`.
+The frozen dataset still lives in \`CacheData/VoiceLab/Build/Dataset\` for
+the pinned worker, but its immutable manifest and referenced audio are kept in
+\`SavedProject/VoiceLab/DatasetSnapshots\` and \`Recordings\`. A new
+\`snapshot.ref\` pointer in the disposable dataset directory links the two.
+
+Approved actor promotion and personal voice replacement first preserve immutable
+whole-package versions under \`SavedProject/VoiceLab/VoiceVersions\`. When a
+dataset reference exists, a separate content-addressed \`TrainingLineage\`
+record binds the reviewed actor version to the dataset snapshot. Models with
+unknown legacy provenance remain explicitly unlinked. Partial, corrupt or
+unverified version archives block destructive replacement.
+
+These are **storage foundation source candidates**, not a complete training
+resume feature, current-voice restore UI, verified backup to another disk,
+or measured acoustic improvement. Rust/Windows, GPU, audio and real recovery
+execution remain **NOT EXECUTED** for this source revision.

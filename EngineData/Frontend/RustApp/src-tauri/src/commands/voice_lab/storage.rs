@@ -9,6 +9,9 @@ use crate::engine::paths::ProjectPaths;
 
 mod recording_archive;
 mod recording_migration;
+mod immutable_store;
+mod dataset_history;
+mod actor_history;
 pub(crate) use recording_archive::{archive_guided_take, saved_recordings_page, saved_recording_audio, SavedRecordingPage};
 pub(crate) use recording_migration::{legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus};
 
@@ -147,7 +150,9 @@ fn recover_personal_archive(paths: &VoiceLabStoragePaths) -> Result<(), String> 
             return Err("voice_lab:personal_archive_previous_unverified".to_string());
         }
         if current.exists() {
-            // A complete destination supersedes an older validated backup.
+            // Before clearing a superseded temporary backup, make the older
+            // personal model a permanent immutable VoiceVersion.
+            actor_history::preserve_actor_version(paths, &prev)?;
             fs::remove_dir_all(&prev)
                 .map_err(|e| format!("voice_lab:archive_previous_cleanup_failed:{e}"))?;
         } else {
@@ -157,7 +162,9 @@ fn recover_personal_archive(paths: &VoiceLabStoragePaths) -> Result<(), String> 
         }
     }
     if next.exists() {
-        // .next never became authoritative. The selected/previous copy survives.
+        // Preserve a complete interrupted candidate; incomplete candidates
+        // require attention rather than silently deleting unknown user data.
+        actor_history::preserve_actor_version(paths, &next)?;
         fs::remove_dir_all(&next)
             .map_err(|e| format!("voice_lab:archive_stage_cleanup_failed:{e}"))?;
     }
@@ -226,6 +233,7 @@ pub(crate) fn archive_selected_personal_voice(paths: &VoiceLabStoragePaths) -> R
         ActorKind::Unverified => return Err("voice_lab:selected_actor_unverified".to_string()),
         ActorKind::Personal => {}
     }
+    actor_history::preserve_actor_version(paths, &paths.approved_actor_dir)?;
     fs::create_dir_all(&paths.saved_root)
         .map_err(|e| format!("voice_lab:archive_root_unavailable:{e}"))?;
     recover_personal_archive(paths)?;
@@ -237,6 +245,9 @@ pub(crate) fn archive_selected_personal_voice(paths: &VoiceLabStoragePaths) -> R
         return Err(error);
     }
     if current.exists() {
+        // A saved personal copy may be older than the currently selected actor.
+        // Never replace it without preserving its own immutable version first.
+        actor_history::preserve_actor_version(paths, current)?;
         fs::rename(current, &prev)
             .map_err(|e| format!("voice_lab:archive_backup_failed:{e}"))?;
     }
@@ -392,6 +403,7 @@ pub(super) fn prepare_guided_dataset_at(
 
     let manifest_path = storage.build_dataset_dir.join(DATASET_MANIFEST_FILE);
     write_json(&manifest_path, manifest)?;
+    dataset_history::preserve_frozen_dataset(storage, manifest)?;
     Ok(manifest_path)
 }
 
@@ -458,6 +470,21 @@ pub(super) fn promote_voice_actor_candidate_at(storage: &VoiceLabStoragePaths) -
         .map_err(|error| format!("voice_lab:saved_root_unavailable:{error}"))?;
     recover_interrupted_promotion(storage)?;
     validate_actor_package(&storage.candidate_actor_dir)?;
+    // Always preserve the previous personal voice and the newly reviewed
+    // candidate BEFORE either can be replaced or the worker candidate cleared.
+    if storage.approved_actor_dir.exists() {
+        match actor_kind(&storage.approved_actor_dir) {
+            ActorKind::Personal => {
+                actor_history::preserve_actor_version(storage, &storage.approved_actor_dir)?;
+            }
+            ActorKind::Unverified => {
+                return Err("voice_lab:previous_voice_unverified".into());
+            }
+            ActorKind::Missing | ActorKind::Builtin(_) => {}
+        }
+    }
+    let candidate_version_id = actor_history::preserve_actor_version(storage, &storage.candidate_actor_dir)?;
+    dataset_history::preserve_training_lineage(storage, &candidate_version_id)?;
 
     let staging = storage.saved_root.join(".MyVoice.next");
     let previous = storage.saved_root.join(".MyVoice.previous");
@@ -525,10 +552,16 @@ fn recover_interrupted_promotion(storage: &VoiceLabStoragePaths) -> Result<(), S
     if storage.approved_actor_dir.exists() {
         validate_actor_package(&storage.approved_actor_dir)?;
         if staging.exists() {
+            actor_history::preserve_actor_version(storage, &staging)?;
             fs::remove_dir_all(&staging)
                 .map_err(|error| format!("voice_lab:stale_staging_cleanup_failed:{error}"))?;
         }
         if previous.exists() {
+            if matches!(actor_kind(&previous), ActorKind::Personal) {
+                actor_history::preserve_actor_version(storage, &previous)?;
+            } else if matches!(actor_kind(&previous), ActorKind::Unverified) {
+                return Err("voice_lab:previous_backup_unverified".into());
+            }
             fs::remove_dir_all(&previous)
                 .map_err(|error| format!("voice_lab:stale_previous_cleanup_failed:{error}"))?;
         }
@@ -541,6 +574,7 @@ fn recover_interrupted_promotion(storage: &VoiceLabStoragePaths) -> Result<(), S
             .map_err(|error| format!("voice_lab:promotion_recovery_failed:{error}"))?;
     }
     if staging.exists() {
+        actor_history::preserve_actor_version(storage, &staging)?;
         fs::remove_dir_all(&staging)
             .map_err(|error| format!("voice_lab:stale_staging_cleanup_failed:{error}"))?;
     }

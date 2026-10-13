@@ -328,6 +328,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST:** Keep durable user recordings distinct from temporary training work, Meeting audio and transcripts. No automatic network upload, automatic garbage collection of accepted takes, or voice-audio diagnostics logging. Backups/export and user-directed deletion require their own explicit, verified interfaces before being described as available.
 
+### PR-107 — Immutable My Voice datasets and voice versions
+**MUST:** Before starting a new My Voice training worker, preserve a content-addressed manifest of the exact frozen guided dataset and verify that every referenced canonical recording and exact guided transcript exist in the permanent accepted-take archive. Training continues to use the pinned canonical WAV and dataset format; the persistent manifest is provenance, not a new training engine.
+
+**MUST:** Before approved actor promotion or replacement of a validated personal voice, preserve its full inference package (GPT weights, SoVITS weights, reference WAV and actor manifest) as an immutable, hash-verified version. Version identity must be independent of mutable selected-voice paths; interrupted or corrupt staging must not be silently deleted or called ready.
+
+**MUST:** Tie each newly approved candidate's durable actor package to its frozen dataset snapshot where available, without claiming legacy training lineage when it is unknown. A retained inference actor is **not** a resumable training checkpoint.
+
+**MUST NOT:** Activate a stored historic actor, delete a historic actor, change the selected Meeting voice, or claim successful future-training continuation merely because an immutable registry record exists. Selection/restore UI and resumable optimizer checkpoints require separate explicit guards, user approval, and end-to-end verification.
+
 ## 12. My Voice and built-in voices
 
 ### PR-110 — My Voice workflow

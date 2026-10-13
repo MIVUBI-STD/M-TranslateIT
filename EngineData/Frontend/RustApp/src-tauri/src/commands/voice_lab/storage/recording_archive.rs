@@ -376,6 +376,24 @@ pub(crate) fn saved_recordings_page(
     })
 }
 
+/// Verify a frozen dataset's specific prompt-to-audio binding, not just that
+/// some other archived take exists under a valid-looking SHA-256 identifier.
+pub(super) fn verify_saved_take_binding(
+    storage: &VoiceLabStoragePaths,
+    archive_id: &str,
+    line_id: u32,
+    exact_text: &str,
+) -> Result<(), String> {
+    let _guard = ARCHIVE_LOCK.get_or_init(|| Mutex::new(())).lock()
+        .map_err(|_| "voice_lab:archive_lock_unavailable")?;
+    let dir = saved_recording_location(storage, archive_id)?;
+    let receipt = receipt_for_archive(&dir, archive_id)?;
+    if receipt.line_id != line_id || receipt.exact_text != exact_text {
+        return Err("voice_lab:snapshot_archive_prompt_mismatch".into());
+    }
+    verified_archive(&dir, &receipt)
+}
+
 /// Serves only audio whose bounded content, metadata and canonical archive ID
 /// have been verified. No caller-provided filesystem paths are accepted.
 pub(crate) fn saved_recording_audio(
