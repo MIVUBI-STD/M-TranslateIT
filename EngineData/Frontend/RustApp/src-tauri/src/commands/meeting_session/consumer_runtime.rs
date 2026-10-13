@@ -17,7 +17,7 @@ use crate::engine::audio::live_segment_writer::{
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
 use crate::engine;
 
-use super::incoming_deferred::clear_deferred_incoming_queue;
+use super::incoming_deferred::clear_deferred_incoming_queue_for_session;
 use super::incoming_pipeline::{
     drain_due_deferred_incoming, process_authoritative_finalized_incoming_wav,
     IncomingAudioProcessResult,
@@ -321,7 +321,7 @@ pub(super) fn start_meeting_incoming_consumer(session_id: &str) -> Result<(), St
 
 pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsumerCleanupResult {
     let producer_cleared = clear_finalized_incoming_utterance_producer_for_session(session_id);
-    let deferred_cleanup = clear_deferred_incoming_queue();
+    let deferred_cleanup = clear_deferred_incoming_queue_for_session(session_id);
     let store = incoming_consumer_store();
     let runtime = match store.lock() {
         Ok(mut guard) => {

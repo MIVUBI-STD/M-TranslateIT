@@ -1,3 +1,13 @@
+## Active continuation — Session-scoped deferred incoming Stop cleanup (2026-10-13)
+
+**Confirmed source defect:** `stop_meeting_incoming_consumer(session_id)` called `clear_deferred_incoming_queue()`, which drained **all** waiting incoming jobs before checking consumer session ownership. A late Stop for an older Meeting could evict a newer session's deferred ASR/translation work. Jobs already carry `session_id`; no new queue owner is necessary.
+
+**Scoped implementation:** Reuse the single bounded deferred queue. Add a session-filtered removal under the existing queue mutex; preserve other sessions' jobs and FIFO order, and clean only removed jobs after releasing the mutex. The consumer Stop now calls the filtered function with its existing `session_id`. The original global clear remains available for the no-active-session Stop path. Reject an empty scoped session ID, and keep existing cleanup-failure reporting. One local-queue Rust fixture covers interleaved sessions, retry idempotency, nonmatching removal, and retained ordering.
+
+**Evidence / REA limits:** Exact `Local` source inspection of queue owner, caller and no-session cleanup contract; `STATIC_SOURCE` with regression authored only. Actual REA MCP/CLI, Cargo tests, concurrency timing, Windows audio, model output, and remote Meeting receiver are **NOT EXECUTED**. Other queue consumers (including the existing foreign-job eviction path in `take_due_deferred_incoming`) are not certified by this scoped Stop fix.
+
+**Single next step:** Audit whether an old incoming consumer's `take_due_deferred_incoming` can discard newer-session jobs. Only patch when the concrete call sequence supports it; no extra queue, manager, or speculative framework.
+
 ## Active continuation — Session-scoped finalized audio producer cleanup (2026-10-13)
 
 **Confirmed source defect:** The consumer Stop functions cleared finalized outbound/incoming VAD producers *before* checking whether the consumer belonged to the requested Meeting. Delayed stale Stop could therefore remove the next Meeting's producer. Incoming is keyed by session, outbound by generation; producers already store both owners.

@@ -193,6 +193,40 @@ pub(super) fn deferred_incoming_health_counts() -> (usize, u64, u64) {
     )
 }
 
+// Remove only the stopped session's jobs. A delayed Stop must not evict a
+// newer Meeting's deferred work; cleanup of removed jobs runs after unlock.
+fn drain_session_jobs(
+    queue: &mut VecDeque<DeferredIncomingJob>,
+    session_id: &str,
+) -> Vec<DeferredIncomingJob> {
+    let mut retained = VecDeque::with_capacity(queue.len());
+    let mut removed = Vec::new();
+    while let Some(job) = queue.pop_front() {
+        if job.session_id == session_id {
+            removed.push(job);
+        } else {
+            retained.push_back(job);
+        }
+    }
+    *queue = retained;
+    removed
+}
+
+pub(super) fn clear_deferred_incoming_queue_for_session(session_id: &str) -> Result<(), String> {
+    if session_id.is_empty() {
+        return Err("meeting_incoming:deferred_queue_session_missing".to_string());
+    }
+    let mut guard = deferred_incoming_queue()
+        .lock()
+        .map_err(|_| "meeting_incoming:deferred_queue_lock_failed".to_string())?;
+    let removed = drain_session_jobs(&mut guard, session_id);
+    drop(guard);
+    for job in removed {
+        cleanup_deferred_incoming_job(job);
+    }
+    Ok(())
+}
+
 pub(super) fn clear_deferred_incoming_queue() -> Result<(), String> {
     let mut guard = deferred_incoming_queue()
         .lock()
@@ -230,6 +264,31 @@ mod tests {
         deferred_admission_serializes_with_cleanup();
         deferred_retry_preserves_first_deferral_age_budget();
         deferred_queue_caps_evicts_expired_and_respects_session();
+    }
+
+    #[test]
+    fn deferred_stop_drains_only_matching_session_and_preserves_foreign_fifo() {
+        // Local fixture: no process-wide deferred queue or shared counters.
+        let mut pending = VecDeque::from([
+            job("next", 1, "keep first", 10),
+            job("previous", 2, "remove", 11),
+            job("next", 3, "keep second", 12),
+            job("previous", 4, "remove", 13),
+        ]);
+        let removed = drain_session_jobs(&mut pending, "previous");
+        assert_eq!(
+            removed.iter().map(|item| item.event_sequence).collect::<Vec<_>>(),
+            vec![2, 4],
+        );
+        assert_eq!(
+            pending.iter().map(|item| item.event_sequence).collect::<Vec<_>>(),
+            vec![1, 3],
+            "a late Stop must retain the next session's order and work",
+        );
+        assert!(drain_session_jobs(&mut pending, "previous").is_empty());
+        assert_eq!(pending.len(), 2, "retry Stop must be idempotent");
+        assert!(drain_session_jobs(&mut pending, "absent").is_empty());
+        assert_eq!(pending.len(), 2);
     }
 
     #[test]
