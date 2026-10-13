@@ -32,7 +32,9 @@ use functional_readiness::{
     remember_required_outbound_functional_readiness,
 };
 pub use functional_readiness::required_outbound_voice_actor_token;
-use request_policy::clear_any_meeting_outbound_pipeline;
+use request_policy::{
+    clear_any_meeting_outbound_pipeline, clear_meeting_outbound_pipeline_for_session,
+};
 
 const STARTUP_PING_REQUEST_ID: &str = "helper-startup-ping";
 const STARTUP_STATUS_REQUEST_ID: &str = "helper-startup-status";
@@ -452,8 +454,8 @@ pub(crate) fn shutdown_helper_bridge_for_app_exit() -> bool {
 }
 
 pub fn cancel_helper_bridge_meeting_session(session_id: &str) -> HelperBridgeActionResult {
-    clear_any_meeting_outbound_pipeline();
     let session_id = session_id.trim();
+    clear_meeting_outbound_pipeline_for_session(session_id);
     match runtime().lock() {
         Ok(mut runtime) => {
             if !session_id.is_empty()

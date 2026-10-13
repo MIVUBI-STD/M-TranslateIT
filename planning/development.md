@@ -1,3 +1,13 @@
+## Active continuation — Scoped helper Stop protects newer Meeting priority (2026-10-13)
+
+**Confirmed source defect:** `cancel_helper_bridge_meeting_session(session_id)` unconditionally invoked `clear_any_meeting_outbound_pipeline()` before checking the requested session. A stale or foreign session's Stop could therefore remove the current outbound priority marker even if its in-flight helper did not belong to that request.
+
+**Bounded source fix:** Keep the existing single atomic Meeting outbound marker and existing generation-scoped compare-exchange release. The Stop path now derives the cancellation generation from the currently retained Meeting session snapshot only when the session ID and Meeting owner match; stale/empty/foreign-session requests cannot clear another generation's marker. App-wide helper shutdown/start semantics still own `clear_any` and remain unchanged. A Rust regression test covers matching, stale, empty, wrong-owner and zero-generation identity. No new scheduler, worker, retry loop, state manager, dependency, API, or UI.
+
+**REA-style evidence:** Exact Local source tracing of cancellation, current-session authority and `AtomicU64` generation CAS, with a deterministic authored identity regression. `STATIC_SOURCE` only: Cargo execution, concurrency fault injection, GPU/Windows/Meeting receiver and REA executable analysis are **NOT EXECUTED**. No claim that every possible shutdown race is eliminated.
+
+**Single next step:** Continue examining the remaining outbound enqueue/Stop race only if concrete source evidence warrants a further patch. Preserve existing finalized speech and one canonical helper scheduler.
+
 ## Active continuation — Production Meeting Starting rollback safety (2026-10-13)
 
 **Confirmed source defect:** `meeting_session/lifecycle.rs` previously ignored microphone, optional sound-capture, helper, outbound/playback consumer, suppression and transcript cleanup results during failed `Starting`, then unconditionally attempted to clear the Meeting session. Some Start failure messages unconditionally claimed "rolled back safely" although native cleanup was unknown.
