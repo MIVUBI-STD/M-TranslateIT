@@ -1,7 +1,7 @@
 use std::thread;
 
 use crate::engine::audio::meeting_sound_capture::{
-    start_meeting_sound_capture_runtime, stop_meeting_sound_capture_runtime,
+    start_meeting_sound_capture_runtime, stop_meeting_sound_capture_runtime_for_session,
 };
 
 use super::consumer_runtime::{
@@ -48,7 +48,7 @@ fn start_optional_incoming_lane(session_id: &str) -> String {
     );
     if !incoming_session_is_eligible(session_id) {
         if capture.ok {
-            let _ = stop_meeting_sound_capture_runtime();
+            let _ = stop_meeting_sound_capture_runtime_for_session(session_id);
         }
         return "Incoming activation ended because the Meeting stopped while optional capture was opening."
             .to_string();
@@ -69,7 +69,7 @@ fn start_optional_incoming_lane(session_id: &str) -> String {
     }
 
     if let Err(error) = start_meeting_incoming_consumer(session_id) {
-        let _ = stop_meeting_sound_capture_runtime();
+        let _ = stop_meeting_sound_capture_runtime_for_session(session_id);
         update_incoming_status(
             session_id,
             "degraded",
@@ -82,7 +82,7 @@ fn start_optional_incoming_lane(session_id: &str) -> String {
 
     if !incoming_session_is_eligible(session_id) {
         let _ = stop_meeting_incoming_consumer(session_id);
-        let _ = stop_meeting_sound_capture_runtime();
+        let _ = stop_meeting_sound_capture_runtime_for_session(session_id);
         return "Incoming activation ended because the Meeting stopped before optional capture became active."
             .to_string();
     }

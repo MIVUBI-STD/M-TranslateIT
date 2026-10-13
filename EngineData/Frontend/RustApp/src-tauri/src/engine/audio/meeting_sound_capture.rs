@@ -9,6 +9,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use super::device_selection::resolve_unique_named_device;
 use super::finalized_utterance::{
     bind_finalized_incoming_capture_errors, clear_finalized_incoming_utterance_producer,
+    clear_finalized_incoming_utterance_producer_for_session,
     observe_finalized_incoming_f32_samples,
     observe_finalized_incoming_mono_f32_samples,
     observe_finalized_incoming_i16_samples, observe_finalized_incoming_i32_samples,
@@ -196,50 +197,123 @@ pub fn start_meeting_sound_capture_runtime(
     }
 }
 
-pub fn stop_meeting_sound_capture_runtime() -> MeetingSoundCaptureStopReport {
-    let store = MEETING_SOUND_CAPTURE_RUNTIME.get_or_init(|| Mutex::new(None));
-    let runtime = match store.lock() {
-        Ok(mut guard) => guard.take(),
-        Err(_) => {
-            clear_finalized_incoming_utterance_producer();
-            return MeetingSoundCaptureStopReport {
-                ok: false,
-                status: inactive_status(
-                    "meeting_sound:state_lock_failed",
-                    "Meeting Sound capture state lock failed while stopping.",
-                ),
-                message: "Meeting Sound capture could not acquire its state lock during Stop."
-                    .to_string(),
-            };
-        }
-    };
-
-    let Some(mut runtime) = runtime else {
-        clear_finalized_incoming_utterance_producer();
+// Detached optional incoming activation can finish after another Meeting starts.
+// Never let its cleanup stop the newer session's capture.
+pub fn stop_meeting_sound_capture_runtime_for_session(
+    session_id: &str,
+) -> MeetingSoundCaptureStopReport {
+    if session_id.is_empty() {
         return MeetingSoundCaptureStopReport {
-            ok: true,
-            status: inactive_status("meeting_sound:not_active", "Meeting Sound capture is not active."),
-            message: "No Meeting Sound capture stream required cleanup.".to_string(),
+            ok: false,
+            status: inactive_status(
+                "meeting_sound:missing_session_id",
+                "Scoped Meeting Sound Stop requires a session identity.",
+            ),
+            message: "Scoped Meeting Sound Stop requires a session identity.".to_string(),
+        };
+    }
+    stop_meeting_sound_capture_runtime_owned(Some(session_id))
+}
+
+pub fn stop_meeting_sound_capture_runtime() -> MeetingSoundCaptureStopReport {
+    // Only the canonical Stop/no-session cleanup owns unscoped shutdown.
+    stop_meeting_sound_capture_runtime_owned(None)
+}
+
+// Called while the Meeting Sound mutex is held. Owner check and removal share
+// the same lock, preventing a stale activation from taking a newer capture.
+fn take_capture_if_owned<T>(
+    active: &mut Option<T>,
+    expected_session: Option<&str>,
+    owner: impl FnOnce(&T) -> &str,
+) -> Option<T> {
+    if active
+        .as_ref()
+        .is_some_and(|item| expected_session.is_none_or(|session| owner(item) == session))
+    {
+        active.take()
+    } else {
+        None
+    }
+}
+
+fn stop_meeting_sound_capture_runtime_owned(
+    expected_session: Option<&str>,
+) -> MeetingSoundCaptureStopReport {
+    let store = MEETING_SOUND_CAPTURE_RUNTIME.get_or_init(|| Mutex::new(None));
+    let Ok(mut guard) = store.lock() else {
+        // Do not clear a possibly newer producer if capture ownership is unknown.
+        return MeetingSoundCaptureStopReport {
+            ok: false,
+            status: inactive_status(
+                "meeting_sound:state_lock_failed",
+                "Meeting Sound capture state lock failed while stopping.",
+            ),
+            message: "Meeting Sound capture could not acquire its state lock during Stop."
+                .to_string(),
         };
     };
 
+    // Hold the capture mutex until thread join AND VAD cleanup finish. Releasing
+    // it immediately after take() would allow next Start to reset the incoming
+    // producer before the old capture thread erased it.
+    let runtime = take_capture_if_owned(
+        &mut guard,
+        expected_session,
+        |runtime| runtime.session_id.as_str(),
+    );
+    let Some(mut runtime) = runtime else {
+        let cleared = if let Some(session_id) = expected_session {
+            clear_finalized_incoming_utterance_producer_for_session(session_id)
+        } else {
+            clear_finalized_incoming_utterance_producer();
+            true
+        };
+        let foreign_active = guard.is_some();
+        return MeetingSoundCaptureStopReport {
+            ok: cleared,
+            status: build_status_from_guard(guard.as_ref()),
+            message: if !cleared {
+                "Meeting Sound producer cleanup could not be verified.".to_string()
+            } else if foreign_active {
+                "Stopped session owns no capture; the newer Meeting Sound stream was preserved."
+                    .to_string()
+            } else {
+                "No matching Meeting Sound capture stream required cleanup.".to_string()
+            },
+        };
+    };
+
+    let stopped_session = runtime.session_id.clone();
     let _ = runtime.stop_tx.send(());
     let joined = runtime
         .capture_thread
         .take()
         .map(|handle| handle.join().is_ok())
         .unwrap_or(true);
-    clear_finalized_incoming_utterance_producer();
-
+    let producer_cleared = if expected_session.is_some() {
+        clear_finalized_incoming_utterance_producer_for_session(&stopped_session)
+    } else {
+        clear_finalized_incoming_utterance_producer();
+        true
+    };
     MeetingSoundCaptureStopReport {
-        ok: joined,
-        status: inactive_status("meeting_sound:stopped", "Meeting Sound capture ownership was released."),
-        message: if joined {
+        ok: joined && producer_cleared,
+        status: inactive_status(
+            if joined && producer_cleared {
+                "meeting_sound:stopped"
+            } else {
+                "meeting_sound:cleanup_unverified"
+            },
+            "Meeting Sound capture stop has released its matching stream ownership.",
+        ),
+        message: if !producer_cleared {
+            "Meeting Sound producer cleanup could not be verified.".to_string()
+        } else if joined {
             "Meeting Sound loopback capture stopped and pending incoming audio state was cleared."
                 .to_string()
         } else {
-            "Meeting Sound loopback capture released its state, but the capture thread exited unexpectedly."
-                .to_string()
+            "Meeting Sound capture stream exited unexpectedly during cleanup.".to_string()
         },
     }
 }
@@ -317,7 +391,8 @@ fn run_capture_thread(
 
     let _ = stop_rx.recv();
     drop(stream);
-    clear_finalized_incoming_utterance_producer();
+    // Old callback teardown must never discard another session's VAD producer.
+    clear_finalized_incoming_utterance_producer_for_session(session_id);
     Ok(())
 }
 
@@ -530,6 +605,30 @@ fn current_unix_ms() -> u128 {
 #[cfg(test)]
 mod isolation_tests {
     use super::incoming_output_conflicts_with_virtual_tts;
+
+    #[test]
+    fn stopped_activation_does_not_take_new_session_capture() {
+        use super::take_capture_if_owned;
+        use std::sync::Mutex;
+
+        // Local store: exercises the production decision without global CPAL.
+        let state = Mutex::new(Some("new-meeting".to_string()));
+        let mut guard = state.lock().unwrap();
+        assert!(take_capture_if_owned(
+            &mut guard, Some("old-meeting"), String::as_str,
+        ).is_none());
+        assert_eq!(guard.as_deref(), Some("new-meeting"));
+        assert!(state.try_lock().is_err(), "owner lock still held");
+        assert_eq!(
+            take_capture_if_owned(&mut guard, Some("new-meeting"), String::as_str),
+            Some("new-meeting".to_string())
+        );
+        *guard = Some("another-meeting".to_string());
+        assert_eq!(
+            take_capture_if_owned(&mut guard, None, String::as_str),
+            Some("another-meeting".to_string())
+        );
+    }
 
     #[test]
     fn stereo_f32_downmix_reuses_capacity_and_sanitizes_samples() {
