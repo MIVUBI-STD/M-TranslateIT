@@ -462,3 +462,49 @@ continuation, scheduler/scaler continuity and real speech quality are NOT
 EXECUTED. Next decision is whether a bounded fail-closed training-runner
 adapter can prove strict SoVITS loading without modifying the pinned model
 engine. Until then, do NOT activate a user-facing Resume.
+
+
+## Source implementation continuation — strict read-only resume validation
+
+A bounded developer-only module \`EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_resume_validation.py\`
+performs an explicit **read-only** admission audit of one
+\`SavedProject/VoiceLab/TrainingRecovery/<SHA256>\` object. It validates:
+- Full recovery receipt hash, strict version and source dataset ID.
+- Frozen dataset manifest and exact archived take/transcript references.
+- Bounded SHA-256 streaming of every checkpoint/config file and canonical WAV.
+- Pinned upstream GPT-SoVITS source marker plus exact Git blob identities
+  (GPT \`s1_train.py\`, SoVITS \`s2_train.py\` and \`utils.py\`).
+- Presence and filename pairing of GPT full checkpoints, SoVITS Generator and
+  Discriminator states and their exact saved training configurations.
+- Optionally, with \`--inspect-tensors\` on **trusted local files only**, safe
+  PyTorch \`weights_only=True\` inspection of GPT epoch, global step,
+  optimizer/scheduler and SoVITS G/D model/optimizer/iteration fields, without
+  a fallback to \`weights_only=False\` if loading fails.
+
+Example *local developer command*, NOT executed through GitHub:
+\`\`\`sh
+python EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_resume_validation.py \
+  --saved-root "<user-data>/SavedProject/VoiceLab" \
+  --recovery-id "<64-character checkpoint archive ID>" \
+  --source-root "<installed-pinned GPT-SoVITS source>"
+\`\`\`
+The optional \`--inspect-tensors\` switch is reserved for already-owned,
+trusted local checkpoints and can require CPU memory proportional to checkpoint
+size; the default check is stdlib-only and streaming. No CPU/GPU inference
+or training is launched by this inspector, and no recovery data is modified.
+
+Its result intentionally always reports \`resume_available=false\` because
+static optimizer structural inspection is not proof that the *trainer actually
+loaded* the optimizer or continued from the prior epoch. The pinned upstream
+SoVITS loader's broad \`except\` can silently start from pretrained weights,
+and its full save path lacks AMP \`GradScaler\` persistence and reconstructs
+scheduler state. A future strictly acknowledged runner must fail on fallback,
+check the actual resumed epoch/optimizer state, preserve dataset/config/model
+pins and prove the behavior on target Windows before enabling an end-user
+Resume action. Separate rebuild-from-saved-recordings is already available;
+it is not advertised as optimizer resume.
+
+**Verification level:** source-reviewed module and independently authored
+unit fixtures exist on GitHub, but no Python/Cargo/Svelte execution, upstream
+checkpoint deserialization, native Windows model training or acoustic
+evaluation was performed during this source-only implementation turn.

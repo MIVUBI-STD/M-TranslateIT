@@ -429,6 +429,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Automatically restart optimizer training, use only inference weights as a resume checkpoint, clear abandoned optimizer state on an unverifiable source, or claim a full bit-for-bit resume with the existing upstream SoVITS implementation. Upstream SoVITS can broadly catch checkpoint loading failures and fall back to pretrained weights, reconstructs its schedulers, and does not show an AMP GradScaler state in its full checkpoint saving path; these limitations require explicit fail-closed instrumentation and target-Windows acceptance before a user-facing Resume action is authorized.
 
+### PR-124 — Strict read-only training-resume admission
+**MUST:** Separate \`checkpoint preserved\`, \`checkpoint integrity verified\`, \`training state structurally inspected\`, and \`resume execution verified\`. A saved GPT/SoVITS model or successful hash check does not establish that optimizer, scheduler, global step and automatic mixed-precision state were restored.
+
+**MUST:** Provide a developer-only, opt-in and read-only audit of a specified immutable \`TrainingRecovery/<id>\` archive. Verify archive ID and bounded SHA-256 of all referenced files, frozen dataset snapshot, exact guided take/transcript identities and the pinned GPT-SoVITS upstream source. Check paired SoVITS G/D checkpoint filenames and config identities. When tensor-state inspection is explicitly requested on a trusted local archive, attempt only restricted \`torch.load(..., weights_only=True)\`; never retry with unsafe deserialization to produce a green status.
+
+**MUST:** Explicitly report incomplete GPT Lightning optimizer/scheduler state, SoVITS generator/discriminator mismatch, unusable precision config and missing evidence of the upstream training-loader continuation. An uninspectable tensor checkpoint must remain an uncertainty, not be falsely labelled corrupt or resumable.
+
+**MUST NOT:** Automatically launch a resumed build, modify the pinned engine, overwrite a checkpoint or selected voice, delete unvalidated recovery files, or expose an enabled Resume control until both trainer load acknowledgment and target-Windows epoch/optimizer continuity are proven on the exact frozen dataset. The upstream SoVITS fallback-to-pretrained and missing AMP GradScaler state remain blockers.
+
 ## 13. UI
 
 ### PR-160 — Navigation
