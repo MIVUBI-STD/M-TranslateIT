@@ -1,3 +1,13 @@
+## Active continuation — Normal Stop native audio cancellation truth (2026-10-13)
+
+**Confirmed source defect:** `stop_meeting_translation_impl()` discarded the return value of `cancel_meeting_output_for_generation()`. Unlike failed-Start rollback, it could clear session ownership and claim complete Stop even when the native cancellation control lock could not be acquired and cancellation was therefore unverified.
+
+**Bounded correction:** Extend the existing `meeting_cleanup_complete` contract to include output cancellation as a required boolean for both Starting rollback and normal Stop; normal Stop records the actual returned value, names this missing proof in its `cleanup_incomplete` reason and retains the revoked generation for explicit retry. Existing cleanup state, helper/consumer joins, generation-bound native playback and session ownership are preserved. The original cleanup truth regression matrix now also checks native cancellation failure. No new manager, worker, queue, timeout, scheduler, provider or UI mode.
+
+**Source evidence / REA principle:** Compared exact `Local` callsites and the native `cancel_meeting_output_for_generation` false-on-lock-failure contract; prepared positive/negative Rust cleanup assertions. `STATIC_SOURCE` only: Rust compilation/test execution, hardware callback behavior, simultaneous Stop/playback races, REA binary/MCP use, Windows/GPU and meeting receiver are **NOT EXECUTED**. Returning true confirms only the native cancellation control request was admitted (or no matching control existed), not receiver silence.
+
+**Next step:** Continue with a read-only, evidence-bounded Stop/queue audit. Defer further changes if only hypothetical races remain; preserve integrated local test as the only native proof gate.
+
 ## Active continuation — Scoped helper Stop protects newer Meeting priority (2026-10-13)
 
 **Confirmed source defect:** `cancel_helper_bridge_meeting_session(session_id)` unconditionally invoked `clear_any_meeting_outbound_pipeline()` before checking the requested session. A stale or foreign session's Stop could therefore remove the current outbound priority marker even if its in-flight helper did not belong to that request.

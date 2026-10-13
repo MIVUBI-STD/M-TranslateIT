@@ -79,8 +79,8 @@ fn starting_rollback_cleanup_complete(
     transcript_ok: bool,
     temporary_audio_ok: bool,
 ) -> bool {
-    output_cancelled && meeting_cleanup_complete(
-        microphone_ok, sound_ok, helper_ok, outbound_ok, playback_ok,
+    meeting_cleanup_complete(
+        output_cancelled, microphone_ok, sound_ok, helper_ok, outbound_ok, playback_ok,
         true, suppression_ok, transcript_ok, temporary_audio_ok,
     )
 }
@@ -583,7 +583,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
 
     interrupt_committed_turns_for_generation(&session_id, generation);
     let transcript_retained_for_export = retain_committed_turns_for_export(&session_id);
-    let _ = cancel_meeting_output_for_generation(generation);
+    let output_cancelled = cancel_meeting_output_for_generation(generation);
     clear_prepared_meeting_output_device();
     let capture_stop = stop_live_capture_runtime();
     let incoming_capture_stop = stop_meeting_sound_capture_runtime();
@@ -602,6 +602,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
     clear_outbound_status();
 
     let cleanup_complete = transcript_retained_for_export && meeting_cleanup_complete(
+        output_cancelled,
         capture_stop.ok,
         incoming_capture_stop.ok,
         helper_cancel.ok,
@@ -615,6 +616,9 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
 
     if !cleanup_complete {
         let mut failed = Vec::new();
+        if !output_cancelled {
+            failed.push("Meeting output cancellation");
+        }
         if !capture_stop.ok {
             failed.push("microphone capture");
         }
@@ -662,7 +666,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
             ok: false,
             state: "cleanup_incomplete".to_string(),
             message: format!(
-                "Translation output is stopped, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Playback: {} Incoming: {} Suppression: {} Transcript: {} Finalized audio: {} TTS cache: {}",
+                "Meeting output authority is revoked, but cleanup is incomplete for {failed_summary}. Retry Stop Translation. Microphone: {} Meeting Sound: {} Helper: {} Outbound: {} Playback: {} Incoming: {} Suppression: {} Transcript: {} Finalized audio: {} TTS cache: {}",
                 capture_stop.message,
                 incoming_capture_stop.message,
                 helper_cancel.message,
@@ -728,6 +732,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
 }
 
 pub(super) fn meeting_cleanup_complete(
+    output_cancellation_ok: bool,
     microphone_capture_ok: bool,
     meeting_sound_capture_ok: bool,
     helper_cleanup_ok: bool,
@@ -738,7 +743,8 @@ pub(super) fn meeting_cleanup_complete(
     transcript_cleanup_ok: bool,
     transient_audio_cleanup_ok: bool,
 ) -> bool {
-    microphone_capture_ok
+    output_cancellation_ok
+        && microphone_capture_ok
         && meeting_sound_capture_ok
         && helper_cleanup_ok
         && outbound_consumer_ok
