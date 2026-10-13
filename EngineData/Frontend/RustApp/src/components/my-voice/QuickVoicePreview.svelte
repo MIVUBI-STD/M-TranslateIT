@@ -45,7 +45,7 @@
             disabled={!previewAuthorized || busy || quickPreviewBusy || build.active || build.preview_active || build.accepted_take_count === 0}
             onclick={() => void onGenerate()}>Generate Quick Preview</button>
           {#if quickPreviewReady}
-            <button type="button" class="ti-button ti-button-secondary" disabled={quickPreviewBusy || quickPreviewPlaying}
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || quickPreviewBusy || quickPreviewPlaying}
               onclick={() => void onPlay()}><Play size={14} />{quickPreviewPlaying ? "Playing..." : "Listen to Preview"}</button>
           {/if}
         </div>

@@ -236,7 +236,7 @@
   }
 
   async function generateQuickPreview(): Promise<void> {
-    if (busy || quickPreviewBusy || build.active || !previewAuthorized || build.accepted_take_count === 0) return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || build.active || !previewAuthorized || build.accepted_take_count === 0) return;
     stopAudio();
     quickPreviewReady = false;
     quickPreviewBusy = true;
@@ -265,7 +265,7 @@
   }
 
   async function playQuickPreview(): Promise<void> {
-    if (busy || quickPreviewBusy || !quickPreviewReady || quickPreviewPlaying) return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || !quickPreviewReady || quickPreviewPlaying) return;
     let bytes: ArrayBuffer | null;
     try {
       bytes = await myVoiceBuildApi.getQuickPreviewAudio();
@@ -297,7 +297,7 @@
   }
 
   async function startBuild(): Promise<void> {
-    if (busy || voiceChangesLocked || quickPreviewBusy || !build.can_build || !authorized) return;
+    if (busy || statusCheckUnavailable || voiceChangesLocked || quickPreviewBusy || !build.can_build || !authorized) return;
     quickPreviewReady = false;
     stopAudio();
     reviewedLineIds = [];
@@ -324,7 +324,7 @@
   }
 
   async function approve(): Promise<void> {
-    if (busy || voiceChangesLocked || build.active || !build.evaluation_ready || !build.evaluation_review_id || !evaluationReviewComplete || !qualityConfirmed) return;
+    if (busy || statusCheckUnavailable || voiceChangesLocked || build.active || !build.evaluation_ready || !build.evaluation_review_id || !evaluationReviewComplete || !qualityConfirmed) return;
     stopAudio();
     busy = true;
     try {
@@ -341,7 +341,7 @@
   }
 
   async function playEvaluation(lineId: number): Promise<void> {
-    if (busy || playingLineId !== null) return;
+    if (busy || statusCheckUnavailable || playingLineId !== null) return;
     const reviewId = build.evaluation_review_id;
     const expectedSha256 = build.evaluation_samples.find((sample) => sample.line_id === lineId)?.sha256;
     if (!reviewId || !expectedSha256) return;
@@ -465,7 +465,7 @@
       <div class="mt-4 space-y-2">
         {#each build.evaluation_samples as sample}
           <div class="flex items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] px-4 py-3">
-            <button type="button" class="ti-button ti-button-secondary shrink-0" disabled={playingLineId !== null} onclick={() => void playEvaluation(sample.line_id)}>
+            <button type="button" class="ti-button ti-button-secondary shrink-0" disabled={statusCheckUnavailable || playingLineId !== null} onclick={() => void playEvaluation(sample.line_id)}>
               <Play size={14} /><span>{playingLineId === sample.line_id ? "Playing..." : "Preview"}</span>
             </button>
             <span class="min-w-0 flex-1 text-sm leading-5 text-[var(--ti-text-muted)]">{sample.exact_text}</span>
@@ -477,13 +477,13 @@
       </div>
       <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]">{reviewedLineIds.length} of {build.evaluation_samples.length} previews listened</p>
       <label class="mt-4 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
-        <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={qualityConfirmed} disabled={!evaluationReviewComplete || busy} />
+        <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={qualityConfirmed} disabled={!evaluationReviewComplete || busy || statusCheckUnavailable} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I listened to every preview. The voice is clear, sounds natural, resembles the authorized speaker, and I want to use it for meetings.</span>
       </label>
       {#if voiceChangesLocked}
         <p class="mb-0 mt-3 text-sm text-[var(--ti-text-muted)]" role="status">Finish the current Meeting or recording before selecting a new voice.</p>
       {/if}
-      <button type="button" class="ti-button mt-4" disabled={busy || voiceChangesLocked || !evaluationReviewComplete || !qualityConfirmed} onclick={() => void approve()}>
+      <button type="button" class="ti-button mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !evaluationReviewComplete || !qualityConfirmed} onclick={() => void approve()}>
         <Check size={15} /><span>{busy ? "Saving..." : "Use My Voice"}</span>
       </button>
       <p class="mb-0 mt-4 text-xs leading-5 text-[var(--ti-text-muted)]">Not satisfied? Keep the current Meeting voice and record more samples before creating another candidate.</p>
@@ -492,7 +492,7 @@
           <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} disabled={busy} />
           I own this voice or have permission to create another version.
         </label>
-        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
       {/if}
     </div>
   {:else if build.approved_voice_ready && build.selected_voice_kind === "personal"}
@@ -502,7 +502,7 @@
         <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
       </label>
-      <button type="button" class="ti-button ti-button-secondary mt-4" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+      <button type="button" class="ti-button ti-button-secondary mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
     {/if}
   {:else}
     {#if !build.can_build}
@@ -512,7 +512,7 @@
         <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
       </label>
-      <button type="button" class="ti-button mt-4" disabled={busy || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>
+      <button type="button" class="ti-button mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>
         <span>{busy ? "Starting..." : "Create My Voice"}</span>
       </button>
     {/if}
@@ -520,7 +520,7 @@
 
   <QuickVoicePreview
     {build}
-    {busy}
+    busy={busy || statusCheckUnavailable}
     {quickPreviewBusy}
     {quickPreviewReady}
     {quickPreviewPlaying}

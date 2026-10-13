@@ -72,6 +72,21 @@ test("My Voice UI has one collapsible voice selector and a stage-aware recording
   assert.match(recordingUi, /buildSnapshot\.minimum_duration_ms/);
 });
 
+test("completed evaluations take priority over Create and unknown status locks mutations", () => {
+  const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  const build = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const stage = page.slice(page.indexOf("const activeStage = $derived"), page.indexOf("const acceptedCount = $derived"));
+  assert.ok(stage.indexOf('selectedPane === "record"') < stage.indexOf("buildSnapshot?.evaluation_ready"));
+  assert.ok(stage.indexOf("buildSnapshot?.evaluation_ready") < stage.indexOf('selectedPane === "create"'));
+  assert.match(page, /voiceChangesLocked=\{voiceChangesLocked \|\| buildStatusUnavailable/);
+  assert.match(page, /if \(busy \|\| voiceChangesLocked \|\| buildStatusUnavailable \|\| buildSnapshot\?\.active/);
+  assert.match(page, /disabled=\{recordingStatusUnknown \|\| buildStatusUnavailable/);
+  assert.match(build, /if \(busy \|\| statusCheckUnavailable \|\| voiceChangesLocked \|\| quickPreviewBusy/);
+  assert.match(build, /if \(busy \|\| statusCheckUnavailable \|\| voiceChangesLocked \|\| build\.active/);
+  assert.match(build, /disabled=\{busy \|\| statusCheckUnavailable \|\| voiceChangesLocked \|\| !evaluationReviewComplete/);
+  assert.match(build, /onBuildStatusUnavailable\?\.\(\)/);
+});
+
 test("Quick Preview remains training-only in the visible My Voice UI", () => {
   assert.match(ui, /<QuickVoicePreview/);
   assert.match(quickPreviewUi, /not for meetings|never usable in Meeting/i);

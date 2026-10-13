@@ -65,11 +65,11 @@
         ? "create"
         : selectedPane === "record"
           ? "record"
-          : selectedPane === "create"
-            ? "create"
-            : buildSnapshot?.evaluation_ready
-              ? "review"
-              : buildSnapshot?.can_build ? "create" : "record",
+          : buildSnapshot?.evaluation_ready
+            ? "review"
+            : selectedPane === "create" || buildSnapshot?.can_build
+              ? "create"
+              : "record",
   );
   const acceptedCount = $derived(recordingState.lines.filter((line) => line.accepted).length);
   const minimumProgress = $derived(
@@ -140,7 +140,7 @@
   }
 
   async function selectBuiltin(voiceId: BuiltinVoiceId, confirmed = false): Promise<void> {
-    if (busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
+    if (busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectBuiltin(voiceId, confirmed);
@@ -172,7 +172,7 @@
   }
 
   async function selectStoredPersonalVoice(): Promise<void> {
-    if (busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
+    if (busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectSavedPersonalVoice();
@@ -212,7 +212,7 @@
   }
 
   async function checkMicrophone(): Promise<void> {
-    if (busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
+    if (busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
     microphoneCheck = "checking";
     microphoneCheckMessage = "Checking the selected microphone...";
@@ -506,7 +506,7 @@
     {selectedBuiltinVoiceId}
     {savedPersonalVoiceAvailable}
     {selectedVoiceVerified}
-    voiceChangesLocked={voiceChangesLocked || buildSnapshot?.active === true || recordingStatusUnknown || isRecording || pendingLineId !== null}
+    voiceChangesLocked={voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown || isRecording || pendingLineId !== null}
     onPreview={previewBuiltin}
     onSelect={selectBuiltin}
     onSelectPersonal={selectStoredPersonalVoice}
@@ -646,13 +646,13 @@
                 <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">{buildSnapshot.message}</p>
               {/if}
               {#if buildSnapshot.can_build && !buildSnapshot.active && !isRecording && pendingLineId === null}
-                <button type="button" class="ti-button mt-4 w-full" disabled={voiceChangesLocked || recordingStatusUnknown} onclick={() => { selectedPane = "create"; }}>Continue to Create</button>
+                <button type="button" class="ti-button mt-4 w-full" disabled={voiceChangesLocked || buildStatusUnavailable || recordingStatusUnknown} onclick={() => { selectedPane = "create"; }}>Continue to Create</button>
               {/if}
             {:else}
               <p role="status" class="mb-0 mt-3 text-sm text-[var(--ti-text-muted)]">Checking recording progress…</p>
             {/if}
-            {#if acceptedCount > 0 && !buildSnapshot?.active}
-              <button type="button" class="mt-4 text-left text-xs font-medium text-[var(--ti-text-muted)] underline underline-offset-4" disabled={busy || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => { selectedPane = "create"; }}>Optional Quick Preview</button>
+            {#if acceptedCount > 0 && !buildSnapshot?.active && !buildSnapshot?.evaluation_ready}
+              <button type="button" class="mt-4 text-left text-xs font-medium text-[var(--ti-text-muted)] underline underline-offset-4" disabled={busy || buildStatusUnavailable || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => { selectedPane = "create"; }}>Optional Quick Preview</button>
             {/if}
           </div>
           <div class="border-t border-[var(--ti-border)] px-4 py-3">
@@ -693,7 +693,7 @@
         <p class="mb-0 text-xs leading-5 text-[var(--ti-text-muted)]">
           {activeStage === "review" ? "Review every generated sample before selecting your new voice." : "Your current Meeting voice stays unchanged until you approve a new one."}
         </p>
-        <button type="button" class="ti-button ti-button-secondary" disabled={recordingStatusUnknown || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || busy} onclick={() => { selectedPane = "record"; }}>
+        <button type="button" class="ti-button ti-button-secondary" disabled={recordingStatusUnknown || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || busy} onclick={() => { selectedPane = "record"; }}>
           Record more
         </button>
       </div>
