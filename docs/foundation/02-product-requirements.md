@@ -391,6 +391,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Change the selected Meeting voice during a live/starting/stopping Meeting, including approving a newly evaluated My Voice actor. The native approval transaction must reject the change without replacing the current actor; the UI must show a recoverable Stop Meeting instruction.
 
+### PR-120 — My Voice extensible guided corpus
+**MUST:** Preserve the exact authored English sentence and stable numeric identity of guided training lines 1–128; accepted recordings, migration and dataset snapshots must never silently change or relabel their original transcriptions. Training-only prompt IDs 129–600 remain separate from reserved held-out IDs 1001–1008.
+
+**MUST:** Provide a user-selectable, browseable library of 600 authored English prompts with clear presentation levels: **Short Conversations**, **Natural Conversations**, and **Detailed Explanations**. Reading level is a navigation aid, not a model-quality grade, accent score, or mandatory completion target. Each prompt retains an independent internal focus tag and one of five legacy-compatible recording-coverage groups.
+
+**MUST:** Guided recording, saved recording identifiers, training selection, and migration share the same Rust-owned prompt text and metadata. Offer search, category/focus filters, and bounded pagination; do not place all 600 prompt controls on screen simultaneously or demand every line to start training. Preserve the pinned 128-take worker cap per build; beyond it, explain that the user must select a bounded subset of saved takes rather than begin a run that the worker will reject.
+
+**MUST:** Suggest missing training categories using semantic metadata, not numeric legacy ranges, and preserve the legacy five-group eligibility behavior for all existing guided IDs. Do not conflate the size of a prompt library with acoustic, phoneme, or voice-model quality guarantees. Optional pronunciation review must not replace application-authored transcript text.
+
 ## 13. UI
 
 ### PR-160 — Navigation

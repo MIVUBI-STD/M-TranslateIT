@@ -1,4 +1,4 @@
-pub(super) const GUIDED_LINES: &[(u32, &str)] = &[
+const LEGACY_GUIDED_LINES: &[(u32, &str)] = &[
     (1, "Good morning, everyone."),
     (2, "Thanks for joining today."),
     (3, "Yes, that works for me."),
@@ -128,3 +128,107 @@ pub(super) const GUIDED_LINES: &[(u32, &str)] = &[
     (127, "I appreciate clear feedback, even when it challenges my first idea, because a better result matters more than defending a decision that no longer makes sense."),
     (128, "That's everything I wanted to cover today. If anything is still unclear, we can return to it later instead of rushing through the final few points."),
 ];
+
+
+// Corpus V3 extensions are intentionally separate from immutable legacy text.
+// Never rewrite IDs 1–128: their literal text identifies accepted WAV archives.
+#[path = "guided_corpus_short.rs"]
+mod short;
+#[path = "guided_corpus_natural.rs"]
+mod natural;
+#[path = "guided_corpus_detailed.rs"]
+mod detailed;
+
+use std::sync::OnceLock;
+
+#[derive(Clone, Copy)]
+pub(super) struct PromptMetadata {
+    pub level: &'static str,
+    pub focus: &'static str,
+    pub coverage: &'static str,
+}
+
+pub(super) fn guided_lines() -> &'static [(u32, &'static str)] {
+    static ALL: OnceLock<Vec<(u32, &'static str)>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        let mut result = Vec::with_capacity(600);
+        result.extend_from_slice(LEGACY_GUIDED_LINES);
+        for set in [short::LINES, natural::LINES, detailed::LINES] {
+            result.extend(set.iter().map(|(id, text, _, _)| (*id, *text)));
+        }
+        debug_assert_eq!(result.len(), 600);
+        debug_assert!(result.iter().enumerate().all(|(index, (id, _))|
+            usize::try_from(*id).ok() == Some(index + 1)));
+        result
+    })
+}
+
+/// "Level" describes reading complexity, not quality, accent correctness,
+/// percentage of voice training, or a required order for recording.
+pub(super) fn prompt_metadata(id: u32) -> Option<PromptMetadata> {
+    if (1..=128).contains(&id) {
+        let (level, focus, coverage) = match id {
+            1..=24 => ("short", "conversation", "conversation"),
+            25..=30 => ("natural", "questions", "intonation"),
+            31..=64 => ("natural", "natural-speech", "natural"),
+            65..=96 => ("natural", "numbers-and-details", "details"),
+            _ => ("detailed", "connected-explanations", "explanations"),
+        };
+        return Some(PromptMetadata { level, focus, coverage });
+    }
+    let (level, start, lines) = if (129..=284).contains(&id) {
+        ("short", 129, short::LINES)
+    } else if (285..=482).contains(&id) {
+        ("natural", 285, natural::LINES)
+    } else if (483..=600).contains(&id) {
+        ("detailed", 483, detailed::LINES)
+    } else {
+        return None;
+    };
+    let (actual_id, _, focus, coverage) = *lines.get((id - start) as usize)?;
+    if actual_id != id { return None; }
+    Some(PromptMetadata { level, focus, coverage })
+}
+
+pub(super) fn coverage_for_id(id: u32) -> Option<&'static str> {
+    prompt_metadata(id).map(|meta| meta.coverage)
+}
+
+#[cfg(test)]
+mod corpus_tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn six_hundred_unique_stable_lines_and_reserved_review_ids() {
+        let all = guided_lines();
+        assert_eq!(all.len(), 600);
+        let mut texts = HashSet::new();
+        for (index, (id, text)) in all.iter().enumerate() {
+            assert_eq!(*id as usize, index + 1);
+            assert!(!text.trim().is_empty());
+            assert!(texts.insert(text.to_lowercase()));
+            assert!(!matches!(*id, 1001..=1008));
+            let metadata = prompt_metadata(*id).expect("every line has metadata");
+            assert!(matches!(metadata.level, "short" | "natural" | "detailed"));
+            assert!(matches!(metadata.coverage,
+                "conversation" | "intonation" | "natural" | "details" | "explanations"));
+        }
+        assert_eq!(&all[..128], LEGACY_GUIDED_LINES);
+        assert!(prompt_metadata(601).is_none());
+    }
+
+    #[test]
+    fn levels_keep_legacy_transcripts_and_are_never_mandatory_completion() {
+        let all = guided_lines();
+        assert_eq!(all[0].1, "Good morning, everyone.");
+        assert_eq!(all[127].0, 128);
+        assert_eq!(all[128].0, 129);
+        assert_eq!(all[599].0, 600);
+        assert_eq!(prompt_metadata(1).unwrap().coverage, "conversation");
+        assert_eq!(prompt_metadata(27).unwrap().coverage, "intonation");
+        assert_eq!(prompt_metadata(45).unwrap().coverage, "natural");
+        assert_eq!(prompt_metadata(75).unwrap().coverage, "details");
+        assert_eq!(prompt_metadata(110).unwrap().coverage, "explanations");
+    }
+}

@@ -182,7 +182,7 @@
   function coverageGuidance(): string | null {
     const coverage = build.missing_coverage;
     if (!coverage || build.accepted_duration_ms < build.minimum_duration_ms) return null;
-    return `Try one accepted line from Lines ${coverage.start_line_id}–${coverage.end_line_id} for ${coverage.label}.`;
+    return `Record another sentence for ${coverage.label}.`;
   }
 
   function idleGuidance(): string {

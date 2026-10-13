@@ -21,7 +21,7 @@ use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, le
 mod guided_lines;
 mod storage_transaction;
 
-use guided_lines::GUIDED_LINES;
+use guided_lines::{guided_lines, prompt_metadata};
 use storage_transaction::{accept_review_take_with_native_rate, discard_review_take};
 
 const MAX_REPLAY_WAV_BYTES: u64 = 8 * 1024 * 1024;
@@ -31,6 +31,9 @@ pub struct GuidedLineStatus {
     pub line_id: u32,
     pub text: String,
     pub accepted: bool,
+    pub level: &'static str,
+    pub focus: &'static str,
+    pub coverage: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -62,7 +65,7 @@ fn draft_store() -> &'static Mutex<Option<PendingDraft>> {
 }
 
 fn guided_text(line_id: u32) -> Option<&'static str> {
-    GUIDED_LINES
+    guided_lines()
         .iter()
         .find(|(id, _)| *id == line_id)
         .map(|(_, text)| *text)
@@ -118,12 +121,15 @@ fn current_state() -> GuidedRecordingState {
     GuidedRecordingState {
         recording_line_id: active_guided_take_line_id(),
         pending_review,
-        lines: GUIDED_LINES
+        lines: guided_lines()
             .iter()
             .map(|(line_id, text)| GuidedLineStatus {
                 line_id: *line_id,
                 text: (*text).to_string(),
                 accepted: accepted_path(*line_id).is_file(),
+                level: prompt_metadata(*line_id).map(|m| m.level).unwrap_or("unknown"),
+                focus: prompt_metadata(*line_id).map(|m| m.focus).unwrap_or("unknown"),
+                coverage: prompt_metadata(*line_id).map(|m| m.coverage).unwrap_or("unknown"),
             })
             .collect(),
     }
@@ -150,11 +156,15 @@ pub(crate) fn voice_lab_recording_active() -> bool {
 }
 
 pub(crate) fn guided_training_prompts() -> &'static [(u32, &'static str)] {
-    GUIDED_LINES
+    guided_lines()
+}
+
+pub(crate) fn guided_training_coverage(line_id: u32) -> Option<&'static str> {
+    guided_lines::coverage_for_id(line_id)
 }
 
 pub(crate) fn accepted_guided_recordings() -> Vec<AcceptedGuidedRecording> {
-    GUIDED_LINES
+    guided_lines()
         .iter()
         .filter_map(|(line_id, text)| {
             let path = accepted_path(*line_id);
@@ -450,7 +460,7 @@ pub fn get_voice_lab_saved_recording_audio(archive_id: String) -> Result<tauri::
 
 #[tauri::command]
 pub fn get_voice_lab_legacy_archive_status() -> LegacyProtectionStatus {
-    legacy_protection_status(&storage_paths(), GUIDED_LINES)
+    legacy_protection_status(&storage_paths(), guided_lines())
 }
 
 #[tauri::command]
@@ -464,7 +474,7 @@ pub fn protect_voice_lab_legacy_recordings() -> Result<LegacyMigrationResult, St
     if pending {
         return Err("Review the current recording before protecting earlier recordings.".to_string());
     }
-    Ok(migrate_legacy_recordings(&storage_paths(), GUIDED_LINES))
+    Ok(migrate_legacy_recordings(&storage_paths(), guided_lines()))
 }
 
 #[tauri::command]

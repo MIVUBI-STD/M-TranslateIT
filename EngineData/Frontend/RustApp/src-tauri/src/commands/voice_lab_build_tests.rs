@@ -32,3 +32,13 @@ fn one_accepted_line_from_each_curated_block_satisfies_recording_variety() {
 
     assert!(missing_training_coverage_group(&takes).is_none());
 }
+
+
+#[test]
+fn extended_corpus_contributes_to_original_coverage_rules_without_requiring_old_ids() {
+    // Every category has at least one new sentence; its exact original
+    // transcript is part of the same guided source-of-truth contract.
+    let takes = [129, 153, 189, 237, 483]
+        .into_iter().map(take).collect::<Vec<_>>();
+    assert!(missing_training_coverage_group(&takes).is_none());
+}

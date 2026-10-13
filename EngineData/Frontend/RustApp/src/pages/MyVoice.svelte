@@ -65,19 +65,35 @@
   let buildStatusUnavailable = $state(false);
   let selectedPane = $state<"auto" | "record" | "create">("auto");
   let browseLinesOpen = $state(false);
+  let browseLevel = $state("all");
+  let browseFocus = $state("all");
+  let browseQuery = $state("");
+  let browsePage = $state(0);
+  const browsePageSize = 35;
+  const levelOptions = [
+    { value: "all", label: "All categories" },
+    { value: "short", label: "Short Conversations" },
+    { value: "natural", label: "Natural Conversations" },
+    { value: "detailed", label: "Detailed Explanations" },
+  ];
+  const browseFocusOptions = $derived(
+    [...new Set(recordingState.lines
+      .filter((line) => browseLevel === "all" || line.level === browseLevel)
+      .map((line) => line.focus))].sort(),
+  );
+  const browseFiltered = $derived(recordingState.lines.filter((line) =>
+    (browseLevel === "all" || line.level === browseLevel) &&
+    (browseFocus === "all" || line.focus === browseFocus) &&
+    (browseQuery.trim() === "" ||
+      line.text.toLowerCase().includes(browseQuery.trim().toLowerCase()) ||
+      String(line.line_id).includes(browseQuery.trim())),
+  ));
+  const browseVisible = $derived(browseFiltered.slice(browsePage * browsePageSize, (browsePage + 1) * browsePageSize));
   // Focus targets are used only after explicit recording or line-selection actions.
   // Polling and background status reconciliation never move keyboard focus.
   let lineHeading: HTMLHeadingElement | undefined;
   let recordActionButton: HTMLButtonElement | undefined;
   let reviewReplayButton: HTMLButtonElement | undefined;
-
-  const lineGroups = [
-    { start: 1, end: 24, label: "Conversation" },
-    { start: 25, end: 30, label: "Questions & intonation" },
-    { start: 31, end: 64, label: "Natural sentences" },
-    { start: 65, end: 96, label: "Names, numbers & technical details" },
-    { start: 97, end: 128, label: "Longer explanations" },
-  ];
 
   const activeStage = $derived(
     recordingStatusUnknown || isRecording || pendingLineId !== null
@@ -944,7 +960,7 @@
                 </button>
                 {#if !recordingState.pending_review.quality_blocker}
                   <button type="button" class="ti-button" disabled={busy || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown} onclick={() => void acceptTake()}>
-                    <Check size={15} /><span>{busy ? "Saving..." : "Keep recording"}</span>
+                    <Check size={15} /><span>{busy ? "Saving..." : "Save this recording"}</span>
                   </button>
                 {/if}
               {:else}
@@ -978,7 +994,14 @@
               </div>
               <p class="mb-0 mt-3 text-xs text-[var(--ti-text-muted)]">{buildSnapshot.accepted_take_count} accepted recordings</p>
               {#if buildSnapshot.missing_coverage && buildSnapshot.accepted_duration_ms >= buildSnapshot.minimum_duration_ms}
-                <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">Next: Record a line from {buildSnapshot.missing_coverage.label} (Lines {buildSnapshot.missing_coverage.start_line_id}–{buildSnapshot.missing_coverage.end_line_id}).</p>
+                <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">Next: Add a sentence covering {buildSnapshot.missing_coverage.label}.</p>
+                {#if buildSnapshot.missing_coverage.suggested_line_id !== null}
+                  <button type="button" class="mt-2 text-left text-xs font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
+                    disabled={busy || recordingStatusUnknown || isRecording || pendingLineId !== null}
+                    onclick={() => void chooseBrowseLine(buildSnapshot!.missing_coverage!.suggested_line_id!)}>
+                    Try suggested line {buildSnapshot.missing_coverage.suggested_line_id}
+                  </button>
+                {/if}
               {:else if !buildSnapshot.can_build}
                 <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">{buildSnapshot.message}</p>
               {/if}
@@ -995,30 +1018,57 @@
           <div class="border-t border-[var(--ti-border)] px-4 py-3">
             <details bind:open={browseLinesOpen}>
               <summary class="cursor-pointer text-sm font-medium">Browse lines <span class="ml-1 text-xs font-normal text-[var(--ti-text-muted)]">({acceptedCount} saved)</span></summary>
-              <p class="mb-2 mt-2 text-xs leading-5 text-[var(--ti-text-muted)]">Choose any line. You don't have to record all 128.</p>
-              <div class="max-h-[320px] overflow-y-auto">
-                {#each lineGroups as group}
-                  <div class="mt-3">
-                    <strong class="text-xs font-semibold text-[var(--ti-text-muted)]">{group.label}</strong>
-                    {#each recordingState.lines.filter((line) => line.line_id >= group.start && line.line_id <= group.end) as line (line.line_id)}
-                      <button
-                        type="button"
-                        class={selectedLineId === line.line_id ? "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] bg-[var(--ti-surface-raised)] px-2 py-2 text-left text-sm" : "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] px-2 py-2 text-left text-sm text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
-                        disabled={isRecording || recordingStatusUnknown || recordingState.pending_review !== null}
-                        aria-pressed={selectedLineId === line.line_id}
-                        aria-label={`Line ${line.line_id}, ${line.accepted ? "saved" : "not recorded"}`}
-                        onclick={() => void chooseBrowseLine(line.line_id)}
-                      >
-                        {#if line.accepted}
-                          <Check size={14} class="shrink-0 text-[var(--ti-success)]" />
-                        {:else}
-                          <Circle size={12} class="shrink-0 text-[var(--ti-text-soft)]" />
-                        {/if}
-                        <span>Line {line.line_id}</span>
-                      </button>
+              <p class="mb-2 mt-2 text-xs leading-5 text-[var(--ti-text-muted)]">Choose what feels natural. You don't have to record all {recordingState.lines.length} sentences.</p>
+              <div class="space-y-2">
+                <label class="block text-xs text-[var(--ti-text-muted)]">
+                  Category
+                  <select class="ti-input mt-1 w-full" bind:value={browseLevel}
+                    onchange={() => { browsePage = 0; browseFocus = "all"; }}>
+                    {#each levelOptions as option}
+                      <option value={option.value}>{option.label}</option>
                     {/each}
-                  </div>
+                  </select>
+                </label>
+                <label class="block text-xs text-[var(--ti-text-muted)]">
+                  Focus
+                  <select class="ti-input mt-1 w-full" bind:value={browseFocus}
+                    onchange={() => { browsePage = 0; }}>
+                    <option value="all">All topics</option>
+                    {#each browseFocusOptions as focus}
+                      <option value={focus}>{focus.replaceAll("-", " ")}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label class="block text-xs text-[var(--ti-text-muted)]">
+                  Search line number or words
+                  <input class="ti-input mt-1 w-full" type="search" bind:value={browseQuery}
+                    oninput={() => { browsePage = 0; }} placeholder="Search sentences" />
+                </label>
+              </div>
+              <p class="mt-3 text-xs text-[var(--ti-text-muted)]">{browseFiltered.length} matching lines · up to {browsePageSize} per page</p>
+              <div class="max-h-[320px] overflow-y-auto">
+                {#each browseVisible as line (line.line_id)}
+                  <button type="button"
+                    class={selectedLineId === line.line_id ? "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] bg-[var(--ti-surface-raised)] px-2 py-2 text-left text-sm" : "mt-1 flex w-full items-center gap-2 rounded-[var(--ti-radius-sm)] px-2 py-2 text-left text-sm text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
+                    disabled={isRecording || recordingStatusUnknown || recordingState.pending_review !== null}
+                    aria-pressed={selectedLineId === line.line_id}
+                    aria-label={`Line ${line.line_id}, ${line.accepted ? "saved" : "not recorded"}`}
+                    onclick={() => void chooseBrowseLine(line.line_id)}
+                  >
+                    {#if line.accepted}
+                      <Check size={14} class="shrink-0 text-[var(--ti-success)]" />
+                    {:else}
+                      <Circle size={12} class="shrink-0 text-[var(--ti-text-soft)]" />
+                    {/if}
+                    <span class="min-w-0 truncate">Line {line.line_id} · {line.text}</span>
+                  </button>
                 {/each}
+              </div>
+              <div class="mt-3 flex justify-between gap-3">
+                <button type="button" class="ti-button ti-button-secondary" disabled={browsePage === 0}
+                  onclick={() => { browsePage = Math.max(0, browsePage - 1); }}>Previous</button>
+                <button type="button" class="ti-button ti-button-secondary" disabled={(browsePage + 1) * browsePageSize >= browseFiltered.length}
+                  onclick={() => { browsePage += 1; }}>Next</button>
               </div>
             </details>
           </div>

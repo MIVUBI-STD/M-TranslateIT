@@ -11,6 +11,9 @@ export type GuidedLineStatus = {
   line_id: number;
   text: string;
   accepted: boolean;
+  level: "short" | "natural" | "detailed";
+  focus: string;
+  coverage: "conversation" | "intonation" | "natural" | "details" | "explanations";
 };
 
 export type GuidedRecordingState = {

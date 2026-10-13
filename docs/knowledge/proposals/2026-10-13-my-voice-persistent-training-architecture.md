@@ -268,3 +268,55 @@ and human approval. This is \`REBUILD_WITH_MORE_DATA\`, **not** true optimizer
 resume, checkpoint warm start, or a claim that more audio always improves
 speaker identity. Actual Windows training, integrated frontend, GPU resource
 use, acoustics and source tests remain **NOT EXECUTED**.
+
+
+## Source implementation continuation — Corpus V3 (600 English prompts)
+
+The corpus expansion preserves all 128 original ID/text pairs unchanged and
+extends them with 472 independently authored, non-duplicated prompts:
+
+| User-facing level | IDs | Existing | Added | Total |
+| --- | --- | ---: | ---: | ---: |
+| Short Conversations | 1–24 and 129–284 | 24 | 156 | 180 |
+| Natural Conversations | 25–96 and 285–482 | 72 | 198 | 270 |
+| Detailed Explanations | 97–128 and 483–600 | 32 | 118 | 150 |
+
+New prompts have orthogonal **level**, **focus** (32 distinct newly authored
+tags), and **coverage** (conversation, intonation, natural speech, details,
+explanations) metadata in the Rust source. The legacy lines receive derived
+metadata without changing source transcript characters. Held-out evaluation
+IDs 1001–1008 are never training prompts. The guidance algorithm now checks
+semantic coverage tags instead of hardcoded legacy ID intervals.
+
+The UI uses those backend-provided metadata properties, filters by reading
+level and focus, supports text/ID search, and renders 35 visible rows per page.
+It also offers a missing-category suggestion, without presenting the
+number of completed prompts as a speaker-quality percentage. Users may select
+any comfortable sentence, in any order, and leave the session with saved
+recordings.
+
+Source-only corpus checks at authoring found 600 sequential IDs,
+**zero exact duplicate texts**, 32 new focus tags, 1,847 distinct lexical
+word tokens and an average of approximately 12.2 written words per prompt.
+These are lexical/count sanity checks, **not** measured TTS acoustic,
+perceptual or ARPABET/diphone coverage. There is no claim that 600 prompts
+are required or guarantee higher voice quality. All prompts are new authored
+sentences or retained original TranslateIT texts; no third-party dataset
+passages are imported. Published Common Voice and L2-ARCTIC guidance informed
+the natural-speech, flexible-accent and varied-phonetic design principles;
+their licensed corpora and voice files are not bundled.
+
+The independent code-level worker limit remains 128 accepted takes per
+training run. If the user records more than that, ordinary Create refuses an
+oversized run with guidance to select up to 128 from Saved Recordings. The
+existing Improve My Voice saved-take selection can use any prompt in this
+600-item library while preserving the exact frozen transcript. This prevents
+silent truncation, a hidden random training subset, and unsupported
+speaker-consistency workloads.
+
+**Proof:** REMOTE_GITHUB source inspection and authored regression tests.
+Actual Rust/Svelte/Node build, Windows audio runtime, acoustic phoneme
+distribution, listening similarity and training performance remain
+**NOT EXECUTED**. Reference context:
+https://commonvoice.mozilla.org/en/guidelines and
+https://psi.engr.tamu.edu/l2-arctic-corpus/.

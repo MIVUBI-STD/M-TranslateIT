@@ -28,7 +28,7 @@ use super::voice_lab::{
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
 use super::voice_lab_recording::{
-    accepted_guided_recordings, guided_training_prompts, voice_lab_recording_active,
+    accepted_guided_recordings, guided_training_prompts, guided_training_coverage, voice_lab_recording_active,
 };
 
 mod evaluation;
@@ -43,6 +43,9 @@ use evaluation::{
 };
 
 const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
+// Distinct from the 600-prompt library; pinned speaker-consistency processing
+// currently accepts at most 128 recordings in a single training build.
+const MAX_TRAINING_TAKES: usize = 128;
 const CANCEL_WAIT: Duration = Duration::from_secs(10);
 
 // Guard select/approve on the shared worker actor path. No parallel promotion.
@@ -55,6 +58,7 @@ fn voice_selection_guard() -> Result<std::sync::MutexGuard<'static, ()>, ()> {
 struct TrainingCoverageGroup {
     start_line_id: u32,
     end_line_id: u32,
+    coverage: &'static str,
     label: &'static str,
 }
 
@@ -63,6 +67,7 @@ pub struct VoiceLabCoverageGuidance {
     pub start_line_id: u32,
     pub end_line_id: u32,
     pub label: &'static str,
+    pub suggested_line_id: Option<u32>,
 }
 
 const TRAINING_COVERAGE_GROUPS: &[TrainingCoverageGroup] = &[
@@ -70,26 +75,31 @@ const TRAINING_COVERAGE_GROUPS: &[TrainingCoverageGroup] = &[
         start_line_id: 1,
         end_line_id: 24,
         label: "short conversational speech",
+        coverage: "conversation",
     },
     TrainingCoverageGroup {
         start_line_id: 25,
         end_line_id: 30,
         label: "questions and changing intonation",
+        coverage: "intonation",
     },
     TrainingCoverageGroup {
         start_line_id: 31,
         end_line_id: 64,
         label: "natural varied sentences",
+        coverage: "natural",
     },
     TrainingCoverageGroup {
         start_line_id: 65,
         end_line_id: 96,
         label: "names, numbers, dates, or technical details",
+        coverage: "details",
     },
     TrainingCoverageGroup {
         start_line_id: 97,
         end_line_id: 128,
         label: "longer explanations",
+        coverage: "explanations",
     },
 ];
 
@@ -278,7 +288,7 @@ fn missing_training_coverage_group(
 ) -> Option<TrainingCoverageGroup> {
     TRAINING_COVERAGE_GROUPS.iter().copied().find(|group| {
         !takes.iter().any(|take| {
-            (group.start_line_id..=group.end_line_id).contains(&take.line_id)
+            guided_training_coverage(take.line_id) == Some(group.coverage)
         })
     })
 }
@@ -289,10 +299,7 @@ fn training_coverage_guidance(group: TrainingCoverageGroup, approved_voice_ready
     } else {
         "Add a little more recording variety before creating My Voice."
     };
-    format!(
-        "{prefix} Try one accepted line from Lines {}-{} for {}.",
-        group.start_line_id, group.end_line_id, group.label
-    )
+    format!("{prefix} Record another sentence covering {}.", group.label)
 }
 
 fn child_status(paths: &VoiceLabStoragePaths) -> Option<BuildChildStatusFile> {
@@ -345,6 +352,9 @@ fn current_status() -> VoiceLabBuildStatus {
         "Recordings have changed or the earlier voice review is unavailable. Create My Voice again before approval. Your existing Meeting voice is unchanged.".to_string()
     } else if !terminal_message.is_empty() {
         terminal_message
+    } else if takes.len() > MAX_TRAINING_TAKES {
+        "Your saved recordings are available. Choose up to 128 recordings from Saved Recordings to create another voice."
+            .to_string()
     } else if duration_ms < MIN_TRAINING_SPEECH_MS {
         if approved_ready {
             "My Voice is ready. To create it again, keep recording accepted lines until there is at least one minute of usable speech."
@@ -377,13 +387,21 @@ fn current_status() -> VoiceLabBuildStatus {
         accepted_take_count: takes.len(),
         accepted_duration_ms: duration_ms,
         minimum_duration_ms: MIN_TRAINING_SPEECH_MS,
-        missing_coverage: missing_coverage.map(|group| VoiceLabCoverageGuidance {
-            start_line_id: group.start_line_id,
-            end_line_id: group.end_line_id,
-            label: group.label,
+        missing_coverage: missing_coverage.map(|group| {
+            let suggested_line_id = guided_training_prompts().iter()
+                .filter(|(id, _)| guided_training_coverage(*id) == Some(group.coverage))
+                .find(|(id, _)| !takes.iter().any(|take| take.line_id == *id))
+                .map(|(id, _)| *id);
+            VoiceLabCoverageGuidance {
+                start_line_id: group.start_line_id,
+                end_line_id: group.end_line_id,
+                label: group.label,
+                suggested_line_id,
+            }
         }),
         can_build: !snapshot.active
             && !recording_active
+            && takes.len() <= MAX_TRAINING_TAKES
             && duration_ms >= MIN_TRAINING_SPEECH_MS
             && missing_coverage.is_none()
             && reference_take_ready,

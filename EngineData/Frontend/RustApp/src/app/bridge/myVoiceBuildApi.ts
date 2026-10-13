@@ -22,6 +22,7 @@ export type MyVoiceCoverageGuidance = {
   start_line_id: number;
   end_line_id: number;
   label: string;
+  suggested_line_id: number | null;
 };
 
 export type MyVoiceBuildStatus = {
