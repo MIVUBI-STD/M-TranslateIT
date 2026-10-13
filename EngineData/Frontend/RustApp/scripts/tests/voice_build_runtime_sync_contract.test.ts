@@ -86,8 +86,8 @@ test("approved My Voice cannot replace the selected actor during an active Meeti
   const parent = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
   assert.match(parent, /<MyVoiceBuild \{onNotice\}\s*voiceChangesLocked=\{voiceChangesLocked \|\| recordingStatusUnknown \|\| isRecording \|\| pendingLineId !== null\}/);
   assert.match(ui, /voiceChangesLocked\?: boolean/);
-  assert.match(ui, /async function approve\(\): Promise<void> \{\s*if \(busy \|\| voiceChangesLocked/);
-  assert.match(ui, /disabled=\{busy \|\| voiceChangesLocked \|\| !evaluationReviewComplete \|\| !qualityConfirmed\}/);
+  assert.match(ui, /async function approve\(\): Promise<void> \{\s*if \(busy \|\| statusCheckUnavailable \|\| voiceChangesLocked/);
+  assert.match(ui, /disabled=\{busy \|\| statusCheckUnavailable \|\| voiceChangesLocked \|\| !evaluationReviewComplete \|\| !qualityConfirmed\}/);
   assert.match(ui, /case "meeting_active":\s*return "Stop Meeting translation before selecting My Voice\."/);
 });
 
