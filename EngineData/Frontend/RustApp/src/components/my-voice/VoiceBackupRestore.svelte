@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ChevronDown, HardDriveDownload, ShieldCheck, FolderInput } from "@lucide/svelte";
-  import { myVoiceApi, type MyVoiceBackupReport } from "../../app/bridge/myVoiceApi";
+  import { myVoiceApi, type MyVoiceBackupReport, type TrainingRecoveryStatus } from "../../app/bridge/myVoiceApi";
   let {
     voiceChangesLocked,
     onNotice,
@@ -12,6 +12,17 @@
   } = $props();
 
   let open = $state(false);
+  let trainingRecovery = $state<TrainingRecoveryStatus | null>(null);
+  let recoveryUnknown = $state(false);
+  async function loadRecoveryStatus(): Promise<void> {
+    try {
+      const value = await myVoiceApi.getTrainingRecoveryStatus();
+      trainingRecovery = value;
+      recoveryUnknown = value === null;
+    } catch {
+      recoveryUnknown = true;
+    }
+  }
   let busy = $state(false);
   let actionUnknown = $state(false);
   let destination = $state("");
@@ -52,6 +63,7 @@
         source = report.backup_folder;
       }
       if (report.ok && action === "restore") {
+        void loadRecoveryStatus();
         authorized = false;
         await onRestored();
       }
@@ -67,7 +79,7 @@
 <section class="mt-4" aria-label="My Voice storage and backup">
   <button type="button"
     class="flex items-center gap-2 text-left text-sm font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
-    aria-expanded={open} onclick={() => { open = !open; }}>
+    aria-expanded={open} onclick={() => { open = !open; if (open) void loadRecoveryStatus(); }}>
     <ShieldCheck size={15} /> Storage &amp; backup <ChevronDown size={14} />
   </button>
   {#if open}
@@ -77,6 +89,24 @@
         Create a verified copy in another folder, preferably on an external drive.
         The application will not delete or replace earlier backups.
       </p>
+      {#if recoveryUnknown}
+        <p role="status" class="mb-0 text-xs text-[var(--ti-warning)]">
+          Couldn't verify saved training checkpoint status.
+        </p>
+      {:else if trainingRecovery && (trainingRecovery.preserved_checkpoint_candidates > 0 || trainingRecovery.attention_entries > 0)}
+        <div class="rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
+          <p class="mb-1 text-sm font-medium">Interrupted training files</p>
+          <p class="mb-0 text-xs leading-5 text-[var(--ti-text-muted)]">
+            {trainingRecovery.preserved_checkpoint_candidates} checkpoint candidate records found.
+            File integrity must be checked through backup verification. These files are retained for recovery analysis, but automatic Resume is not yet available.
+          </p>
+          {#if trainingRecovery.attention_entries > 0}
+            <p role="alert" class="mt-2 text-xs text-[var(--ti-warning)]">
+              {trainingRecovery.attention_entries} recovery entries require attention.
+            </p>
+          {/if}
+        </div>
+      {/if}
       <p class="mb-0 text-xs leading-5 text-[var(--ti-text-muted)]">
         Folder selection currently uses a full path. Open File Explorer, navigate to an existing destination folder, and copy its path.
         The app creates a new backup folder inside that destination.

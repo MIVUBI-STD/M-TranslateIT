@@ -22,6 +22,7 @@ const MAX_ENTRIES: usize = 50_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TOTAL_BYTES: u64 = 128 * 1024 * 1024 * 1024;
 const MANIFEST_LIMIT: u64 = 16 * 1024 * 1024;
+const ROOTS: &[&str] = &["Recordings", "DatasetSnapshots", "TrainingLineage", "VoiceVersions", "TrainingRecovery"];
 static BACKUP_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 fn exclusive() -> Result<std::sync::MutexGuard<'static, ()>, String> {
@@ -63,6 +64,16 @@ fn valid_hex(s: &str) -> bool {
     s.len() == 64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
+fn valid_recovery_file(name: &str) -> bool {
+    matches!(name, "gpt-config.yaml" | "sovits-config.json")
+        || (name.starts_with("gpt-") && name.ends_with(".ckpt")
+            && name[4..name.len()-5].parse::<u8>().is_ok())
+        || (name.starts_with("sovits-G-") && name.ends_with(".pth")
+            && name[9..name.len()-4].parse::<u8>().is_ok())
+        || (name.starts_with("sovits-D-") && name.ends_with(".pth")
+            && name[9..name.len()-4].parse::<u8>().is_ok())
+}
+
 fn safe_relative(path: &str) -> bool {
     if path.is_empty() || path.contains('\\') || path.contains(':') || path.contains('\0') {
         return false;
@@ -85,6 +96,9 @@ fn safe_relative(path: &str) -> bool {
         ["VoiceVersions", shard, id, filename] =>
             valid_hex(id) && shard.to_string() == id[..2].to_string()
                 && matches!(filename.to_string().as_str(), "version.json" | "actor.json" | "gpt.ckpt" | "sovits.pth" | "reference.wav"),
+        ["TrainingRecovery", id, "recovery.json"] => valid_hex(id),
+        ["TrainingRecovery", id, "files", filename] =>
+            valid_hex(id) && valid_recovery_file(filename),
         _ => false,
     }
 }
@@ -96,6 +110,8 @@ fn safe_directory_relative(path: &str) -> bool {
             shard.len() == 2 && shard.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
         ["Recordings" | "VoiceVersions", shard, id] =>
             valid_hex(id) && shard.to_string() == id[..2].to_string(),
+        ["TrainingRecovery", id] => valid_hex(id),
+        ["TrainingRecovery", id, "files"] => valid_hex(id),
         _ => false,
     }
 }
@@ -303,6 +319,53 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
                 }
             }
         }
+        if rel.starts_with("TrainingRecovery/") && rel.ends_with("/recovery.json") {
+            let data = read_regular_bounded(&root.join(rel), 16 * 1024)?;
+            let json: serde_json::Value = serde_json::from_slice(&data)
+                .map_err(|_| "voice_backup:recovery_receipt_invalid")?;
+            let pieces: Vec<&str> = rel.split('/').collect();
+            let id = pieces.get(1).copied()
+                .ok_or("voice_backup:recovery_id_missing")?;
+            if !valid_hex(id) || entry.sha256 != id {
+                return Err("voice_backup:recovery_receipt_identity_invalid".into());
+            }
+            if json.get("format").and_then(|v| v.as_u64()) != Some(1)
+                || json.get("engine_revision").and_then(|v| v.as_str()) != Some(VOICE_ACTOR_ENGINE_REVISION)
+                || json.get("status").and_then(|v| v.as_str())
+                    != Some("checkpoint_preserved_not_verified_for_resume")
+            {
+                return Err("voice_backup:recovery_receipt_unsupported".into());
+            }
+            let snapshot = json.get("dataset_snapshot_id").and_then(|v| v.as_str())
+                .ok_or("voice_backup:recovery_dataset_id_missing")?;
+            if !valid_hex(snapshot)
+                || !map.contains_key(format!("DatasetSnapshots/{snapshot}.json").as_str())
+            {
+                return Err("voice_backup:recovery_dataset_missing".into());
+            }
+            let files = json.get("parts").and_then(|v| v.as_array())
+                .ok_or("voice_backup:recovery_parts_missing")?;
+            if files.is_empty() || files.len() > 22 {
+                return Err("voice_backup:recovery_parts_invalid".into());
+            }
+            let mut seen = std::collections::HashSet::new();
+            for part in files {
+                let label = part.get("label").and_then(|v| v.as_str())
+                    .ok_or("voice_backup:recovery_file_name_missing")?;
+                let sha = part.get("sha256").and_then(|v| v.as_str())
+                    .ok_or("voice_backup:recovery_file_sha_missing")?;
+                let bytes = part.get("bytes").and_then(|v| v.as_u64())
+                    .ok_or("voice_backup:recovery_file_size_missing")?;
+                if !valid_recovery_file(label) || !seen.insert(label) || !valid_hex(sha) {
+                    return Err("voice_backup:recovery_file_invalid".into());
+                }
+                let file = map.get(format!("TrainingRecovery/{id}/files/{label}").as_str())
+                    .ok_or("voice_backup:recovery_file_missing")?;
+                if file.sha256 != sha || file.bytes != bytes {
+                    return Err("voice_backup:recovery_file_changed".into());
+                }
+            }
+        }
         if rel.starts_with("TrainingLineage/") && rel.ends_with(".json") {
             let data = read_regular_bounded(&root.join(rel), 512 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
@@ -507,6 +570,8 @@ mod tests {
         assert!(safe_relative(&format!("Recordings/aa/{digest}/canonical.wav")));
         assert!(safe_relative(&format!("VoiceVersions/aa/{digest}/gpt.ckpt")));
         assert!(safe_relative(&format!("DatasetSnapshots/{digest}.json")));
+        assert!(safe_relative(&format!("TrainingRecovery/{digest}/recovery.json")));
+        assert!(safe_relative(&format!("TrainingRecovery/{digest}/files/sovits-G-0.pth")));
         for bad in ["../MyVoice/actor.json", "Recordings/../voice.wav",
             "Recordings\\fake.wav", "/Recordings/evil", "C:/Recordings/file.wav",
             "Unknown/file.wav", "Recordings//file.wav", "Recordings/./file.wav",

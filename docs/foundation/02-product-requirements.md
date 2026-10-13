@@ -420,6 +420,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Automatically sync My Voice content to a remote/cloud service. Never claim device-level recovery or backup durability before a real cross-path restore has been executed and verified on the target platform.
 
+### PR-123 — Preserve interrupted training checkpoints without unsafe resume
+**MUST:** Before starting a new My Voice training build, and after an unsuccessful/cancelled training child exits, inspect the pinned GPT-SoVITS V2ProPlus work area for full training checkpoint candidates, including GPT Lightning \`ckpt\` and SoVITS Generator/Discriminator optimizer-containing checkpoints. Preserve any found checkpoint bytes and relevant training config in an immutable, SHA-256-verified local recovery archive **bound to the original frozen dataset snapshot**. If preservation cannot be verified, do not clear the old work area or silently reuse it with a different dataset.
+
+**MUST:** Keep checkpoint recovery objects logically separate from approved inference Voice Versions, accepted Recording Library data and dataset snapshot records. Include successfully preserved checkpoint archives and their dataset references in explicit portable My Voice backups. Any incomplete or mismatched recovery capture remains visible as attention; do not delete it or mislabel it as an approved voice.
+
+**MUST:** Label saved training recovery bundles as **checkpoint candidates, resume unverified** until both GPT and SoVITS states have been structurally and operationally validated against the exact pinned trainer, config, dataset, engine revision and GPU/precision environment. A file existing or a checkpoint-loading attempt must not be presented as evidence that optimizer-based resume happened.
+
+**MUST NOT:** Automatically restart optimizer training, use only inference weights as a resume checkpoint, clear abandoned optimizer state on an unverifiable source, or claim a full bit-for-bit resume with the existing upstream SoVITS implementation. Upstream SoVITS can broadly catch checkpoint loading failures and fall back to pretrained weights, reconstructs its schedulers, and does not show an AMP GradScaler state in its full checkpoint saving path; these limitations require explicit fail-closed instrumentation and target-Windows acceptance before a user-facing Resume action is authorized.
+
 ## 13. UI
 
 ### PR-160 — Navigation

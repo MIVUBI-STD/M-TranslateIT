@@ -16,7 +16,7 @@ use crate::engine::runtime_state::{
     revoke_runtime_session_authority, VOICE_RECORDING_OWNER_ID,
 };
 
-use super::voice_lab::{create_voice_backup, check_voice_backup, restore_voice_backup, voice_backup_active, BackupReport, archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, saved_recordings_page, saved_recording_audio, VoiceLabStoragePaths};
+use super::voice_lab::{training_recovery_status, TrainingRecoveryStatus, create_voice_backup, check_voice_backup, restore_voice_backup, voice_backup_active, BackupReport, archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, saved_recordings_page, saved_recording_audio, VoiceLabStoragePaths};
 
 mod guided_lines;
 mod storage_transaction;
@@ -521,6 +521,12 @@ pub fn restore_voice_lab_backup(
         return Err("Confirm that this backup contains your own or an authorized voice.".into());
     }
     restore_voice_backup(&storage_paths(), &backup_folder)
+}
+
+
+#[tauri::command]
+pub fn get_voice_lab_training_recovery_status() -> Result<TrainingRecoveryStatus, String> {
+    training_recovery_status(&storage_paths())
 }
 
 #[tauri::command]

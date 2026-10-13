@@ -16,7 +16,7 @@ use super::builtin_voice::{
 };
 use super::voice_lab::{
     approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
-    finish_voice_lab_build, prepare_guided_dataset,
+    finish_voice_lab_build, preserve_training_checkpoints, prepare_guided_dataset,
     prepare_guided_dataset_from_archives, choose_archived_takes,
     promote_voice_actor_candidate,
     request_voice_lab_build_cancel,
@@ -573,6 +573,15 @@ fn start_voice_lab_build_selected(
 
     let project_paths = ProjectPaths::discover();
     let paths = VoiceLabStoragePaths::from_project_paths(&project_paths);
+    // This must occur BEFORE prepare_guided_dataset replaces snapshot.ref and
+    // BEFORE old Work is cleared. Checkpoints from an interrupted earlier run
+    // cannot be paired safely with a new dataset. Fail closed on any error.
+    if let Err(error) = preserve_training_checkpoints(&paths) {
+        let _ = fail_voice_lab_build(generation);
+        return result(false, "prior_training_recovery_required", format!(
+            "Previous training artifacts need protection before a new build: {error}"
+        ));
+    }
     let (takes, _, _) = accepted_contract();
     let manifest = GuidedDatasetManifest {
         schema_version: VOICE_LAB_SCHEMA_VERSION,
@@ -677,13 +686,25 @@ fn start_voice_lab_build_selected(
                 .map(|status| status.phase == "ready_for_review")
                 .unwrap_or(false)
             && reviewable_evaluation(&paths).is_some();
+        // Only interrupted/incomplete runs retain optimizer checkpoint
+        // candidates permanently. A completed approved candidate uses the
+        // existing immutable VoiceVersion registry, not an unfinished run.
+        let recovery = if ready {
+            Ok(None)
+        } else {
+            preserve_training_checkpoints(&paths)
+        };
         let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
-        if ready || cancelling {
+        if recovery.is_err() {
+            let _ = fail_voice_lab_build(generation);
+        } else if ready || cancelling {
             let _ = finish_voice_lab_build(generation);
         } else {
             let _ = fail_voice_lab_build(generation);
         }
-        let message = if ready {
+        let message = if let Err(error) = recovery {
+            format!("Training stopped, but checkpoint preservation needs attention: {error}. Current saved voice remains unchanged.")
+        } else if ready {
             "Voice Actor samples are ready. Listen before approving My Voice.".to_string()
         } else if cancelling {
             "VoiceLab creation stopped before a candidate was approved.".to_string()

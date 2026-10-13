@@ -50,6 +50,12 @@ export type LegacyMigrationResult = {
   message: string;
 };
 
+export type TrainingRecoveryStatus = {
+  preserved_checkpoint_candidates: number;
+  attention_entries: number;
+  resume_available: boolean;
+};
+
 export type MyVoiceBackupReport = {
   ok: boolean;
   message: string;
@@ -81,6 +87,9 @@ function normalizeAction(action: GuidedRecordingActionResult): GuidedRecordingAc
 }
 
 export const myVoiceApi = {
+  async getTrainingRecoveryStatus(): Promise<TrainingRecoveryStatus | null> {
+    return runCommand<TrainingRecoveryStatus>("get_voice_lab_training_recovery_status");
+  },
   async createBackup(destinationDir: string): Promise<MyVoiceBackupReport | null> {
     return runCommand<MyVoiceBackupReport>("create_voice_lab_backup", { destinationDir });
   },

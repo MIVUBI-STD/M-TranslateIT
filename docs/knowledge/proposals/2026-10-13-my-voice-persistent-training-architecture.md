@@ -410,3 +410,55 @@ packaged Windows filesystem, actual external drive/NTFS behavior, multi-file
 crash recovery and copied model usability still require integrated target
 acceptance. Do not infer production-ready disaster recovery from a committed
 source module or self-consistent manifest.
+
+
+## Source implementation continuation — optimizer checkpoint preservation before true resume
+
+**Pinned upstream audit:** GPT-SoVITS commit
+\`d523079fc05d9a8028d6085bffe4a2757c32abb6\`.
+Source:
+https://github.com/RVC-Boss/GPT-SoVITS/blob/d523079fc05d9a8028d6085bffe4a2757c32abb6/GPT_SoVITS/s1_train.py
+and
+https://github.com/RVC-Boss/GPT-SoVITS/blob/d523079fc05d9a8028d6085bffe4a2757c32abb6/GPT_SoVITS/s2_train.py .
+GPT uses PyTorch Lightning \`ModelCheckpoint\` under
+\`experiment/logs_s1_v2ProPlus/ckpt/\` and \`trainer.fit(...ckpt_path=...)\`;
+these are different from lightweight candidate inference \`*-eN.ckpt\`.
+SoVITS \`utils.save_checkpoint\` saves \`model\`, \`optimizer\`,
+\`learning_rate\`, \`iteration\` for G and D under
+\`experiment/logs_s2_v2ProPlus/\`; it uses fixed latest-save filenames
+\`G_233333333333.pth\` and \`D_233333333333.pth\` when
+\`if_save_latest=True\`. Critically, SoVITS uses a broad \`except\` to fall
+back to pretrained G/D when loading fails, reconstructs scheduler by stepping
+from loaded epoch, and does not save its AMP \`GradScaler\` in the full
+checkpoint. Therefore checkpoint file presence does NOT prove exact
+optimizer/scheduler/precision resume.
+
+The new Rust-owned
+\`commands/voice_lab/storage/training_recovery.rs\` stores immutable
+\`SavedProject/VoiceLab/TrainingRecovery/<digest>/\`
+content-addressed archives, including available pinned GPT full checkpoint(s),
+SoVITS G/D full checkpoint(s), frozen dataset reference, and exact training
+config files. It streams file copies and hashes, never deletes cache/source
+state, verifies saved copies and refuses to pair old checkpoints with a new
+dataset snapshot. Capture is invoked after failed/cancelled worker exit and
+BEFORE new dataset preparation/old Work cleanup. No checkpoint found means
+no completed epoch state to preserve; partial/uncheckpointed computation cannot
+be reconstructed magically. Failed capture blocks cleanup and remains an
+explicit attention issue rather than silent progress loss.
+
+The backup serializer now includes TrainingRecovery objects, with strict
+relative path whitelisting and reference integrity checks tying recovery
+receipts to their immutable dataset snapshots. A lightweight read-only
+recovery count is displayed under Storage & Backup, explicitly saying
+**automatic Resume is not yet available**. Full weight verification belongs
+to backup/import and future resume preflight, not every UI status read.
+Neither GPT-SoVITS engine weights, pinned upstream training logic, inference,
+Meeting voice nor the original user recording texts were modified.
+
+**Evidence ceiling:** source-authored and statically inspected only in
+REMOTE_GITHUB. Exact Windows Rust/Node/Svelte builds, cancellation recovery,
+disk-full tests, actual G/D/GPT checkpoint deserialization, optimizer-state
+continuation, scheduler/scaler continuity and real speech quality are NOT
+EXECUTED. Next decision is whether a bounded fail-closed training-runner
+adapter can prove strict SoVITS loading without modifying the pinned model
+engine. Until then, do NOT activate a user-facing Resume.

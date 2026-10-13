@@ -13,6 +13,8 @@ mod immutable_store;
 mod dataset_history;
 mod actor_history;
 mod backup;
+mod training_recovery;
+pub(crate) use training_recovery::{preserve_training_checkpoints, training_recovery_status, TrainingRecoveryStatus};
 pub(crate) use backup::BackupReport;
 mod archive_dataset;
 pub(crate) use archive_dataset::{choose_archived_takes, ArchivedSelection};
