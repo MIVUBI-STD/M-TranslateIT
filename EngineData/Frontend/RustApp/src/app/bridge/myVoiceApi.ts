@@ -4,6 +4,7 @@ export type GuidedTakeReview = {
   line_id: number;
   duration_ms: number;
   quality_blocker: string;
+  review_advice: string[];
 };
 
 export type GuidedLineStatus = {

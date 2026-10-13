@@ -19,6 +19,8 @@ pub struct GuidedTakeReview {
     pub line_id: u32,
     pub duration_ms: u64,
     pub quality_blocker: String,
+    // Review-only advice; not a training/acceptance blocker.
+    pub review_advice: Vec<String>,
 }
 
 pub struct CapturedGuidedTake {
@@ -168,10 +170,18 @@ pub fn take_guided_audio() -> Result<(CapturedGuidedTake, GuidedTakeReview), Str
     )?;
     let evidence = AudioEvidenceReport::from_samples(&samples_mono);
     let quality_blocker = guided_take_quality_blocker(&samples_mono, &evidence);
+    // A little clipping can be audible even below the existing hard 5% gate.
+    // Offer replay guidance without changing the accepted-audio contract.
+    let review_advice = if quality_blocker.is_empty() && evidence.clipping_ratio >= 0.01 {
+        vec!["voice_lab:review:possible_clipping".to_string()]
+    } else {
+        Vec::new()
+    };
     let review = GuidedTakeReview {
         line_id: take.line_id,
         duration_ms: samples_mono.len() as u64 * 1_000 / u64::from(GUIDED_TAKE_SAMPLE_RATE_HZ),
         quality_blocker,
+        review_advice,
     };
     Ok((
         CapturedGuidedTake {
@@ -319,6 +329,23 @@ mod tests {
         assert_eq!(captured.native_rate_samples_mono.len(), 48_000);
         assert!(review.duration_ms >= 999 && review.duration_ms <= 1_001);
         assert!(review.quality_blocker.is_empty());
+    }
+
+    #[test]
+    fn modest_clipping_is_advisory_and_keeps_acceptance_unchanged() {
+        let _serial = TEST_SERIAL.lock().expect("guided take test lock");
+        cancel_guided_take();
+        arm_guided_take(3).expect("arm guided take");
+        let mut samples = (0..32_000)
+            .map(|index| if index % 2 == 0 { 0.20 } else { -0.20 })
+            .collect::<Vec<_>>();
+        for (index, sample) in samples[..640].iter_mut().enumerate() {
+            *sample = if index % 2 == 0 { 1.0 } else { -1.0 };
+        }
+        append_guided_f32(&samples, 32_000, 1);
+        let (_, review) = take_guided_audio().expect("finalized review take");
+        assert!(review.quality_blocker.is_empty());
+        assert_eq!(review.review_advice, vec!["voice_lab:review:possible_clipping"]);
     }
 
     #[test]

@@ -184,6 +184,17 @@
     }
   }
 
+  function recordingReviewAdvice(code: string): string {
+    switch (code) {
+      case "voice_lab:review:possible_clipping":
+        return "Some peaks may sound distorted. Replay the recording; if it sounds harsh, lower the microphone level and retry.";
+      case "voice_lab:review:verify_all_words":
+        return "This recording is unusually short for this line. Replay it and check that no words were skipped.";
+      default:
+        return "Replay this recording carefully before accepting it.";
+    }
+  }
+
   function productMessage(result: GuidedRecordingActionResult): string {
     switch (result.state) {
       case "recording":
@@ -444,7 +455,7 @@
         <div>
           <span class="ti-kicker">My Voice</span>
           <h3 class="mb-0 mt-2 text-xl font-semibold tracking-[-0.02em]">Step 2 · Record the sample lines</h3>
-          <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read each line naturally. You can skip any line and return to it later.</p>
+          <p class="mb-0 mt-2 max-w-[680px] text-sm leading-6 text-[var(--ti-text-muted)]">Use a quiet room and read every word exactly as shown, in your natural voice. You can skip a line and return later.</p>
         </div>
       </div>
 
@@ -472,6 +483,11 @@
                 ? recordingQualityGuidance(recordingState.pending_review.quality_blocker)
                 : "Listen once. Accept it if the recording sounds clear and natural."}
             </p>
+            {#if !recordingState.pending_review.quality_blocker}
+              {#each recordingState.pending_review.review_advice ?? [] as advice}
+                <p class="mb-0 mt-2 text-sm leading-5 text-[var(--ti-warning)]">{recordingReviewAdvice(advice)}</p>
+              {/each}
+            {/if}
           </div>
         {/if}
 

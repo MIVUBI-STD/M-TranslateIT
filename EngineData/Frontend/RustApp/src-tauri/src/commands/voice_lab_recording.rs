@@ -68,6 +68,14 @@ fn guided_text(line_id: u32) -> Option<&'static str> {
         .map(|(_, text)| *text)
 }
 
+// Heuristic only: a very short take may omit words from the known guided script.
+// Never replace the exact guided transcript with guessed ASR or reject this take.
+fn unusually_short_for_line(line_id: u32, duration_ms: u64) -> bool {
+    let Some(line) = guided_text(line_id) else { return false; };
+    let words = line.split_whitespace().count() as u64;
+    words >= 8 && duration_ms > 0 && words.saturating_mul(1_000) > duration_ms.saturating_mul(6)
+}
+
 fn take_file_name(line_id: u32) -> String {
     format!("take_{line_id:04}.wav")
 }
@@ -244,11 +252,14 @@ pub fn stop_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult {
     if cleared.has_active_session || cleared.snapshot.is_some() {
         return result(false, "cleanup_unverified", "The microphone stopped, but VoiceLab could not confirm that recording ownership was cleared.");
     }
-    let Ok((captured, review)) = captured else {
+    let Ok((captured, mut review)) = captured else {
         return result(false, "take_unusable", captured.err().unwrap_or_else(|| "voice_lab:take_unusable".to_string()));
     };
     if captured.line_id != line_id {
         return result(false, "line_mismatch", "The recorded audio does not belong to the requested guided line.");
+    }
+    if review.quality_blocker.is_empty() && unusually_short_for_line(line_id, review.duration_ms) {
+        review.review_advice.push("voice_lab:review:verify_all_words".to_string());
     }
     let draft = draft_path(line_id);
     let native_rate_draft = draft_native_rate_path(line_id);
@@ -385,4 +396,18 @@ pub fn get_voice_lab_guided_take_audio(line_id: u32) -> Result<tauri::ipc::Respo
     }
     let bytes = fs::read(path).map_err(|_| "voice_lab:take_audio_read_failed".to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[cfg(test)]
+mod review_advice_tests {
+    use super::unusually_short_for_line;
+
+    #[test]
+    fn short_take_hint_is_conservative_and_does_not_require_asr() {
+        assert!(unusually_short_for_line(31, 1_000));
+        assert!(!unusually_short_for_line(31, 4_000));
+        assert!(!unusually_short_for_line(2, 100));
+        assert!(!unusually_short_for_line(999, 1));
+        assert!(!unusually_short_for_line(31, 0));
+    }
 }

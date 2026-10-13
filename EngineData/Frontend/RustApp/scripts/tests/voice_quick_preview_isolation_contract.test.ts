@@ -160,6 +160,21 @@ test("guided-take signal reasons provide actionable recording guidance without a
   assert.match(recordingUi, /recordingQualityGuidance\(recordingState\.pending_review\.quality_blocker\)/);
 });
 
+test("guided take offers conservative replay advice without changing the approved engine or hard quality gates", () => {
+  const recording = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_recording.rs", import.meta.url), "utf8");
+  const bridge = readFileSync(new URL("../../src/app/bridge/myVoiceApi.ts", import.meta.url), "utf8");
+  assert.match(guidedAudio, /review_advice: Vec<String>/);
+  assert.match(guidedAudio, /voice_lab:review:possible_clipping/);
+  assert.match(recording, /fn unusually_short_for_line\(/);
+  assert.match(recording, /voice_lab:review:verify_all_words/);
+  assert.match(recording, /review\.quality_blocker\.is_empty\(\) && unusually_short_for_line/);
+  assert.match(bridge, /review_advice: string\[\]/);
+  assert.match(recordingUi, /recordingReviewAdvice\(advice\)/);
+  assert.match(recordingUi, /read every word exactly as shown/);
+  assert.match(recording, /fn accept_voice_lab_guided_take/);
+  assert.doesNotMatch(recording, /run.*asr|whisper.*transcribe/i);
+});
+
 test("My Voice listening and approval require the same synthesized review identity", () => {
   assert.match(status, /evaluation_review_id: evaluation\.as_ref\(\)\.map\(/);
   assert.match(ui, /build\.evaluation_review_id !== next\.evaluation_review_id/);
