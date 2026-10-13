@@ -151,8 +151,11 @@ def select_reference(
         raise VoiceLabProviderError("reference_take_3_to_10_seconds_required")
 
     # Only compare an edge-energy noise proxy if every eligible reference has
-    # a sufficiently long quiet boundary. Without that evidence, keep the
-    # existing validated signal ordering instead of guessing an SNR score.
+    # a sufficiently long quiet boundary. Normalize against each recording's
+    # active level: an absolute PCM floor rewards turning down microphone gain
+    # even when the speech/noise relationship did not improve. This is still
+    # comparative energy evidence, NOT measured SNR or perceptual quality.
+    # Without comparable edges, retain the existing validated signal ordering.
     evidence = [
         (
             take,
@@ -167,11 +170,19 @@ def select_reference(
     ranked: list[tuple[tuple[float, ...], dict[str, Any]]] = []
     for take, metrics, frames in evidence:
         edge_floor = frames["edge_floor_rms_pcm16"]
+        # Invalid/empty speech cannot earn a better normalized-noise rank.
+        # Production build and Quick Preview already validate active signal.
+        active_rms = float(metrics["active_rms"])
+        relative_edge_floor = (
+            float(edge_floor) / active_rms
+            if compare_quiet_edges and edge_floor is not None and active_rms > 0.0
+            else (float("inf") if compare_quiet_edges else 0.0)
+        )
         ranked.append(
             (
                 (
                     float(metrics["clipping_fraction"]),
-                    float(edge_floor) if compare_quiet_edges and edge_floor is not None else 0.0,
+                    relative_edge_floor,
                     float(metrics["silence_fraction"]),
                     float(metrics["dc_offset"]),
                     -float(peer_cosines.get(int(take["line_id"]), 0.0)) if peer_cosines else 0.0,
