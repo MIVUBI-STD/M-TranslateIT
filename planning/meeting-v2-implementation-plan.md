@@ -1,10 +1,10 @@
 # M-TranslateIT — Meeting V2 implementation plan (source-first)
 
-**Status:** IMPLEMENTATION BLUEPRINT. Batch 0 cleanup and Batch 1 source-first/long-session bounded retention have source candidates on `Local`; the compiler and GPU/browser acceptance have not run. More audio capture/streaming batches remain pending.
-**Baseline:** `75cd24e4f52708ec51105bf9cb2beed4833e7773` on `Local` (2026-10-12).
+**Document role:** IMPLEMENTATION BLUEPRINT ONLY. These are candidate stages and proof criteria, not current tasks or evidence of completed execution. The active continuation is owned solely by [development.md](./development.md); the source proof ceiling is owned by [Current Validation](../docs/knowledge/current-validation.md).
+**Design origin:** `75cd24e4f52708ec51105bf9cb2beed4833e7773` (2026-10-12); historical authoring reference only, not the current `Local` HEAD or a verified runtime baseline.
 **Primary goal:** natural, accurate, low-latency bilingual browser meetings on RTX 3070 8 GB, i7-14700-class CPU, 32 GB system RAM, **no available iGPU**.
-**Current execution context:** GitHub source review/writes only. Prepare modular source and deterministic tests; compiler/CUDA/Windows/browser tests remain unexecuted until an integrated local acceptance phase. No hosted CI or cloud builds.
-**Related RFC:** `docs/knowledge/proposals/2026-10-12-meeting-quality-adaptive-streaming.md`. This plan is its implementation order and does not authorize premature replacement of production inference.
+**Execution boundary:** Source proposals can be reviewed on GitHub `Local`; compilation, CUDA, native audio, and browser behavior require one later integrated local acceptance. Hosted CI/builds are inactive.
+**Related RFC:** [Meeting Quality-First Adaptive Streaming](../docs/knowledge/proposals/2026-10-12-meeting-quality-adaptive-streaming.md). This plan is its implementation order and does not authorize premature replacement of production inference.
 
 **Target experience (not an equivalence claim):** continuous ID→EN local meeting speech with earlier first intelligible audio, stable meaning, and natural selected voice on RTX 3070 8 GB. Retain the single Tauri/Rust Meeting owner, single Python worker, one GPU permit and existing Whisper → MiLMMT → GPT-SoVITS models. Reuse existing VAD and playback owners rather than creating a V3 engine, provider registry, always-on background service, or new UI controls. Outbound comes first; incoming EN→ID remains optional text only. Streaming is a candidate behind exact-SHA compiler, native audio, semantic-quality and 30-minute stability gates—not an automatic product switch.
 
@@ -42,21 +42,17 @@
 
 **Do not create a second model scheduler, a second backend service, a new test-results platform, or an always-on telemetry daemon.**
 
-## 2. Batch execution (no PC dependency unless identified)
+## 2. Candidate stages (not active work orders)
 
 ### Batch 0 — Canonical source contracts and cleanup
 - Preserve current final-utterance path as control and capture immutable exact-SHA baseline.
-- Remove inert `translation_style` from incoming deferred queue/pipeline; the worker request is already style-free. Do not alter direction/session semantics.
-- Remove or clearly mark misleading dormant `partial_asr_enabled` behavior; don't claim partial ASR operational from config.
+- Preserve the style-free incoming request contract; do not reintroduce retired `translation_style` routing or alter direction/session semantics.
+- Confirm that legacy `partial_asr_enabled` profile metadata is not interpreted as production partial-ASR activation; any removal requires owner/consumer review, not a documentation-only claim.
 - Unify status vocabulary and worker stage identity; assert no stopped/stale session can publish audio.
 - Fix conflicts between previous decisions, manual test runbooks, and retired features.
 - **Proof:** Rust/Python/TS unit source tests and full compiler checks in a matching environment; no target-latency claims.
 
 ### Batch 1 — Reliable capture and full-turn records
-
-**Batch 2B.2 source continuation (2026-10-12):** `pcm_handoff_replay.rs` is a **test-only CPU worker replay adapter** that drives the canonical finalized incoming and outgoing VAD from bounded handoff chunks. Incoming discontinuities reset the existing incoming speech boundary; outbound replay uses a generation-gated, `#[cfg(test)]` boundary reset. Four Rust tests cover natural incoming finalization, gap-driven reset without phantom transcript continuity, rejection of foreign/stopped generation, and authoritative outbound finalization. The buffer prototype also re-checks loss after the CPU drain copy before exposing audio to VAD. No CPAL callback is switched, no GPU task or second segmenter is introduced. These tests are authored but **not executed** until Cargo is available.
-
-**Batch 2B PCM proof addition (2026-10-12):** the existing fixed-capacity test-gated handoff uses `try_lock`, explicit discontinuity accounting, session/lane/generation binding and Stop erasure. The canonical-VAD replay now includes a test-only CPU consumer that revokes audio first, wakes its idle thread and attempts a deadline-bounded join; a stalled worker produces an explicit timeout and retains its join handle for retry. Two behavioral tests exercise canonical VAD delivery and controlled timeout/retry. The handoff now reserves one consumer atomically before thread spawn, rejects duplicate/after-Stop starts, rolls back failed-spawn reservation and erases poisoned-ring audio during Stop. **These Rust tests and Windows timings are not executed** and production CPAL remains unchanged. Timeout/Drop is not guaranteed thread termination: this candidate must not enter production until lifecycle and device-cutover gates pass.
 
 - Replace blocking callback-side state manipulation with a bounded, preallocated capture handoff designed for audio thread deadlines. Track queue-full and OS callback errors; don't silently drop.
 - Carry monotonic capture time and sample offset through segmentation, ASR, translation and first-audio events. Distinguish onset estimate from observed audio frame boundaries.
@@ -65,8 +61,6 @@
 - **Proof:** replay identical synthetic timing and failures, no dropped/duplicated words in basic fixtures; buffer stress, 60+s monologue, concurrent Start/Stop, session reentry and overflow tests.
 
 ### Batch 2 — CPU/ring-buffer playback candidate
-
-**Progress 2026-10-12:** Batch 2A hot-path changes staged for native compilation: bounded pre-roll eviction, reusable incoming F32 stereo conversion scratch, and one suppression-boundary reset per suppression transition rather than per suppressed callback. All need real Rust tests before calling them verified. Capture lock isolation and persistent CPAL output remain future work.
 
 - Measure CPAL per-WAV stream startup from existing timing first.
 - Implement an **internal candidate** long-lived stream with bounded PCM chunks, underrun silence and one session owner. No disk/model change, no new UI toggle.
@@ -90,11 +84,11 @@
 - Coordinate audio chunks with monotonic playback sequence, bounded jitter buffer and cancel tokens. Do not infer receiver confirmation from local callback completion.
 - **Proof:** source/runtime-comparable WAV fixtures, playback sequence tests, text-to-audio coverage and voice listening rubric. Do not turn it on for users without target hardware acceptance.
 
-### Batch 6 — Pre-local-PC gate / handoff
+### Batch 6 — Integrated local and target-Windows evidence gate
 - When an authorized local code/toolchain context becomes available, run **existing** compile/typecheck/pytest/Rust/native-independent tests on an exact clean `Local` SHA. GitHub Code Health workflows are inactive; no hosted execution or dispatch.
 - Produce one pinned-SHA run plan rather than per-commit PC tasks, with private/test-safe fixtures, expected metrics, and no audio contents in support bundles.
 - When PC becomes available, validate RTX 3070 + Chrome/Meet concurrent VRAM + same receiver, actual output latency P50/P95, cold/warm model residency, 30-minute session and 5 Start/Stop cycles. Only then promote best candidate.
-- **Proof ceiling:** `SOURCE_CANDIDATE` until executed local compile, `LOCAL_CODE_VERIFIED` after matching CI, and `TARGET_WINDOWS_ACCEPTED` only after real GPU/browser tests.
+- **Proof ceiling:** source-only changes remain `SOURCE_CANDIDATE`; executed source checks establish only their matching local-code scope, and `TARGET_WINDOWS_ACCEPTED` requires real GPU/audio/browser evidence. Hosted CI is not part of this gate.
 
 ## 3. Offline regression matrix (must be executable without RTX 3070)
 
@@ -117,18 +111,6 @@ Every case must specify **owner → input → expected state → observable fail
 - On RTX 3070, record VRAM shared with browser/Windows; do not assume that ASR+MiLMMT+GPT-SoVITS all fit simultaneously from model weights alone.
 - If measured gains are absent, keep robust final-utterance pipeline and reject streaming complexity.
 
-## 5. Next source change
+## 5. Navigation and historical source candidates
 
-**Batch C.1 test-only source eligibility (2026-10-13):** The pure interpreter policy now requires exact candidate scope/revision and an actual finalized whole-window capture span before `COMMIT_READY`. Nonfinal LocalAgreement text always `WAIT`, including apparently complete punctuation, because the current Whisper worker does not provide word alignment. A small set of Indonesian open-clause hints is advisory only; no classifier, second model, prompt-context injection, early TTS or streaming production activation. Five authored Rust behavior scenarios remain NOT EXECUTED. Next source prerequisite for progressive commits: real ASR-partial audio/word boundary evidence and revision-safe source claim.
-
-**Batch B.5 source candidate (2026-10-13):** Production CPAL error closures now increment per-stream atomic markers; canonical VAD observes errors with its existing lock before/after accepted PCM ingest, invalidates unsafe source epochs, and binds markers only to the matching stream owner. Diagnostic logging is best-effort `try_lock`, while aggregate error counts remain atomic. No additional inference engine, production PCM handoff cutover, or streaming output. Existing callback mutex contention and device-dropped frames without a CPAL error remain unproven. Native/Cargo tests **NOT EXECUTED**. Next: bounded semantic commit decisions from source-aligned ASR observations.
-
-**Batch B.4 scoped loss-to-epoch source candidate (2026-10-13):** The existing PCM replay resets only a matching incoming session or matching outbound session/generation VAD owner and advances that producer's accepted-mono-sample epoch after queue loss; a poisoned ring also triggers an invalidation callback. Session-bound self-output suppression uses the same owner check, preventing stale guards from clearing a newer Meeting session. The test-only replay checks output epoch isolation; no production PCM cutover, CUDA use, word alignment or partial translation is enabled. All authored Rust/native checks remain **NOT EXECUTED**. Next: connect real CPAL-known callback discontinuity to canonical VAD with safe nonblocking admission.
-
-**Batch B.3 source candidate (2026-10-13):** The canonical finalized VAD producer now supplies producer-accepted mono input-clock epoch/native sample start-end and exact ASR frame length as optional metadata, including pre-roll, trailing silence, and native-to-16-kHz resampling. A test-only adapter converts it into the existing source-observation clock contract. It does NOT prove OS device timestamps, callback continuity before VAD, or any word alignment. The next boundary is explicit capture/handoff loss propagation into this epoch; streaming still disabled and all native/Rust tests NOT EXECUTED.
-
-**Capture-clock mapping source candidate (2026-10-13):** Test-only source observations now accept contiguous producer-asserted ASR/capture window mapping, reject gaps and incompatible clocks, and map whole-window positions conservatively. Overlapping shifted windows create a new text anchor; nonfinal agreement never invents word timestamps. A final ASR result without capture provenance still has NO capture-aligned source span. The candidate is not wired to the real producer, VAD trimming or resampler; physical continuity and exact alignment remain unproved. The next source owner is the capture/audio-preparation boundary, not another ASR model or scheduler. Runtime acceptance remains deferred.
-
-**Source observation continuation (2026-10-12):** A test-only bounded Rust ASR observation buffer implements same-anchor LocalAgreement, exact epoch/speech/revision rejection and explicit final-window vs text-only evidence. It neither retrieves word timestamps from Faster Whisper nor maps rolling ASR windows back to microphone samples. It is not a production streaming enablement or an executed test. Next source boundary: verified rolling-window alignment and ASR-domain/capture sample mapping before any progressive audio-span claim.
-
-The source-only Batch A authority slice follows PCM Batch 2B: one-time turn admission, replay rejection after bounded transcript eviction, a locked-translation to queued transition, and exact identity playback claim. It does **not** implement sample-level SourceSpanId, audio epoch, ASR revision or progressive commits; the current finalized utterance remains the only production boundary. Next source batch: bounded source-span/revision ownership with ASR observations. All authored Rust tests, Windows GPU/audio and receiver checks remain **NOT EXECUTED** until integrated local acceptance. No hosted CI or unaccepted CPAL cutover.
+This blueprint intentionally has **no separate Next step**. The only active continuation is [Active Development](./development.md), and the acceptance procedure is [Target Windows Performance Acceptance](../docs/knowledge/operations/target-windows-performance.md). Prior dated Batch A/B/C implementation notes are revision-specific historical evidence in `Local` commit history, not instructions to resume or claims of executed tests. Source-only `#[cfg(test)]` prototypes are not production streaming.

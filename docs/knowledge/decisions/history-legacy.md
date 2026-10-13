@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 ﻿# TranslateIT â€” Decision Log
 
-Durable choices and reasons that must survive chat/session boundaries. Exact implementation detail belongs in current source/foundation owners; active status belongs in `next-action.md`; historical run IDs and superseded proof detail remain in Git history.
+Historical decisions and evidence are retained verbatim below, including obsolete paths and superseded designs. They are **not current instructions**. For active decisions see [Decision Register](./README.md); for current requirements see [Product Requirements](../../foundation/02-product-requirements.md); for the only active next step see [Active Development](../../../planning/development.md).
 
 ## D-001 â€” `Local` Is Development Authority
 

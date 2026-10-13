@@ -17,9 +17,9 @@
 
 ## Proof and acceptance boundary
 
-- Latest recorded integrated developer execution is on `230ca94faae178659a7738fa82399485c267c991`: existing frontend/Rust/Python source tests and limited worker/UI smoke completed as described in [Current Validation](../docs/knowledge/current-validation.md). It does **not** certify the 44 subsequent source commits up to the pre-consolidation baseline.
+- Latest recorded integrated developer execution is on `230ca94faae178659a7738fa82399485c267c991`: existing frontend/Rust/Python source tests and limited worker/UI smoke completed as described in [Current Validation](../docs/knowledge/current-validation.md). It does **not** certify subsequent source changes, including Meeting session-ownership hardening; verify any candidate against its own exact SHA.
 - Current proof ceiling: **STATIC_SOURCE** for these later revisions, including optional capture and suppression shutdown plus status ownership. Matching Cargo/frontend/worker tests, real ASR timing, microphone/virtual-mic routing, browser receiver, latency P50/P95, VRAM, 30-minute endurance, installed release and REA executable are **NOT EXECUTED**.
-- The existing [Meeting V2 implementation plan](./meeting-v2-implementation-plan.md) owns future technical batches and risk-specific regressions. The [target-Windows runbook](../docs/knowledge/operations/target-windows-performance.md) owns one coordinated executable acceptance; do not multiply checklists here.
+- The [Meeting V2 implementation plan](./meeting-v2-implementation-plan.md) is a non-operative technical blueprint and regression inventory, **not a second active Next step**. The [target-Windows runbook](../docs/knowledge/operations/target-windows-performance.md) owns one coordinated executable acceptance; do not multiply checklists here.
 - Promotion requires a clean exact-SHA build, relevant existing tests, controlled long-speech/Stop/queue/audio-failure scenarios and real receiver/semantic-quality measurements. Keep finalized output as the control until a candidate meets the existing release/quality gates.
 
 ## Single next step

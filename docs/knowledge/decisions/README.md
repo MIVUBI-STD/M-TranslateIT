@@ -73,9 +73,11 @@ Domain-specific proof contexts are `REMOTE_GITHUB | LOCAL_CODE | TARGET_WINDOWS`
 
 Controlled distribution uses one user-facing Setup plus colocated payload files. Users do not manually operate Python/pip/core-model setup.
 
-### D-033 — Asymmetric Meeting context
+### D-033 — Meeting utterance-scoped context
 
-Outbound translation may use the last three committed own-voice translation pairs from the same session. Incoming meeting audio remains context-free.
+**Current decision:** Outbound Meeting translation uses the current finalized Indonesian utterance only; incoming Meeting translation uses the current finalized English utterance only. Previously committed translated pairs are **not** injected as prompt examples in either lane. Text remains independent of Meeting context.
+
+**Authority:** [PR-045](../../foundation/02-product-requirements.md) and the current canonical worker/Meeting source. The earlier three-pair outbound-context proposal is retained in [historical decisions](./history-legacy.md) as superseded rationale, not a live feature requirement. Future incremental processing may use source fragments from the **same** current utterance only after its separate semantic/audio acceptance gates.
 
 ### D-034 — Current product direction locks
 

@@ -3,6 +3,7 @@
 This directory owns **current and future development intent**, not product law, source truth, proof outcomes or installed Windows acceptance.
 
 - [Development](./development.md) — the single active continuation and exactly one next step
+- [Meeting V2 implementation blueprint](./meeting-v2-implementation-plan.md) — candidate stages, design boundaries and proof criteria; no active task state
 
 Durable product decisions remain in [Foundation](../docs/foundation/README.md) and [Decision Register](../docs/knowledge/decisions/README.md). Workflow rules stay in [Development Flow](../docs/knowledge/flow.md). Actual behavior comes from the exact current `Local` source with matching proof.
 
