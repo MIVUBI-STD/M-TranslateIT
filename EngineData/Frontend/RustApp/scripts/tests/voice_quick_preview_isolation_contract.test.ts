@@ -62,14 +62,28 @@ test("My Voice UI has one collapsible voice selector and a stage-aware recording
   assert.match(selector, /hidden={!choicesOpen && !builtinPendingId}/);
   assert.match(recordingUi, /Create My Voice/);
   assert.match(recordingUi, /const activeStage = \$derived/);
-  assert.match(recordingUi, /hidden={activeStage !== "record"}/);
-  assert.match(recordingUi, /hidden={activeStage === "record"}/);
+  assert.match(recordingUi, /hidden={!showRecordPanel}/);
+  assert.match(recordingUi, /hidden={!showBuildPanel}/);
   assert.match(recordingUi, /<MyVoiceBuild \{onNotice\}/);
   assert.match(ui, /onBuildStatus\?\.\(next\)/);
   assert.match(recordingUi, /Browse lines/);
   assert.match(recordingUi, /You don't have to record all 128/);
   assert.match(recordingUi, /!buildSnapshot\.can_build/);
   assert.match(recordingUi, /buildSnapshot\.minimum_duration_ms/);
+});
+
+test("native Stop and Retry remain visible when recording and creation status disagree", () => {
+  const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  assert.match(page, /showRecordPanel = \$derived\(activeStage === "record" \|\| isRecording \|\| recordingStatusUnknown\)/);
+  assert.match(page, /showBuildPanel = \$derived\(/);
+  assert.match(page, /buildStatusUnavailable \|\| buildSnapshot\?\.active === true \|\| buildSnapshot\?\.preview_active === true/);
+  assert.match(page, /hidden={!showRecordPanel}/);
+  assert.match(page, /hidden={!showBuildPanel}/);
+  assert.match(page, /A status check needs attention/);
+  assert.match(page, /if \(busy \|\| voiceChangesLocked \|\| buildStatusUnavailable \|\| buildSnapshot\?\.active/);
+  assert.match(page, /async function acceptTake\(\): Promise<void> \{\s*if \(busy \|\| buildStatusUnavailable \|\| buildSnapshot\?\.active/);
+  assert.match(page, /disabled=\{busy \|\| voiceChangesLocked \|\| buildStatusUnavailable \|\| buildSnapshot\?\.active === true/);
+  assert.match(page, /<MyVoiceBuild \{onNotice\}/);
 });
 
 test("completed evaluations take priority over Create and unknown status locks mutations", () => {

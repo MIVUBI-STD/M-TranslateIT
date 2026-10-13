@@ -71,6 +71,12 @@
               ? "create"
               : "record",
   );
+  // Keep recovery and Stop visible even if a second subsystem's status is unknown.
+  // Normal operation still shows only the relevant task pane.
+  const showRecordPanel = $derived(activeStage === "record" || isRecording || recordingStatusUnknown);
+  const showBuildPanel = $derived(
+    activeStage !== "record" || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true,
+  );
   const acceptedCount = $derived(recordingState.lines.filter((line) => line.accepted).length);
   const minimumProgress = $derived(
     buildSnapshot && buildSnapshot.minimum_duration_ms > 0 && !buildStatusUnavailable
@@ -351,7 +357,7 @@
   }
 
   async function startRecording(): Promise<void> {
-    if (busy || recordingStatusUnknown || selectedLineId === null) return;
+    if (busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || selectedLineId === null) return;
     microphoneCheck = "idle";
     microphoneCheckMessage = "";
     if (!authorized) {
@@ -401,7 +407,7 @@
   }
 
   async function acceptTake(): Promise<void> {
-    if (busy || recordingStatusUnknown || pendingLineId === null || recordingState.pending_review?.quality_blocker) return;
+    if (busy || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || pendingLineId === null || recordingState.pending_review?.quality_blocker) return;
     stopReplay();
     busy = true;
     try {
@@ -537,7 +543,10 @@
       <span aria-current={activeStage === "review" ? "step" : undefined} class={activeStage === "review" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>3. Review</span>
     </div>
 
-    <div class="mt-4" hidden={activeStage !== "record"}>
+    {#if showRecordPanel && showBuildPanel}
+      <p role="status" class="mb-0 mt-4 text-xs leading-5 text-[var(--ti-warning)]">A status check needs attention. Use Stop or Retry status where available before continuing.</p>
+    {/if}
+    <div class="mt-4" hidden={!showRecordPanel}>
       <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
         <article class="ti-panel min-w-0 p-5 sm:p-6" aria-labelledby="my-voice-record-title">
           <h4 id="my-voice-record-title" class="mb-0 text-lg font-semibold">Record your voice</h4>
@@ -548,7 +557,7 @@
               <strong class="text-sm font-semibold">Microphone</strong>
               <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Check the connection before recording. Sound quality is checked after each take.</p>
             </div>
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => void checkMicrophone()}>
+            <button type="button" class="ti-button ti-button-secondary" disabled={busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown || isRecording || pendingLineId !== null} onclick={() => void checkMicrophone()}>
               <Mic size={15} /><span>{microphoneCheck === "checking" ? "Checking..." : "Check microphone"}</span>
             </button>
             {#if microphoneCheck !== "idle"}
@@ -606,12 +615,12 @@
                   <RotateCcw size={15} /><span>Record again</span>
                 </button>
                 {#if !recordingState.pending_review.quality_blocker}
-                  <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown} onclick={() => void acceptTake()}>
+                  <button type="button" class="ti-button" disabled={busy || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown} onclick={() => void acceptTake()}>
                     <Check size={15} /><span>{busy ? "Saving..." : "Keep recording"}</span>
                   </button>
                 {/if}
               {:else}
-                <button type="button" class="ti-button" disabled={busy || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
+                <button type="button" class="ti-button" disabled={busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || recordingStatusUnknown || !authorized} onclick={() => void startRecording()}>
                   <Mic size={15} /><span>{currentLine.accepted ? "Record again" : "Record"}</span>
                 </button>
                 <button type="button" class="ti-button ti-button-secondary" disabled={busy || recordingStatusUnknown || replaying} onclick={skipLine}>
@@ -688,7 +697,7 @@
       </div>
     </div>
 
-    <div class="mt-4" hidden={activeStage === "record"}>
+    <div class="mt-4" hidden={!showBuildPanel}>
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p class="mb-0 text-xs leading-5 text-[var(--ti-text-muted)]">
           {activeStage === "review" ? "Review every generated sample before selecting your new voice." : "Your current Meeting voice stays unchanged until you approve a new one."}
