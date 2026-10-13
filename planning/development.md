@@ -1,3 +1,13 @@
+## Active continuation — Batch C.3 bounded estimated ASR timing validation (2026-10-13)
+
+**Source candidate:** Extended only the existing Rust `meeting_session/source_observations.rs`, a `#[cfg(test)]` module, with a pure validator for C.2 opt-in word samples. It checks the exact active session/generation/lane/speech/audio epoch, latest revision, observed ASR window and frame count, bounded ordered word estimates, whitespace-normalized ASR transcript, and existing producer-supplied capture clock. Results are estimated capture-coordinate ranges only, **never `SourceSpanId` or a speech/translation commit permission**. No new worker, API task, model, pipeline, UI, dependency or production behavior. Two regression tests cover matching mapping and stale/misbound/malformed evidence.
+
+**REA-style source verification:** Reviewed exact `Local` code and existing Faster Whisper word-timing contract. This is static source consistency, not actual REA CLI/MCP execution. Rust tests, actual model/word timestamp accuracy, Windows/GPU/audio, latency, and human semantic review are **NOT EXECUTED**. Matching text and sample ranges alone cannot prove a word truly occurred at that audio time.
+
+**Anti-overdevelopment STOP:** Do not implement speculative partial clause commit, streamed TTS or further adapters before a matching compiler test and real Faster Whisper output on controlled WAV. Keep the production finalized-utterance path unchanged.
+
+**Single next step:** Use the coordinated local acceptance phase to run the pinned Rust/Python suites and one model-backed word-timing fixture; accept further partial-clause development only if the measured results warrant it.
+
 ## Active continuation — Batch C.2 opt-in ASR alignment observations (2026-10-13)
 
 **Source candidate:** The existing Faster Whisper worker exposes an explicit `alignment_probe=true` on its existing `transcribe` task. This is a **developer observation path only**, requiring VAD disabled plus an exact, fully readable PCM16 mono 16 kHz WAV of at most 60 seconds. It returns bounded model-estimated word times in 16 kHz sample coordinates only when every range is finite, positive, ordered and inside the observed WAV and reconstructed words match the transcript. A malformed, overlapping, missing, truncated or mismatched observation fails closed. Normal Meeting requests do not enable the flag; the canonical finalized ASR → MiLMMT → GPT-SoVITS production path is unchanged. Estimates are NOT verified phoneme, word, clause, semantic or native-capture boundaries.

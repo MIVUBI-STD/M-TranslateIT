@@ -8,6 +8,8 @@ use crate::engine::audio::finalized_utterance::FinalizedMeetingUtterance;
 const ASR_RATE_HZ: u32 = 16_000;
 const MAX_OBSERVATION_BYTES: usize = 8 * 1024;
 const MAX_WINDOW_SAMPLES_16K: u64 = 16_000 * 60;
+const MAX_TIMING_PROBE_WORDS: usize = 512;
+const MAX_TIMING_PROBE_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SourceLane {
@@ -154,6 +156,14 @@ pub(super) fn finalized_capture_clock(
     Some((scope, asr_window, mapping))
 }
 
+// Estimated offsets from C.2's opt-in 16-kHz WAV; never a committed source span.
+#[derive(Debug, Clone)]
+pub(super) struct ModelEstimatedWord {
+    pub text: String,
+    pub start_sample: u64,
+    pub end_sample: u64,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct AsrObservation {
     pub scope: SourceScope,
@@ -216,6 +226,8 @@ pub(super) enum ObservationError {
     InvalidTranscript,
     InvalidMapping,
     UnmappedWindow,
+    UnmatchedWordTiming,
+    InvalidWordTiming,
 }
 
 pub(super) struct SourceStabilizer {
@@ -237,6 +249,63 @@ impl SourceStabilizer {
             return Err(ObservationError::InvalidScope);
         }
         Ok(Self { scope, latest: None, closed: false })
+    }
+
+    /// Pure, test-only review of model-estimated words against one current ASR
+    /// observation and its producer-supplied capture clock. No commit/playback.
+    pub fn inspect_estimated_words(
+        &self,
+        scope: &SourceScope,
+        revision: u64,
+        window: AudioWindow,
+        frame_count: u64,
+        words: &[ModelEstimatedWord],
+        capture_map: &CaptureClockSegment,
+    ) -> Result<Vec<CaptureWindowBounds>, ObservationError> {
+        let last = self.latest.as_ref().ok_or(ObservationError::UnmatchedWordTiming)?;
+        if scope != &self.scope
+            || revision != last.revision
+            || window != last.window
+            || frame_count != window.end_sample - window.start_sample
+            || words.is_empty()
+            || words.len() > MAX_TIMING_PROBE_WORDS
+            || capture_map.scope != self.scope
+            || capture_map.asr_window != window
+        {
+            return Err(ObservationError::UnmatchedWordTiming);
+        }
+        capture_map.map_window(scope, window)?;
+        let mut joined = String::new();
+        let mut prev_end = 0;
+        let mut mapped = Vec::with_capacity(words.len());
+        for word in words {
+            if word.text.trim().is_empty()
+                || word.text.len() > 256
+                || word.text.contains('\0')
+                || word.start_sample < prev_end
+                || word.end_sample <= word.start_sample
+                || word.end_sample > frame_count
+                || joined.len().saturating_add(word.text.len()) > MAX_TIMING_PROBE_BYTES
+            {
+                return Err(ObservationError::InvalidWordTiming);
+            }
+            joined.push_str(&word.text);
+            let mapped_window = AudioWindow {
+                start_sample: window.start_sample.checked_add(word.start_sample)
+                    .ok_or(ObservationError::InvalidWordTiming)?,
+                end_sample: window.start_sample.checked_add(word.end_sample)
+                    .ok_or(ObservationError::InvalidWordTiming)?,
+            };
+            mapped.push(capture_map.map_window(scope, mapped_window)?);
+            prev_end = word.end_sample;
+        }
+        // Same whitespace normalization as Python's transcript extraction.
+        if joined.split_whitespace().collect::<Vec<_>>().join(" ")
+            != last.transcript.split_whitespace().collect::<Vec<_>>().join(" ")
+        {
+            return Err(ObservationError::UnmatchedWordTiming);
+        }
+        Ok(mapped)
     }
 
     pub fn observe(&mut self, input: AsrObservation) -> Result<ObservationOutcome, ObservationError> {
@@ -625,5 +694,61 @@ mod tests {
         bad.capture_provenance.as_mut().unwrap().asr_sample_count = 8_000;
         assert!(finalized_capture_clock(&bad).is_none());
     }
+
+    #[test]
+    fn estimated_word_ranges_map_only_against_current_source_clock() {
+        let id = scope(21);
+        let mut tracker = SourceStabilizer::new(id.clone()).unwrap();
+        let window = AudioWindow { start_sample: 4_000, end_sample: 12_000 };
+        let clock = map(&id, 4_000, 12_000, 12_000, 36_000, 48_000);
+        let words = vec![
+            ModelEstimatedWord { text: " Server".into(), start_sample: 1_000, end_sample: 2_000 },
+            ModelEstimatedWord { text: " aktif".into(), start_sample: 2_100, end_sample: 4_000 },
+        ];
+        assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &clock),
+            Err(ObservationError::UnmatchedWordTiming));
+        tracker.observe(observation(&id, 1, 4_000, 12_000, "Server aktif", false)).unwrap();
+        let mapped = tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &clock).unwrap();
+        assert_eq!(mapped[0], CaptureWindowBounds {
+            start_lower_sample: 15_000, end_upper_sample: 18_000, sample_rate_hz: 48_000,
+        });
+        assert_eq!(mapped.len(), 2);
+        assert_eq!(tracker.inspect_estimated_words(&id, 2, window, 8_000, &words, &clock),
+            Err(ObservationError::UnmatchedWordTiming));
+        let other_epoch = SourceScope { audio_epoch: 22, ..id.clone() };
+        assert_eq!(tracker.inspect_estimated_words(&other_epoch, 1, window, 8_000, &words, &clock),
+            Err(ObservationError::UnmatchedWordTiming));
+    }
+
+    #[test]
+    fn word_overlap_bad_text_frame_count_and_foreign_clock_fail_closed() {
+        let id = scope(23);
+        let mut tracker = SourceStabilizer::new(id.clone()).unwrap();
+        let window = AudioWindow { start_sample: 0, end_sample: 8_000 };
+        let clock = map(&id, 0, 8_000, 0, 24_000, 48_000);
+        tracker.observe(observation(&id, 1, 0, 8_000, "Server aktif", false)).unwrap();
+        let mut words = vec![
+            ModelEstimatedWord { text: " Server".into(), start_sample: 1_000, end_sample: 2_000 },
+            ModelEstimatedWord { text: " aktif".into(), start_sample: 2_100, end_sample: 3_000 },
+        ];
+        words[1].start_sample = 1_999;
+        assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &clock),
+            Err(ObservationError::InvalidWordTiming));
+        words[1].start_sample = 2_100;
+        words[1].text = " tidak".into();
+        assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &clock),
+            Err(ObservationError::UnmatchedWordTiming));
+        assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 4_000, &words, &clock),
+            Err(ObservationError::UnmatchedWordTiming));
+        words[1].text = " aktif".into();
+        let wrong_clock = map(&SourceScope { audio_epoch: 24, ..id.clone() },
+            0, 8_000, 0, 24_000, 48_000);
+        assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &wrong_clock),
+            Err(ObservationError::UnmatchedWordTiming));
+        tracker.observe(observation(&id, 2, 0, 9_000, "Server aktif lagi", false)).unwrap();
+        assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &clock),
+            Err(ObservationError::UnmatchedWordTiming));
+    }
+
 
 }
