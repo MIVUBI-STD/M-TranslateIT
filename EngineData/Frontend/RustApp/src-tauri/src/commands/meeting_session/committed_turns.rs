@@ -770,8 +770,12 @@ pub(super) fn current_committed_turn_snapshot() -> MeetingCommittedTurnsSnapshot
 
 #[cfg(test)]
 mod tests {
-    use super::{MeetingCommittedTurnStore, MAX_LIVE_COMMITTED_TURNS, MAX_SESSION_COMMITTED_TURNS, MAX_SESSION_TRANSCRIPT_BYTES};
+    use super::{
+        MeetingCommittedTurnStore, MeetingCommittedTurnsSnapshot, MAX_LIVE_COMMITTED_TURNS,
+        MAX_SESSION_COMMITTED_TURNS, MAX_SESSION_TRANSCRIPT_BYTES,
+    };
     use crate::commands::meeting_session::MeetingOutboundTiming;
+    use crate::engine::runtime_state::runtime_test_guard;
 
     fn timing(finalized_unix_ms: u128) -> MeetingOutboundTiming {
         MeetingOutboundTiming {
@@ -939,10 +943,30 @@ mod tests {
 
     #[test]
     fn repeated_no_session_cleanup_preserves_last_ended_export() {
-        // Simulate Stop once (retain/clear active), then Stop again with no
-        // runtime session. Restore prior singleton state after the fixture.
-        let prior_active = super::committed_turn_store().lock().unwrap().take();
-        let prior_ended = super::ended_transcript_store().lock().unwrap().take();
+        // Reuse the repository's single global-runtime fixture guard. Restore
+        // both stores even if an assertion panics, so parallel tests cannot
+        // inherit an unrelated transcript or a poisoned fixture state.
+        let _serial = runtime_test_guard();
+        struct RestoreStores {
+            active: Option<MeetingCommittedTurnStore>,
+            ended: Option<MeetingCommittedTurnsSnapshot>,
+        }
+        impl Drop for RestoreStores {
+            fn drop(&mut self) {
+                *super::committed_turn_store()
+                    .lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = self.active.take();
+                *super::ended_transcript_store()
+                    .lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = self.ended.take();
+            }
+        }
+        let mut active_store = super::committed_turn_store().lock().unwrap();
+        let mut ended_store = super::ended_transcript_store().lock().unwrap();
+        let _restore = RestoreStores {
+            active: active_store.take(),
+            ended: ended_store.take(),
+        };
+        drop(ended_store);
+        drop(active_store);
 
         let session_id = "idempotent-stop-transcript-fixture";
         let mut active = MeetingCommittedTurnStore::new(session_id);
@@ -964,9 +988,8 @@ mod tests {
         assert_eq!(archived.turns[0].source_text, "Hello");
         assert_eq!(archived.turns[0].translated_text, "Halo");
 
-        // The existing next-Start owner intentionally clears this archive.
-        *super::committed_turn_store().lock().unwrap() = prior_active;
-        *super::ended_transcript_store().lock().unwrap() = prior_ended;
+        // RAII restoration runs before the global-runtime fixture guard
+        // releases, including on a failing assertion.
     }
 
     #[test]

@@ -1,3 +1,13 @@
+## Active continuation — Stop regression fixture isolation (2026-10-13)
+
+**Confirmed test defect:** The repeated-Stop transcript regression modified the canonical singleton active/last-ended stores without acquiring the already available `runtime_test_guard`, and restored state only after its final assertion. A failed assertion could leak fixture data into other tests, undermining regression reliability. This is an authoring/test-isolation issue, not a newly observed production data-loss bug.
+
+**Minimal repair:** Keep the existing production transcript logic untouched. In its existing Rust test, acquire the shared `runtime_test_guard` and restore both stores via a small test-local `Drop` guard, including on assertion panic. Take both previous values while both singleton locks are held, then release them before testing. No new product state, helper worker, session manager, CI workflow or dependency.
+
+**Evidence ceiling:** Review of exact `Local` test and canonical shared-runtime test guard; `STATIC_SOURCE` only. Cargo/unit tests, REA executable, native Windows/Meet and actual parallel test scheduling remain **NOT EXECUTED**. Guard discipline applies to test fixtures opting into this lock; it does not prove all future tests are race-free.
+
+**Single next step:** Audit a separate concrete Stop/recovery source defect only if observable from actual owners; otherwise preserve the integrated local acceptance gate rather than expanding test infrastructure.
+
 ## Active continuation — Preserve active Meeting turns if Stop archive fails (2026-10-13)
 
 **Confirmed source defect:** `stop_meeting_translation_impl` first calls `retain_committed_turns_for_export`, but previously always called `clear_committed_turns_for_session` even if retention failed. The Stop correctly reported `cleanup_incomplete` yet could destroy the only available unexported transcript before the user retried Stop.
