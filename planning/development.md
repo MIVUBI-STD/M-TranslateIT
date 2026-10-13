@@ -1,3 +1,13 @@
+## Active continuation — Idempotent Stop preserves last Meeting transcript (2026-10-13)
+
+**Confirmed source defect:** The normal Stop retains the last-ended Meeting transcript for manual export, but the no-session/idempotent Stop path called `clear_all_committed_turns()`, which erased both active turns and `LAST_ENDED_MEETING_TRANSCRIPT`. A second Stop therefore silently deleted the only available unexported recent transcript. `transcript_export.rs` explicitly expects active **or recently ended** Meeting records.
+
+**Bounded correction:** Rename the existing no-session cleanup to `clear_inactive_committed_turns()` and remove its unrelated archive deletion. Stop with no active session still clears orphaned active memory, while the existing canonical `reset_committed_turns()` on **next Start** remains the only planned last-ended archive reset. No new transcript store, automatic persistence, background export, new UI or dependency. One authored regression reproduces successful Stop + repeated no-session Stop and checks the source/translated text remains available in the retained archive.
+
+**REA evidence boundary:** Source-only tracing through `lifecycle.rs`, `committed_turns.rs` and `transcript_export.rs` established the contradiction. `STATIC_SOURCE` and authored Rust test only; REA binary/MCP, Cargo/unit-test execution, Windows app, TTS, GPU and actual export UI remain **NOT EXECUTED**. The last-ended transcript is still bounded, volatile and replaced on the next Start, not durable disk history.
+
+**Next:** Continue targeted source review of teardown paths. Do not implement speculative thread managers or persistent stores unless a new independently proven defect requires it; reserve native behavior for integrated Windows acceptance.
+
 ## Active continuation — Native output Stop wait responsiveness (2026-10-13)
 
 **Confirmed source issue:** `meeting_output_runtime.rs` previously called `completion_rx.recv_timeout(deadline)` once for a delivery deadline up to 120 seconds. If Stop revoked authority or set the native cancellation flag after CPAL output callbacks stopped, no callback necessarily sent a completion message; the playback consumer could remain blocked until the full deadline and `stop_meeting_playback_runtime` synchronously joined that thread.

@@ -426,14 +426,13 @@ pub(super) fn clear_committed_turns_for_session(session_id: &str) -> bool {
     true
 }
 
-pub(super) fn clear_all_committed_turns() -> bool {
+// No-session Stop may discard orphaned active turns but must preserve the
+// last explicitly ended Meeting until the next Start resets it for privacy.
+pub(super) fn clear_inactive_committed_turns() -> bool {
     let Ok(mut guard) = committed_turn_store().lock() else {
         return false;
     };
     *guard = None;
-    if let Ok(mut ended) = ended_transcript_store().lock() {
-        *ended = None;
-    }
     true
 }
 
@@ -936,6 +935,38 @@ mod tests {
 
         let sequences = store.turns.iter().map(|turn| turn.sequence).collect::<Vec<_>>();
         assert_eq!(sequences, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn repeated_no_session_cleanup_preserves_last_ended_export() {
+        // Simulate Stop once (retain/clear active), then Stop again with no
+        // runtime session. Restore prior singleton state after the fixture.
+        let prior_active = super::committed_turn_store().lock().unwrap().take();
+        let prior_ended = super::ended_transcript_store().lock().unwrap().take();
+
+        let session_id = "idempotent-stop-transcript-fixture";
+        let mut active = MeetingCommittedTurnStore::new(session_id);
+        assert!(active.commit_at(
+            session_id, 1, None, 11, "incoming", "en", "id",
+            "Hello", "Halo", None, None, 1,
+        ));
+        *super::committed_turn_store().lock().unwrap() = Some(active);
+
+        assert!(super::retain_committed_turns_for_export(session_id));
+        assert!(super::clear_committed_turns_for_session(session_id));
+        assert!(super::clear_inactive_committed_turns());
+        assert!(super::clear_inactive_committed_turns());
+
+        let archived = super::ended_transcript_store().lock().unwrap().clone()
+            .expect("second Stop must preserve the last-ended transcript");
+        assert_eq!(archived.session_id.as_deref(), Some(session_id));
+        assert_eq!(archived.turns.len(), 1);
+        assert_eq!(archived.turns[0].source_text, "Hello");
+        assert_eq!(archived.turns[0].translated_text, "Halo");
+
+        // The existing next-Start owner intentionally clears this archive.
+        *super::committed_turn_store().lock().unwrap() = prior_active;
+        *super::ended_transcript_store().lock().unwrap() = prior_ended;
     }
 
     #[test]

@@ -29,7 +29,7 @@ use super::super::helper_bridge::{
     send_helper_worker_task, start_helper_bridge,
 };
 use super::committed_turns::{
-    clear_all_committed_turns, clear_committed_turns_for_session,
+    clear_inactive_committed_turns, clear_committed_turns_for_session,
     interrupt_committed_turns_for_generation, reset_committed_turns,
     retain_committed_turns_for_export,
 };
@@ -531,7 +531,7 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_finalized_incoming_utterance_producer();
         let deferred_cleanup = clear_deferred_incoming_queue();
         clear_finalized_meeting_sequence();
-        let transcript_cleanup_ok = clear_all_committed_turns();
+        let transcript_cleanup_ok = clear_inactive_committed_turns();
         clear_outbound_status();
         clear_incoming_status();
         if !incoming_capture_stop.ok || deferred_cleanup.is_err() || !transcript_cleanup_ok {
