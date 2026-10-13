@@ -16,7 +16,7 @@ use crate::engine::runtime_state::{
     revoke_runtime_session_authority, VOICE_RECORDING_OWNER_ID,
 };
 
-use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, VoiceLabStoragePaths};
+use super::voice_lab::{archive_guided_take, current_voice_lab_build_snapshot, legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, saved_recordings_page, saved_recording_audio, VoiceLabStoragePaths};
 
 mod guided_lines;
 mod storage_transaction;
@@ -431,6 +431,18 @@ pub fn accept_voice_lab_guided_take(line_id: u32) -> GuidedRecordingActionResult
     result(true, "accepted", "Take accepted and saved for the Voice Actor dataset.")
 }
 
+
+
+#[tauri::command]
+pub fn list_voice_lab_saved_recordings(after: Option<String>) -> Result<SavedRecordingPage, String> {
+    saved_recordings_page(&storage_paths(), after.as_deref())
+}
+
+#[tauri::command]
+pub fn get_voice_lab_saved_recording_audio(archive_id: String) -> Result<tauri::ipc::Response, String> {
+    let bytes = saved_recording_audio(&storage_paths(), &archive_id)?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
 
 #[tauri::command]
 pub fn get_voice_lab_legacy_archive_status() -> LegacyProtectionStatus {

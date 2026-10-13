@@ -32,3 +32,21 @@ test("legacy protection UI shows uncertainty instead of claiming all files are s
   assert.match(page, /Original files stay on this computer/);
   assert.match(page, /Save protected copies/);
 });
+
+
+test("saved take library lists verified receipts and requests audio by archive ID only", () => {
+  const archive = rust("voice_lab/storage/recording_archive.rs");
+  const registry = rust("registry.rs");
+  const api = frontend("app/bridge/myVoiceApi.ts");
+  const page = frontend("pages/MyVoice.svelte");
+  assert.match(registry, /list_voice_lab_saved_recordings/);
+  assert.match(registry, /get_voice_lab_saved_recording_audio/);
+  assert.match(archive, /receipt_for_archive/);
+  assert.match(archive, /valid_archive_id/);
+  assert.match(archive, /verified_archive\(&dir, &receipt\)/);
+  assert.match(archive, /LIBRARY_PAGE_SIZE: usize = 25/);
+  assert.match(api, /archiveId/);
+  assert.match(page, /Saved recordings/);
+  assert.match(page, /Show more recordings/);
+  assert.match(page, /savedLibraryError = true/);
+});

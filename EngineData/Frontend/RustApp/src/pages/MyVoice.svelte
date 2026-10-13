@@ -6,6 +6,7 @@
     type GuidedRecordingActionResult,
     type GuidedRecordingState,
     type LegacyProtectionStatus,
+    type SavedRecordingPage,
   } from "../app/bridge/myVoiceApi";
   import { myVoiceBuildApi, type MyVoiceBuildStatus } from "../app/bridge/myVoiceBuildApi";
   import { runtimeApi } from "../app/bridge/runtimeApi";
@@ -47,6 +48,11 @@
   let legacyProtection = $state<LegacyProtectionStatus | null>(null);
   let legacyProtectionUnknown = $state(false);
   let legacyProtectionBusy = $state(false);
+  let savedLibraryOpen = $state(false);
+  let savedLibraryBusy = $state(false);
+  let savedLibraryError = $state(false);
+  let savedLibraryPage = $state<SavedRecordingPage | null>(null);
+  let savedPlayingId = $state<string | null>(null);
   let microphoneCheckMessage = $state("");
   // Presentation-only copy of the build owner's VERIFIED snapshot. No second polling loop.
   let buildSnapshot = $state<MyVoiceBuildStatus | null>(null);
@@ -99,6 +105,62 @@
   }
 
 
+
+  async function loadSavedLibrary(more = false): Promise<void> {
+    if (savedLibraryBusy || (more && !savedLibraryPage?.next_cursor)) return;
+    savedLibraryBusy = true;
+    try {
+      const next = await myVoiceApi.listSavedRecordings(more ? savedLibraryPage?.next_cursor ?? null : null);
+      if (disposed) return;
+      if (next === null) {
+        savedLibraryError = true;
+        return;
+      }
+      savedLibraryPage = more && savedLibraryPage
+        ? { ...next, items: [...savedLibraryPage.items, ...next.items] }
+        : next;
+      savedLibraryError = false;
+    } catch {
+      if (!disposed) savedLibraryError = true;
+    } finally {
+      savedLibraryBusy = false;
+    }
+  }
+
+  function toggleSavedLibrary(): void {
+    savedLibraryOpen = !savedLibraryOpen;
+    if (savedLibraryOpen) void loadSavedLibrary();
+  }
+
+  async function playSavedRecording(id: string): Promise<void> {
+    if (busy || replaying || savedPlayingId || voiceChangesLocked ||
+        isRecording || activeStage === "review" || buildSnapshot?.active ||
+        buildSnapshot?.preview_active) return;
+    stopReplay();
+    savedPlayingId = id;
+    try {
+      const bytes = await myVoiceApi.getSavedRecordingAudio(id);
+      if (disposed) return;
+      if (!bytes) {
+        onNotice("Couldn't verify this saved recording. The file may need attention.");
+        stopReplay();
+        return;
+      }
+      audioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+      audio = new Audio(audioUrl);
+      replaying = true;
+      audio.onended = stopReplay;
+      audio.onerror = () => {
+        stopReplay();
+        onNotice("This saved recording couldn't be played.");
+      };
+      await audio.play();
+    } catch {
+      if (!disposed) onNotice("Couldn't play this saved recording. Try again.");
+      stopReplay();
+    }
+  }
+
   async function refreshLegacyProtection(): Promise<void> {
     try {
       const status = await myVoiceApi.getLegacyProtection();
@@ -129,6 +191,7 @@
       }
       legacyProtection = result.report;
       legacyProtectionUnknown = false;
+      if (savedLibraryOpen) void loadSavedLibrary();
       onNotice(result.message);
     } catch {
       if (!disposed) {
@@ -483,6 +546,7 @@
         selectedPane = "record";
         buildRefreshRevision += 1;
         void refreshLegacyProtection();
+        if (savedLibraryOpen) void loadSavedLibrary();
         selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
         busy = false;
         await tick();
@@ -528,6 +592,7 @@
     audio = null;
     replaying = false;
     builtinPreviewing = null;
+    savedPlayingId = null;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     audioUrl = null;
   }
@@ -643,6 +708,60 @@
       <button type="button" class="ti-button ti-button-secondary" disabled={busy} onclick={() => void refresh()}>Retry status</button>
     </div>
   {/if}
+
+
+  <section class="mt-4" aria-label="Recording library">
+    <button type="button" class="text-left text-sm font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
+      aria-expanded={savedLibraryOpen}
+      onclick={toggleSavedLibrary}>Saved recordings</button>
+    {#if savedLibraryOpen}
+      <div class="ti-panel mt-3 p-4 sm:p-5">
+        <p class="mb-2 text-sm leading-5 text-[var(--ti-text-muted)]">
+          Your saved recording versions remain on this computer. Listen to a saved take without changing the one used for training.
+        </p>
+        {#if savedLibraryError}
+          <p role="alert" class="text-sm text-[var(--ti-warning)]">
+            Couldn't verify saved recordings. Some files may need attention.
+          </p>
+          <button type="button" class="ti-button ti-button-secondary" disabled={savedLibraryBusy}
+            onclick={() => void loadSavedLibrary()}>Retry library</button>
+        {:else if savedLibraryBusy && !savedLibraryPage}
+          <p role="status" class="text-sm text-[var(--ti-text-muted)]">Checking saved recordings...</p>
+        {:else if savedLibraryPage}
+          {#if savedLibraryPage.attention_entries > 0}
+            <p role="alert" class="mb-3 text-sm text-[var(--ti-warning)]">
+              {savedLibraryPage.attention_entries} archive entries need attention and are not shown as verified.
+            </p>
+          {/if}
+          {#if savedLibraryPage.items.length === 0}
+            <p class="text-sm text-[var(--ti-text-muted)]">No verified saved recordings in this page yet.</p>
+          {:else}
+            <div class="space-y-2">
+              {#each savedLibraryPage.items as take (take.archive_id)}
+                <div class="flex flex-wrap items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
+                  <div class="min-w-0 flex-1">
+                    <p class="m-0 text-xs font-semibold">Line {take.line_id} · {formatRecordingDuration(take.duration_ms)}</p>
+                    <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{take.text}</p>
+                  </div>
+                  <button type="button" class="ti-button ti-button-secondary"
+                    disabled={busy || replaying || voiceChangesLocked || isRecording || activeStage === "review" || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+                    onclick={() => void playSavedRecording(take.archive_id)}>
+                    <Play size={14} /><span>{savedPlayingId === take.archive_id ? "Playing..." : "Listen"}</span>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+          {#if savedLibraryPage.next_cursor}
+            <button type="button" class="ti-button ti-button-secondary mt-3" disabled={savedLibraryBusy}
+              onclick={() => void loadSavedLibrary(true)}>
+              {savedLibraryBusy ? "Loading..." : "Show more recordings"}
+            </button>
+          {/if}
+        {/if}
+      </div>
+    {/if}
+  </section>
 
   <section class="border-t border-[var(--ti-border)] pt-5" aria-labelledby="my-voice-create-title">
     <div class="flex flex-wrap items-start justify-between gap-3">

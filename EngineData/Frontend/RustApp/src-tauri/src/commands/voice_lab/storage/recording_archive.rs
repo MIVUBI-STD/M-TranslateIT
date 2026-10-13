@@ -219,6 +219,180 @@ pub(crate) fn archive_guided_take(
     Ok(id)
 }
 
+
+const LIBRARY_PAGE_SIZE: usize = 25;
+const MAX_LIBRARY_ENTRIES: usize = 8192;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SavedRecording {
+    pub archive_id: String,
+    pub line_id: u32,
+    pub text: String,
+    pub duration_ms: u64,
+    pub native_rate_available: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SavedRecordingPage {
+    pub items: Vec<SavedRecording>,
+    pub next_cursor: Option<String>,
+    pub attention_entries: usize,
+}
+
+fn valid_archive_id(id: &str) -> bool {
+    id.len() == 64 && id.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+}
+
+fn verified_saved_folder(path: &Path) -> Result<(), String> {
+    let m = fs::symlink_metadata(path).map_err(|_| "voice_lab:saved_recording_location_missing")?;
+    if m.file_type().is_symlink() || !m.is_dir() {
+        return Err("voice_lab:saved_recording_location_untrusted".into());
+    }
+    Ok(())
+}
+
+fn saved_recording_location(storage: &VoiceLabStoragePaths, id: &str) -> Result<PathBuf, String> {
+    if !valid_archive_id(id) {
+        return Err("voice_lab:saved_recording_id_invalid".into());
+    }
+    let root = storage.saved_root.join("Recordings");
+    verified_saved_folder(&root)?;
+    let shard = root.join(&id[..2]);
+    verified_saved_folder(&shard)?;
+    Ok(shard.join(id))
+}
+
+fn receipt_for_archive(dir: &Path, id: &str) -> Result<ArchivedTake, String> {
+    if !valid_archive_id(id) {
+        return Err("voice_lab:saved_recording_id_invalid".into());
+    }
+    let bytes = bounded_regular_bytes(&dir.join("take.json"), MAX_RECEIPT_BYTES)?;
+    let receipt = serde_json::from_slice::<ArchivedTake>(&bytes)
+        .map_err(|_| "voice_lab:saved_recording_receipt_invalid")?;
+    if receipt.schema_version != ARCHIVE_VERSION || receipt.line_id == 0 ||
+        receipt.exact_text.trim().is_empty()
+    {
+        return Err("voice_lab:saved_recording_receipt_unsupported".into());
+    }
+    let serialized = serde_json::to_vec(&receipt)
+        .map_err(|_| "voice_lab:saved_recording_receipt_invalid")?;
+    if sha256_hex(&serialized)? != id {
+        return Err("voice_lab:saved_recording_identity_mismatch".into());
+    }
+    Ok(receipt)
+}
+
+/// Paginated, **verified** local library; no delete/mutation operations.
+/// Missing/corrupt/pending artifacts are counted as attention, not displayed as
+/// saved recordings. The cursor is a deterministic line-id + archive-id pair.
+pub(crate) fn saved_recordings_page(
+    storage: &VoiceLabStoragePaths,
+    after: Option<&str>,
+) -> Result<SavedRecordingPage, String> {
+    let _guard = ARCHIVE_LOCK.get_or_init(|| Mutex::new(())).lock()
+        .map_err(|_| "voice_lab:archive_lock_unavailable")?;
+    let after = after.unwrap_or("");
+    // Validate cursor bytes BEFORE slicing: arbitrary Unicode input must
+    // produce an ordinary error rather than panic on a UTF-8 boundary.
+    let cursor_bytes = after.as_bytes();
+    let valid_cursor = after.is_empty() || (cursor_bytes.len() == 75
+        && cursor_bytes[..10].iter().all(u8::is_ascii_digit)
+        && cursor_bytes[10] == b'-'
+        && cursor_bytes[11..].iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)));
+    if !valid_cursor {
+        return Err("voice_lab:saved_recording_cursor_invalid".into());
+    }
+    let root = storage.saved_root.join("Recordings");
+    match fs::symlink_metadata(&root) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(SavedRecordingPage { items: vec![], next_cursor: None, attention_entries: 0 });
+        }
+        Err(_) => return Err("voice_lab:saved_recording_library_unavailable".into()),
+        Ok(_) => verified_saved_folder(&root)?,
+    }
+    let mut attention = 0usize;
+    let mut scanned = 0usize;
+    let mut candidates: Vec<(String, String, ArchivedTake, PathBuf)> = Vec::new();
+    let shards = fs::read_dir(&root).map_err(|_| "voice_lab:saved_recording_library_unreadable")?;
+    for shard in shards {
+        let shard = shard.map_err(|_| "voice_lab:saved_recording_library_scan_failed")?;
+        let label = shard.file_name().to_string_lossy().to_string();
+        if label.len() != 2 || !label.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+            || verified_saved_folder(&shard.path()).is_err()
+        {
+            attention += 1;
+            continue;
+        }
+        let entries = fs::read_dir(shard.path())
+            .map_err(|_| "voice_lab:saved_recording_shard_unreadable")?;
+        for item in entries {
+            scanned += 1;
+            if scanned > MAX_LIBRARY_ENTRIES {
+                return Err("voice_lab:saved_recording_library_scan_limit".into());
+            }
+            let item = item.map_err(|_| "voice_lab:saved_recording_entry_unreadable")?;
+            let id = item.file_name().to_string_lossy().to_string();
+            if !valid_archive_id(&id) || &id[..2] != label {
+                attention += 1;
+                continue;
+            }
+            let dir = item.path();
+            let receipt = match receipt_for_archive(&dir, &id) {
+                Ok(receipt) => receipt,
+                Err(_) => { attention += 1; continue; }
+            };
+            let key = format!("{:010}-{id}", receipt.line_id);
+            candidates.push((key, id, receipt, dir));
+        }
+    }
+    candidates.sort_by(|a,b| a.0.cmp(&b.0));
+    let mut items = Vec::new();
+    let mut cursor = None;
+    let mut has_more = false;
+    for (key, id, receipt, path) in candidates {
+        if key.as_str() <= after { continue; }
+        if items.len() == LIBRARY_PAGE_SIZE {
+            has_more = true;
+            break;
+        }
+        if verified_archive(&path, &receipt).is_err() {
+            attention += 1;
+            continue;
+        }
+        let duration_ms = inspect_canonical_wav(&path.join("canonical.wav"))?.duration_ms;
+        items.push(SavedRecording {
+            archive_id: id,
+            line_id: receipt.line_id,
+            text: receipt.exact_text,
+            duration_ms,
+            native_rate_available: receipt.native_rate_sha256.is_some(),
+        });
+        cursor = Some(key);
+    }
+    Ok(SavedRecordingPage {
+        items,
+        next_cursor: if has_more { cursor } else { None },
+        attention_entries: attention,
+    })
+}
+
+/// Serves only audio whose bounded content, metadata and canonical archive ID
+/// have been verified. No caller-provided filesystem paths are accepted.
+pub(crate) fn saved_recording_audio(
+    storage: &VoiceLabStoragePaths, archive_id: &str,
+) -> Result<Vec<u8>, String> {
+    let _guard = ARCHIVE_LOCK.get_or_init(|| Mutex::new(())).lock()
+        .map_err(|_| "voice_lab:archive_lock_unavailable")?;
+    let dir = saved_recording_location(storage, archive_id)?;
+    let receipt = receipt_for_archive(&dir, archive_id)?;
+    verified_archive(&dir, &receipt)?;
+    let audio = bounded_regular_bytes(&dir.join("canonical.wav"), MAX_CANONICAL_BYTES)?;
+    if sha256_hex(&audio)? != receipt.canonical_sha256 {
+        return Err("voice_lab:saved_recording_audio_changed".into());
+    }
+    Ok(audio)
+}
+
 #[cfg(all(test, target_os = "windows"))]
 mod tests {
     use super::*;
@@ -241,6 +415,34 @@ mod tests {
         wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
         wav.extend_from_slice(&data);
         wav
+    }
+
+
+    #[test]
+    fn library_pages_verify_versions_and_playback_is_bound_to_archive_id() {
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("translateit-archive-page-{}-{unique}", std::process::id()));
+        let storage = VoiceLabStoragePaths::from_roots(&root.join("cache"), &root.join("saved"));
+        fs::create_dir_all(&storage.takes_dir).unwrap();
+        let path = storage.takes_dir.join("take_0001.wav");
+        let first = wav(1);
+        let mut first_id = String::new();
+        for seed in 1u8..=28u8 {
+            fs::write(&path, wav(seed)).unwrap();
+            let id = archive_guided_take(&storage, 1, "Good morning, everyone.", &path, None).unwrap();
+            if seed == 1 { first_id = id; }
+        }
+        let first_page = saved_recordings_page(&storage, None).unwrap();
+        assert_eq!(first_page.items.len(), LIBRARY_PAGE_SIZE);
+        let second_page = saved_recordings_page(&storage, first_page.next_cursor.as_deref()).unwrap();
+        assert_eq!(second_page.items.len(), 3);
+        assert!(second_page.next_cursor.is_none());
+        assert_eq!(saved_recording_audio(&storage, &first_id).unwrap(), first);
+        assert!(saved_recording_audio(&storage, "../wrong").is_err());
+        let tampered = storage.saved_root.join("Recordings").join(&first_id[..2]).join(&first_id).join("canonical.wav");
+        fs::write(tampered, wav(250)).unwrap();
+        assert!(saved_recording_audio(&storage, &first_id).is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

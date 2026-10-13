@@ -19,6 +19,20 @@ export type GuidedRecordingState = {
   lines: GuidedLineStatus[];
 };
 
+export type SavedRecording = {
+  archive_id: string;
+  line_id: number;
+  text: string;
+  duration_ms: number;
+  native_rate_available: boolean;
+};
+
+export type SavedRecordingPage = {
+  items: SavedRecording[];
+  next_cursor: string | null;
+  attention_entries: number;
+};
+
 export type LegacyProtectionStatus = {
   total_sources: number;
   protected_sources: number;
@@ -54,6 +68,13 @@ function normalizeAction(action: GuidedRecordingActionResult): GuidedRecordingAc
 }
 
 export const myVoiceApi = {
+  async listSavedRecordings(after: string | null = null): Promise<SavedRecordingPage | null> {
+    return runCommand<SavedRecordingPage>("list_voice_lab_saved_recordings", { after });
+  },
+
+  async getSavedRecordingAudio(archiveId: string): Promise<ArrayBuffer | null> {
+    return runCommand<ArrayBuffer>("get_voice_lab_saved_recording_audio", { archiveId });
+  },
   async getLegacyProtection(): Promise<LegacyProtectionStatus | null> {
     return runCommand<LegacyProtectionStatus>("get_voice_lab_legacy_archive_status");
   },

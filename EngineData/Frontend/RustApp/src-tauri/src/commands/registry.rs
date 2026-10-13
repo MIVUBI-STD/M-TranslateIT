@@ -36,6 +36,8 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::text_translation::translate_text,
         crate::commands::voice_lab_recording::get_voice_lab_guided_recording_state,
         crate::commands::voice_lab_recording::get_voice_lab_legacy_archive_status,
+        crate::commands::voice_lab_recording::list_voice_lab_saved_recordings,
+        crate::commands::voice_lab_recording::get_voice_lab_saved_recording_audio,
         crate::commands::voice_lab_recording::protect_voice_lab_legacy_recordings,
         crate::commands::voice_lab_recording::retry_voice_lab_guided_take,
         crate::commands::voice_lab_recording::accept_voice_lab_guided_take,
