@@ -99,6 +99,20 @@ pub fn select_product_saved_personal_voice(
     })
 }
 
+
+#[tauri::command]
+pub fn select_product_voice_version(
+    app: tauri::AppHandle,
+    version_id: String,
+    replace_confirmed: bool,
+) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
+    emit_after(&app, "select_voice_version", || {
+        super::super::voice_lab_build::select_archived_personal_voice_version(
+            version_id, replace_confirmed,
+        )
+    })
+}
+
 #[tauri::command]
 pub fn save_product_settings(
     app: tauri::AppHandle,

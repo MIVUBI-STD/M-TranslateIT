@@ -215,3 +215,27 @@ These are **storage foundation source candidates**, not a complete training
 resume feature, current-voice restore UI, verified backup to another disk,
 or measured acoustic improvement. Rust/Windows, GPU, audio and real recovery
 execution remain **NOT EXECUTED** for this source revision.
+
+
+## Source implementation continuation — Voice Version Browser and guarded selection
+
+The existing immutable actor package registry now exposes a bounded
+read-only, metadata-only \`VoiceVersions\` page. Listing never claims full
+weight validation. Selection reuses \`voice_selection_guard\`, Meeting/recording/
+training/Quick Preview checks, and Tauri ApplicationRuntime events. Explicit
+confirmation is required. The Rust storage owner verifies complete GPT,
+SoVITS, reference and manifest hashes, retains the currently selected personal
+actor as an immutable version, copies to guarded staging and uses the existing
+selected-voice atomic swap owner. Pending/ambiguous previous transactions block
+further replacement; unknown frontend results never become success.
+
+The Svelte \`VoiceVersionBrowser\` is a secondary disclosure and has no
+independent selected-voice state owner or polling loop. Its list labels
+"verification required" and does not invent dates, training scores, or
+version chronology based on content hashes. The saved PersonalVoice copy is
+reconciled after selection and any failure is disclosed as an attention state.
+This is not warm-start training, checkpoint resume, model-quality acceptance,
+or externally backed disaster recovery.
+
+**Proof limit:** this work is only REMOTE_GITHUB source-reviewed until an
+exact-SHA Windows Cargo/Svelte/Node and native version-switch regression run.

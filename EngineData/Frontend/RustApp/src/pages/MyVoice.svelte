@@ -13,6 +13,7 @@
   import { probeProductAudioDevice } from "../app/bridge/productAudioFacade";
   import MyVoiceBuild from "../components/my-voice/MyVoiceBuild.svelte";
   import BuiltinVoicePicker from "../components/my-voice/BuiltinVoicePicker.svelte";
+  import VoiceVersionBrowser from "../components/my-voice/VoiceVersionBrowser.svelte";
 
   type BuiltinVoiceId = "MaleVoice" | "FemaleVoice";
 
@@ -666,6 +667,21 @@
     onConfirm={confirmPendingBuiltin}
     onCancel={() => { builtinPendingId = null; }}
     onRetry={refreshVoiceSelection}
+  />
+  <VoiceVersionBrowser
+    voiceChangesLocked={voiceChangesLocked || busy || !selectedVoiceVerified || buildStatusUnavailable ||
+      buildSnapshot?.active === true || buildSnapshot?.preview_active === true ||
+      recordingStatusUnknown || isRecording || pendingLineId !== null}
+    {onNotice}
+    onVoiceActivated={async (message) => {
+      buildRefreshRevision += 1;
+      await refreshVoiceSelection();
+      await onMeetingVoiceChanged(message);
+    }}
+    onRecheck={async () => {
+      await refreshVoiceSelection();
+      return selectedVoiceVerified && selectedVoiceKind !== "unknown";
+    }}
   />
 
 

@@ -8,7 +8,7 @@ use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEE
 mod storage;
 
 pub use storage::VoiceLabStoragePaths;
-pub(crate) use storage::{archive_guided_take, legacy_protection_status, migrate_legacy_recordings, saved_recordings_page, saved_recording_audio, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, sha256_digest};
+pub(crate) use storage::{actor_version_page, activate_archived_personal_voice, ActorVersionPage, archive_guided_take, legacy_protection_status, migrate_legacy_recordings, saved_recordings_page, saved_recording_audio, LegacyMigrationResult, LegacyProtectionStatus, SavedRecordingPage, sha256_digest};
 pub(crate) use storage::{
     activate_stored_personal_voice, archive_selected_personal_voice,
     recover_selected_actor_if_missing, selected_voice_info,

@@ -337,6 +337,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 **MUST NOT:** Activate a stored historic actor, delete a historic actor, change the selected Meeting voice, or claim successful future-training continuation merely because an immutable registry record exists. Selection/restore UI and resumable optimizer checkpoints require separate explicit guards, user approval, and end-to-end verification.
 
+### PR-108 — Saved personal voice version selection
+**MUST:** List earlier immutable personal actor versions as candidate saved entries without claiming full model integrity merely from listing metadata. Verify exact actor manifest, reference, GPT and SoVITS weight hashes before selecting any historic version.
+
+**MUST:** A historic voice switch uses the same Meeting/recording/training resource authority and selected-actor compatibility path as normal voice selection. Require explicit confirmation before changing the current Meeting voice; do not change it during Meeting, microphone recording, training, or Quick Preview. Preserve the previous personal actor first, use guarded atomic replacement, and invalidate outbound readiness after successful selection.
+
+**MUST:** Incomplete prior swap transactions, invalid actor packages, wrong file hashes, or uncertain command responses block additional unsafe changes. The UI must clearly distinguish verified playback/selection from a catalog entry that has only passed metadata checks.
+
+**MUST NOT:** Automatically delete older versions or imply an inference actor is a full optimizer resume checkpoint. Multi-version comparison, full backup/export, training checkpoint resume and off-device durability are separately scoped work.
+
 ## 12. My Voice and built-in voices
 
 ### PR-110 — My Voice workflow

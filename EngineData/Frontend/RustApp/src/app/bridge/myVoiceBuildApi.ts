@@ -44,6 +44,18 @@ export type MyVoiceBuildStatus = {
   saved_personal_voice_available: boolean;
 };
 
+export type ActorVersionItem = {
+  version_id: string;
+  engine_revision: string;
+  verification_required: boolean;
+};
+
+export type ActorVersionPage = {
+  items: ActorVersionItem[];
+  next_cursor: string | null;
+  attention_entries: number;
+};
+
 export type MyVoiceBuildActionResult = {
   ok: boolean;
   state: string;
@@ -104,6 +116,16 @@ function normalizeAction(action: MyVoiceBuildActionResult): MyVoiceBuildActionRe
 }
 
 export const myVoiceBuildApi = {
+  async listActorVersions(after: string | null = null): Promise<ActorVersionPage | null> {
+    return runCommand<ActorVersionPage>("get_voice_lab_actor_versions", { after });
+  },
+
+  async selectActorVersion(versionId: string, replaceConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
+    const action = await runCommand<MyVoiceBuildActionResult>("select_product_voice_version", {
+      versionId, replaceConfirmed,
+    });
+    return action ? normalizeAction(action) : unavailableAction("Could not verify the saved version selection.");
+  },
   async getStatus(): Promise<MyVoiceBuildStatus> {
     const status = await runCommand<MyVoiceBuildStatus>("get_voice_lab_build_status");
     return status ? normalizeStatus(status) : unavailableStatus();

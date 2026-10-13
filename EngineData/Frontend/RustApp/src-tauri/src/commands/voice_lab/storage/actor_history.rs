@@ -159,6 +159,12 @@ pub(super) fn verify_actor_version(
 ) -> Result<(), String> {
     if !valid_id(id) { return Err("voice_lab:version_id_invalid".into()); }
     let root = voice_root(storage);
+    // Neither the library root nor its shard may redirect via symlink.
+    let root_meta = fs::symlink_metadata(&root)
+        .map_err(|_| "voice_lab:version_library_unavailable")?;
+    if !root_meta.is_dir() || root_meta.file_type().is_symlink() {
+        return Err("voice_lab:version_library_untrusted".into());
+    }
     let shard = root.join(&id[..2]);
     // Do not let symlinked shard bypass the application's saved storage root.
     let meta = fs::symlink_metadata(&shard).map_err(|_| "voice_lab:version_shard_missing")?;
@@ -170,6 +176,151 @@ pub(super) fn verify_actor_version(
     let receipt = serde_json::from_slice::<VersionReceipt>(&bytes)
         .map_err(|_| "voice_lab:version_receipt_invalid")?;
     verify_version(&dir, &receipt, id)
+}
+
+
+const PAGE_SIZE: usize = 12;
+const MAX_VERSION_ENTRIES: usize = 4096;
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct ActorVersionItem {
+    pub version_id: String,
+    pub engine_revision: String,
+    // Listing is receipt-only. Full large-weight verification happens
+    // immediately before activation, never pretended by the list UI.
+    pub verification_required: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct ActorVersionPage {
+    pub items: Vec<ActorVersionItem>,
+    pub next_cursor: Option<String>,
+    pub attention_entries: usize,
+}
+
+/// Fast metadata-only listing, sorted by immutable content ID. A pending,
+/// invalid or unreadable entry is reported as attention, never as selectable.
+pub(crate) fn actor_version_page(
+    storage: &VoiceLabStoragePaths,
+    after: Option<&str>,
+) -> Result<ActorVersionPage, String> {
+    let after = after.unwrap_or("");
+    if !after.is_empty() && !valid_id(after) {
+        return Err("voice_lab:version_cursor_invalid".into());
+    }
+    let root = voice_root(storage);
+    match fs::symlink_metadata(&root) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ActorVersionPage {
+                items: vec![], next_cursor: None, attention_entries: 0,
+            });
+        }
+        Err(_) => return Err("voice_lab:version_library_unavailable".into()),
+        Ok(_) => {
+            let info = fs::symlink_metadata(&root)
+                .map_err(|_| "voice_lab:version_library_unavailable")?;
+            if !info.is_dir() || info.file_type().is_symlink() {
+                return Err("voice_lab:version_library_untrusted".into());
+            }
+        }
+    }
+    let mut ids = Vec::new();
+    let mut attention = 0usize;
+    let mut count = 0usize;
+    for shard in fs::read_dir(&root).map_err(|_| "voice_lab:version_library_unreadable")? {
+        let shard = shard.map_err(|_| "voice_lab:version_shard_entry_unreadable")?;
+        let label = shard.file_name().to_string_lossy().to_string();
+        let info = fs::symlink_metadata(shard.path())
+            .map_err(|_| "voice_lab:version_shard_metadata_unavailable")?;
+        if label.len() != 2
+            || !label.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+            || !info.is_dir() || info.file_type().is_symlink()
+        {
+            attention += 1;
+            continue;
+        }
+        for item in fs::read_dir(shard.path()).map_err(|_| "voice_lab:version_shard_unreadable")? {
+            let item = item.map_err(|_| "voice_lab:version_entry_unreadable")?;
+            count += 1;
+            if count > MAX_VERSION_ENTRIES {
+                return Err("voice_lab:version_library_scan_limit".into());
+            }
+            let id = item.file_name().to_string_lossy().to_string();
+            if !valid_id(&id) || !id.starts_with(&label) {
+                attention += 1;
+                continue;
+            }
+            // A symlinked version directory cannot expose external files.
+            let info = fs::symlink_metadata(item.path())
+                .map_err(|_| "voice_lab:version_entry_metadata_unavailable")?;
+            if !info.is_dir() || info.file_type().is_symlink() {
+                attention += 1;
+                continue;
+            }
+            let bytes = match read_regular_bounded(&item.path().join("version.json"), MAX_MANIFEST_BYTES) {
+                Ok(bytes) => bytes,
+                Err(_) => { attention += 1; continue; }
+            };
+            let data = match serde_json::from_slice::<VersionReceipt>(&bytes) {
+                Ok(data) => data,
+                Err(_) => { attention += 1; continue; }
+            };
+            if data.schema_version != HISTORY_SCHEMA
+                || data.engine_revision != VOICE_ACTOR_ENGINE_REVISION
+                || data.files.len() != expected_files().len()
+                || data.files.iter().zip(expected_files()).any(|(actual, (name, _))|
+                    actual.name != name || !valid_id(&actual.sha256) || actual.bytes == 0)
+                || hash_bytes(&serde_json::to_vec(&data)
+                    .map_err(|_| "voice_lab:version_receipt_invalid")?) != id
+            {
+                attention += 1;
+                continue;
+            }
+            ids.push(id);
+        }
+    }
+    ids.sort();
+    let candidates: Vec<String> = ids.into_iter()
+        .filter(|id| id.as_str() > after)
+        .collect();
+    let has_more = candidates.len() > PAGE_SIZE;
+    let items: Vec<ActorVersionItem> = candidates.iter().take(PAGE_SIZE)
+        .map(|id| ActorVersionItem {
+            version_id: id.clone(),
+            engine_revision: VOICE_ACTOR_ENGINE_REVISION.into(),
+            verification_required: true,
+        })
+        .collect();
+    let next_cursor = if has_more { items.last().map(|v| v.version_id.clone()) } else { None };
+    Ok(ActorVersionPage { items, next_cursor, attention_entries: attention })
+}
+
+/// Copy a specific verified actor into the caller's staging directory. Both
+/// original and staging must match the immutable receipt before the caller
+/// may promote it to the legacy selected-voice location.
+pub(super) fn prepare_version_for_activation(
+    storage: &VoiceLabStoragePaths,
+    id: &str,
+    staging: &Path,
+) -> Result<(), String> {
+    verify_actor_version(storage, id)?;
+    let source = voice_root(storage).join(&id[..2]).join(id);
+    for (name, _) in expected_files() {
+        fs::copy(source.join(name), staging.join(name))
+            .map_err(|_| "voice_lab:version_restore_copy_failed")?;
+    }
+    let receipt_bytes = read_regular_bounded(&source.join("version.json"), MAX_MANIFEST_BYTES)?;
+    let receipt: VersionReceipt = serde_json::from_slice(&receipt_bytes)
+        .map_err(|_| "voice_lab:version_receipt_invalid")?;
+    // Validate the copied output against every source hash, not only its shape.
+    validate_actor_package(staging)?;
+    for (actual, (name, cap)) in receipt.files.iter().zip(expected_files()) {
+        let (sha, bytes) = hash_regular_file(&staging.join(name), cap)?;
+        if sha != actual.sha256 || bytes != actual.bytes {
+            return Err("voice_lab:version_restore_integrity_failed".into());
+        }
+    }
+    verify_actor_version(storage, id)
 }
 
 #[cfg(test)]
@@ -207,6 +358,42 @@ mod tests {
             "reference_duration_ms": 4000,
             "held_out_evaluation_complete": true
         }).to_string()).unwrap();
+    }
+
+
+    #[test]
+    fn pages_are_metadata_only_but_restore_requires_full_weight_hashes() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir()
+            .join(format!("translateit-actor-paging-{}-{stamp}", std::process::id()));
+        let paths = VoiceLabStoragePaths::from_roots(&dir.join("cache"), &dir.join("saved"));
+        let source = dir.join("actor");
+        let mut identities = Vec::new();
+        for seed in 1_u8..=14 {
+            fake_actor(&source, &[seed, 41]);
+            identities.push(preserve_actor_version(&paths, &source).unwrap());
+        }
+        let page1 = actor_version_page(&paths, None).unwrap();
+        assert_eq!(page1.items.len(), PAGE_SIZE);
+        assert!(page1.items.iter().all(|entry| entry.verification_required));
+        let page2 = actor_version_page(&paths, page1.next_cursor.as_deref()).unwrap();
+        assert_eq!(page2.items.len(), 2);
+        assert!(page2.next_cursor.is_none());
+        let id = &identities[0];
+        let staging = dir.join("stage");
+        fs::create_dir_all(&staging).unwrap();
+        prepare_version_for_activation(&paths, id, &staging).unwrap();
+        assert!(validate_actor_package(&staging).is_ok());
+        // A metadata-only listing may still show this version, but activation
+        // must reject the exact file if its weight bytes were changed.
+        fs::write(voice_root(&paths).join(&id[..2]).join(id).join(GPT_WEIGHT_FILE),
+            b"tampered").unwrap();
+        assert!(verify_actor_version(&paths, id).is_err());
+        let stage2 = dir.join("stage2");
+        fs::create_dir_all(&stage2).unwrap();
+        assert!(prepare_version_for_activation(&paths, id, &stage2).is_err());
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

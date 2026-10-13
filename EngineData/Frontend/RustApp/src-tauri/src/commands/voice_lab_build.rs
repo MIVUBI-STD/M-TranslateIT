@@ -20,7 +20,8 @@ use super::voice_lab::{
     request_voice_lab_build_cancel,
     voice_lab_build_blocks_meeting, archive_selected_personal_voice,
     activate_stored_personal_voice, recover_selected_actor_if_missing,
-    selected_voice_info, GuidedDatasetManifest, GuidedTakeContract,
+    selected_voice_info, actor_version_page, activate_archived_personal_voice,
+    ActorVersionPage, GuidedDatasetManifest, GuidedTakeContract,
     VoiceLabStoragePaths, MAX_REFERENCE_MS, MIN_REFERENCE_MS, VOICE_ACTOR_ENGINE,
     VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
 };
@@ -759,6 +760,72 @@ pub fn select_builtin_voice(
             )
         }
         Err(error) => result(false, "builtin_selection_failed", error),
+    }
+}
+
+
+#[tauri::command]
+pub fn get_voice_lab_actor_versions(after: Option<String>) -> Result<ActorVersionPage, String> {
+    actor_version_page(&storage(), after.as_deref())
+}
+
+/// Explicit opt-in restoration from a full immutable and validated actor
+/// package. Shares the existing selection lock and Meeting resource guards.
+pub fn select_archived_personal_voice_version(
+    version_id: String,
+    replace_confirmed: bool,
+) -> VoiceLabBuildActionResult {
+    if meeting_blocks_voice_change() {
+        return result(false, "meeting_active",
+            "Stop Meeting translation before switching voice versions.");
+    }
+    if voice_lab_build_blocks_meeting() || voice_lab_recording_active()
+        || super::voice_lab_preview::quick_voice_preview_active()
+    {
+        return result(false, "voice_busy",
+            "Finish recording, voice creation, or Quick Preview before switching versions.");
+    }
+    let _guard = match voice_selection_guard() {
+        Ok(guard) => guard,
+        Err(()) => return result(false, "voice_selection_unavailable",
+            "Another voice change is in progress. Try again."),
+    };
+    if meeting_blocks_voice_change()
+        || voice_lab_build_blocks_meeting()
+        || voice_lab_recording_active()
+        || super::voice_lab_preview::quick_voice_preview_active()
+    {
+        return result(false, "voice_busy",
+            "Finish the current Meeting or My Voice action before switching versions.");
+    }
+    let paths = storage();
+    if recover_selected_actor_if_missing(&paths).is_err()
+        || voice_selection_recovery_pending(&paths.saved_root)
+    {
+        return result(false, "voice_recovery_required",
+            "An earlier voice change needs recovery. Your existing voice was not replaced.");
+    }
+    let selected = &paths.approved_actor_dir;
+    if selected.exists() && !approved_voice_actor_ready(&paths) {
+        return result(false, "voice_unverified",
+            "The current Meeting voice needs recovery before a version can be restored.");
+    }
+    if !replace_confirmed {
+        return result(false, "approval_required",
+            "Confirm that you want to use this saved version for future meetings.");
+    }
+    match activate_archived_personal_voice(&paths, &version_id) {
+        Ok(()) => {
+            invalidate_required_outbound_readiness_for_voice_change();
+            match archive_selected_personal_voice(&paths) {
+                Ok(()) => result(true, "selected",
+                    "Saved voice version is now selected for meetings. Other versions were kept."),
+                Err(_) => result(true, "selected_archive_attention",
+                    "Voice version is selected, but its extra saved personal copy needs attention. The immutable version is still retained."),
+            }
+        }
+        Err(_) => result(false, "version_restore_failed",
+            "Couldn't verify or select this voice version. Check My Voice recovery status before trying again."),
     }
 }
 

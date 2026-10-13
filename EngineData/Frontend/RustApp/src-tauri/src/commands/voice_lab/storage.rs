@@ -12,6 +12,7 @@ mod recording_migration;
 mod immutable_store;
 mod dataset_history;
 mod actor_history;
+pub(crate) use actor_history::{actor_version_page, ActorVersionPage};
 pub(crate) use recording_archive::{archive_guided_take, saved_recordings_page, saved_recording_audio, SavedRecordingPage};
 pub(crate) use recording_migration::{legacy_protection_status, migrate_legacy_recordings, LegacyMigrationResult, LegacyProtectionStatus};
 
@@ -260,6 +261,45 @@ pub(crate) fn archive_selected_personal_voice(paths: &VoiceLabStoragePaths) -> R
     }
     // The staged actor was validated before the rename.
     if prev.exists() { let _ = fs::remove_dir_all(prev); }
+    Ok(())
+}
+
+/// Activate a previously immutable, validated personal actor through the
+/// SAME selected-voice compatibility path that Meeting already consumes.
+/// Caller owns the existing Meeting/recording/build selection lock.
+pub(crate) fn activate_archived_personal_voice(
+    paths: &VoiceLabStoragePaths, version_id: &str,
+) -> Result<(), String> {
+    // Verify candidate before touching any selected actor. Full weight hashes
+    // are checked again in the staged copy before atomic replacement.
+    actor_history::verify_actor_version(paths, version_id)?;
+    let selected = &paths.approved_actor_dir;
+    if selected.exists() {
+        match actor_kind(selected) {
+            ActorKind::Personal => {
+                actor_history::preserve_actor_version(paths, selected)?;
+            }
+            ActorKind::Builtin(_) => {}
+            ActorKind::Unverified => return Err("voice_lab:selected_actor_unverified".into()),
+            ActorKind::Missing => return Err("voice_lab:selected_actor_missing".into()),
+        }
+    }
+    // The existing built-in atomic swap owner cleans these paths on its next
+    // invocation. Do not let a new restore delete ambiguous earlier work.
+    for pending in [".MyVoice.builtin-next", ".MyVoice.builtin-previous",
+                    ".MyVoice.next", ".MyVoice.previous"] {
+        if paths.saved_root.join(pending).exists() {
+            return Err("voice_lab:version_restore_recovery_required".into());
+        }
+    }
+    super::super::builtin_voice::replace_directory_atomically(selected, |staging| {
+        actor_history::prepare_version_for_activation(paths, version_id, staging)
+    })?;
+    if validate_actor_package(selected).is_err() {
+        // A successful file swap with an unreadable selected package is not a
+        // confirmed success. The old personal version remains preserved.
+        return Err("voice_lab:version_selected_integrity_unverified".into());
+    }
     Ok(())
 }
 
