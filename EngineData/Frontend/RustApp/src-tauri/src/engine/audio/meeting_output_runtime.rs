@@ -24,6 +24,7 @@ const FUNCTIONAL_OUTPUT_PROBE_TIMEOUT_MS: u64 = 2_000;
 const FUNCTIONAL_OUTPUT_PROBE_FRAMES: usize = 128;
 pub(crate) const MAX_DELIVERY_DEADLINE_MS: u64 = 120_000;
 const MIN_DELIVERY_DEADLINE_MS: u64 = 10_000;
+const DELIVERY_CANCEL_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 fn current_unix_ms() -> u128 {
     SystemTime::now()
@@ -427,6 +428,35 @@ pub fn cancel_meeting_output_for_generation(generation: u64) -> bool {
     true
 }
 
+// Native callbacks normally signal completion. If a device stops invoking
+// callbacks after Stop, wait in short, bounded slices so a generation revoke
+// can release the playback consumer without exhausting the WAV deadline.
+// Returning Timeout for cancellation is intentional: the caller's cancellation
+// flag / revoked generation owns the final blocker classification.
+fn wait_for_output_completion(
+    receiver: &mpsc::Receiver<Duration>,
+    deadline: Duration,
+    mut cancelled: impl FnMut() -> bool,
+) -> Result<Duration, mpsc::RecvTimeoutError> {
+    let started = Instant::now();
+    loop {
+        if cancelled() {
+            return Err(mpsc::RecvTimeoutError::Timeout);
+        }
+        let remaining = deadline.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return Err(mpsc::RecvTimeoutError::Timeout);
+        }
+        match receiver.recv_timeout(remaining.min(DELIVERY_CANCEL_POLL_INTERVAL)) {
+            Ok(tail) => return Ok(tail),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(mpsc::RecvTimeoutError::Disconnected);
+            }
+        }
+    }
+}
+
 fn blocked(blocker: &str, execution_attempted: bool) -> MeetingOutputDeliveryReport {
     MeetingOutputDeliveryReport {
         ok: false,
@@ -524,7 +554,12 @@ pub fn deliver_meeting_output_wav(
         config.channels,
         config.sample_rate.0,
     ));
-    let completion = completion_rx.recv_timeout(deadline);
+    let completion = wait_for_output_completion(&completion_rx, deadline, || {
+        if !runtime_generation_is_authoritative(generation) {
+            cancel_requested.store(true, Ordering::Release);
+        }
+        cancel_requested.load(Ordering::Acquire)
+    });
     let callback_error = callback_errors
         .lock()
         .ok()
@@ -591,9 +626,54 @@ pub fn deliver_meeting_output_wav(
 mod tests {
     use super::{
         decode_wav_bytes, delivery_deadline_ms, prepare_output_samples, projected_unix_ms,
-        stream_start_to_first_audio_ms,
+        stream_start_to_first_audio_ms, wait_for_output_completion,
     };
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc;
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn cancelled_output_wait_does_not_require_native_callback_to_wake() {
+        // Keep sender alive: simulates a CPAL stream whose callback stopped
+        // without signalling completion or disconnecting its channel.
+        let (_tx, rx) = mpsc::sync_channel::<Duration>(1);
+        let revoked = AtomicBool::new(false);
+        let mut checks = 0;
+        let result = wait_for_output_completion(
+            &rx,
+            Duration::from_secs(1),
+            || {
+                checks += 1;
+                if checks == 2 {
+                    revoked.store(true, Ordering::Release);
+                }
+                revoked.load(Ordering::Acquire)
+            },
+        );
+        assert!(matches!(result, Err(mpsc::RecvTimeoutError::Timeout)));
+        assert_eq!(checks, 2);
+    }
+
+    #[test]
+    fn output_wait_preserves_completion_disconnect_and_deadline_contract() {
+        let (tx, rx) = mpsc::sync_channel(1);
+        tx.try_send(Duration::from_millis(12)).unwrap();
+        assert_eq!(
+            wait_for_output_completion(&rx, Duration::from_secs(1), || false),
+            Ok(Duration::from_millis(12)),
+        );
+        drop(tx);
+        assert_eq!(
+            wait_for_output_completion(&rx, Duration::from_secs(1), || false),
+            Err(mpsc::RecvTimeoutError::Disconnected),
+        );
+
+        let (_pending_tx, pending_rx) = mpsc::sync_channel::<Duration>(1);
+        assert_eq!(
+            wait_for_output_completion(&pending_rx, Duration::ZERO, || false),
+            Err(mpsc::RecvTimeoutError::Timeout),
+        );
+    }
 
     #[test]
     fn stream_start_timing_uses_monotonic_time_and_has_no_synthetic_success() {

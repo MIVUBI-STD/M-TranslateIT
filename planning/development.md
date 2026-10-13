@@ -1,3 +1,13 @@
+## Active continuation — Native output Stop wait responsiveness (2026-10-13)
+
+**Confirmed source issue:** `meeting_output_runtime.rs` previously called `completion_rx.recv_timeout(deadline)` once for a delivery deadline up to 120 seconds. If Stop revoked authority or set the native cancellation flag after CPAL output callbacks stopped, no callback necessarily sent a completion message; the playback consumer could remain blocked until the full deadline and `stop_meeting_playback_runtime` synchronously joined that thread.
+
+**Bounded source fix:** In the existing native output owner only, replace that one blocking receive with a monotonic-deadline receive loop using 25-ms maximum slices and a cancellation/generation check between slices. On generation revocation, set the existing cancellation flag. Preserve completion signal, channel-disconnect and delivery-deadline semantics, native sample copy, single playback consumer, queue bounds, and final-WAV pipeline. Two authored deterministic Rust tests cover absent callbacks with cancellation, normal completion, disconnection and zero deadline. No new service, thread, queue, model, mode, or platform dependency.
+
+**REA-style proof ceiling:** Exact Local native output / Stop / playback consumer call-chain source trace; `STATIC_SOURCE` and authored tests only. Cargo tests, actual callback stall and thread join timings, Windows/CPAL stream teardown, GPU, remote receiver behavior, and REA executable/MCP are **NOT EXECUTED**. This reduces the source-level maximum *channel wait after observed cancellation*; it does not prove bounded OS stream drop, thread scheduling, tail sleep, nor end-to-end Stop latency.
+
+**Single next step:** Review remaining synchronous shutdown boundaries for concrete cancellation gaps; stop adding patches when no source-proven defect remains and reserve one integrated target-Windows acceptance for performance claims.
+
 ## Active continuation — Normal Stop native audio cancellation truth (2026-10-13)
 
 **Confirmed source defect:** `stop_meeting_translation_impl()` discarded the return value of `cancel_meeting_output_for_generation()`. Unlike failed-Start rollback, it could clear session ownership and claim complete Stop even when the native cancellation control lock could not be acquired and cancellation was therefore unverified.
