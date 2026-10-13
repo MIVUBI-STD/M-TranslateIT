@@ -1,201 +1,29 @@
-## Active continuation — Stale incoming consumer dequeue isolation (2026-10-13)
+# Active development — Meeting V2 Phase 0: baseline admission (2026-10-13)
 
-**Confirmed source defect:** `take_due_deferred_incoming(session_id, now)` removed foreign-session head entries without checking that its caller still owned a Live incoming Meeting. The old incoming consumer invokes this from `drain_due_deferred_incoming` before its own eligibility check. A revoked consumer could therefore discard work of a newer Meeting.
+**State:** SOURCE_CANDIDATE; implementation freeze for speculative streaming. This document owns only the active continuation and one next step. Historical 2026-10-12/13 batch explanations remain in Git commits, not as concurrent “Active continuation” instructions.
 
-**Minimal change:** Preserve the existing single bounded deferred queue, original FIFO/age eviction and per-session Stop cleanup. The production dequeue now requires a non-empty, currently eligible Meeting session under the existing queue mutex before reading or removing jobs. A current consumer may still retire foreign or expired backlog; a revoked consumer leaves the queue and drop counters unchanged. Reuse `incoming_session_is_eligible` rather than introducing new state, worker, manager, lease or timer.
+**Authority:** `MIVUBI-STD/M-TranslateIT`, branch `Local`. Source review baseline before this consolidation: `f7ed311e94bc9f87535b04a27f5dc797d8c2ec26`. Re-pin the exact `Local` HEAD for any later execution; no ancestor test result certifies a modified SHA.
 
-**Authored checks:** The existing serialized queue regression supplies explicit allowed/denied admission to the same dequeue algorithm, proving in source the intended distinction between stale caller and legitimate foreign backlog cleanup. Authored negative case checks unchanged queue depth and stale-drop counter, plus successful current-session dequeue. `STATIC_SOURCE` review only: Cargo execution, REA CLI/MCP, concurrent native behavior, Windows audio/GPU and remote meeting reception **NOT EXECUTED**.
+**Goal:** Establish a falsifiable, source-consistent baseline for safe Meeting V2 work before an audio-pipeline production cutover. Preserve the current Windows local-first Indonesian ↔ English product, one Tauri/Rust Meeting owner, one Python AI worker and one shared GPU scheduler. Do not add a parallel engine, new AI provider, hosted CI, cloud fallback, UI streaming controls, or duplicate test infrastructure.
 
-**Single next step:** Inspect one further high-impact source-owner issue only if directly justified; otherwise freeze source experiments and retain integrated compiler/Windows acceptance as the next higher proof gate.
+## Current source truth
 
-## Active continuation — Session-scoped deferred incoming Stop cleanup (2026-10-13)
+- **Production Meeting remains finalized-utterance only:** physical microphone → VAD/finalized source → Faster Whisper → MiLMMT → GPT-SoVITS complete WAV → native output/virtual microphone. Incoming English→Indonesian remains optional text; outbound takes priority.
+- **Source hardening candidates already landed:** Meeting Start/Stop ownership and cleanup, session-scoped deferred incoming and producer cleanup, stale-job rejection, cancellation checks, source-first transcripts and explicit bounded manual export. These code paths have not received matching executable regression acceptance after the source changes.
+- **Experimental only:** bounded PCM handoff/replay, ASR source-observation and semantic eligibility are `#[cfg(test)]` Rust modules; alignment-probe input is opt-in. No partial transcript may authorize progressive translation or speech playback yet.
+- **A VAD metadata flag is not runtime proof:** `partial_asr_enabled` is declared in a profile but does not activate a production partial-ASR inference path.
+- **Source-observed limitations:** uninterrupted utterances exceeding 60 seconds are discarded by the current finalized buffer; production callback synchronization/allocation needs measured safety; the single nonpreemptive helper scheduler exposes waits but cannot guarantee low conversation latency. Do not present these as resolved by unexecuted prototypes.
+- **Benchmark reference:** documented Gemini 3.5 Live Translation streaming behavior is a comparison target, not evidence of its proprietary model internals or of TranslateIT equivalence. Use existing [REA investigation guidance](../docs/knowledge/operations/rea-investigation.md) only when an authorized, specific external evidence question requires it; the REA CLI/MCP has not been executed for this baseline.
 
-**Confirmed source defect:** `stop_meeting_incoming_consumer(session_id)` called `clear_deferred_incoming_queue()`, which drained **all** waiting incoming jobs before checking consumer session ownership. A late Stop for an older Meeting could evict a newer session's deferred ASR/translation work. Jobs already carry `session_id`; no new queue owner is necessary.
+## Proof and acceptance boundary
 
-**Scoped implementation:** Reuse the single bounded deferred queue. Add a session-filtered removal under the existing queue mutex; preserve other sessions' jobs and FIFO order, and clean only removed jobs after releasing the mutex. The consumer Stop now calls the filtered function with its existing `session_id`. The original global clear remains available for the no-active-session Stop path. Reject an empty scoped session ID, and keep existing cleanup-failure reporting. One local-queue Rust fixture covers interleaved sessions, retry idempotency, nonmatching removal, and retained ordering.
+- Latest recorded integrated developer execution is on `230ca94faae178659a7738fa82399485c267c991`: existing frontend/Rust/Python source tests and limited worker/UI smoke completed as described in [Current Validation](../docs/knowledge/current-validation.md). It does **not** certify the 44 subsequent source commits up to the pre-consolidation baseline.
+- Current proof ceiling: **STATIC_SOURCE** for these later revisions. Matching Cargo/frontend/worker tests, real ASR timing, microphone/virtual-mic routing, browser receiver, latency P50/P95, VRAM, 30-minute endurance, installed release and REA executable are **NOT EXECUTED**.
+- The existing [Meeting V2 implementation plan](./meeting-v2-implementation-plan.md) owns future technical batches and risk-specific regressions. The [target-Windows runbook](../docs/knowledge/operations/target-windows-performance.md) owns one coordinated executable acceptance; do not multiply checklists here.
+- Promotion requires a clean exact-SHA build, relevant existing tests, controlled long-speech/Stop/queue/audio-failure scenarios and real receiver/semantic-quality measurements. Keep finalized output as the control until a candidate meets the existing release/quality gates.
 
-**Evidence / REA limits:** Exact `Local` source inspection of queue owner, caller and no-session cleanup contract; `STATIC_SOURCE` with regression authored only. Actual REA MCP/CLI, Cargo tests, concurrency timing, Windows audio, model output, and remote Meeting receiver are **NOT EXECUTED**. Other queue consumers (including the existing foreign-job eviction path in `take_due_deferred_incoming`) are not certified by this scoped Stop fix.
+## Single next step
 
-**Single next step:** Audit whether an old incoming consumer's `take_due_deferred_incoming` can discard newer-session jobs. Only patch when the concrete call sequence supports it; no extra queue, manager, or speculative framework.
+**Admit one pinned `Local` source candidate to the existing integrated local build-and-Meeting baseline gate** (frontend, Rust and worker checks first; then target-Windows/RTX 3070/audio receiver and latency if the source gate passes). Treat any unavailable execution as `NOT EXECUTED`; do not request incremental per-commit tests or dispatch hosted workflows. Use the results to select the first independently evidenced Phase 1 correction, prioritizing long-utterance loss and audio callback stability.
 
-## Active continuation — Session-scoped finalized audio producer cleanup (2026-10-13)
-
-**Confirmed source defect:** The consumer Stop functions cleared finalized outbound/incoming VAD producers *before* checking whether the consumer belonged to the requested Meeting. Delayed stale Stop could therefore remove the next Meeting's producer. Incoming is keyed by session, outbound by generation; producers already store both owners.
-
-**Bounded repair:** In the canonical `finalized_utterance.rs` owner, introduce generation-bound outbound and session-bound incoming cleanup, with identity comparison and state clear under the **same existing mutex**. The two existing consumer Stop callsites now use scoped clearing, propagate poisoned-producer-lock failure in their cleanup result, and keep existing consumer join / deferred-queue behavior. Other intentional global capture reset paths stay unchanged. A deterministic local-producer Rust fixture exercises stale and matching generation/session across both lanes without touching global VAD state. No new producer, supervisor, storage, worker or transport.
-
-**REA-style evidence ceiling:** Actual `Local` producer/consumer source mapping, exact identity contract and regression fixture authored (`STATIC_SOURCE`). REA executable/MCP inspection, Cargo compilation/test execution, Windows callbacks, simultaneous cross-session Stop, RTX GPU and meeting receiver are **NOT EXECUTED**. This correction does NOT establish isolation of other cleanup owners; the incoming deferred queue and Meeting Sound capture must be assessed separately, not silently treated as fixed.
-
-**Single next step:** Source-check whether delayed incoming Stop can clear another session's deferred queue; implement only an independently demonstrated narrow ownership fix, or stop if no issue. Integrated Windows acceptance remains the runtime proof gate.
-
-## Active continuation — Stop regression fixture isolation (2026-10-13)
-
-**Confirmed test defect:** The repeated-Stop transcript regression modified the canonical singleton active/last-ended stores without acquiring the already available `runtime_test_guard`, and restored state only after its final assertion. A failed assertion could leak fixture data into other tests, undermining regression reliability. This is an authoring/test-isolation issue, not a newly observed production data-loss bug.
-
-**Minimal repair:** Keep the existing production transcript logic untouched. In its existing Rust test, acquire the shared `runtime_test_guard` and restore both stores via a small test-local `Drop` guard, including on assertion panic. Take both previous values while both singleton locks are held, then release them before testing. No new product state, helper worker, session manager, CI workflow or dependency.
-
-**Evidence ceiling:** Review of exact `Local` test and canonical shared-runtime test guard; `STATIC_SOURCE` only. Cargo/unit tests, REA executable, native Windows/Meet and actual parallel test scheduling remain **NOT EXECUTED**. Guard discipline applies to test fixtures opting into this lock; it does not prove all future tests are race-free.
-
-**Single next step:** Audit a separate concrete Stop/recovery source defect only if observable from actual owners; otherwise preserve the integrated local acceptance gate rather than expanding test infrastructure.
-
-## Active continuation — Preserve active Meeting turns if Stop archive fails (2026-10-13)
-
-**Confirmed source defect:** `stop_meeting_translation_impl` first calls `retain_committed_turns_for_export`, but previously always called `clear_committed_turns_for_session` even if retention failed. The Stop correctly reported `cleanup_incomplete` yet could destroy the only available unexported transcript before the user retried Stop.
-
-**Bounded repair:** In the existing Meeting lifecycle owner, active-transcript cleanup is now conditional on successful last-session retention. When archive retention fails, the revoked session remains in cleanup-incomplete state and its active turns remain available for a later retry; other capture, worker, playback and temporary audio cleanup continue normally. A small closure-based guard is used by the actual Stop path and tested with a deterministic failing-archive fixture, without changing global transcript test state. No new store, provider, manager, background persistence or UI.
-
-**Source/REA evidence:** Exact `Local` call-chain inspection through `lifecycle.rs` and the existing `committed_turns.rs` lock-failure contract. Regression test authored only. `STATIC_SOURCE` verified; Rust compiler/tests, actual lock failure/retry, REA CLI/MCP, Windows/GPU/audio, receiver and export UI **NOT EXECUTED**.
-
-**Next:** Review source admission of cleanup retries and recoverability of other Meeting resources. Stop source changes when no independent concrete defect is shown; preserve a single integrated local acceptance phase for runtime proof.
-
-## Active continuation — Idempotent Stop preserves last Meeting transcript (2026-10-13)
-
-**Confirmed source defect:** The normal Stop retains the last-ended Meeting transcript for manual export, but the no-session/idempotent Stop path called `clear_all_committed_turns()`, which erased both active turns and `LAST_ENDED_MEETING_TRANSCRIPT`. A second Stop therefore silently deleted the only available unexported recent transcript. `transcript_export.rs` explicitly expects active **or recently ended** Meeting records.
-
-**Bounded correction:** Rename the existing no-session cleanup to `clear_inactive_committed_turns()` and remove its unrelated archive deletion. Stop with no active session still clears orphaned active memory, while the existing canonical `reset_committed_turns()` on **next Start** remains the only planned last-ended archive reset. No new transcript store, automatic persistence, background export, new UI or dependency. One authored regression reproduces successful Stop + repeated no-session Stop and checks the source/translated text remains available in the retained archive.
-
-**REA evidence boundary:** Source-only tracing through `lifecycle.rs`, `committed_turns.rs` and `transcript_export.rs` established the contradiction. `STATIC_SOURCE` and authored Rust test only; REA binary/MCP, Cargo/unit-test execution, Windows app, TTS, GPU and actual export UI remain **NOT EXECUTED**. The last-ended transcript is still bounded, volatile and replaced on the next Start, not durable disk history.
-
-**Next:** Continue targeted source review of teardown paths. Do not implement speculative thread managers or persistent stores unless a new independently proven defect requires it; reserve native behavior for integrated Windows acceptance.
-
-## Active continuation — Native output Stop wait responsiveness (2026-10-13)
-
-**Confirmed source issue:** `meeting_output_runtime.rs` previously called `completion_rx.recv_timeout(deadline)` once for a delivery deadline up to 120 seconds. If Stop revoked authority or set the native cancellation flag after CPAL output callbacks stopped, no callback necessarily sent a completion message; the playback consumer could remain blocked until the full deadline and `stop_meeting_playback_runtime` synchronously joined that thread.
-
-**Bounded source fix:** In the existing native output owner only, replace that one blocking receive with a monotonic-deadline receive loop using 25-ms maximum slices and a cancellation/generation check between slices. On generation revocation, set the existing cancellation flag. Preserve completion signal, channel-disconnect and delivery-deadline semantics, native sample copy, single playback consumer, queue bounds, and final-WAV pipeline. Two authored deterministic Rust tests cover absent callbacks with cancellation, normal completion, disconnection and zero deadline. No new service, thread, queue, model, mode, or platform dependency.
-
-**REA-style proof ceiling:** Exact Local native output / Stop / playback consumer call-chain source trace; `STATIC_SOURCE` and authored tests only. Cargo tests, actual callback stall and thread join timings, Windows/CPAL stream teardown, GPU, remote receiver behavior, and REA executable/MCP are **NOT EXECUTED**. This reduces the source-level maximum *channel wait after observed cancellation*; it does not prove bounded OS stream drop, thread scheduling, tail sleep, nor end-to-end Stop latency.
-
-**Single next step:** Review remaining synchronous shutdown boundaries for concrete cancellation gaps; stop adding patches when no source-proven defect remains and reserve one integrated target-Windows acceptance for performance claims.
-
-## Active continuation — Normal Stop native audio cancellation truth (2026-10-13)
-
-**Confirmed source defect:** `stop_meeting_translation_impl()` discarded the return value of `cancel_meeting_output_for_generation()`. Unlike failed-Start rollback, it could clear session ownership and claim complete Stop even when the native cancellation control lock could not be acquired and cancellation was therefore unverified.
-
-**Bounded correction:** Extend the existing `meeting_cleanup_complete` contract to include output cancellation as a required boolean for both Starting rollback and normal Stop; normal Stop records the actual returned value, names this missing proof in its `cleanup_incomplete` reason and retains the revoked generation for explicit retry. Existing cleanup state, helper/consumer joins, generation-bound native playback and session ownership are preserved. The original cleanup truth regression matrix now also checks native cancellation failure. No new manager, worker, queue, timeout, scheduler, provider or UI mode.
-
-**Source evidence / REA principle:** Compared exact `Local` callsites and the native `cancel_meeting_output_for_generation` false-on-lock-failure contract; prepared positive/negative Rust cleanup assertions. `STATIC_SOURCE` only: Rust compilation/test execution, hardware callback behavior, simultaneous Stop/playback races, REA binary/MCP use, Windows/GPU and meeting receiver are **NOT EXECUTED**. Returning true confirms only the native cancellation control request was admitted (or no matching control existed), not receiver silence.
-
-**Next step:** Continue with a read-only, evidence-bounded Stop/queue audit. Defer further changes if only hypothetical races remain; preserve integrated local test as the only native proof gate.
-
-## Active continuation — Scoped helper Stop protects newer Meeting priority (2026-10-13)
-
-**Confirmed source defect:** `cancel_helper_bridge_meeting_session(session_id)` unconditionally invoked `clear_any_meeting_outbound_pipeline()` before checking the requested session. A stale or foreign session's Stop could therefore remove the current outbound priority marker even if its in-flight helper did not belong to that request.
-
-**Bounded source fix:** Keep the existing single atomic Meeting outbound marker and existing generation-scoped compare-exchange release. The Stop path now derives the cancellation generation from the currently retained Meeting session snapshot only when the session ID and Meeting owner match; stale/empty/foreign-session requests cannot clear another generation's marker. App-wide helper shutdown/start semantics still own `clear_any` and remain unchanged. A Rust regression test covers matching, stale, empty, wrong-owner and zero-generation identity. No new scheduler, worker, retry loop, state manager, dependency, API, or UI.
-
-**REA-style evidence:** Exact Local source tracing of cancellation, current-session authority and `AtomicU64` generation CAS, with a deterministic authored identity regression. `STATIC_SOURCE` only: Cargo execution, concurrency fault injection, GPU/Windows/Meeting receiver and REA executable analysis are **NOT EXECUTED**. No claim that every possible shutdown race is eliminated.
-
-**Single next step:** Continue examining the remaining outbound enqueue/Stop race only if concrete source evidence warrants a further patch. Preserve existing finalized speech and one canonical helper scheduler.
-
-## Active continuation — Production Meeting Starting rollback safety (2026-10-13)
-
-**Confirmed source defect:** `meeting_session/lifecycle.rs` previously ignored microphone, optional sound-capture, helper, outbound/playback consumer, suppression and transcript cleanup results during failed `Starting`, then unconditionally attempted to clear the Meeting session. Some Start failure messages unconditionally claimed "rolled back safely" although native cleanup was unknown.
-
-**Bounded source fix:** Reuse the existing `meeting_cleanup_complete` and revoked-session `mark_runtime_session_cleanup_incomplete`/retry-Stop mechanisms. Starting rollback now checks output cancellation, both capture stops, helper cancellation, outbound/playback shutdown, suppression/transcript release and session-owned temporary WAV/TTS cleanup. It releases Meeting ownership only when every check passed and matching-generation clear was confirmed; otherwise it retains/blocks the previous generation, marks cleanup incomplete and reports retry-Stop truthfully. No new worker, manager, model, user mode or streaming behavior. One Rust regression test exercises the exact cleanup decision used in production, including each individual failed requirement.
-
-**Evidence/REA:** Exact `Local` source comparison of failed-Start rollback versus the normal Stop path and public method contracts is **STATIC_SOURCE** only. REA executable/MCP, Cargo compilation/tests, actual concurrency/race reproduction, Windows/CPAL, GPU, Meet receiver, and long-session acceptance are **NOT EXECUTED**. The patch is a source candidate, not a proven runtime cleanup improvement.
-
-**Next:** Continue source-only audit of one distinct high-impact Meeting failure boundary. Change code only on an independently demonstrated defect; hold speculative streaming and model optimizations until the single integrated local acceptance phase.
-
-## Active continuation — Batch C.3 bounded estimated ASR timing validation (2026-10-13)
-
-**Source candidate:** Extended only the existing Rust `meeting_session/source_observations.rs`, a `#[cfg(test)]` module, with a pure validator for C.2 opt-in word samples. It checks the exact active session/generation/lane/speech/audio epoch, latest revision, observed ASR window and frame count, bounded ordered word estimates, whitespace-normalized ASR transcript, and existing producer-supplied capture clock. Results are estimated capture-coordinate ranges only, **never `SourceSpanId` or a speech/translation commit permission**. No new worker, API task, model, pipeline, UI, dependency or production behavior. Two regression tests cover matching mapping and stale/misbound/malformed evidence.
-
-**REA-style source verification:** Reviewed exact `Local` code and existing Faster Whisper word-timing contract. This is static source consistency, not actual REA CLI/MCP execution. Rust tests, actual model/word timestamp accuracy, Windows/GPU/audio, latency, and human semantic review are **NOT EXECUTED**. Matching text and sample ranges alone cannot prove a word truly occurred at that audio time.
-
-**Anti-overdevelopment STOP:** Do not implement speculative partial clause commit, streamed TTS or further adapters before a matching compiler test and real Faster Whisper output on controlled WAV. Keep the production finalized-utterance path unchanged.
-
-**Single next step:** Use the coordinated local acceptance phase to run the pinned Rust/Python suites and one model-backed word-timing fixture; accept further partial-clause development only if the measured results warrant it.
-
-## Active continuation — Batch C.2 opt-in ASR alignment observations (2026-10-13)
-
-**Source candidate:** The existing Faster Whisper worker exposes an explicit `alignment_probe=true` on its existing `transcribe` task. This is a **developer observation path only**, requiring VAD disabled plus an exact, fully readable PCM16 mono 16 kHz WAV of at most 60 seconds. It returns bounded model-estimated word times in 16 kHz sample coordinates only when every range is finite, positive, ordered and inside the observed WAV and reconstructed words match the transcript. A malformed, overlapping, missing, truncated or mismatched observation fails closed. Normal Meeting requests do not enable the flag; the canonical finalized ASR → MiLMMT → GPT-SoVITS production path is unchanged. Estimates are NOT verified phoneme, word, clause, semantic or native-capture boundaries.
-
-**REA source/evidence boundary:** Upstream Faster Whisper `transcribe.py` on `SYSTRAN/faster-whisper` at `a52b026ac844c02117865e61968547639b60a6f8` documents `word_timestamps` and timestamp restoration. This is STATIC_SOURCE reference only; no REA CLI/MCP target, installed model, GPU, binary, runtime or competitor capture was inspected. Authored pytest cases exercise default-path nonactivation, valid shapes, invalid opt-in, WAV integrity, time bounds, overlaps and text divergence; they are **NOT EXECUTED**. Nothing in this batch proves word timing accuracy, delivered speech, latency or end-to-end streaming.
-
-**Remaining evidence:** ASR model-estimated times must be checked against known source/audio epoch and stable transcript revision using the existing Rust `source_observations.rs` owner, with explicit unverified/uncertain timing semantics. No progressive translation/voice commit is authorized by the worker response.
-
-**Single next step:** In test-only Rust source observations, consume the new opt-in word ranges as unverified evidence with strict window/revision/epoch binding and reject inconsistent spans. Keep `interpreter_policy.rs` nonfinal output at `WAIT` until semantic human review and target-Windows evaluation.
-
-## Active continuation — Batch C.1 semantic source eligibility (2026-10-13)
-
-**Source candidate:** A test-only pure `meeting_session/interpreter_policy.rs` now consumes the bounded `StableTextCandidate` result and requires a matching session/generation/lane/speech/audio-epoch scope and current revision. The existing ASR candidate now carries its scope EVEN for nonfinal stable prefixes. Advisory Indonesian tail checks identify plainly open negation/conditional/repair/connective forms, but punctuation, two ASR agreements and lag NEVER certify translation safety. All nonfinal prefixes remain `WAIT` because there is no verified word-to-audio span. A finalized whole window with matching producer-aligned span may return `COMMIT_READY` as a candidate only; this module does not mutate transcript, perform MiLMMT/TTS, or change production finalized-utterance behavior. No model or UI addition.
-
-**Evidence:** Exact GitHub source review and five bounded Rust behavior scenarios authored. Cargo, Windows/GPU/audio, receiver, human semantic-quality and long-meeting checks remain **NOT EXECUTED**. Deterministic lexical hints cannot prove meaning, avoid hallucinations, or replace human quality review.
-
-**Unresolved:** Audio-aligned partial clause boundaries, explicit incremental ASR worker observations, human fidelity comparisons for revisions/negation/numbers, and live eligibility/commit authority. No partial speech should be admitted without those gates.
-
-**Single next step:** Specify and implement the minimum source-to-audio clause-boundary evidence from ASR for progressive units, not heuristic word timestamps; retain the existing finalized path until native acceptance.
-
-
-## Active continuation — Batch A source and delivery authority (2026-10-12)
-
-**Source candidate on Local:** The existing Meeting turn store now treats source insertion as a one-time pipeline admission, rejects duplicate sequences or lane/generation/utterance identities, and retains a compact retired-sequence fence when old transcripts are evicted. It checks the live canonical session before source insertion. The outbound path now requires a successful queued transition after translation lock and playback atomically claims the exact session/generation/sequence/utterance before native delivery. No new worker, engine, model, or UI; finalized-utterance production remains the only enabled path.
-
-**Evidence ceiling:** Authored Rust regressions and exact-source review only. Cargo tests/build, Windows CPAL/VRAM, voice and meeting receiver checks are **NOT EXECUTED**. No measured latency or full Stop/capture atomicity claim.
-
-**Unresolved:** This Batch A slice protects current finalized-turn identities, not future sample-level SourceSpanId/audio-epoch/revision ownership. Streaming alignment, revision checks and end-to-end integrated proof remain pending. PCM handoff stays test-only.
-
-**Single next step:** Implement bounded source-span/epoch/revision observations as one cohesive source candidate; do not activate streaming until integrated acceptance. No hosted CI or incremental user-PC tests.
-
-## Active continuation — PCM consumer ownership and shutdown proof (2026-10-12)
-
-**Source candidate:** A PCM handoff now atomically reserves one CPU consumer before thread spawn, rejects duplicates, and releases reservation if OS thread spawn fails. A timed-out worker cannot be replaced by a second consumer; Stop also erases the buffer even when its mutex was poisoned. This change stays test-only and reuses canonical VAD and the same Meeting design. No new engine, model, UI, runtime dependency, or production CPAL routing.
-
-**Authored regressions (not executed):** consumer claim/reclaim after failed spawn, duplicate start while a worker is deliberately blocked, start denial after Stop timeout, and poisoned-mutex audio erasure. **Exact Local source inspection only. Cargo compile/tests, target Windows GPU/audio, VB-CABLE and meeting receiver checks remain NOT EXECUTED.**
-
-**Single next step:** compile/run targeted Rust PCM/VAD tests on one exact-SHA Local checkout in the integrated acceptance phase, then resolve observed failures before any reversible CPAL production cutover. Do not dispatch hosted CI or request incremental user-PC tests.
-
-## Meeting V2 Batch 2A.2 — VAD callback contention observation (2026-10-12)
-
-**Change:** the existing producer records callback lock-admission count and maximum wait in nanoseconds for You/incoming separately. Explicit support export includes four numeric aggregates only. It does not capture raw audio or transcript data and does not change the scheduler, output delivery, VAD thresholds or wait behavior. **It is not a fully nonblocking callback solution.** Observation overhead itself requires target-PC validation.
-
-**Evidence ceiling:** source candidates and assertions only, no executable compilation/Windows model or browser proof.
-
-## Meeting V2 Batch 2A — safer hot path without streaming takeover (2026-10-12)
-
-**Change:** existing VAD pre-roll ring evicts BEFORE pushing, so it can remain within its preallocated capacity even when callback blocks exceed the pre-roll length. Incoming Windows loopback F32 stereo downmix reuses callback-owned `Vec<f32>` instead of allocating a new mono vector each callback. Suppression no longer takes a VAD mutex for *every suppressed frame*: the canonical playback suppression owner already resets the incoming boundary both when starting and ending self-output suppression. Existing user-visible behavior, VAD thresholds, output routing, scheduler and TTS remain unchanged.
-
-**Evidence ceiling:** Rust deterministic unit tests added for pre-roll capacity, last-tail retention, sanitized samples and stereo downmix scratch reuse; source read only, not cargo-built on Windows/GPU. This is an incremental hot-path improvement, **not** a fully nonblocking callback: active producer and diagnostic buffers still use locks, and other incoming sample formats use the existing conversion path. Do not claim a latency improvement yet.
-
-**Next Batch 2B:** isolate VAD and callback-expensive resampling behind a bounded, preallocated PCM handoff with explicit overflow and session-generation cancellation; measure results with a deterministic replay harness before routing production capture through it. Persistent playback must remain a separate A/B candidate; do not conflate it with capture stability.
-
-## Meeting V2 Batch 1B — bounded full-session manual export (2026-10-12)
-
-**Source candidate:** one existing canonical in-memory turn store retains up to 4,096 phrases and 8 MiB of text (whichever is reached first). Live and last-session review still expose at most 240 recent phrases to keep webview work bounded. Manual MD/TXT exports use the entire retained session without silently treating hidden UI phrases as lost. Exports continue to be explicit, session-scoped and never persisted automatically.
-
-**Hard retention truth:** if actual session bounds are exceeded, oldest turns are evicted and counted as unrecoverable; export reports truncation. This is a bounded 32 GB RAM design, **not** guaranteed unlimited recordings. Continuous streaming audio and long-unbroken speech segmentation remain separate work items.
-
-**Verification ceiling:** Rust retention tests and frontend contract added; build/runtime tests not executed yet.
-
-## Meeting V2 Batch 1A — Source-first transcript and deferred cleanup (2026-10-12)
-
-**Candidate:** canonical Meeting turn store now represents pending/translated/failed translation separately from playback. Incoming and outgoing recognized source is stored before model translation. Invalid output retains original source and displays "Translation unavailable". Stop invalidates pending work; all async completion checks session, generation and utterance identity.
-
-**Incoming deferral:** queue expiry/overflow/rejected jobs are cleaned outside queue mutex; an already-recognized transcript is marked failed instead of left forever pending. Existing bounded age, admission limit and outbound precedence stay intact.
-
-**Proof ceiling:** source code plus Rust and TS tests added, but neither compiler nor local model/RTX 3070/browser have been run. The separate Batch 1B change above now keeps a larger bounded full session for manual export while limiting the UI to 240 recent turns. No new model, streaming worker, scheduler, GPU setting or UI mode added.
-
-## Meeting V2 — Source-first implementation continuation (2026-10-12)
-
-**New plan:** [Meeting V2 Implementation Plan](./meeting-v2-implementation-plan.md). The user's PC is not currently available; build source and deterministic regression safety before any hardware-specific promotion. Preserve one Meeting Start/Stop flow and one RTX 3070 GPU scheduler. Next: Batch 0 (remove inert incoming style, audit capture callback blocking) then Batch 1 (reliable capture and source-first transcript state). No latency/VRAM improvement is claimed before Windows execution.
-
-## Meeting Performance Foundation — hardware-specific instrumentation (2026-10-12)
-
-**Scope:** adds source-only, numeric, redacted measurement for VAD-estimated speech onset/end to first native audio, helper scheduler wait by ASR/translation/TTS, and CPAL stream-build/start overhead. The production models, GPU concurrency, audio routing, VAD thresholds, and final-utterance flow remain unchanged. Device: RTX 3070 8 GB + i7-14700-class CPU + 32 GB RAM, without a usable iGPU.
-
-**Do not overclaim:** the existing `outbound_latency_ms` is post-finalization; onset/end values are approximate, and the first native callback is not proof the Google Meet receiver heard translated speech. Real VRAM/CPU/Chrome GPU load require target Windows instruments. No native or build result yet on this revision.
-
-**Admission sequence:** matching source/typecheck/Rust/Python tests → one pinned Windows real-Meet baseline with 10–20 phrases → cold/warm, P50/P95, Chrome active + nvidia-smi/Task Manager VRAM peaks → at least five Start/Stop cycles and 30-minute stability → evaluate one change at a time against baseline; do not start speculative streaming.
-
-## Meeting transcript refinement — 2026-10-12
-
-**Decision:** use WhatsApp-like left/right transcript presentation, `You` for microphone turns on the right and `Person 1` on the left for the **single combined incoming lane**. This is **not** speaker diarization and must not infer identities or separate different participants without actual speaker evidence. Display local recorded time and a readable session date/time; retain original and translation as separate fields. One reusable bubble component renders Live and Last Meeting.
-
-**Manual export policy:** every Meeting already has a distinct runtime session ID, but only the active plus most recently ended transcript is available in memory. The new manual export uses a unique folder under `SavedProject/Transcripts/Meeting_<session-id>/`. No background transcript saving and no persistent archive listing are added. Users must export before starting another meeting or exiting. The 240-entry display window remains, while the newer bounded full-session memory policy above governs manual export. Disk spooling and multi-speaker diarization remain separate future work.
-
-**Browser limitations:** incoming WASAPI endpoint-loopback may include non-meeting system sounds and may miss browser audio routed to another speaker. An active capture stream is not transcription or participant-identity proof. Windows two-device meeting test, simultaneous speech, suppression, 20-second defer/drop behavior and transcript export are still NOT EXECUTED for this source revision.
-
-**Quality ceiling:** source changes and contract assertions alone. Do not call it target Windows tested, fully transcribed or diarization-ready.
-
+**STOP rule:** no production streaming, alternate scheduler, new provider, speculative TTS fragment or additional REA wrapper before matching evidence separates the bottleneck and verifies safety.

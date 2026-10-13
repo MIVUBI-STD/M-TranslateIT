@@ -65,4 +65,4 @@ Frontend dependencies and `package-lock.json` are current repository-owned input
 
 Target-PC behavior still requires the Rust/Tauri/Python/audio/installer proof described by the canonical project docs; repository/hosted checks do not substitute for installed Windows acceptance.
 
-Resume work through root `AGENTS.md`, `CONTEXT.md`, and `docs/knowledge/next-action.md`.
+Resume work through root `AGENTS.md`, `CONTEXT.md`, and `planning/development.md`.

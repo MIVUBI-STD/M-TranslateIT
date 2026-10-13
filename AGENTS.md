@@ -56,7 +56,7 @@ For `amati`, inspect, audit, understand, or recovery:
 ```text
 AGENTS.md
 → GITHUB_RULES.md Core Rules
-→ CONTEXT.md / next-action only if material
+→ CONTEXT.md / planning/development.md only if material
 → smallest owner
 → report
 → STOP
@@ -64,7 +64,7 @@ AGENTS.md
 
 Read-only means no edit, CI trigger, continuation advance, or execution of the recorded next step.
 
-**Short-prompt and session recovery:** ChatGPT Project Instructions point to `Local` without copying repository rules. New chats read current `AGENTS.md` and `GITHUB_RULES.md` completely, then the smallest owner/skill. A repository URL or "amati" is read-only. Resume by topic from current source, relevant commit `Work/State/Proof`, and `next-action.md` only for active continuation. Historical `Next`, chat history/titles and memory are not authority; no chat naming/retention rules. "Continue" retains the bounded scope; never invent missing facts.
+**Short-prompt and session recovery:** ChatGPT Project Instructions point to `Local` without copying repository rules. New chats read current `AGENTS.md` and `GITHUB_RULES.md` completely, then the smallest owner/skill. A repository URL or "amati" is read-only. Resume by topic from current source, relevant commit `Work/State/Proof`, and `planning/development.md` only for active continuation. Historical `Next`, chat history/titles and memory are not authority; no chat naming/retention rules. "Continue" retains the bounded scope; never invent missing facts.
 
 ## Work mode after context
 
@@ -209,7 +209,7 @@ Do not create parallel status, plan, TODO, completion, review-state, roadmap, or
 2. current `docs/foundation/` law;
 3. current `Local` source + matching proof for actual implementation behavior;
 4. target evidence for target-only claims;
-5. `next-action.md` for continuation;
+5. `planning/development.md` for continuation;
 6. `source-ownership.md` for navigation;
 7. `CONTEXT.md` for current orientation;
 8. `docs/knowledge/decisions/` for durable why/history;
@@ -224,7 +224,7 @@ foundation vs source
 current user decision vs foundation
 → reconcile foundation first
 
-next-action vs source
+planning/development.md vs source
 → source wins for implementation state
 → reconcile stale continuation
 
