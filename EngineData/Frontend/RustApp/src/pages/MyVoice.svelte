@@ -576,7 +576,9 @@
               <p class="mb-0 mt-4 text-[20px] font-medium leading-8 tracking-[-0.015em]">{currentLine.text}</p>
             </div>
             {#if recordingState.pending_review && pendingLineId === currentLine.line_id}
-              <div class="mt-4 rounded-[var(--ti-radius-md)] border p-4 {recordingState.pending_review.quality_blocker ? 'border-[var(--ti-danger-border)]' : 'border-[var(--ti-border)]'}">
+              <div class={recordingState.pending_review.quality_blocker
+                ? "mt-4 rounded-[var(--ti-radius-md)] border border-[var(--ti-danger-border)] p-4"
+                : "mt-4 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4"}>
                 <strong class="text-sm font-semibold">{recordingState.pending_review.quality_blocker ? "Recording needs another take" : (recordingState.pending_review.review_advice?.length ? "Check this recording" : "Listen before saving")}</strong>
                 <p class={recordingState.pending_review.quality_blocker ? "mb-0 mt-1 text-sm leading-5 text-[var(--ti-danger)]" : "mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]"}>
                   {recordingState.pending_review.quality_blocker

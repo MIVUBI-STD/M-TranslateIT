@@ -52,7 +52,9 @@ test("voice and Meeting status use familiar labels without claiming delivery int
   const activity = readFileSync(resolve(root, "src/components/meeting/MeetingActivity.svelte"), "utf8");
   const sidebar = readFileSync(resolve(root, "src/components/layout/Sidebar.svelte"), "utf8");
   assert.match(myVoice, /<h2[^>]*>My Voice<\/h2>/);
-  assert.ok(myVoice.includes("Review this recording"));
+  assert.match(myVoice, /Listen before saving/);
+  assert.match(myVoice, /Check this recording/);
+  assert.match(myVoice, /Recording needs another take/);
   assert.ok(build.includes("<QuickVoicePreview"));
   assert.match(quickPreview, /not for meetings|never usable in Meeting/i);
   assert.ok(build.includes("Retry status"));
