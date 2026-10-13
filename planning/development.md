@@ -1,3 +1,13 @@
+## Active continuation — Stale incoming consumer dequeue isolation (2026-10-13)
+
+**Confirmed source defect:** `take_due_deferred_incoming(session_id, now)` removed foreign-session head entries without checking that its caller still owned a Live incoming Meeting. The old incoming consumer invokes this from `drain_due_deferred_incoming` before its own eligibility check. A revoked consumer could therefore discard work of a newer Meeting.
+
+**Minimal change:** Preserve the existing single bounded deferred queue, original FIFO/age eviction and per-session Stop cleanup. The production dequeue now requires a non-empty, currently eligible Meeting session under the existing queue mutex before reading or removing jobs. A current consumer may still retire foreign or expired backlog; a revoked consumer leaves the queue and drop counters unchanged. Reuse `incoming_session_is_eligible` rather than introducing new state, worker, manager, lease or timer.
+
+**Authored checks:** The existing serialized queue regression supplies explicit allowed/denied admission to the same dequeue algorithm, proving in source the intended distinction between stale caller and legitimate foreign backlog cleanup. Authored negative case checks unchanged queue depth and stale-drop counter, plus successful current-session dequeue. `STATIC_SOURCE` review only: Cargo execution, REA CLI/MCP, concurrent native behavior, Windows audio/GPU and remote meeting reception **NOT EXECUTED**.
+
+**Single next step:** Inspect one further high-impact source-owner issue only if directly justified; otherwise freeze source experiments and retain integrated compiler/Windows acceptance as the next higher proof gate.
+
 ## Active continuation — Session-scoped deferred incoming Stop cleanup (2026-10-13)
 
 **Confirmed source defect:** `stop_meeting_incoming_consumer(session_id)` called `clear_deferred_incoming_queue()`, which drained **all** waiting incoming jobs before checking consumer session ownership. A late Stop for an older Meeting could evict a newer session's deferred ASR/translation work. Jobs already carry `session_id`; no new queue owner is necessary.

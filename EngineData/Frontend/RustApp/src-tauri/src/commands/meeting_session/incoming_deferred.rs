@@ -152,7 +152,25 @@ pub(super) fn take_due_deferred_incoming(
     session_id: &str,
     now_unix_ms: u64,
 ) -> Option<DeferredIncomingJob> {
+    take_due_deferred_incoming_with_admission(
+        session_id,
+        now_unix_ms,
+        super::incoming_session_is_eligible,
+    )
+}
+
+// The live owner may retire old-session or expired work. A stopped consumer
+// must never evict a newer Meeting's queued work or increment stale counts.
+// Check authority under the same queue lock as the dequeue itself.
+fn take_due_deferred_incoming_with_admission(
+    session_id: &str,
+    now_unix_ms: u64,
+    admitted: impl FnOnce(&str) -> bool,
+) -> Option<DeferredIncomingJob> {
     let mut guard = deferred_incoming_queue().lock().ok()?;
+    if session_id.is_empty() || !admitted(session_id) {
+        return None;
+    }
     let mut removed = Vec::new();
     let due = loop {
         let Some(front) = guard.front() else {
@@ -264,6 +282,7 @@ mod tests {
         deferred_admission_serializes_with_cleanup();
         deferred_retry_preserves_first_deferral_age_budget();
         deferred_queue_caps_evicts_expired_and_respects_session();
+        stale_consumer_cannot_evict_a_new_meeting_queue();
     }
 
     #[test]
@@ -316,6 +335,32 @@ mod tests {
         );
     }
 
+    fn stale_consumer_cannot_evict_a_new_meeting_queue() {
+        clear_deferred_incoming_queue().expect("reset shared deferred queue");
+        enqueue_with_admission(job("new-meeting", 14, "new translation", 4_000), false, |_| true);
+        let stale_before = DEFERRED_DROPPED_STALE.load(Ordering::Relaxed);
+
+        assert!(take_due_deferred_incoming_with_admission(
+            "old-meeting", 5_000,
+            |session| {
+                assert_eq!(session, "old-meeting");
+                assert!(deferred_incoming_queue().try_lock().is_err());
+                false
+            },
+        ).is_none());
+        assert_eq!(deferred_incoming_queue().lock().unwrap().len(), 1);
+        assert_eq!(DEFERRED_DROPPED_STALE.load(Ordering::Relaxed), stale_before);
+        // A valid current consumer retains its own queued job.
+        assert_eq!(
+            take_due_deferred_incoming_with_admission("new-meeting", 5_000, |_| true)
+                .expect("current consumer owns pending job")
+                .event_sequence,
+            14,
+        );
+        assert!(deferred_incoming_queue().lock().unwrap().is_empty());
+        clear_deferred_incoming_queue().expect("reset after fixture");
+    }
+
     fn deferred_admission_serializes_with_cleanup() {
         clear_deferred_incoming_queue().expect("clear deferred queue");
         let rejected = enqueue_with_admission(
@@ -353,9 +398,10 @@ mod tests {
         enqueue_with_admission(job("sess", 1, "t", preserved), true, |_| true);
         let stale_before = DEFERRED_DROPPED_STALE.load(Ordering::Relaxed);
         assert!(
-            take_due_deferred_incoming(
+            take_due_deferred_incoming_with_admission(
                 "sess",
                 first_deferred_unix_ms + MAX_DEFERRED_INCOMING_AGE_MS + 1,
+                |_| true,
             )
             .is_none(),
             "requeued work must expire from its first deferral time"
@@ -373,7 +419,7 @@ mod tests {
 
         enqueue_with_admission(job("sess", 1, "t", 1_000), false, |_| true);
         let stale_before = DEFERRED_DROPPED_STALE.load(Ordering::Relaxed);
-        assert!(take_due_deferred_incoming("other-sess", 2_000).is_none());
+        assert!(take_due_deferred_incoming_with_admission("other-sess", 2_000, |_| true).is_none());
         assert_eq!(
             DEFERRED_DROPPED_STALE.load(Ordering::Relaxed) - stale_before,
             1,
@@ -392,7 +438,7 @@ mod tests {
 
         let stale_before = DEFERRED_DROPPED_STALE.load(Ordering::Relaxed);
         let mut delivered = 0;
-        while take_due_deferred_incoming("sess", 40_000).is_some() {
+        while take_due_deferred_incoming_with_admission("sess", 40_000, |_| true).is_some() {
             delivered += 1;
         }
         assert_eq!(delivered, 0, "expired jobs are dropped, not delivered");
@@ -403,8 +449,8 @@ mod tests {
 
         enqueue_with_admission(job("sess", 7, "a", 50_000), false, |_| true);
         enqueue_with_admission(job("sess", 8, "b", 51_000), false, |_| true);
-        let first = take_due_deferred_incoming("sess", 52_000).expect("fresh job due");
-        let second = take_due_deferred_incoming("sess", 52_000).expect("second fresh job due");
+        let first = take_due_deferred_incoming_with_admission("sess", 52_000, |_| true).expect("fresh job due");
+        let second = take_due_deferred_incoming_with_admission("sess", 52_000, |_| true).expect("second fresh job due");
         assert_eq!(first.event_sequence, 7);
         assert_eq!(second.event_sequence, 8);
 
