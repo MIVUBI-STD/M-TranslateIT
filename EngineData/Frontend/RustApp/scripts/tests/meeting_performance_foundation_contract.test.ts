@@ -33,7 +33,6 @@ test("audio-boundary latency estimates are labeled, numeric, and do not change V
   assert.match(timing, /estimated_onset_to_first_audio_ms/);
   assert.match(timing, /saturating_add\(timing\.metrics\.captured_speech_span_ms\)/);
   assert.match(vad, /minimum_speech_duration_ms: 140/);
-  assert.match(vad, /partial_asr_enabled: true/);
 });
 
 test("CPAL build timing is isolated from worker processing; no persistent stream behavior was introduced", () => {

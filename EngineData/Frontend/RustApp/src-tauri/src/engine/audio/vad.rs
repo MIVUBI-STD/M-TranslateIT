@@ -20,7 +20,6 @@ pub struct RuntimeVadProfile {
     pub target_chunk_min_ms: u32,
     pub target_chunk_max_ms: u32,
     pub maximum_segment_duration_ms: u32,
-    pub partial_asr_enabled: bool,
     pub gate: VadGateConfig,
 }
 
@@ -33,9 +32,6 @@ pub fn runtime_vad_profile() -> RuntimeVadProfile {
         target_chunk_min_ms: 320,
         target_chunk_max_ms: 700,
         maximum_segment_duration_ms: 1_500,
-        // Legacy profile metadata, not a production ASR cutover. Meeting still
-        // processes finalized utterances; this flag alone starts no draft work.
-        partial_asr_enabled: true,
         gate: VadGateConfig {
             min_rms: 0.006,
             min_peak: 0.021,

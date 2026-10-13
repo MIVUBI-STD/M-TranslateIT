@@ -8,7 +8,7 @@
 ## 1. Findings confirmed in source (not target-Windows timings)
 
 - `src-tauri/src/commands/helper_bridge_runtime/scheduler.rs` gates the canonical helper with one active request at a time; priority is outbound > incoming > Text > diagnostics, but an already-active job is nonpreemptive.
-- Current outbound consumes **finalized utterances** and calls ASR, MiLMMT translation, and GPT-SoVITS synthesis sequentially. `vad.rs` defines `partial_asr_enabled: true` but production consumer does not perform inference on draft audio.
+- At the original 2026-10-12 source audit, outbound consumed **finalized utterances** and called ASR, MiLMMT translation, and GPT-SoVITS synthesis sequentially. The former `vad.rs` `partial_asr_enabled: true` field was inert metadata and has since been retired from the current source; this historical observation is not evidence of production draft inference.
 - ASR uses Faster Whisper large-v3-turbo (`int8_float16` on CUDA); MiLMMT uses BF16 on CUDA when supported; GPT-SoVITS voice inference uses half precision on CUDA and `streaming_mode=False`, `return_fragment=False`.
 - Current TTS creates one completed WAV before playback; CPAL creates, plays, and closes a native stream for each WAV. Persistent output is **not** a proven improvement until native tests.
 - Existing `outbound_latency_ms` starts at **utterance finalization**, not first spoken phoneme. End-to-end user delay is not yet measured.
@@ -124,4 +124,4 @@ Each stage is behind a developer-only acceptance mechanism, not a new product sw
 
 No Gemini/other cloud API, no mandatory new model, no speaker diarization, no speculative second GPU worker, no immediate complete model replacement, no UI settings for streaming modes, no automatic permanent transcript recording, no claim that source checks prove Google Meet delivery.
 
-**Next action:** run exact-SHA source/build admission for the instrumentation candidate, then one authorized native baseline (latency/VRAM/browser). Only if measured output-stream construction materially contributes to delays, compare a generation-bound persistent-stream prototype. Streaming ASR/TTS remains gated, not assumed.
+**Historical proposal gate (not an active work order):** admit one exact-SHA source candidate, then gather one authorized native latency/VRAM/browser baseline before considering a generation-bound persistent-stream experiment. The only current next step is [Active Development](../../../planning/development.md); streaming ASR/TTS remains gated, not assumed.

@@ -47,7 +47,7 @@
 ### Batch 0 — Canonical source contracts and cleanup
 - Preserve current final-utterance path as control and capture immutable exact-SHA baseline.
 - Preserve the style-free incoming request contract; do not reintroduce retired `translation_style` routing or alter direction/session semantics.
-- Confirm that legacy `partial_asr_enabled` profile metadata is not interpreted as production partial-ASR activation; any removal requires owner/consumer review, not a documentation-only claim.
+- Keep the VAD runtime profile free of dormant partial-ASR enablement metadata. Only a separately reviewed, measured and verified draft-ASR inference owner may admit partial work; metadata alone cannot activate it.
 - Unify status vocabulary and worker stage identity; assert no stopped/stale session can publish audio.
 - Fix conflicts between previous decisions, manual test runbooks, and retired features.
 - **Proof:** Rust/Python/TS unit source tests and full compiler checks in a matching environment; no target-latency claims.
