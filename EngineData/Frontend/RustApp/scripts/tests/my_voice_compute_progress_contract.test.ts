@@ -14,8 +14,8 @@ test("My Voice explicit hardware check is bounded, truthful, and not build-statu
   assert.match(owner, /spawn_blocking\(probe_my_voice_compute_status\)/);
   assert.match(owner, /Duration::from_secs\(15\)/);
   assert.match(owner, /my_voice_compute_probe\.py/);
-  assert.match(probe, /torch_module\.cuda\.is_available\(\)/);
-  assert.match(probe, /get_device_properties\(0\)/);
+  assert.match(probe, /cuda\.is_available\(\)/);
+  assert.match(probe, /cuda\.get_device_properties\(index\)/);
   assert.match(probe, /vram_mib/);
   assert.match(probe, /cuda\.mem_get_info\(index\)/);
   assert.match(probe, /cuda_device_uuid\(cuda, index\)/);
@@ -63,7 +63,7 @@ test("worker completion and Review are bound to one generation identity", () => 
   assert.match(receipts, /create_new\(true\)/);
 });
 
-test("SAFE_8GB resource and process controls fail closed at native boundaries", () => {
+test("device-aware CUDA resource and process controls fail closed at native boundaries", () => {
   const owner = read("src-tauri/src/commands/voice_lab_build.rs");
   const nativeGuard = read("src-tauri/src/commands/my_voice_resources.rs");
   const treeGuard = read("src-tauri/src/commands/voice_lab_build/process_owner.rs");

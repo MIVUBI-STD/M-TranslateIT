@@ -31,3 +31,17 @@ def test_recheck_never_expands_original_admission() -> None:
         check_stage_budget(report, 4000, "GPU-99999999-2222-3333-4444-555555555555")
     with pytest.raises(RuntimeError):
         check_stage_budget({"state": "cuda_detected", "admission_state": "blocked_gpu_headroom"}, 4000, uuid)
+
+
+def test_other_cuda_capacity_profiles_use_the_same_dynamic_policy() -> None:
+    # These are policy arithmetic fixtures, not evidence of trainability.
+    for total_mib, free_mib in ((6144, 5120), (12288, 10240), (24576, 22528)):
+        report = assess_memory(total_mib * MIB, free_mib * MIB)
+        assert report["state"] == "admitted"
+        assert report["safe_budget_mib"] >= 3072
+        assert report["safe_budget_mib"] < free_mib
+
+
+def test_insufficient_small_gpu_is_reported_not_misidentified() -> None:
+    report = assess_memory(4096 * MIB, 3584 * MIB)
+    assert report["state"] == "blocked_gpu_headroom"
