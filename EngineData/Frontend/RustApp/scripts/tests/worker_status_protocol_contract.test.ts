@@ -83,3 +83,54 @@ test("GPU diagnostics use existing worker status and do not alter readiness", ()
   assert.match(diagnosticsView, /Read-only snapshot from Check Again/);
   assert.doesNotMatch(diagnosticsView, /setInterval|setTimeout/);
 });
+
+const productFacade = readFileSync(
+  new URL("../../src/app/bridge/runtimeProductFacade.ts", import.meta.url),
+  "utf8",
+);
+const applicationController = readFileSync(
+  new URL("../../src/app/runtime/applicationController.ts", import.meta.url),
+  "utf8",
+);
+const rustBridge = readFileSync(
+  new URL("../../src-tauri/src/commands/helper_bridge/transport.rs", import.meta.url),
+  "utf8",
+);
+
+test("worker status and GPU diagnostics are scoped to the same helper generation", () => {
+  assert.match(rustBridge, /generation_token: runtime\.generation_token/);
+  assert.match(productFacade, /observedWorkerStatus\?\.task === "status"/);
+  assert.match(productFacade, /helper\.state === "ready"/);
+  assert.match(
+    productFacade,
+    /observedWorkerStatus\.generation_token === helper\.generation_token/,
+  );
+  assert.match(
+    productFacade,
+    /const workerStatus = [\s\S]*?\? observedWorkerStatus\s*:\s*null;/,
+  );
+  assert.match(
+    productFacade,
+    /mapProductReadiness\(\{[\s\S]*?helper,[\s\S]*?workerStatus,[\s\S]*?inputStatus,/,
+  );
+  assert.match(productFacade, /return \{[\s\S]*?workerStatus,[\s\S]*?inputStatus,/);
+});
+
+test("explicit diagnostics refresh is not served from the event-reuse cache", () => {
+  // A manual status refresh uses the standalone snapshot path (no previous/reason);
+  // event-only reuse is conditional and cannot make it an unconditional cache.
+  assert.match(productFacade, /const refreshWorker = !previous/);
+  assert.match(productFacade, /!WORKER_REUSE_SAFE_REASONS\.has\(reason \?\? ""\)/);
+  assert.match(
+    productFacade,
+    /refreshWorker\s*\?\s*\(helper\.state === "ready"\s*\? runtimeApi\.helperBridgeWorkerStatus\(\)/,
+  );
+  assert.match(
+    productFacade,
+    /export async function loadProductRuntimeSnapshot\([\s\S]*?return mapApplicationSnapshotToProduct\([\s\S]*?true,\s*\);/,
+  );
+  assert.match(
+    applicationController,
+    /async refresh\(knownSettings\?: RuntimeSettings\)[\s\S]*?loadProductRuntimeSnapshot\(knownSettings\)/,
+  );
+});
