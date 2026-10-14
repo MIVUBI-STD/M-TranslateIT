@@ -331,6 +331,21 @@ fn process_store() -> &'static Mutex<BuildProcessState> {
     BUILD_PROCESS.get_or_init(|| Mutex::new(BuildProcessState::default()))
 }
 
+pub(crate) fn build_process_cleanup_pending() -> bool {
+    // A successful generation may publish its review receipt just before
+    // its completion owner releases the Python process/job handle.
+    // Fail closed on poisoned state. No second mutex or poller.
+    match process_store().lock() {
+        Ok(process) => {
+            let busy = process.generation.is_some() || process.pid.is_some();
+            #[cfg(windows)]
+            let busy = busy || process.owned_job.is_some();
+            busy
+        }
+        Err(_) => true,
+    }
+}
+
 fn storage() -> VoiceLabStoragePaths {
     VoiceLabStoragePaths::from_project_paths(&ProjectPaths::discover())
 }
@@ -506,6 +521,7 @@ fn current_status() -> VoiceLabBuildStatus {
     let paths = storage();
     reconcile_phase(&paths);
     let snapshot = current_voice_lab_build_snapshot();
+    let process_cleanup_pending = build_process_cleanup_pending();
     let recording_active = voice_lab_recording_active();
     let (takes, duration_ms, reference_take_ready) = accepted_contract();
     let missing_coverage = missing_training_coverage_group(&takes);
@@ -514,8 +530,12 @@ fn current_status() -> VoiceLabBuildStatus {
     let recording_suggestions = guided_recording_recommendations(
         &accepted_ids, missing_coverage.map(|group| group.coverage),
     );
-    let evaluation = reviewable_evaluation(&paths)
-        .filter(|manifest| completion_matches(&paths, &manifest.review_id));
+    let evaluation = if process_cleanup_pending {
+        None
+    } else {
+        reviewable_evaluation(&paths)
+            .filter(|manifest| completion_matches(&paths, &manifest.review_id))
+    };
     let preview_active = super::voice_lab_preview::quick_voice_preview_active();
     let child = if preview_active { None } else { child_status(&paths) };
     let approved_ready = approved_voice_actor_ready(&paths);
@@ -531,6 +551,8 @@ fn current_status() -> VoiceLabBuildStatus {
         "Creating Quick Preview locally.".to_string()
     } else if snapshot.active && snapshot.phase == "cancelling" {
         "Stopping training safely. Waiting for a checkpoint boundary when possible; the current Meeting voice is unchanged.".to_string()
+    } else if !snapshot.active && process_cleanup_pending {
+        "Finalizing the previous My Voice process and checking its saved files before Review.".to_string()
     } else if snapshot.active {
         child.as_ref().map(|status| status.message.clone()).unwrap_or_else(|| {
             match snapshot.phase.as_str() {
@@ -574,10 +596,14 @@ fn current_status() -> VoiceLabBuildStatus {
     };
 
     VoiceLabBuildStatus {
-        active: snapshot.active,
+        active: snapshot.active || process_cleanup_pending,
         preview_active,
         generation: snapshot.generation,
-        phase: snapshot.phase,
+        phase: if !snapshot.active && process_cleanup_pending {
+            "evaluating".to_string()
+        } else {
+            snapshot.phase
+        },
         message,
         accepted_take_count: takes.len(),
         accepted_duration_ms: duration_ms,
@@ -596,6 +622,7 @@ fn current_status() -> VoiceLabBuildStatus {
         }),
         recording_suggestions,
         can_build: !snapshot.active
+            && !process_cleanup_pending
             && !recording_active
             && takes.len() <= MAX_TRAINING_TAKES
             && duration_ms >= MIN_TRAINING_SPEECH_MS
@@ -1404,8 +1431,9 @@ pub fn approve_voice_lab_candidate(
     if meeting_blocks_voice_change() {
         return result(false, "meeting_active", "Stop Meeting translation before selecting My Voice.");
     }
-    if current_voice_lab_build_snapshot().active {
-        return result(false, "build_active", "Wait for VoiceLab creation to finish before approving My Voice.");
+    if current_voice_lab_build_snapshot().active || build_process_cleanup_pending() {
+        return result(false, "build_active",
+            "Wait for the previous My Voice process to finish cleanup before approving.");
     }
     let paths = storage();
     let ready_for_review = child_status(&paths)

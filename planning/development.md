@@ -27,6 +27,12 @@
 - A G/D pair is two separately committed files, NOT a single atomic transaction. Checkpoint staging + pair hashes limit partial publication but cannot prove optimizer resume. The recovery archive may conservatively require manual attention when source files are incomplete.
 - The stage PID and nonce are **correlation**, not a security boundary against intentionally malicious local processes.
 
+## Generation handoff remains busy until owned process release — 2026-10-14
+
+- Fixed a post-completion race: the small Review receipt is atomically published while the previous Python process may still be owned by the completion thread. Start/Approve/Meeting-change now treat that existing process ownership as busy until its PID/Job and generation are released.
+- The canonical My Voice status defers `evaluation_ready` and `can_build` during this short finalization window, exposing the existing `evaluating` phase so the UI continues its ordinary status flow. No new state field, worker, mutex, or polling loop is introduced.
+- Source only. The window and UI behavior must be confirmed during eventual Windows acceptance.
+
 ## Next focused source-only work
 
 **P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.

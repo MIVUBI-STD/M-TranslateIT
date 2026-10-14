@@ -254,10 +254,11 @@ pub fn current_voice_lab_build_snapshot() -> VoiceLabBuildSnapshot {
 }
 
 pub fn voice_lab_build_blocks_meeting() -> bool {
-    build_store()
+    let active = build_store()
         .lock()
         .map(|state| state.blocks_meeting())
-        .unwrap_or(true)
+        .unwrap_or(true);
+    active || super::voice_lab_build::build_process_cleanup_pending()
 }
 
 pub fn begin_voice_lab_build() -> Result<VoiceLabBuildSnapshot, String> {
