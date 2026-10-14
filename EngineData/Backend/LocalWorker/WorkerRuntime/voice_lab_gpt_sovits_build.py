@@ -235,10 +235,11 @@ def run_stage(
 ) -> None:
     from my_voice_cooperative import manual_stop_requested
     try:
-        if manual_stop_requested():
-            raise VoiceLabProviderError("manual_stop_before_stage")
+        stop_requested = manual_stop_requested()
     except RuntimeError as exc:
         raise VoiceLabProviderError(f"manual_stop_unreadable:{exc}") from exc
+    if stop_requested:
+        raise VoiceLabProviderError("manual_stop_before_stage")
     child_env = os.environ.copy()
     child_env.update(env)
     expected_uuid = os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", "")
@@ -851,10 +852,11 @@ def require_training_not_cancelled(boundary: str) -> None:
     from my_voice_cooperative import manual_stop_requested
 
     try:
-        if manual_stop_requested():
-            raise VoiceLabProviderError(f"manual_stop_at:{boundary}")
+        stop_requested = manual_stop_requested()
     except RuntimeError as exc:
         raise VoiceLabProviderError(f"manual_stop_signal_unavailable_at:{boundary}") from exc
+    if stop_requested:
+        raise VoiceLabProviderError(f"manual_stop_at:{boundary}")
 
 
 def build_candidate(
