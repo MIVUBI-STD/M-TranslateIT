@@ -94,6 +94,7 @@ const expectedResources = {
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_precision_policy.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_precision_policy.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_epoch_progress.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_epoch_progress.py",
+  "../../../Backend/LocalWorker/WorkerRuntime/my_voice_stall_policy.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_stall_policy.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_resource_guard.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_resource_guard.py",

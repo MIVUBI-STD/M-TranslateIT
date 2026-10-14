@@ -341,6 +341,7 @@ def run_supervised_stage(
             if temporary and (not generation_raw.isdecimal() or int(generation_raw) <= 0):
                 raise StageGuardError("my_voice:checkpoint_progress_generation_invalid")
             stage_started = last_heartbeat
+            stage_stall.begin(stage_started)
             pressure_samples = 0
             while proc.poll() is None:
                 # Manual stop shares this existing supervisor cycle; no new

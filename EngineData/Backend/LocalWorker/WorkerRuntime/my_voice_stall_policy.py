@@ -23,6 +23,12 @@ class EpochStallObserver:
         self.intervals: deque[float] = deque(maxlen=4)
         self.warned_for_epoch: int | None = None
 
+    def begin(self, when: float) -> None:
+        if not math.isfinite(when):
+            raise ValueError("my_voice:epoch_stall_clock_invalid")
+        if self.started_at is None:
+            self.started_at = when
+
     def observe_epoch(self, epoch: int, when: float) -> None:
         if (type(epoch) is not int or epoch <= self.last_epoch
             or not math.isfinite(when)):
@@ -31,7 +37,9 @@ class EpochStallObserver:
             elapsed = when - self.last_at
             if elapsed <= 0:
                 raise ValueError("my_voice:epoch_stall_clock_invalid")
-            self.intervals.append(elapsed)
+            # Coalesced short epoch completions count as several epochs,
+            # not one unusually slow interval for this GPU.
+            self.intervals.append(elapsed / (epoch - self.last_epoch))
         if self.started_at is None:
             self.started_at = when
         self.last_at = when
@@ -44,6 +52,11 @@ class EpochStallObserver:
         # Before at least two complete epoch intervals, the local hardware
         # performance baseline is unknown. No automatic timeout is justified.
         if self.last_at is None:
+            if (self.started_at is not None
+                and when - self.started_at >= EARLY_OBSERVATION_SECONDS
+                and self.warned_for_epoch != 0):
+                self.warned_for_epoch = 0
+                return "first_epoch_not_observed_no_baseline"
             return None
         if self.warned_for_epoch == self.last_epoch:
             return None
