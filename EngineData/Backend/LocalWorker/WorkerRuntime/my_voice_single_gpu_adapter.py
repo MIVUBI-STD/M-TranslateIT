@@ -39,6 +39,18 @@ def single_gpu_source(path: Path, relative: str) -> str:
     if relative == "GPT_SoVITS/s2_train.py":
         source = _replace_one(
             source,
+            """import utils
+
+hps = utils.get_hparams(stage=2)""",
+            """import utils
+from my_voice_checkpoint_atomic import install_sovits_atomic_writer
+install_sovits_atomic_writer(utils)
+
+hps = utils.get_hparams(stage=2)""",
+            "sovits_atomic_optimizer_writer",
+        )
+        source = _replace_one(
+            source,
             'os.environ["CUDA_VISIBLE_DEVICES"] = hps.train.gpu_numbers.replace("-", ",")',
             'os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["TRANSLATEIT_MYVOICE_GPU_UUID"]',
             "sovits_preserve_physical_gpu_uuid",

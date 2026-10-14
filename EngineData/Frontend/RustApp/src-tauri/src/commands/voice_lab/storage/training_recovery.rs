@@ -70,6 +70,12 @@ fn collect_checkpoint_files(dir: &Path, group: &str) -> Result<Vec<Input>, Strin
         let entry = entry.map_err(|_| "voice_lab:recovery_checkpoint_entry_failed")?;
         let name = entry.file_name().to_str()
             .ok_or("voice_lab:recovery_checkpoint_filename_invalid")?.to_string();
+        // A crashing same-directory atomic writer can leave a pending
+        // partial. Preserve the existing work directory for investigation;
+        // never clear it as if no incomplete checkpoint had existed.
+        if name.starts_with(".pending-G_") || name.starts_with(".pending-D_") {
+            return Err("voice_lab:recovery_partial_checkpoint_needs_attention".into());
+        }
         let valid = match group {
             "gpt" => name.ends_with(".ckpt")
                 && name.len() < 100

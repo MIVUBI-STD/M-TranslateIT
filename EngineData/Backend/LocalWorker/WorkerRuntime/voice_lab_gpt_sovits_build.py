@@ -375,7 +375,9 @@ def training_configs(
             "text_low_lr_rate": 0.4,
             "pretrained_s2G": str(assets["pretrained_sovits_g"]),
             "pretrained_s2D": str(assets["pretrained_sovits_d"]),
-            "if_save_latest": True,
+            # Keep distinct full G/D optimizer checkpoints; never overwrite
+            # the only recoverable pair with an incomplete new save.
+            "if_save_latest": False,
             "if_save_every_weights": True,
             "save_every_epoch": sovits_save_every,
             "gpu_numbers": "0",  # Only local ordinal after physical UUID scoping
@@ -401,7 +403,9 @@ def training_configs(
             "epochs": GPT_EPOCHS,
             "save_every_n_epoch": gpt_save_every,
             "if_save_every_weights": True,
-            "if_save_latest": True,
+            # Lightning saves every configured epoch checkpoint; do not
+            # prune older valid full checkpoints before the next is verified.
+            "if_save_latest": False,
             "if_dpo": False,
             "half_weights_save_dir": str(gpt_dir),
             "exp_name": "translateit_myvoice",

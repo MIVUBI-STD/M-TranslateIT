@@ -109,6 +109,8 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(adapter, /single_gpu_source_revision_mismatch/);
   assert.match(adapter, /run\(0, 1, hps\)/);
   assert.match(adapter, /sovits_preserve_physical_gpu_uuid/);
+  assert.match(adapter, /install_sovits_atomic_writer\(utils\)/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_atomic.py"), /os\.replace\(staged, target\)/);
   assert.match(adapter, /strategy="auto"/);
   assert.match(runner, /single_gpu_source\(script, relative_script\.as_posix\(\)\)/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"), /evaluation_child_guard/);

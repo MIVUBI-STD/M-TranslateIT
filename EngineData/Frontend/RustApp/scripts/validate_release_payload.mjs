@@ -160,6 +160,7 @@ for (const file of [
   "my_voice_compute_probe.py",
   "my_voice_gpu_policy.py",
   "my_voice_gpu_identity.py",
+  "my_voice_checkpoint_atomic.py",
   "my_voice_single_gpu_adapter.py",
   "my_voice_stage_supervisor.py",
   "my_voice_resource_guard.py",

@@ -10,6 +10,12 @@
 - **Svelte:** presentation only; read existing Rust build snapshot and safely bound hardware advisory. No independent training state writer or invented percent/ETA.
 - **Pinned upstream:** GPT-SoVITS V2ProPlus source/model revisions remain unchanged on disk; adapter source-hash mismatch fails closed. The English-only actor/evaluation contract and eight held-out reviews remain unchanged.
 
+## Device-aware checkpoint hardening
+
+- Full SoVITS G/D optimizer checkpoint writes now use a source-hash-bound in-memory adapter to `utils.my_save`. Write into same-directory `.pending-*.partial`, flush and atomically publish a distinct checkpoint name; existing complete G/D files must not be overwritten. The generator/discriminator **pair** is still not an atomic transaction and is not automatically resumable.
+- Disable `if_save_latest` pruning for SoVITS and GPT to retain older full checkpoints as candidate evidence across a failed newer write. The original GPT-SoVITS source files and model weights remain unchanged. Partial SoVITS optimizer checkpoint remnants block removal of the work directory pending manual attention.
+- Pinned GPT Lightning checkpoint writers and inference-weight outputs have not yet received the same atomic-writer contract; do not describe all checkpoint I/O as transactional. Tests authored only, not executed.
+
 ## Source-candidate behaviors
 
 1. **Admission:** native Create and Improve refuse unknown/insufficient current CUDA headroom or native RAM/disk readings. Provisional safe profile starts with physical batch size 1 for SoVITS and GPT, sequential GPU stages, and a bounded PyTorch allocator fraction (not a global VRAM ceiling). CPU fallback is not silently enabled.
