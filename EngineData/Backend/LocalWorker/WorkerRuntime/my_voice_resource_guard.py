@@ -9,13 +9,12 @@ import ctypes
 import os
 import shutil
 from pathlib import Path
+from my_voice_adaptive_safety import CRITICAL_RAM_MIB, CRITICAL_DISK_MIB
 
 MIB = 1024 * 1024
 START_RAM_MIB = 3072
-CRITICAL_RAM_MIB = 1024
 START_CACHE_MIB = 12 * 1024
 START_SAVED_MIB = 8 * 1024
-CRITICAL_DISK_MIB = 2048
 
 class ResourceGuardError(RuntimeError):
     pass

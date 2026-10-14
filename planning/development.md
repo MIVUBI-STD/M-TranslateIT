@@ -136,6 +136,12 @@
 - If a resource-pressure stop request is not acknowledged by a checkpoint boundary, the stage does **not** silently advance to the next stage even when the child exits successfully. The run remains incomplete, with any existing checkpoints handled under the normal recovery gate.
 - Acknowledgment is accepted only after a clean child exit, and does not grant an optimizer resume contract. All source-level contracts remain unexecuted.
 
+## Policy consolidation and safe-stop fixtures — 2026-10-14
+
+- Critical GPU/RAM/disk thresholds are now imported from the pure adaptive policy module by the Python stage and system resource guards. This avoids contradictory Python watchdog thresholds while leaving separately owned native admission margins intact.
+- Authored no-GPU request/ack fixtures for mismatched run identities, missing checkpoints and an eligible SoVITS/GPT epoch boundary. They have not been executed or reported as passing.
+- No background task, Windows build, CUDA allocation, model training, or manual performance validation has been attempted.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

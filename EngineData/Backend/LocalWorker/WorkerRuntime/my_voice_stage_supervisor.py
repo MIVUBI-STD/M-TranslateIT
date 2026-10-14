@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Callable
-from my_voice_adaptive_safety import PressureObserver, SafetySample
+from my_voice_adaptive_safety import PressureObserver, SafetySample, CRITICAL_GPU_MIB
 from my_voice_resource_guard import snapshot as resource_snapshot
 
 from my_voice_resource_guard import (
@@ -26,7 +26,7 @@ from typing import Any
 
 SENSOR_INTERVAL_SECONDS = 5
 SENSOR_TIMEOUT_SECONDS = 4
-CRITICAL_FREE_MIB = 768
+CRITICAL_FREE_MIB = CRITICAL_GPU_MIB
 MAX_BAD_SAMPLES = 2
 
 class StageGuardError(RuntimeError):
