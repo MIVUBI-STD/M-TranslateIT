@@ -78,6 +78,8 @@ test("SAFE_8GB resource and process controls fail closed at native boundaries", 
   assert.match(supervisor, /observer\.observe\(SafetySample/);
   assert.match(supervisor, /cooperative_safe_stop_checkpoint_candidate/);
   assert.match(supervisor, /_create_cooperative_request/);
+  assert.match(supervisor, /proc\.returncode != 0/);
+  assert.match(owner, /stopped_at_checkpoint_boundary/);
   assert.match(systemGuard, /START_CACHE_MIB = 12 \* 1024/);
   assert.match(recovery, /ensure_archive_capacity\(&root, total\)/);
   assert.match(ui, /case "resource_admission_blocked":/);

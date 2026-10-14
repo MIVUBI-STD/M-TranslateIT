@@ -21,3 +21,15 @@ def test_critical_vram_is_emergency():
 
 def test_unknown_telemetry_fails_closed():
     assert PressureObserver(require_gpu=True).observe(sample(None)).state == "unknown"
+
+
+def test_ram_pressure_requires_trend():
+    monitor = PressureObserver(require_gpu=False)
+    monitor.observe(SafetySample(None, 1900, 16384, 12288))
+    monitor.observe(SafetySample(None, 1780, 16384, 12288))
+    assert monitor.observe(SafetySample(None, 1590, 16384, 12288)).state == "pressure"
+
+def test_watch_state_returns_to_normal_when_headroom_recovers():
+    monitor = PressureObserver(require_gpu=True)
+    assert monitor.observe(sample(1100)).state == "watch"
+    assert monitor.observe(sample(2600)).state == "normal"

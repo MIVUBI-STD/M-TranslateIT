@@ -338,17 +338,18 @@ def run_supervised_stage(
             if tree.remaining() != 0:
                 tree.terminate()
                 raise StageGuardError("my_voice:stage_descendants_still_running")
-            if temporary and _acknowledged(Path(temporary), token, cooperative_stage):
-                if not request_sent:
-                    raise StageGuardError("my_voice:cooperative_unsolicited_ack")
-                # Worker reached a configured checkpoint epoch and closed.
-                # The full coordinator terminates and Rust preserves recovery
-                # candidates. Never progress to another stage or Review.
-                raise StageGuardError("my_voice:cooperative_safe_stop_checkpoint_candidate")
+            # Never call an acknowledged yield safe when the worker crashed
+            # after emitting its ack. Successful process exit is mandatory.
             if proc.returncode != 0:
                 if proc.returncode in (3221225477, -1073741819):
                     raise StageGuardError("my_voice:native_worker_crash")
                 raise StageGuardError(f"my_voice:stage_exit_nonzero:{proc.returncode}")
+            if temporary and _acknowledged(Path(temporary), token, cooperative_stage):
+                if not request_sent:
+                    raise StageGuardError("my_voice:cooperative_unsolicited_ack")
+                # This is a completed stage-process exit at a checkpoint
+                # boundary, NOT completion of the full training run.
+                raise StageGuardError("my_voice:cooperative_safe_stop_checkpoint_candidate")
     finally:
         if temporary:
             shutil.rmtree(temporary, ignore_errors=True)

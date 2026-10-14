@@ -123,6 +123,13 @@
 - Automatic resume stays disabled; cleanly stopped stages do not train later GPT/SoVITS stages or select a voice. This is SOURCE ONLY; exact pinned adapter execution, checkpoint save ordering, Windows GPU behavior and acoustic output are not validated.
 - Emergency killing remains available when memory becomes critically low or telemetry is lost. No tested pause/memory release or guaranteed restart is claimed.
 
+## Cooperative safe-stop outcome admission — 2026-10-14
+
+- Supervisor checks nonzero/native worker exits **before** accepting a checkpoint-boundary ack. A crash after an ack is a failure, never a safe yield.
+- Rust reports a generation-matched worker `cooperative_safe_stop_checkpoint_candidate` as training stopped (not successful generation); checkpoint artifacts, if any, remain **unverified for optimizer resume** under existing recovery ownership. User's selected Meeting voice is not changed.
+- Additional authored policy examples cover declining RAM and recovery to NORMAL. These are source fixtures only, not test execution or performance proof.
+- Explicit user Stop Creating remains an immediate cancellation path; the pressure-triggered cooperative yield is not a general-purpose Pause/Resume feature. Do not advertise automatic continuation.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

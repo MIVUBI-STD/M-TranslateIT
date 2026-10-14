@@ -922,6 +922,10 @@ fn start_voice_lab_build_selected(
             preserve_training_checkpoints(&paths)
         };
         let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
+        let stopped_at_checkpoint_boundary = child_status(&paths).is_some_and(|status| {
+            status.phase == "failed"
+                && status.message.contains("cooperative_safe_stop_checkpoint_candidate")
+        });
         if recovery.is_err() {
             let _ = fail_voice_lab_build(generation);
         } else if ready || cancelling {
@@ -935,6 +939,8 @@ fn start_voice_lab_build_selected(
             "Voice Actor samples are ready. Listen before approving My Voice.".to_string()
         } else if cancelling {
             "VoiceLab creation stopped before a candidate was approved.".to_string()
+        } else if stopped_at_checkpoint_boundary {
+            "My Voice stopped at a checkpoint boundary because system resources were declining. Training is incomplete. Any preserved checkpoint is NOT verified for resume, and your previous Meeting voice remains selected.".to_string()
         } else {
             "VoiceLab could not create a reviewable Voice Actor. Check Diagnostics and try again.".to_string()
         };

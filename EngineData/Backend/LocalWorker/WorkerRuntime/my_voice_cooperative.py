@@ -28,7 +28,9 @@ def requested(stage: str) -> bool:
         message = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return False
-    return message.get("run_token") == token and message.get("stage") == stage
+    return (isinstance(message, dict)
+            and message.get("run_token") == token
+            and message.get("stage") == stage)
 
 def checkpoint_candidate_present(directory: Path, pattern: str) -> bool:
     if directory.is_symlink() or not directory.is_dir():
