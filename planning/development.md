@@ -57,6 +57,12 @@
 - The Job remains owned by the same supervisor and still kills true descendants if any remain; a missing/invalid HANDLE refuses to infer quiescence. No new subprocess, worker, polling loop or GPU allocation is introduced.
 - Source-only, without Python execution on Windows. This relies on the currently pinned CPython 3.12 `Popen._handle` implementation, which should be reconfirmed if the Python runtime changes.
 
+## Hard-stop timeout and cleanup attention gate — 2026-10-14
+
+- Fixed an unbounded `Child::wait()` after forced cancellation / failed `try_wait`: the existing completion thread now makes only a bounded eight-second reaping attempt and **always classifies forced Stop as incomplete**, irrespective of the eventual child exit code.
+- If Windows Job quiescence is unverifiable, the finalization path **keeps the old generation/Job handle in its existing process owner**, blocks new Start/Approve/Meeting changes, shows an explicit attention message, and refuses to clear the original Runtime work tree. It does not claim successful cancellation or archive integrity.
+- No additional OS watcher, lock, process or progress poll was introduced. These code paths are still not runtime-tested and must remain fail-closed until Windows fault-injection is authorized.
+
 ## Next focused source-only work
 
 **P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.

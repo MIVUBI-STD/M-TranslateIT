@@ -118,6 +118,10 @@ test("manual Stop reuses the existing process owners and cannot claim success af
   assert.match(native, /request_manual_stop\(&storage\(\), generation\)/);
   assert.match(native, /cancel_requested_at/);
   assert.match(native, /child\.try_wait\(\)/);
+  assert.match(native, /bounded_reap_after_forced_stop\(&mut child\)/);
+  assert.match(native, /my_voice:forced_stop_after_deadline/);
+  assert.match(native, /if owned_tree_quiescent\.is_ok\(\) \{/);
+  assert.match(native, /process\.terminal_message =/);
   assert.match(native, /CANCEL_MAX_WAIT/);
   assert.match(native, /!cancelling\s*&& exit\.as_ref\(\)/);
   assert.match(native, /"TRANSLATEIT_MYVOICE_MANUAL_STOP_PATH", manual_stop_file\(&paths\)/);

@@ -61,6 +61,25 @@ const MAX_TRAINING_TAKES: usize = 128;
 // cooperative child teardown before the final Rust-owned hard fallback.
 const CANCEL_MAX_WAIT: Duration = Duration::from_secs(330);
 const BUILD_EXIT_POLL: Duration = Duration::from_secs(1);
+const FORCED_REAP_GRACE: Duration = Duration::from_secs(8);
+
+/// Never block indefinitely on Child::wait() after a Job termination request.
+/// A failed Stop is NOT completion; recovery must still verify the owned Job.
+fn bounded_reap_after_forced_stop(child: &mut std::process::Child) -> Result<(), std::io::Error> {
+    let start = Instant::now();
+    loop {
+        if child.try_wait()?.is_some() {
+            return Ok(());
+        }
+        if start.elapsed() >= FORCED_REAP_GRACE {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "my_voice:forced_stop_child_reap_timeout",
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
 
 // Guard select/approve on the shared worker actor path. No parallel promotion.
 static VOICE_SELECTION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -552,7 +571,11 @@ fn current_status() -> VoiceLabBuildStatus {
     } else if snapshot.active && snapshot.phase == "cancelling" {
         "Stopping training safely. Waiting for a checkpoint boundary when possible; the current Meeting voice is unchanged.".to_string()
     } else if !snapshot.active && process_cleanup_pending {
-        "Finalizing the previous My Voice process and checking its saved files before Review.".to_string()
+        if terminal_message.is_empty() {
+            "Finalizing the previous My Voice process and checking its saved files before Review.".to_string()
+        } else {
+            terminal_message.clone()
+        }
     } else if snapshot.active {
         child.as_ref().map(|status| status.message.clone()).unwrap_or_else(|| {
             match snapshot.phase.as_str() {
@@ -1018,7 +1041,14 @@ fn start_voice_lab_build_selected(
                         let _ = _job_lifetime.terminate();
                         #[cfg(not(windows))]
                         let _ = terminate_process_tree(child.id());
-                        break child.wait();
+                        // A timed-out manual Stop is NOT a successful build,
+                        // even when a later root exit happens to return zero.
+                        // Never wait forever on a failed OS termination.
+                        let _ = bounded_reap_after_forced_stop(&mut child);
+                        break Err(std::io::Error::new(
+                            std::io::ErrorKind::Interrupted,
+                            "my_voice:forced_stop_after_deadline",
+                        ));
                     }
                     std::thread::sleep(BUILD_EXIT_POLL);
                 }
@@ -1027,9 +1057,9 @@ fn start_voice_lab_build_selected(
                     let _ = _job_lifetime.terminate();
                     #[cfg(not(windows))]
                     let _ = terminate_process_tree(child.id());
-                    // A failed try_wait is never converted back into a
-                    // successful training exit by a later wait().
-                    let _ = child.wait();
+                    // Preserve the original OS wait error; even if a later
+                    // bounded reaping succeeds, the run cannot be promoted.
+                    let _ = bounded_reap_after_forced_stop(&mut child);
                     break Err(error);
                 }
             }
@@ -1117,11 +1147,22 @@ fn start_voice_lab_build_selected(
         let lock = process_store();
         if let Ok(mut process) = lock.lock() {
             if process.generation == Some(generation) {
-                process.pid = None;
-                process.generation = None;
-                #[cfg(windows)]
-                { process.owned_job = None; }
-                process.terminal_message = message;
+                if owned_tree_quiescent.is_ok() {
+                    process.pid = None;
+                    process.generation = None;
+                    #[cfg(windows)]
+                    { process.owned_job = None; }
+                } else {
+                    // Job cleanup was NOT proven. Keep the owned Job handle
+                    // and generation as a hard gate on all future Start /
+                    // Approve / Meeting changes. Do not erase Runtime work.
+                    // KILL_ON_JOB_CLOSE still runs when the app exits.
+                    process.terminal_message =
+                        "Training process cleanup could not be verified. Existing work and checkpoints were preserved; close the application to release its owned Job. Do not start another training session until recovery is checked.".into();
+                }
+                if owned_tree_quiescent.is_ok() {
+                    process.terminal_message = message;
+                }
                 process.cancel_requested_at = None;
             }
         }
