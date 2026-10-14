@@ -260,29 +260,45 @@ fn manifest_bytes(entries: Vec<BackupEntry>) -> Result<Vec<u8>, String> {
 fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> {
     let map: std::collections::HashMap<&str, &BackupEntry> =
         entries.iter().map(|item| (item.path.as_str(), item)).collect();
+    // Only payloads referenced by their immutable receipts may be exported
+    // or accepted from a backup. A hash-consistent orphan is not a restorable
+    // recording, actor or training checkpoint.
+    let mut referenced_payloads = std::collections::HashSet::<String>::new();
     for entry in entries {
         let rel = entry.path.as_str();
         if rel.ends_with("/take.json") {
+            let id = rel.split('/').nth(2).ok_or("voice_backup:take_id_missing")?;
+            if entry.sha256 != id {
+                return Err("voice_backup:take_receipt_identity_invalid".into());
+            }
             let data = read_regular_bounded(&root.join(rel), 64 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:take_receipt_invalid")?;
             let canonical = json.get("canonical_sha256").and_then(|v| v.as_str())
                 .ok_or("voice_backup:take_reference_invalid")?;
             let prefix = rel.strip_suffix("take.json").ok_or("voice_backup:take_reference_invalid")?;
-            let file = map.get(&format!("{prefix}canonical.wav")[..])
+            let canonical_path = format!("{prefix}canonical.wav");
+            let file = map.get(canonical_path.as_str())
                 .ok_or("voice_backup:take_canonical_missing")?;
             if canonical != file.sha256 {
                 return Err("voice_backup:take_canonical_mismatch".into());
             }
+            referenced_payloads.insert(canonical_path);
             if let Some(native) = json.get("native_rate_sha256").and_then(|v| v.as_str()) {
-                let sidecar = map.get(&format!("{prefix}native-rate.wav")[..])
+                let native_path = format!("{prefix}native-rate.wav");
+                let sidecar = map.get(native_path.as_str())
                     .ok_or("voice_backup:take_native_missing")?;
                 if native != sidecar.sha256 {
                     return Err("voice_backup:take_native_mismatch".into());
                 }
+                referenced_payloads.insert(native_path);
             }
         }
         if rel.ends_with("/version.json") && rel.starts_with("VoiceVersions/") {
+            let id = rel.split('/').nth(2).ok_or("voice_backup:version_id_missing")?;
+            if entry.sha256 != id {
+                return Err("voice_backup:version_receipt_identity_invalid".into());
+            }
             let data = read_regular_bounded(&root.join(rel), 64 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:version_receipt_invalid")?;
@@ -296,11 +312,13 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
                     .ok_or("voice_backup:version_file_missing")?;
                 let expected = referenced.get("sha256").and_then(|f| f.as_str())
                     .ok_or("voice_backup:version_hash_missing")?;
-                let actual = map.get(&format!("{prefix}{name}")[..])
+                let file_path = format!("{prefix}{name}");
+                let actual = map.get(file_path.as_str())
                     .ok_or("voice_backup:version_object_missing")?;
                 if actual.sha256 != expected {
                     return Err("voice_backup:version_hash_mismatch".into());
                 }
+                referenced_payloads.insert(file_path);
             }
         }
         if rel.starts_with("DatasetSnapshots/") && rel.ends_with(".json") {
@@ -359,11 +377,13 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
                 if !valid_recovery_file(label) || !seen.insert(label) || !valid_hex(sha) {
                     return Err("voice_backup:recovery_file_invalid".into());
                 }
-                let file = map.get(format!("TrainingRecovery/{id}/files/{label}").as_str())
+                let file_path = format!("TrainingRecovery/{id}/files/{label}");
+                let file = map.get(file_path.as_str())
                     .ok_or("voice_backup:recovery_file_missing")?;
                 if file.sha256 != sha || file.bytes != bytes {
                     return Err("voice_backup:recovery_file_changed".into());
                 }
+                referenced_payloads.insert(file_path);
             }
         }
         if rel.starts_with("TrainingLineage/") && rel.ends_with(".json") {
@@ -380,6 +400,18 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
             {
                 return Err("voice_backup:lineage_references_missing".into());
             }
+        }
+    }
+    for entry in entries {
+        let parts: Vec<&str> = entry.path.split('/').collect();
+        let is_payload = matches!(
+            parts.as_slice(),
+            ["Recordings", _, _, "canonical.wav" | "native-rate.wav"]
+                | ["VoiceVersions", _, _, "actor.json" | "gpt.ckpt" | "sovits.pth" | "reference.wav"]
+                | ["TrainingRecovery", _, "files", _]
+        );
+        if is_payload && !referenced_payloads.contains(&entry.path) {
+            return Err("voice_backup:unreferenced_archive_payload".into());
         }
     }
     Ok(())
@@ -578,6 +610,44 @@ mod tests {
             "Recordings/ab/other/canonical.wav", "MyVoice/actor.json"] {
             assert!(!safe_relative(bad), "{bad}");
         }
+    }
+
+    #[test]
+    fn orphan_archive_payloads_are_not_valid_backups() {
+        let id = "a".repeat(64);
+        for path in [
+            format!("Recordings/aa/{id}/canonical.wav"),
+            format!("Recordings/aa/{id}/native-rate.wav"),
+            format!("VoiceVersions/aa/{id}/gpt.ckpt"),
+            format!("TrainingRecovery/{id}/files/gpt-0.ckpt"),
+        ] {
+            let failure = check_references(Path::new("."), &[item(&path)]).unwrap_err();
+            assert_eq!(failure, "voice_backup:unreferenced_archive_payload", "{path}");
+        }
+    }
+
+    #[test]
+    fn immutable_archive_receipt_id_must_match_file_digest() {
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "translateit-backup-identity-{}-{stamp}", std::process::id()
+        ));
+        let id = "a".repeat(64);
+        for (path, error) in [
+            (format!("Recordings/aa/{id}/take.json"),
+                "voice_backup:take_receipt_identity_invalid"),
+            (format!("VoiceVersions/aa/{id}/version.json"),
+                "voice_backup:version_receipt_identity_invalid"),
+        ] {
+            let file = root.join(&path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, b"{}").unwrap();
+            let (sha256, bytes) = hash_regular_file(&file, MAX_FILE_BYTES).unwrap();
+            assert_ne!(sha256, id);
+            let entry = BackupEntry { path, bytes, sha256 };
+            assert_eq!(check_references(&root, &[entry]).unwrap_err(), error);
+        }
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[cfg(target_os = "windows")]
