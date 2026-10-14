@@ -60,3 +60,34 @@ test("stored versions are never deleted or silently promoted by the listing modu
   assert.match(source, /sha256/);
   assert.doesNotMatch(source, /get_application_snapshot/);
 });
+
+test("uncertain saved-version restore keeps selection locked and rechecks native voice without retrying the write", () => {
+  const browser = frontend("components/my-voice/VoiceVersionBrowser.svelte");
+  const page = frontend("pages/MyVoice.svelte");
+  const reconcile = browser.slice(browser.indexOf("async function reconcileUncertainSelection("),
+    browser.indexOf("async function selectVersion("));
+  assert.match(reconcile, /pendingId = null/);
+  assert.match(reconcile, /selectionUnknown = true/);
+  assert.match(reconcile, /await onRecheck\(\)/);
+  assert.doesNotMatch(reconcile, /selectionUnknown = false|selectActorVersion\(/);
+  assert.match(browser, /if \(!next\) \{\s*error = true;\s*pendingId = null/);
+  assert.match(browser, /pendingId && !versions\.items\.some/);
+  assert.match(browser, /if \(busy\) return;\s*opened = !opened/);
+  assert.match(browser, /aria-expanded=\{opened\} disabled=\{busy\}/);
+  assert.match(browser, /if \(busy \|\| error \|\| selectionUnknown/);
+  assert.equal((browser.match(/disabled=\{busy \|\| error \|\| voiceChangesLocked \|\| selectionUnknown\}/g) ?? []).length, 2);
+  const select = browser.slice(browser.indexOf("async function selectVersion("),
+    browser.indexOf("\n  }", browser.indexOf("async function selectVersion(")));
+  assert.match(select, /await reconcileUncertainSelection\(/);
+
+  const refresh = page.slice(page.indexOf("async function refreshVoiceSelection("),
+    page.indexOf("\n  }", page.indexOf("async function refreshVoiceSelection(")));
+  assert.match(page, /let selectedVoiceReadVersion = 0/);
+  assert.match(refresh, /const requestVersion = \+\+selectedVoiceReadVersion/);
+  assert.match(refresh, /disposed \|\| requestVersion !== selectedVoiceReadVersion/);
+  assert.match(refresh, /requestVersion === selectedVoiceReadVersion/);
+  assert.match(refresh, /return true/);
+  assert.match(page, /onRecheck=\{refreshVoiceSelection\}/);
+  assert.match(page, /if \(!await refreshVoiceSelection\(\) \|\| selectedVoiceKind !== "personal"\)/);
+  assert.match(page, /throw new Error\("selected_meeting_voice_unverified"\)/);
+});

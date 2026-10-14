@@ -33,20 +33,29 @@
       if (disposed) return;
       if (!next) {
         error = true;
+        pendingId = null;
         return;
       }
       versions = more && versions
         ? { ...next, items: [...versions.items, ...next.items] }
         : next;
       error = false;
+      if (pendingId && !versions.items.some((item) => item.version_id === pendingId)) {
+        pendingId = null;
+      }
     } catch {
-      if (!disposed) error = true;
+      if (!disposed) {
+        error = true;
+        pendingId = null;
+      }
     } finally {
       busy = false;
     }
   }
 
   function toggle(): void {
+    // An unfinished read/mutation must settle before hiding its result.
+    if (busy) return;
     opened = !opened;
     if (opened) void load();
     else pendingId = null;
@@ -67,20 +76,35 @@
     }
   }
 
+  async function reconcileUncertainSelection(message: string): Promise<void> {
+    if (disposed) return;
+    pendingId = null;
+    selectionUnknown = true;
+    // Refresh current Meeting voice without replaying a potentially
+    // completed restore. Its identity cannot be inferred from kind alone.
+    try {
+      await onRecheck();
+    } catch {
+      // Keep the unknown lock for an explicit status retry.
+    }
+    if (!disposed) onNotice(message);
+  }
+
   async function selectVersion(versionId: string, confirmed: boolean): Promise<void> {
-    if (busy || selectionUnknown || voiceChangesLocked || !opened) return;
+    if (busy || error || selectionUnknown || voiceChangesLocked || !opened) return;
     if (!versions?.items.some((entry) => entry.version_id === versionId)) return;
     busy = true;
     try {
       const result = await myVoiceBuildApi.selectActorVersion(versionId, confirmed);
       if (disposed) return;
       if (result.state === "frontend_bridge_error" || result.build.phase === "unavailable") {
-        selectionUnknown = true;
-        onNotice("Couldn't verify the selected voice. Check the voice shown above before changing it again.");
+        await reconcileUncertainSelection(
+          "Couldn't verify the selected voice. Check the voice shown above before changing it again.",
+        );
         return;
       }
       if (result.state === "approval_required") {
-        pendingId = versionId;
+        if (opened) pendingId = versionId;
         return;
       }
       if (!result.ok) {
@@ -94,10 +118,9 @@
       busy = false;
       await load();
     } catch {
-      if (!disposed) {
-        selectionUnknown = true;
-        onNotice("Couldn't confirm whether the voice changed. Check the current Meeting voice.");
-      }
+      await reconcileUncertainSelection(
+        "Couldn't confirm whether the voice changed. Check the current Meeting voice.",
+      );
     } finally {
       busy = false;
     }
@@ -112,7 +135,7 @@
 <section class="mt-4" aria-label="Saved voice versions">
   <button type="button"
     class="flex items-center gap-2 text-left text-sm font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
-    aria-expanded={opened} onclick={toggle}>
+    aria-expanded={opened} disabled={busy} onclick={toggle}>
     <History size={15} /><span>Voice versions</span><ChevronDown size={14} />
   </button>
 
@@ -162,7 +185,7 @@
                   </p>
                 </div>
                 <button type="button" class="ti-button ti-button-secondary"
-                  disabled={busy || voiceChangesLocked || selectionUnknown}
+                  disabled={busy || error || voiceChangesLocked || selectionUnknown}
                   onclick={() => void selectVersion(voice.version_id, false)}>
                   <RotateCcw size={14} /> Use version
                 </button>
@@ -189,7 +212,7 @@
             <button type="button" class="ti-button ti-button-secondary" disabled={busy}
               onclick={() => { pendingId = null; }}>Cancel</button>
             <button type="button" class="ti-button"
-              disabled={busy || voiceChangesLocked || selectionUnknown}
+              disabled={busy || error || voiceChangesLocked || selectionUnknown}
               onclick={() => { if (pendingId) void selectVersion(pendingId, true); }}>
               <Check size={14} /> Confirm and use
             </button>

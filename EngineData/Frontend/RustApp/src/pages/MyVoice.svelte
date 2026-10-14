@@ -46,6 +46,7 @@
   let selectedBuiltinVoiceId = $state<string | null>(null);
   let savedPersonalVoiceAvailable = $state(false);
   let selectedVoiceVerified = $state(false);
+  let selectedVoiceReadVersion = 0;
   let recordingStatusUnknown = $state(false);
   let microphoneCheck = $state<"idle" | "checking" | "ready" | "unavailable">("idle");
   let legacyProtection = $state<LegacyProtectionStatus | null>(null);
@@ -268,17 +269,21 @@
     }
   }
 
-  async function refreshVoiceSelection(): Promise<void> {
+  async function refreshVoiceSelection(): Promise<boolean> {
+    const requestVersion = ++selectedVoiceReadVersion;
     try {
       const status = await myVoiceBuildApi.getStatus();
-      if (disposed) return;
-      selectedVoiceVerified = status.phase !== "unavailable";
-      if (!selectedVoiceVerified) return;
+      if (disposed || requestVersion !== selectedVoiceReadVersion) return false;
+      const verified = status.phase !== "unavailable" && status.selected_voice_kind !== "unknown";
+      selectedVoiceVerified = verified;
+      if (!verified) return false;
       selectedVoiceKind = status.selected_voice_kind;
       selectedBuiltinVoiceId = status.selected_builtin_voice_id;
       savedPersonalVoiceAvailable = status.saved_personal_voice_available;
+      return true;
     } catch {
-      if (!disposed) selectedVoiceVerified = false;
+      if (!disposed && requestVersion === selectedVoiceReadVersion) selectedVoiceVerified = false;
+      return false;
     }
   }
 
@@ -728,6 +733,7 @@
     void refreshLegacyProtection();
     return () => {
       disposed = true;
+      selectedVoiceReadVersion += 1;
       stopReplay();
       onRecordingChange(false);
     };
@@ -765,13 +771,12 @@
     {onNotice}
     onVoiceActivated={async (message) => {
       buildRefreshRevision += 1;
-      await refreshVoiceSelection();
+      if (!await refreshVoiceSelection() || selectedVoiceKind !== "personal") {
+        throw new Error("selected_meeting_voice_unverified");
+      }
       await onMeetingVoiceChanged(message);
     }}
-    onRecheck={async () => {
-      await refreshVoiceSelection();
-      return selectedVoiceVerified && selectedVoiceKind !== "unknown";
-    }}
+    onRecheck={refreshVoiceSelection}
   />
 
 
