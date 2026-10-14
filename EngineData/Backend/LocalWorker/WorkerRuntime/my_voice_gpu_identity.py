@@ -83,6 +83,40 @@ def parse_sensor_row(output: str, requested_uuid: str) -> tuple[int, int]:
     return total, free
 
 
+def sensor_inventory_mib() -> dict[str, tuple[int, int]]:
+    """One bounded NVIDIA query for all physical CUDA GPUs at admission.
+
+    A fresh per-UUID query remains used during a long-running stage. A single
+    inventory call avoids one subprocess per card and keeps discovery bounded.
+    """
+    program = sensor_executable()
+    try:
+        response = subprocess.run(
+            [program, "--query-gpu=uuid,memory.total,memory.free",
+             "--format=csv,noheader,nounits"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, check=False,
+            timeout=SENSOR_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise DeviceIdentityError("my_voice:nvidia_inventory_unavailable") from exc
+    if response.returncode != 0 or len(response.stdout) > 4096:
+        raise DeviceIdentityError("my_voice:nvidia_inventory_invalid")
+    rows = response.stdout.strip().splitlines()
+    if not rows or len(rows) > MAX_VISIBLE_CUDA_DEVICES:
+        raise DeviceIdentityError("my_voice:nvidia_inventory_count_invalid")
+    devices: dict[str, tuple[int, int]] = {}
+    for row in rows:
+        values = [item.strip() for item in row.split(",")]
+        if len(values) != 3:
+            raise DeviceIdentityError("my_voice:nvidia_inventory_row_invalid")
+        uuid = normalize_uuid(values[0])
+        if uuid in devices:
+            raise DeviceIdentityError("my_voice:nvidia_inventory_duplicate_uuid")
+        devices[uuid] = parse_sensor_row(row, uuid)
+    return devices
+
+
 def sensor_memory_mib(uuid: str, executable: str | None = None) -> tuple[int, int]:
     selected = normalize_uuid(uuid)
     executable = executable or sensor_executable()

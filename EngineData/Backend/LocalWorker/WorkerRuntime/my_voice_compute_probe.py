@@ -14,7 +14,7 @@ from typing import Any, Callable
 
 from my_voice_gpu_identity import (
     MAX_VISIBLE_CUDA_DEVICES, DeviceIdentityError, cuda_device_uuid,
-    normalize_uuid, sensor_memory_mib,
+    normalize_uuid, sensor_inventory_mib,
 )
 from my_voice_gpu_policy import PROFILE, assess_memory
 
@@ -42,7 +42,7 @@ def empty_report(cpu_name: str) -> dict[str, Any]:
 def detect_compute(
     torch_module: Any, cpu_name: str, *,
     required_uuid: str | None = None,
-    sensor_reader: Callable[[str], tuple[int, int]] = sensor_memory_mib,
+    sensor_reader: Callable[[str], tuple[int, int]] | None = None,
 ) -> dict[str, Any]:
     result = empty_report(cpu_name)
     try:
@@ -59,6 +59,10 @@ def detect_compute(
         if not 0 < count <= MAX_VISIBLE_CUDA_DEVICES:
             raise DeviceIdentityError("unsupported_cuda_device_count")
         target = normalize_uuid(required_uuid) if required_uuid else None
+        # One NVIDIA inventory call regardless of the number of CUDA cards.
+        if sensor_reader is None:
+            inventory = sensor_inventory_mib()
+            sensor_reader = lambda uuid: inventory[uuid]
         candidates: list[dict[str, Any]] = []
         seen: set[str] = set()
         for index in range(count):

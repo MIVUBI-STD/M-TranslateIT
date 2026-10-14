@@ -78,3 +78,28 @@ def test_nvidia_sensor_row_checks_uuid_not_ordinal():
     with pytest.raises(DeviceIdentityError):
         parse_sensor_row(UUID_B + ", 12288, 10500", UUID_A)
     assert normalize_uuid(UUID_A) == UUID_A
+
+
+def test_inventory_reader_matches_exact_requested_device():
+    from my_voice_gpu_identity import sensor_inventory_mib
+    from unittest.mock import patch
+    from subprocess import CompletedProcess
+    rows = UUID_A + ", 8192, 7100\n" + UUID_B + ", 12288, 9500\n"
+    with patch("my_voice_gpu_identity.sensor_executable", return_value="nvidia-smi"):
+        with patch("my_voice_gpu_identity.subprocess.run",
+                   return_value=CompletedProcess([], 0, rows, "")) as call:
+            inventory = sensor_inventory_mib()
+    assert inventory[UUID_A] == (8192, 7100)
+    assert inventory[UUID_B] == (12288, 9500)
+    assert call.call_count == 1
+
+
+def test_autodiscovery_uses_one_inventory_read_even_for_multiple_cards():
+    from unittest.mock import patch
+    inventory = {UUID_A: (8192, 7500), UUID_B: (12288, 10000)}
+    with patch("my_voice_compute_probe.sensor_inventory_mib", return_value=inventory) as reader:
+        result = detect_compute(fake_torch([
+            (UUID_A, 8192, 7000), (UUID_B, 12288, 9400)
+        ]), "CPU")
+    assert result["gpu_uuid"] == UUID_B
+    reader.assert_called_once()
