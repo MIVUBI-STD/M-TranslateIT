@@ -74,6 +74,7 @@ fn collect_checkpoint_files(dir: &Path, group: &str) -> Result<Vec<Input>, Strin
         // partial. Preserve the existing work directory for investigation;
         // never clear it as if no incomplete checkpoint had existed.
         if name.starts_with(".pending-G_") || name.starts_with(".pending-D_")
+            || name.starts_with(".pending-pair-")
             || name.starts_with(".pending-gpt-full-")
             || name.starts_with(".pending-gpt-weights-") {
             return Err("voice_lab:recovery_partial_checkpoint_needs_attention".into());
@@ -88,6 +89,9 @@ fn collect_checkpoint_files(dir: &Path, group: &str) -> Result<Vec<Input>, Strin
             "sovits-D" => name.starts_with("D_")
                 && name.ends_with(".pth")
                 && name[2..name.len()-4].bytes().all(|b| b.is_ascii_digit()),
+            "sovits-pair" => name.starts_with("pair_")
+                && name.ends_with(".json")
+                && name[5..name.len()-5].bytes().all(|b| b.is_ascii_digit()),
             _ => false,
         };
         if !valid { continue; }
@@ -103,9 +107,52 @@ fn collect_checkpoint_files(dir: &Path, group: &str) -> Result<Vec<Input>, Strin
     }
     files.sort_by(|a,b| a.original_filename.cmp(&b.original_filename));
     for (index, input) in files.iter_mut().enumerate() {
-        input.label = format!("{group}-{index}.{}", if group == "gpt" { "ckpt" } else { "pth" });
+        input.label = format!("{group}-{index}.{}", match group {
+            "gpt" => "ckpt", "sovits-pair" => "json", _ => "pth",
+        });
     }
     Ok(files)
+}
+
+#[derive(Deserialize)]
+struct PairEvidence {
+    format: u32,
+    global_step: u64,
+    epoch: u64,
+    generator: PairedFile,
+    discriminator: PairedFile,
+}
+
+#[derive(Deserialize)]
+struct PairedFile {
+    name: String,
+    bytes: u64,
+    sha256: String,
+}
+
+fn verify_source_pair(path: &Path, root: &Path) -> Result<(), String> {
+    let raw = read_regular_bounded(path, 4096)
+        .map_err(|_| "voice_lab:recovery_sovits_pair_read_failed")?;
+    let evidence: PairEvidence = serde_json::from_slice(&raw)
+        .map_err(|_| "voice_lab:recovery_sovits_pair_invalid")?;
+    if evidence.format != 1 || evidence.global_step == 0 || evidence.epoch == 0
+        || path.file_name().and_then(|s| s.to_str())
+            != Some(format!("pair_{}.json", evidence.global_step).as_str())
+    {
+        return Err("voice_lab:recovery_sovits_pair_mismatch".into());
+    }
+    for (label, entry) in [("G", &evidence.generator), ("D", &evidence.discriminator)] {
+        if entry.name != format!("{label}_{}.pth", evidence.global_step)
+            || entry.bytes <= 4096 || entry.bytes > LIMIT_FILE
+        {
+            return Err("voice_lab:recovery_sovits_pair_mismatch".into());
+        }
+        let (hash, bytes) = hash_regular_file(&root.join(&entry.name), LIMIT_FILE)?;
+        if hash != entry.sha256 || bytes != entry.bytes {
+            return Err("voice_lab:recovery_sovits_pair_digest_mismatch".into());
+        }
+    }
+    Ok(())
 }
 
 fn inputs(storage: &VoiceLabStoragePaths) -> Result<Vec<Input>, String> {
@@ -119,8 +166,14 @@ fn inputs(storage: &VoiceLabStoragePaths) -> Result<Vec<Input>, String> {
     // as evidence rather than silently discarded.
     files.extend(collect_checkpoint_files(&s2_dir, "sovits-G")?);
     files.extend(collect_checkpoint_files(&s2_dir, "sovits-D")?);
+    files.extend(collect_checkpoint_files(&s2_dir, "sovits-pair")?);
     files.extend(collect_checkpoint_files(&exp.join("logs_s1_v2ProPlus").join("ckpt"), "gpt")?);
     if files.is_empty() { return Ok(files); }
+    // Pair receipts belong to the same frozen original checkpoint bytes.
+    // Unpaired legacy checkpoints are evidence only, never verified resume.
+    for file in files.iter().filter(|part| part.label.starts_with("sovits-pair-")) {
+        verify_source_pair(&file.source, &s2_dir)?;
+    }
 
     for (name, label) in [
         ("translateit_s1.yaml", "gpt-config.yaml"),

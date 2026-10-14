@@ -112,6 +112,8 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(adapter, /install_sovits_atomic_writer\(utils\)/);
   assert.match(adapter, /create_atomic_lightning_checkpoint_io\(\)/);
   assert.match(adapter, /atomic_gpt_inference_save as my_save/);
+  assert.match(adapter, /sovits_paired_optimizer_receipt/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py"), /verified_pair_for_epoch/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_io.py"), /os\.replace\(staged, target\)/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_atomic.py"), /os\.replace\(staged, target\)/);
   assert.match(adapter, /strategy="auto"/);

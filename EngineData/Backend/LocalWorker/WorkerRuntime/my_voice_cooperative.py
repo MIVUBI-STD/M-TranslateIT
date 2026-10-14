@@ -61,9 +61,9 @@ def write_ack(stage: str, epoch: int) -> None:
 def sovits_epoch_boundary(epoch: int, save_every: int, exp_dir: str, version: str) -> bool:
     if not requested("sovits") or save_every <= 0 or epoch % save_every != 0:
         return False
+    from my_voice_checkpoint_pair import verified_pair_for_epoch
     directory = Path(exp_dir) / ("logs_s2_" + version)
-    if not (checkpoint_candidate_present(directory, "G_*.pth")
-            and checkpoint_candidate_present(directory, "D_*.pth")):
+    if not verified_pair_for_epoch(directory, epoch):
         return False
     write_ack("sovits", epoch)
     return True

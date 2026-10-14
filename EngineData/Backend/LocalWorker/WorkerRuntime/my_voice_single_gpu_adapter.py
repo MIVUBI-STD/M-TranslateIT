@@ -108,6 +108,23 @@ hps = utils.get_hparams(stage=2)""",
             source, "generator.module.infer(", "generator.infer(",
             "sovits_optional_eval",
         )
+        # Full G/D optimizer checkpoints use distinct step filenames and a
+        # paired SHA-256 receipt published *after* both saves complete.
+        source = _replace_one(
+            source,
+            '''    if rank == 0:
+        logger.info("====> Epoch: {}".format(epoch))''',
+            '''    if rank == 0 and epoch % hps.train.save_every_epoch == 0:
+        from my_voice_checkpoint_pair import publish_pair
+        from pathlib import Path
+        publish_pair(
+            Path(hps.data.exp_dir) / ("logs_s2_" + hps.model.version),
+            global_step, epoch,
+        )
+    if rank == 0:
+        logger.info("====> Epoch: {}".format(epoch))''',
+            "sovits_paired_optimizer_receipt",
+        )
         # Only yield AFTER the configured SoVITS epoch checkpoint save. It
         # remains an UNVERIFIED recovery checkpoint, never an optimizer resume.
         source = _replace_one(
