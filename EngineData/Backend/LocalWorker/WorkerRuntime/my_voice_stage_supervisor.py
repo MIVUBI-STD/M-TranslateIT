@@ -8,11 +8,15 @@ GPU pressure observations use optional installed nvidia-smi and fail closed.
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 import shutil
 import signal
 import subprocess
+import tempfile
 from pathlib import Path
+from my_voice_adaptive_safety import PressureObserver, SafetySample
+from my_voice_resource_guard import snapshot as resource_snapshot
 
 from my_voice_resource_guard import (
     ResourceGuardError, check_start as check_system_resources, critical as critical_resources,
@@ -224,9 +228,50 @@ def gpu_free_mib(sensor: str) -> int:
         raise StageGuardError("my_voice:gpu_sensor_invalid")
     return value
 
+def _create_cooperative_request(directory: Path, token: str, stage: str, reason: str) -> None:
+    # New temporary stage-scoped file; a stale signal from a previous run
+    # cannot affect a new build. This is not an authentication boundary.
+    data = json.dumps({
+        "run_token": token, "stage": stage, "reason": reason,
+    }, sort_keys=True).encode("utf-8")
+    with (directory / "request.json").open("xb") as stream:
+        stream.write(data)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _acknowledged(directory: Path, token: str, stage: str) -> bool:
+    path = directory / "ack.json"
+    if not path.exists():
+        return False
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
+        raise StageGuardError("my_voice:cooperative_ack_invalid")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise StageGuardError("my_voice:cooperative_ack_unreadable") from exc
+    if (value.get("run_token") != token
+        or value.get("stage") != stage
+        or value.get("kind") != "checkpoint_candidate_not_resume_verified"
+        or type(value.get("epoch")) is not int or value["epoch"] < 1):
+        raise StageGuardError("my_voice:cooperative_ack_mismatch")
+    return True
+
+
 def run_supervised_stage(
-    argv: list[str], *, cwd: str, env: dict[str, str], gpu_stage: bool
+    argv: list[str], *, cwd: str, env: dict[str, str], gpu_stage: bool,
+    cooperative_stage: str | None = None,
 ) -> None:
+    """One supervised stage, no throttling fiction and no automatic resume.
+
+    High *stable* VRAM => WATCH, continue. Sustained decline => request yield
+    at checkpoint epoch. Critical pressure/unknown telemetry => terminate
+    owned process after repeated readings. A yield is always NOT success.
+    """
+    if cooperative_stage not in (None, "sovits", "gpt"):
+        raise StageGuardError("my_voice:cooperative_stage_invalid")
+    if cooperative_stage and not gpu_stage:
+        raise StageGuardError("my_voice:cooperative_requires_cuda")
     try:
         check_system_resources()
     except ResourceGuardError as exc:
@@ -234,49 +279,76 @@ def run_supervised_stage(
     sensor = locate_sensor() if gpu_stage else None
     if sensor and gpu_free_mib(sensor) < CRITICAL_FREE_MIB:
         raise StageGuardError("my_voice:gpu_pressure_before_stage")
-    with OwnedStageTree() as tree:
-        try:
-            proc = subprocess.Popen(
-                argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                creationflags=(subprocess.CREATE_NO_WINDOW | 0x00000004) if os.name == "nt" else 0,
-                start_new_session=os.name != "nt",
-            )
-        except OSError as exc:
-            raise StageGuardError("my_voice:stage_spawn_failed") from exc
-        tree.attach(proc)
-        if os.name == "nt":
-            _resume_owned_suspended_process(proc.pid)
-        consecutive_bad = 0
-        system_bad = 0
-        while proc.poll() is None:
+
+    temporary: str | None = None
+    token = env.get("TRANSLATEIT_MYVOICE_RUN_TOKEN", "")
+    if cooperative_stage is not None:
+        if len(token) != 64 or any(x not in "0123456789abcdef" for x in token):
+            raise StageGuardError("my_voice:cooperative_run_token_invalid")
+        root = Path(env.get("TRANSLATEIT_MYVOICE_CACHE_ROOT", "")) / "Build"
+        if not root.is_dir() or root.is_symlink():
+            raise StageGuardError("my_voice:cooperative_workspace_unavailable")
+        temporary = tempfile.mkdtemp(prefix="safe-yield-", dir=str(root))
+        env = dict(env)
+        env["TRANSLATEIT_MYVOICE_STOP_REQUEST"] = str(Path(temporary) / "request.json")
+        env["TRANSLATEIT_MYVOICE_STOP_ACK"] = str(Path(temporary) / "ack.json")
+        env["TRANSLATEIT_MYVOICE_STOP_STAGE"] = cooperative_stage
+    try:
+        with OwnedStageTree() as tree:
             try:
-                issue = critical_resources()
-                system_bad = system_bad + 1 if issue is not None else 0
-            except ResourceGuardError:
-                issue = "my_voice:system_resource_telemetry_lost"
-                system_bad += 1
-            if system_bad >= MAX_BAD_SAMPLES:
-                tree.terminate()
-                proc.wait(timeout=8)
-                raise StageGuardError(issue or "my_voice:critical_system_resources")
-            if sensor:
+                proc = subprocess.Popen(
+                    argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                    creationflags=(subprocess.CREATE_NO_WINDOW | 0x00000004) if os.name == "nt" else 0,
+                    start_new_session=os.name != "nt",
+                )
+            except OSError as exc:
+                raise StageGuardError("my_voice:stage_spawn_failed") from exc
+            tree.attach(proc)
+            if os.name == "nt":
+                _resume_owned_suspended_process(proc.pid)
+            observer = PressureObserver(require_gpu=gpu_stage)
+            emergency_readings = 0
+            request_sent = False
+            while proc.poll() is None:
+                # Read once per cycle; missing RAM/disk data is unknown and
+                # therefore never silently converted to NORMAL.
                 try:
-                    free = gpu_free_mib(sensor)
-                    consecutive_bad = consecutive_bad + 1 if free < CRITICAL_FREE_MIB else 0
-                except StageGuardError:
-                    consecutive_bad += 1
-                if consecutive_bad >= MAX_BAD_SAMPLES:
+                    ram, cache, saved = resource_snapshot()
+                    free_gpu = gpu_free_mib(sensor) if sensor else None
+                    result = observer.observe(SafetySample(free_gpu, ram, cache, saved))
+                except (ResourceGuardError, StageGuardError):
+                    result = observer.observe(SafetySample(None, -1, -1, -1))
+                if result.state in ("critical", "unknown"):
+                    emergency_readings += 1
+                else:
+                    emergency_readings = 0
+                if emergency_readings >= MAX_BAD_SAMPLES:
                     tree.terminate()
                     proc.wait(timeout=8)
-                    raise StageGuardError("my_voice:gpu_pressure_or_telemetry_lost")
-            try:
-                proc.wait(timeout=SENSOR_INTERVAL_SECONDS)
-            except subprocess.TimeoutExpired:
-                pass
-        if tree.remaining() != 0:
-            tree.terminate()
-            raise StageGuardError("my_voice:stage_descendants_still_running")
-        if proc.returncode != 0:
-            if proc.returncode in (3221225477, -1073741819):
-                raise StageGuardError("my_voice:native_worker_crash")
-            raise StageGuardError(f"my_voice:stage_exit_nonzero:{proc.returncode}")
+                    raise StageGuardError("my_voice:emergency_resource_or_telemetry_failure")
+                if result.state == "pressure" and temporary and not request_sent:
+                    _create_cooperative_request(
+                        Path(temporary), token, cooperative_stage, result.reason
+                    )
+                    request_sent = True
+                try:
+                    proc.wait(timeout=SENSOR_INTERVAL_SECONDS)
+                except subprocess.TimeoutExpired:
+                    pass
+            if tree.remaining() != 0:
+                tree.terminate()
+                raise StageGuardError("my_voice:stage_descendants_still_running")
+            if temporary and _acknowledged(Path(temporary), token, cooperative_stage):
+                if not request_sent:
+                    raise StageGuardError("my_voice:cooperative_unsolicited_ack")
+                # Worker reached a configured checkpoint epoch and closed.
+                # The full coordinator terminates and Rust preserves recovery
+                # candidates. Never progress to another stage or Review.
+                raise StageGuardError("my_voice:cooperative_safe_stop_checkpoint_candidate")
+            if proc.returncode != 0:
+                if proc.returncode in (3221225477, -1073741819):
+                    raise StageGuardError("my_voice:native_worker_crash")
+                raise StageGuardError(f"my_voice:stage_exit_nonzero:{proc.returncode}")
+    finally:
+        if temporary:
+            shutil.rmtree(temporary, ignore_errors=True)

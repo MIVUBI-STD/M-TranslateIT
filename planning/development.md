@@ -116,6 +116,13 @@
 - Only a *new* checkpoint archive copy requires aggregate free-space admission. An existing fully verified `.pending` archive can be committed without demanding a second full-copy budget; a partial/unverified pending archive remains blocked and original checkpoint bytes remain intact.
 - Source regression expectations are authored but unexecuted, with no claim of native behavior or RTX 3070 safety.
 
+## Checkpoint-boundary adaptive safety source — 2026-10-14
+
+- Added small pure `PressureObserver`: stable high GPU use is WATCH, sustained decline in GPU/RAM/disk is PRESSURE; consecutive CRITICAL/UNKNOWN readings still terminate the owned stage. No GPU-clock slowdown is claimed to reduce VRAM.
+- Scoped process-level cooperative stop request files are created only after PRESSURE for SoVITS/GPT. A revision-bound trainer adapter checks the request after an eligible epoch checkpoint boundary; GPT adds an ordered Lightning callback. The stage supervisor treats acknowledged yield as **failure to complete**, never success or Review. Existing Rust checkpoint preservation remains responsible for saving unverified checkpoint candidates.
+- Automatic resume stays disabled; cleanly stopped stages do not train later GPT/SoVITS stages or select a voice. This is SOURCE ONLY; exact pinned adapter execution, checkpoint save ordering, Windows GPU behavior and acoustic output are not validated.
+- Emergency killing remains available when memory becomes critically low or telemetry is lost. No tested pause/memory release or guaranteed restart is claimed.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

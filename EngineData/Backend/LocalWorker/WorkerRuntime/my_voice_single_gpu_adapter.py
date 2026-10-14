@@ -90,6 +90,23 @@ def single_gpu_source(path: Path, relative: str) -> str:
             source, "generator.module.infer(", "generator.infer(",
             "sovits_optional_eval",
         )
+        # Only yield AFTER the configured SoVITS epoch checkpoint save. It
+        # remains an UNVERIFIED recovery checkpoint, never an optimizer resume.
+        source = _replace_one(
+            source,
+            '''        scheduler_g.step()
+        scheduler_d.step()
+    print("training done")''',
+            '''        scheduler_g.step()
+        scheduler_d.step()
+        from my_voice_cooperative import sovits_epoch_boundary
+        if sovits_epoch_boundary(epoch, hps.train.save_every_epoch,
+                                 hps.data.exp_dir, hps.model.version):
+            print("my_voice:cooperative_checkpoint_boundary:sovits", flush=True)
+            return
+    print("training done")''',
+            "sovits_cooperative_epoch_boundary",
+        )
     elif relative == "GPT_SoVITS/s1_train.py":
         source = _replace_one(
             source,
@@ -104,6 +121,25 @@ def single_gpu_source(path: Path, relative: str) -> str:
         else "auto",''',
             '        strategy="auto",',
             "gpt_ddp_strategy",
+        )
+        source = _replace_one(
+            source,
+            '''    trainer: Trainer = Trainer(''',
+            '''    from pytorch_lightning.callbacks import Callback
+    from my_voice_cooperative import gpt_epoch_boundary
+
+    class MyVoiceSafeStopOnCheckpoint(Callback):
+        def on_train_epoch_end(self, trainer, pl_module):
+            gpt_epoch_boundary(trainer, config["train"]["save_every_n_epoch"], str(ckpt_dir))
+
+    trainer: Trainer = Trainer(''',
+            "gpt_cooperative_callback",
+        )
+        source = _replace_one(
+            source,
+            "        callbacks=[ckpt_callback],",
+            "        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],",
+            "gpt_cooperative_callback_order",
         )
     else:
         raise RuntimeError("my_voice:single_gpu_source_unsupported")

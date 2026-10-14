@@ -75,7 +75,9 @@ test("SAFE_8GB resource and process controls fail closed at native boundaries", 
   assert.match(nativeGuard, /checkpoint_archive_space_insufficient/);
   assert.match(treeGuard, /ResumeThread/);
   assert.match(supervisor, /_resume_owned_suspended_process\(proc\.pid\)/);
-  assert.match(supervisor, /critical_resources\(\)/);
+  assert.match(supervisor, /observer\.observe\(SafetySample/);
+  assert.match(supervisor, /cooperative_safe_stop_checkpoint_candidate/);
+  assert.match(supervisor, /_create_cooperative_request/);
   assert.match(systemGuard, /START_CACHE_MIB = 12 \* 1024/);
   assert.match(recovery, /ensure_archive_capacity\(&root, total\)/);
   assert.match(ui, /case "resource_admission_blocked":/);
@@ -91,6 +93,8 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_gpu_policy\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_single_gpu_adapter\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_resource_guard\.py/);
+  assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_adaptive_safety\.py/);
+  assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_cooperative\.py/);
   const adapter = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py");
   const runner = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_upstream_stage.py");
   assert.match(adapter, /single_gpu_source_revision_mismatch/);

@@ -201,6 +201,7 @@ def main() -> int:
             raise BuildError("gpu_budget_invalid")
         # Available to short-lived stage children. No implicit CPU fallback.
         os.environ["TRANSLATEIT_MYVOICE_GPU_BUDGET_MIB"] = str(args.gpu_budget_mib)
+        os.environ["TRANSLATEIT_MYVOICE_RUN_TOKEN"] = args.run_token
         dataset_dir = Path(args.dataset_dir).resolve()
         manifest = validate_manifest(dataset_dir)
         validate_dataset_signal(dataset_dir, manifest)

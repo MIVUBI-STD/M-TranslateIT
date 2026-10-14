@@ -240,6 +240,10 @@ def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) 
             [sys.executable, "-s", str(runner), str(source_root), str(script), *args],
             cwd=str(source_root), env=child_env,
             gpu_stage=script.name != "1-get-text.py",
+            cooperative_stage=(
+                "sovits" if script.name == "s2_train.py"
+                else "gpt" if script.name == "s1_train.py" else None
+            ),
         )
     except StageGuardError as exc:
         raise VoiceLabProviderError(f"upstream_stage_guard:{script.name}:{exc}") from exc
