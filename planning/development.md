@@ -37,6 +37,12 @@
 - CUDA and NVIDIA global free/total memory are now source-bound to the same physical GPU UUID; PyTorch process-specific allocated/reserved/peak usage and runtime cross-process provenance are not yet fully integrated. GPU driver faults and sudden OOM can occur between sensor readings. Scoped SoVITS/GPT writer adapters now stage and atomically publish *individual* files, but a full G/D pair is not a single transaction and optimizer resume remains uncertified.
 - Initial stage process ownership, nested Job Object behavior, Lightning callback order, pinned source adapter runtime behavior and low-memory pipeline semantics all require future Windows evidence. Never claim zero-crash safety.
 
+## Source-only follow-up: wasted-work and wait-error barriers
+
+- Fixed a Rust lifecycle case where an error from `child.try_wait()` could be hidden if a later `child.wait()` succeeded; child polling error must remain a failed build, never allow candidate promotion.
+- Added generation-bound manual Stop checks at CPU-side boundaries: before workdir creation, feature extraction, SoVITS/GPT training, held-out evaluation, each new evaluation candidate, and candidate promotion. This reuses one existing stop file rather than extra worker/threads and prevents avoidable GPU launches after Stop.
+- These are source changes only. Checkpoint integrity, native Windows behavior, Lightning plugin API and generation races remain unproven until later explicit validation.
+
 ## Single next step (source-only)
 
 Review the final Rust/Python source contracts, stage heartbeat provenance and checkpoint stop semantics; then close any source-provable gaps without adding workers or changing training quality **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.

@@ -846,6 +846,17 @@ def promote_selected_candidate(
     return selected_samples
 
 
+def require_training_not_cancelled(boundary: str) -> None:
+    """One run-scoped cancellation check at expensive pipeline boundaries."""
+    from my_voice_cooperative import manual_stop_requested
+
+    try:
+        if manual_stop_requested():
+            raise VoiceLabProviderError(f"manual_stop_at:{boundary}")
+    except RuntimeError as exc:
+        raise VoiceLabProviderError(f"manual_stop_signal_unavailable_at:{boundary}") from exc
+
+
 def build_candidate(
     *,
     source_root: Path,
@@ -857,6 +868,7 @@ def build_candidate(
     manifest: dict[str, Any],
     status_writer: Callable[[str, str], None],
 ) -> None:
+    require_training_not_cancelled("candidate_start")
     assets = source_assets(source_root)
     takes = training_takes(dataset_dir, manifest)
     for path in (candidate_dir, evaluation_dir, work_dir):
@@ -865,6 +877,7 @@ def build_candidate(
         path.mkdir(parents=True, exist_ok=True)
 
     exp = work_dir / "experiment"
+    require_training_not_cancelled("feature_extraction")
     status_writer("preparing", "Extracting audio features from accepted recordings.")
     prepare_dataset(source_root, assets, dataset_dir, exp, takes)
     # Reuse artifacts produced by the pinned SoVITS SV preprocessing stage.
@@ -878,12 +891,14 @@ def build_candidate(
         for item in speaker_evidence["per_take"]
     }
     reference = select_reference(takes, peer_cosines=peer_cosines)
+    require_training_not_cancelled("training_start")
     candidates = train(source_root, assets, exp, candidate_dir, status_writer)
 
     status_writer(
         "evaluating",
         "Comparing held-out Voice Actor candidates before review.",
     )
+    require_training_not_cancelled("evaluation_start")
     candidate_evaluation_root = work_dir / "candidate_evaluation"
     candidate_evaluation_root.mkdir(parents=True, exist_ok=True)
     from my_voice_stage_supervisor import StageGuardError, run_supervised_stage
@@ -892,6 +907,7 @@ def build_candidate(
     evaluator = Path(__file__).resolve().with_name("my_voice_evaluation_child.py")
     require_file(evaluator, "evaluation_child")
     for index, candidate in enumerate(candidates, start=1):
+        require_training_not_cancelled("evaluation_next_candidate")
         status_writer(
             "evaluating",
             f"Evaluating candidate {index} of {len(candidates)} in an isolated GPU process.",
@@ -956,6 +972,7 @@ def build_candidate(
         item["gpt_path"] = Path(candidate["gpt_path"])
         item["sovits_path"] = Path(candidate["sovits_path"])
         evidence.append(item)
+    require_training_not_cancelled("candidate_selection")
     selected = select_best_candidate(evidence)
     selected_samples = promote_selected_candidate(
         selected,

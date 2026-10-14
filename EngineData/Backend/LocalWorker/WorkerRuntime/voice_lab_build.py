@@ -206,6 +206,9 @@ def main() -> int:
         dataset_dir = Path(args.dataset_dir).resolve()
         manifest = validate_manifest(dataset_dir)
         validate_dataset_signal(dataset_dir, manifest)
+        from my_voice_cooperative import manual_stop_requested
+        if manual_stop_requested():
+            raise BuildError("manual_stop_before_preparing")
         status("preparing", "Preparing VoiceLab training data.")
         build_candidate(
             source_root=Path(args.source_root).resolve(),

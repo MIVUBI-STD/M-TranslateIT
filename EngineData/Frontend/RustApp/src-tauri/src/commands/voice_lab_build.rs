@@ -999,7 +999,10 @@ fn start_voice_lab_build_selected(
                     let _ = _job_lifetime.terminate();
                     #[cfg(not(windows))]
                     let _ = terminate_process_tree(child.id());
-                    break child.wait().or(Err(error));
+                    // A failed try_wait is never converted back into a
+                    // successful training exit by a later wait().
+                    let _ = child.wait();
+                    break Err(error);
                 }
             }
         };
