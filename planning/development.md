@@ -52,8 +52,8 @@
 
 ## Run-bound checkpoint evidence (source-only)
 
-- The same existing stage-supervisor loop can now read one tiny create-in-run, atomically replaced `epoch_progress.json` **only when a full checkpoint is saved**. SoVITS emits it after G/D pair receipt publication; GPT emits it after the pinned epoch checkpoint callback has saved the current epoch file. Only epoch increases with matching stage, run token and generation count as progress.
-- This avoids extra polling threads, full G/D rehash just for UI progress, misleading heartbeat-based epoch claims and repeated status writes when no checkpoint advanced. A checkpoint event is **not** optimizer resume eligibility. Faults/stale identities remain fail-closed, and no GPU processing has been run.
+- The same existing stage-supervisor loop can now read one tiny run-scoped, atomically replaced `epoch_progress.json` **only when a full checkpoint is saved**, including one final read after the child exits normally. SoVITS emits it after G/D pair receipt publication; GPT emits it after the pinned epoch checkpoint callback has saved the current epoch file. Only epoch increases with matching stage, run token and generation count as progress.
+- This avoids extra polling threads, full G/D rehash just for UI progress, misleading heartbeat-based epoch claims and repeated status writes when no checkpoint advanced. Sparse heartbeat includes the last checkpoint epoch only when an actual milestone receipt was observed; it does not imply a GPU batch progressed since that checkpoint. A checkpoint event is **not** optimizer resume eligibility. Faults/stale identities remain fail-closed, and no GPU processing has been run.
 - Remaining work: exact source/packaging static consistency and process-stop outcomes; do not pretend progress is continuous when epochs between checkpoints are unknown.
 
 ## Single next step (source-only)

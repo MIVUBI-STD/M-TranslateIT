@@ -144,6 +144,8 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(progress, /checkpoint_written_not_resume_verified/);
   assert.match(supervisor, /read_progress\(/);
   assert.match(supervisor, /on_checkpoint\(cooperative_stage, epoch\)/);
+  assert.match(supervisor, /final_epoch = read_progress\(/);
+  assert.match(progress, /checkpoint_progress_rolled_back/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py"), /publish_progress\("sovits"/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_cooperative.py"), /publish_progress\("gpt"/);
   assert.match(adapter, /save_last=False/);

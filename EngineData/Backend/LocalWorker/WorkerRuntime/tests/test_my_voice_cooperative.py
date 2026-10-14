@@ -41,12 +41,17 @@ def test_gpt_boundary_only_after_checkpoint_candidate(tmp_path, monkeypatch):
     ckpts = tmp_path / "ckpt"
     ckpts.mkdir()
     trainer = SimpleNamespace(current_epoch=4, should_stop=False)
-    gpt_epoch_boundary(trainer, 5, str(ckpts))
+    import pytest
+    with pytest.raises(RuntimeError, match="gpt_current_epoch_checkpoint_missing"):
+        gpt_epoch_boundary(trainer, 5, str(ckpts))
     assert not trainer.should_stop and not ack.exists()
     (ckpts / "epoch=4-step=100.ckpt").write_bytes(b"x" * 4097)
     gpt_epoch_boundary(trainer, 5, str(ckpts))
     assert trainer.should_stop
     assert json.loads(ack.read_text())["stage"] == "gpt"
+    progress = json.loads((tmp_path / "epoch_progress.json").read_text())
+    assert progress["stage"] == "gpt"
+    assert progress["epoch"] == 5
 
 def test_mismatched_run_token_ignored(tmp_path, monkeypatch):
     configure(monkeypatch, tmp_path, "sovits")

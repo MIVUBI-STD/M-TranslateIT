@@ -3,7 +3,7 @@
 Windows Job Object KILL_ON_JOB_CLOSE covers descendants after assignment.
 Windows children start CREATE_SUSPENDED and only resume after Job admission.
 A native worker/driver crash can still happen after resume.
-GPU pressure observations use optional installed nvidia-smi and fail closed.
+CUDA stages require a UUID-matched nvidia-smi sensor; missing data fails closed.
 """
 from __future__ import annotations
 
