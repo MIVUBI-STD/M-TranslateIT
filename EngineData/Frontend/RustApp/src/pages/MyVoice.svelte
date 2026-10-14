@@ -287,6 +287,16 @@
     }
   }
 
+  async function verifySelectedVersion(versionId: string): Promise<boolean> {
+    if (!await refreshVoiceSelection() || selectedVoiceKind !== "personal") return false;
+    // A personal-kind status is not proof of this specific archived version.
+    try {
+      return (await myVoiceBuildApi.verifySelectedVoiceVersion(versionId)) === true;
+    } catch {
+      return false;
+    }
+  }
+
   const currentLine = $derived(recordingState.lines.find((line) => line.line_id === selectedLineId) ?? null);
   const isRecording = $derived(recordingState.recording_line_id !== null);
   const pendingLineId = $derived(recordingState.pending_review?.line_id ?? null);
@@ -769,14 +779,14 @@
       buildSnapshot?.active === true || buildSnapshot?.preview_active === true ||
       recordingStatusUnknown || isRecording || pendingLineId !== null}
     {onNotice}
-    onVoiceActivated={async (message) => {
-      buildRefreshRevision += 1;
-      if (!await refreshVoiceSelection() || selectedVoiceKind !== "personal") {
+    onVoiceActivated={async (versionId, message) => {
+      if (!await verifySelectedVersion(versionId)) {
         throw new Error("selected_meeting_voice_unverified");
       }
+      buildRefreshRevision += 1;
       await onMeetingVoiceChanged(message);
     }}
-    onRecheck={refreshVoiceSelection}
+    onRecheck={verifySelectedVersion}
   />
 
 

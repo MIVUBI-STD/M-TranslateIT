@@ -68,7 +68,7 @@ test("uncertain saved-version restore keeps selection locked and rechecks native
     browser.indexOf("async function selectVersion("));
   assert.match(reconcile, /pendingId = null/);
   assert.match(reconcile, /selectionUnknown = true/);
-  assert.match(reconcile, /await onRecheck\(\)/);
+  assert.match(reconcile, /await onRecheck\(versionId\)/);
   assert.doesNotMatch(reconcile, /selectionUnknown = false|selectActorVersion\(/);
   assert.match(browser, /if \(!next\) \{\s*error = true;\s*pendingId = null/);
   assert.match(browser, /pendingId && !versions\.items\.some/);
@@ -87,7 +87,37 @@ test("uncertain saved-version restore keeps selection locked and rechecks native
   assert.match(refresh, /disposed \|\| requestVersion !== selectedVoiceReadVersion/);
   assert.match(refresh, /requestVersion === selectedVoiceReadVersion/);
   assert.match(refresh, /return true/);
-  assert.match(page, /onRecheck=\{refreshVoiceSelection\}/);
+  assert.match(page, /onRecheck=\{verifySelectedVersion\}/);
   assert.match(page, /if \(!await refreshVoiceSelection\(\) \|\| selectedVoiceKind !== "personal"\)/);
+  assert.match(page, /onVoiceActivated=\{async \(versionId, message\)/);
   assert.match(page, /throw new Error\("selected_meeting_voice_unverified"\)/);
+});
+
+test("on-demand selected actor fingerprint proves exact version without hashing on every polling read", () => {
+  const actor = rust("voice_lab/storage/actor_history.rs");
+  const store = rust("voice_lab/storage.rs");
+  const facade = rust("voice_lab.rs");
+  const build = rust("voice_lab_build.rs");
+  const registry = rust("registry.rs");
+  const bridge = frontend("app/bridge/myVoiceBuildApi.ts");
+  const browser = frontend("components/my-voice/VoiceVersionBrowser.svelte");
+  const parent = frontend("pages/MyVoice.svelte");
+  assert.match(actor, /fn selected_actor_matches_version\(selected: &Path, id: &str\)/);
+  assert.match(actor, /let receipt = fingerprint\(selected\)\?/);
+  assert.match(actor, /Ok\(hash_bytes\(&bytes\) == id\)/);
+  assert.match(actor, /fn selected_actor_identity_requires_exact_model_bytes_not_just_personal_kind/);
+  assert.match(store, /ActorKind::Personal => actor_history::selected_actor_matches_version/);
+  assert.match(store, /ActorKind::Builtin\(_\) => Ok\(false\)/);
+  assert.match(facade, /selected_personal_actor_matches_version/);
+  assert.match(build, /pub fn get_voice_lab_selected_version_match\(version_id: String\) -> Result<bool, String>/);
+  assert.match(build, /selected_personal_actor_matches_version\(&storage\(\), &version_id\)/);
+  assert.match(registry, /voice_lab_build::get_voice_lab_selected_version_match/);
+  assert.match(bridge, /get_voice_lab_selected_version_match", \{ versionId \}/);
+  assert.match(parent, /myVoiceBuildApi\.verifySelectedVoiceVersion\(versionId\)/);
+  assert.match(browser, /await onRecheck\(versionId\)/);
+  assert.match(browser, /await onVoiceActivated\(versionId, result\.message\)/);
+  assert.match(browser, /uncertainVersionId = versionId/);
+  assert.match(browser, /selectionUnknown = !verified/);
+  const statusOwner = build.slice(build.indexOf("fn current_status()"), build.indexOf("fn result("));
+  assert.doesNotMatch(statusOwner, /selected_personal_actor_matches_version|selected_actor_matches_version/);
 });

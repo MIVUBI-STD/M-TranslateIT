@@ -99,6 +99,16 @@ fn verify_version(dir: &Path, expected: &VersionReceipt, id: &str) -> Result<(),
     Ok(())
 }
 
+/// Compare the CURRENT active actor with an immutable version digest.
+/// On-demand only: hashing model weights on every status poll is prohibited.
+pub(super) fn selected_actor_matches_version(selected: &Path, id: &str) -> Result<bool, String> {
+    if !valid_id(id) { return Err("voice_lab:version_id_invalid".into()); }
+    let receipt = fingerprint(selected)?;
+    let bytes = serde_json::to_vec(&receipt)
+        .map_err(|_| "voice_lab:version_receipt_serialize_failed")?;
+    Ok(hash_bytes(&bytes) == id)
+}
+
 /// This call MUST complete before an actor is replaced or a promotion backup
 /// is removed. A failed/corrupt/pending version blocks the replacement.
 /// Duplicate packages are verified and reused, never overwritten.
@@ -417,6 +427,29 @@ mod tests {
             b"corrupt weight").unwrap();
         assert!(verify_actor_version(&paths, &first).is_err());
         assert!(verify_actor_version(&paths, &second).is_ok());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn selected_actor_identity_requires_exact_model_bytes_not_just_personal_kind() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "translateit-actor-selected-{}-{stamp}", std::process::id()
+        ));
+        let paths = VoiceLabStoragePaths::from_roots(&dir.join("cache"), &dir.join("saved"));
+        let active = dir.join("actor");
+        fake_actor(&active, b"selected-one");
+        let first = preserve_actor_version(&paths, &active).unwrap();
+        assert!(selected_actor_matches_version(&active, &first).unwrap());
+        fake_actor(&active, b"selected-two");
+        let second = preserve_actor_version(&paths, &active).unwrap();
+        assert_ne!(first, second);
+        assert!(!selected_actor_matches_version(&active, &first).unwrap());
+        assert!(selected_actor_matches_version(&active, &second).unwrap());
+        fs::write(active.join(GPT_WEIGHT_FILE), b"tampered").unwrap();
+        assert!(!selected_actor_matches_version(&active, &second).unwrap());
+        assert!(selected_actor_matches_version(&active, "invalid-version-id").is_err());
         fs::remove_dir_all(dir).unwrap();
     }
 

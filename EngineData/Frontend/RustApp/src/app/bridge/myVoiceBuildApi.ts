@@ -129,6 +129,12 @@ export const myVoiceBuildApi = {
     return runCommand<ActorVersionPage>("get_voice_lab_actor_versions", { after });
   },
 
+  async verifySelectedVoiceVersion(versionId: string): Promise<boolean | null> {
+    // Explicit-only streaming SHA-256 of the current selected model, not
+    // part of the routine status poll or selected voice kind check.
+    if (!/^[0-9a-f]{64}$/.test(versionId)) return null;
+    return runCommand<boolean>("get_voice_lab_selected_version_match", { versionId });
+  },
   async selectActorVersion(versionId: string, replaceConfirmed: boolean): Promise<MyVoiceBuildActionResult> {
     const action = await runCommand<MyVoiceBuildActionResult>("select_product_voice_version", {
       versionId, replaceConfirmed,

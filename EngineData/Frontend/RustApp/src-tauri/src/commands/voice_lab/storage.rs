@@ -310,6 +310,22 @@ pub(crate) fn restore_voice_backup(
 
 pub(crate) fn voice_backup_active() -> bool { backup::backup_active() }
 
+pub(crate) fn selected_personal_actor_matches_version(
+    paths: &VoiceLabStoragePaths, version_id: &str,
+) -> Result<bool, String> {
+    if !immutable_store::valid_id(version_id) {
+        return Err("voice_lab:version_id_invalid".into());
+    }
+    match actor_kind(&paths.approved_actor_dir) {
+        ActorKind::Personal => actor_history::selected_actor_matches_version(
+            &paths.approved_actor_dir, version_id,
+        ),
+        ActorKind::Builtin(_) => Ok(false),
+        ActorKind::Missing => Err("voice_lab:selected_actor_missing".into()),
+        ActorKind::Unverified => Err("voice_lab:selected_actor_unverified".into()),
+    }
+}
+
 pub(crate) fn activate_archived_personal_voice(
     paths: &VoiceLabStoragePaths, version_id: &str,
 ) -> Result<(), String> {

@@ -11,14 +11,15 @@
   }: {
     voiceChangesLocked: boolean;
     onNotice: (message: string) => void;
-    onVoiceActivated: (message?: string) => void | Promise<void>;
-    onRecheck: () => Promise<boolean>;
+    onVoiceActivated: (versionId: string, message?: string) => void | Promise<void>;
+    onRecheck: (versionId: string) => Promise<boolean>;
   } = $props();
 
   let opened = $state(false);
   let busy = $state(false);
   let error = $state(false);
   let selectionUnknown = $state(false);
+  let uncertainVersionId = $state<string | null>(null);
   let versions = $state<ActorVersionPage | null>(null);
   let pendingId = $state<string | null>(null);
   let disposed = false;
@@ -63,12 +64,15 @@
 
   async function retrySelectionStatus(): Promise<void> {
     if (busy) return;
+    const versionId = uncertainVersionId;
+    if (!versionId) return;
     busy = true;
     try {
-      const verified = await onRecheck();
+      const verified = await onRecheck(versionId);
       if (disposed) return;
       selectionUnknown = !verified;
-      if (!verified) onNotice("Couldn't verify the current Meeting voice. Voice selection remains unavailable.");
+      if (verified) uncertainVersionId = null;
+      if (!verified) onNotice("Couldn't verify the requested saved version. Voice selection remains unavailable.");
     } catch {
       if (!disposed) selectionUnknown = true;
     } finally {
@@ -76,16 +80,17 @@
     }
   }
 
-  async function reconcileUncertainSelection(message: string): Promise<void> {
+  async function reconcileUncertainSelection(versionId: string, message: string): Promise<void> {
     if (disposed) return;
     pendingId = null;
+    uncertainVersionId = versionId;
     selectionUnknown = true;
     // Refresh current Meeting voice without replaying a potentially
     // completed restore. Its identity cannot be inferred from kind alone.
     try {
-      await onRecheck();
+      await onRecheck(versionId);
     } catch {
-      // Keep the unknown lock for an explicit status retry.
+      // Keep the unknown lock for an explicit exact-version retry.
     }
     if (!disposed) onNotice(message);
   }
@@ -99,6 +104,7 @@
       if (disposed) return;
       if (result.state === "frontend_bridge_error" || result.build.phase === "unavailable") {
         await reconcileUncertainSelection(
+          versionId,
           "Couldn't verify the selected voice. Check the voice shown above before changing it again.",
         );
         return;
@@ -113,12 +119,14 @@
         return;
       }
       pendingId = null;
-      await onVoiceActivated(result.message);
+      uncertainVersionId = null;
+      await onVoiceActivated(versionId, result.message);
       if (disposed) return;
       busy = false;
       await load();
     } catch {
       await reconcileUncertainSelection(
+        versionId,
         "Couldn't confirm whether the voice changed. Check the current Meeting voice.",
       );
     } finally {
