@@ -63,12 +63,27 @@
 - If Windows Job quiescence is unverifiable, the finalization path **keeps the old generation/Job handle in its existing process owner**, blocks new Start/Approve/Meeting changes, shows an explicit attention message, and refuses to clear the original Runtime work tree. It does not claim successful cancellation or archive integrity.
 - No additional OS watcher, lock, process or progress poll was introduced. These code paths are still not runtime-tested and must remain fail-closed until Windows fault-injection is authorized.
 
-## Next focused source-only work
+## Unexecuted Windows failure acceptance matrix
 
-**P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.
+These are future **acceptance scenarios**, not tests performed or runtime results. Test only after the user authorizes validation. In every scenario the existing Meeting voice, original recordings and immutable approved versions must remain unchanged.
 
-**P1:** Verify the Windows Job accounting struct/API assumptions and pinned Lightning 2.6.5 source changes against the reviewed dependency revisions. Author bounded source regression cases for failures, not GPU jobs.
+| Scenario | Expected safe result | Existing source owner |
+| --- | --- | --- |
+| Stop during dataset preparation or before Python spawn | Do not launch GPU work; leave saved recordings untouched | Rust build lifecycle |
+| Stop during SoVITS/GPT training | Request checkpoint-boundary stop using the existing supervisor; honor bounded deadline and never claim success | Python stage supervisor + Rust process owner |
+| Trainer ignores Stop and Job termination succeeds | Forced stop classified **incomplete** regardless of eventual root exit code; preserve verified checkpoint candidates | Rust completion owner |
+| TerminateJobObject fails or root cannot be reaped promptly | No unbounded wait; refuse Review; query owned Job quiescence before recovery | Rust Job owner |
+| Job active-process accounting unavailable or descendants remain | Attempt owned termination, preserve existing runtime files, retain ownership gate, prevent new Create/Approve/Meeting changes | Rust Job/accounting + process store |
+| Python stage exits while child process is still present | Reject successful stage; owned subprocess tree must stop before any next stage | Python stage supervisor |
+| New SoVITS G/D or GPT checkpoint is partially written | Reject partial/pending artifacts; keep older checkpoint and original training work for attention | Atomic writer + Rust recovery |
+| Checkpoint source changes while being copied | Reject archive, preserve original Runtime work; no optimizer resume | Rust immutable recovery |
+| Stop races with completed evaluation | One existing lifecycle mutex decides Stop or Review; never publish a cancelled result | Rust lifecycle receipt gate |
+| App closes abruptly while Job children exist | Owned kill-on-close must be verified on target Windows; no promise until tested | Windows Job Object |
 
-**P2:** Make recovery attention/diagnostic messages precise when owned descendant termination or checkpoint write cannot be verified; preserve the original work tree.
+**No speculative retry, auto-resume, GPU scaling or background monitors.** The existing active-process owner and canonical status remain the only runtime authorities.
 
-**STOP boundary:** Do not run tests, cargo/Node/Python execution, Windows/CUDA probes or end-to-end training until explicitly authorized. Do not enable Resume. Do not alter `main`. Work remains in `Local`.
+## Single next source-only step
+
+Review whether a Python stage subprocess can leave a live descendant after its root exits in **non-Windows** packaging, and audit all source return-code/exception paths for fail-closed behavior. Do not alter `main`, change the selected GPU policy, or enable optimizer resume.
+
+**STOP boundary:** Do not run tests, Python/Node execution, cargo, Windows/CUDA probes, fault injection or training until the user explicitly authorizes validation.

@@ -119,6 +119,11 @@ test("manual Stop reuses the existing process owners and cannot claim success af
   assert.match(native, /cancel_requested_at/);
   assert.match(native, /child\.try_wait\(\)/);
   assert.match(native, /bounded_reap_after_forced_stop\(&mut child\)/);
+  assert.match(native, /FORCED_REAP_GRACE: Duration = Duration::from_secs\(8\)/);
+  assert.match(native, /let _ = bounded_reap_after_forced_stop\(&mut child\)/);
+  const exitLoop = native.split("let exit = loop {")[1]?.split("drop(child);")[0] ?? "";
+  assert.doesNotMatch(exitLoop, /break child\.wait\(\)/);
+  assert.doesNotMatch(exitLoop, /let _ = child\.wait\(\)/);
   assert.match(native, /my_voice:forced_stop_after_deadline/);
   assert.match(native, /if owned_tree_quiescent\.is_ok\(\) \{/);
   assert.match(native, /process\.terminal_message =/);
