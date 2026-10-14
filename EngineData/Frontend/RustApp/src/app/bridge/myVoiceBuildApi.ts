@@ -30,6 +30,14 @@ export type MyVoiceCoverageGuidance = {
   suggested_line_id: number | null;
 };
 
+export type MyVoiceComputeStatus = {
+  state: "cuda_detected" | "cpu_only" | "unavailable";
+  cpu_name: string;
+  gpu_name: string | null;
+  vram_mib: number | null;
+  detail: string;
+};
+
 export type MyVoiceBuildStatus = {
   active: boolean;
   preview_active: boolean;
@@ -125,6 +133,11 @@ function normalizeAction(action: MyVoiceBuildActionResult): MyVoiceBuildActionRe
 }
 
 export const myVoiceBuildApi = {
+  // Explicit and bounded. Never invoke this from build-status polling.
+  async getComputeStatus(): Promise<MyVoiceComputeStatus | null> {
+    return runCommand<MyVoiceComputeStatus>("get_my_voice_compute_status");
+  },
+
   async listActorVersions(after: string | null = null): Promise<ActorVersionPage | null> {
     return runCommand<ActorVersionPage>("get_voice_lab_actor_versions", { after });
   },

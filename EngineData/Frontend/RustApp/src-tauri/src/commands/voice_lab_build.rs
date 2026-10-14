@@ -4,7 +4,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Condvar, Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_events::emit_voice_build_runtime_event;
@@ -112,6 +112,108 @@ struct BuildChildStatusFile {
     engine_revision: String,
     phase: String,
     message: String,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MyVoiceComputeStatus {
+    pub state: String,
+    pub cpu_name: String,
+    pub gpu_name: Option<String>,
+    pub vram_mib: Option<u64>,
+    pub detail: String,
+}
+
+impl MyVoiceComputeStatus {
+    fn unavailable(detail: &str) -> Self {
+        Self {
+            state: "unavailable".into(),
+            cpu_name: "CPU name unavailable".into(),
+            gpu_name: None,
+            vram_mib: None,
+            detail: detail.into(),
+        }
+    }
+}
+
+// Explicit-only read-only probe. Do NOT add CUDA/PyTorch imports to the
+// 1.4-second build-status poll or the persistent Meeting worker.
+fn probe_my_voice_compute_status() -> MyVoiceComputeStatus {
+    let Some(python) = resolve_worker_python_command() else {
+        return MyVoiceComputeStatus::unavailable(
+            "Local Python runtime is unavailable. Repair the installation before training.",
+        );
+    };
+    let root = worker_root();
+    let script = root.join("my_voice_compute_probe.py");
+    if !script.is_file() {
+        return MyVoiceComputeStatus::unavailable(
+            "My Voice hardware checker is missing. Repair the installation before training.",
+        );
+    }
+    let mut command = Command::new(&python.program);
+    command.args(&python.bootstrap_args)
+        .arg("-s").arg(script)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    let Ok(mut child) = command.spawn() else {
+        return MyVoiceComputeStatus::unavailable(
+            "Could not start the local Python hardware checker.",
+        );
+    };
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(exit)) => {
+                if !exit.success() {
+                    return MyVoiceComputeStatus::unavailable(
+                        "Local Python hardware checker exited unsuccessfully.",
+                    );
+                }
+                let mut output = Vec::new();
+                let Some(stdout) = child.stdout.take() else {
+                    return MyVoiceComputeStatus::unavailable("Hardware checker output is missing.");
+                };
+                if stdout.take(4097).read_to_end(&mut output).is_err() || output.len() > 4096 {
+                    return MyVoiceComputeStatus::unavailable("Hardware checker output is invalid.");
+                }
+                let Ok(report) = serde_json::from_slice::<MyVoiceComputeStatus>(&output) else {
+                    return MyVoiceComputeStatus::unavailable("Hardware checker output is unreadable.");
+                };
+                if !matches!(report.state.as_str(), "cuda_detected" | "cpu_only" | "unavailable")
+                    || report.cpu_name.len() > 200 || report.detail.len() > 500
+                    || report.gpu_name.as_ref().is_some_and(|name| name.len() > 200)
+                    || report.vram_mib.is_some_and(|mib| mib > 1_048_576)
+                    || (report.state != "cuda_detected"
+                        && (report.gpu_name.is_some() || report.vram_mib.is_some()))
+                {
+                    return MyVoiceComputeStatus::unavailable("Hardware checker returned inconsistent data.");
+                }
+                return report;
+            }
+            Ok(None) if started.elapsed() < Duration::from_secs(15) => {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return MyVoiceComputeStatus::unavailable(
+                    "Hardware check failed or timed out. Try again before training.",
+                );
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_my_voice_compute_status() -> MyVoiceComputeStatus {
+    tauri::async_runtime::spawn_blocking(probe_my_voice_compute_status)
+        .await
+        .unwrap_or_else(|_| MyVoiceComputeStatus::unavailable(
+            "Hardware checker could not finish safely.",
+        ))
 }
 
 #[derive(Debug, Clone, Serialize)]

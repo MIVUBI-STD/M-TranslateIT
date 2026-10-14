@@ -49,6 +49,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::voice_lab_recording::accept_voice_lab_guided_take,
         crate::commands::voice_lab_recording::get_voice_lab_guided_take_audio,
         crate::commands::voice_lab_build::get_voice_lab_build_status,
+        crate::commands::voice_lab_build::get_my_voice_compute_status,
         crate::commands::voice_lab_build::get_voice_lab_actor_versions,
         crate::commands::voice_lab_build::get_voice_lab_selected_version_match,
         crate::commands::voice_lab_preview::generate_voice_lab_quick_preview,

@@ -5,6 +5,7 @@
     myVoiceBuildApi,
     type MyVoiceBuildActionResult,
     type MyVoiceBuildStatus,
+    type MyVoiceComputeStatus,
   } from "../../app/bridge/myVoiceBuildApi";
   import QuickVoicePreview from "./QuickVoicePreview.svelte";
 
@@ -58,6 +59,15 @@
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let statusCheckUnavailable = $state(false);
+  let computeStatus = $state<MyVoiceComputeStatus | null>(null);
+  let computeChecking = $state(false);
+  let cpuTrainingAcknowledged = $state(false);
+  let computeReadVersion = 0;
+  const computeCanStart = $derived(
+    !computeChecking &&
+    (computeStatus?.state === "cuda_detected" ||
+      (computeStatus?.state === "cpu_only" && cpuTrainingAcknowledged)),
+  );
   // Read-order fence for polling, explicit refresh, and mutation results.
   // It is local to this view; Rust remains the only owner of build truth.
   let statusReadVersion = 0;
@@ -189,12 +199,17 @@
   }
 
   function activeTitle(): string {
+    if (build.active && build.phase === "training" && build.message.includes("SoVITS training stage")) return "Training voice characteristics";
+    if (build.active && build.phase === "training" && build.message.includes("GPT training stage")) return "Training speech generation";
     if (build.phase === "evaluating") return "Preparing voice previews";
     if (build.phase === "cancelling") return "Stopping My Voice creation";
     return "Creating My Voice";
   }
 
   function activeDetail(): string {
+    // The local Python worker emits this actual phase message before each stage.
+    // Never estimate epochs, percent complete, or remaining training time.
+    if (build.active && build.phase !== "cancelling" && build.message.trim()) return build.message.replace(/\bVoiceLab\b/g, "My Voice");
     if (build.phase === "preparing") return "Getting your accepted recordings ready.";
     if (build.phase === "training") return "Creating your English meeting voice from your accepted recordings.";
     if (build.phase === "evaluating") return "Preparing new sentences so you can listen before approving My Voice.";
@@ -361,8 +376,37 @@
     }
   }
 
+  async function checkCompute(): Promise<void> {
+    const requestVersion = ++computeReadVersion;
+    computeChecking = true;
+    computeStatus = null;
+    cpuTrainingAcknowledged = false;
+    try {
+      const next = await myVoiceBuildApi.getComputeStatus();
+      if (disposed || requestVersion !== computeReadVersion) return;
+      computeStatus = next ?? {
+        state: "unavailable",
+        cpu_name: "CPU name unavailable",
+        gpu_name: null,
+        vram_mib: null,
+        detail: "Could not verify local compute hardware.",
+      };
+    } catch {
+      if (disposed || requestVersion !== computeReadVersion) return;
+      computeStatus = {
+        state: "unavailable",
+        cpu_name: "CPU name unavailable",
+        gpu_name: null,
+        vram_mib: null,
+        detail: "Hardware check failed. Retry before training.",
+      };
+    } finally {
+      if (!disposed && requestVersion === computeReadVersion) computeChecking = false;
+    }
+  }
+
   async function startBuild(): Promise<void> {
-    if (busy || statusCheckUnavailable || voiceChangesLocked || quickPreviewBusy || !build.can_build || !authorized) return;
+    if (busy || statusCheckUnavailable || voiceChangesLocked || quickPreviewBusy || !build.can_build || !authorized || !computeCanStart) return;
     invalidatePendingStatusReads();
     quickPreviewReady = false;
     stopAudio();
@@ -480,8 +524,10 @@
 
   onMount(() => {
     disposed = false;
+    void checkCompute();
     return () => {
       disposed = true;
+      computeReadVersion += 1;
       if (timer) clearTimeout(timer);
       timer = null;
       statusReadVersion += 1;
@@ -508,6 +554,35 @@
       <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Personal voice saved</span>
     {:else if build.approved_voice_ready}
       <span class="flex items-center gap-1.5 text-sm font-semibold text-[var(--ti-success)]"><Check size={15} />Meeting voice ready</span>
+    {/if}
+  </div>
+
+  <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] px-4 py-3" aria-label="My Voice training hardware">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <strong class="text-sm font-semibold">Training hardware</strong>
+      <button type="button" class="ti-button ti-button-secondary" disabled={computeChecking || build.active || quickPreviewBusy} onclick={() => void checkCompute()}>
+        {computeChecking ? "Checking..." : "Recheck hardware"}
+      </button>
+    </div>
+    <p class="mb-0 mt-2 text-sm font-semibold" role="status">
+      {computeChecking ? "Checking local CPU and CUDA..." : computeStatus?.state === "cuda_detected"
+        ? "CUDA detected — training not yet verified" : computeStatus?.state === "cpu_only"
+        ? "CPU mode — unverified / may be slow" : "Training hardware unavailable"}
+    </p>
+    {#if computeStatus}
+      <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">CPU: {computeStatus.cpu_name}</p>
+      <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
+        GPU: {computeStatus.gpu_name ?? "No usable CUDA device reported"}{computeStatus.vram_mib !== null ? ` · Total VRAM: ${Math.round(computeStatus.vram_mib / 1024 * 10) / 10} GB (not free VRAM)` : ""}
+      </p>
+      <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">{computeStatus.detail}</p>
+      {#if computeStatus.state === "cpu_only"}
+        <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
+          <input type="checkbox" class="mt-0.5 size-4 accent-[var(--ti-accent)]" bind:checked={cpuTrainingAcknowledged} />
+          I understand that CPU-only training is unverified, may be very slow, and may fail.
+        </label>
+      {/if}
+    {:else if !computeChecking}
+      <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">Recheck to identify your local compute environment before creating a voice.</p>
     {/if}
   </div>
 
@@ -580,7 +655,7 @@
           <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} disabled={busy} />
           I own this voice or have permission to create another version.
         </label>
-        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+        <button type="button" class="ti-button ti-button-secondary mt-3" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized || !computeCanStart} onclick={() => void startBuild()}>Create Another Candidate</button>
       {/if}
     </div>
   {:else if build.approved_voice_ready && build.selected_voice_kind === "personal"}
@@ -590,7 +665,7 @@
         <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
       </label>
-      <button type="button" class="ti-button ti-button-secondary mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>Create Another Candidate</button>
+      <button type="button" class="ti-button ti-button-secondary mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized || !computeCanStart} onclick={() => void startBuild()}>Create Another Candidate</button>
     {/if}
   {:else}
     {#if !build.can_build}
@@ -600,7 +675,7 @@
         <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={authorized} />
         <span class="text-sm leading-5 text-[var(--ti-text-muted)]">I confirm these recordings are my voice, or a voice I have permission to create.</span>
       </label>
-      <button type="button" class="ti-button mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized} onclick={() => void startBuild()}>
+      <button type="button" class="ti-button mt-4" disabled={busy || statusCheckUnavailable || voiceChangesLocked || !authorized || !computeCanStart} onclick={() => void startBuild()}>
         <span>{busy ? "Starting..." : "Create My Voice"}</span>
       </button>
     {/if}

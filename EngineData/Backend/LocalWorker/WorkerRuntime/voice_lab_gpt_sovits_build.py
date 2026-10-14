@@ -416,13 +416,16 @@ def train(
     assets: dict[str, Path],
     exp: Path,
     candidate: Path,
+    status_writer: Callable[[str, str], None],
 ) -> list[dict[str, Any]]:
     sovits_dir = candidate / "_sovits_weights"
     gpt_dir = candidate / "_gpt_weights"
     sovits_dir.mkdir(parents=True, exist_ok=True)
     gpt_dir.mkdir(parents=True, exist_ok=True)
     s2, s1, env = training_configs(assets, exp, sovits_dir, gpt_dir)
+    status_writer("training", "Learning voice characteristics (SoVITS training stage).")
     run_stage(source_root, assets["sovits_train"], env, "--config", str(s2))
+    status_writer("training", "Learning speech generation (GPT training stage).")
     run_stage(source_root, assets["gpt_train"], env, "--config_file", str(s1))
     return select_training_candidates(sovits_dir, gpt_dir)
 
@@ -759,6 +762,7 @@ def build_candidate(
         path.mkdir(parents=True, exist_ok=True)
 
     exp = work_dir / "experiment"
+    status_writer("preparing", "Extracting audio features from accepted recordings.")
     prepare_dataset(source_root, assets, dataset_dir, exp, takes)
     # Reuse artifacts produced by the pinned SoVITS SV preprocessing stage.
     speaker_evidence = inspect_speaker_embeddings(exp / "7-sv_cn", takes)
@@ -771,11 +775,7 @@ def build_candidate(
         for item in speaker_evidence["per_take"]
     }
     reference = select_reference(takes, peer_cosines=peer_cosines)
-    status_writer(
-        "training",
-        "Creating bounded Voice Actor training candidates from accepted recordings.",
-    )
-    candidates = train(source_root, assets, exp, candidate_dir)
+    candidates = train(source_root, assets, exp, candidate_dir, status_writer)
 
     status_writer(
         "evaluating",

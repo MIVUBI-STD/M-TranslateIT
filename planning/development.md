@@ -41,6 +41,13 @@
 - These Svelte/Node test assertions are **authored only**. Layout, keyboard navigation, responsive rendering and accessibility must be assessed on an actually running Windows build at the same exact SHA; STATIC REVIEW IS NOT A VISUAL PASS.
 - The existing integrated U4/A9 Windows acceptance runbook now has bounded My Voice UI checks for the compact current-voice picker, workspace precedence, keyboard-accessible stage switching/Return to Review, pending audio indicators with stale callback handling, and saved-tool disclosures. This is an acceptance plan update, **NOT EXECUTED**; no new test harness, backend selection logic or model changes.
 
+## Source addition — My Voice compute and actual-stage visibility (2026-10-14)
+
+- Explicit-on-entry/recheck CPU/CUDA advisory uses the selected local Python runtime via a bounded, asynchronous Rust-owned probe. It is NOT added to the frequent build-status poll. CUDA detection, reported total VRAM and CPU-only mode are not proof of training success or realtime performance. Missing Python/PyTorch, failed CUDA inspection, malformed output or timeout show unavailable.
+- My Voice Create controls wait for a completed probe; CPU-only training additionally requires informed opt-in because this pinned upstream CPU path is unverified. This UI gate does not claim to replace backend engine admission or CPU/driver validation. GPU users are told detection does not establish free VRAM or acoustic quality.
+- GPT-SoVITS emits explicit worker stage messages before dataset feature extraction, SoVITS training and GPT training, then the existing held-out evaluation stage. The UI displays authoritative child messages without invented percentages, ETAs or epoch accounting. Rust owns the existing build lifecycle and cancellation.
+- The small-resource release map and validators include the new explicit hardware probe. Regression tests are authored for probe states, wiring and stage ordering; **not executed** in this GitHub-only pass. Exact-HEAD compile, Windows CUDA/CPU paths, responsive render, checkpoint safety, training audio/Meeting and clean-machine installation remain **unverified**.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.
