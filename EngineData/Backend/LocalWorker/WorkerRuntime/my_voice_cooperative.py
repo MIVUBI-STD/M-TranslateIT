@@ -14,6 +14,7 @@ REQUEST_ENV = "TRANSLATEIT_MYVOICE_STOP_REQUEST"
 ACK_ENV = "TRANSLATEIT_MYVOICE_STOP_ACK"
 TOKEN_ENV = "TRANSLATEIT_MYVOICE_RUN_TOKEN"
 STAGE_ENV = "TRANSLATEIT_MYVOICE_STOP_STAGE"
+STAGE_NONCE_ENV = "TRANSLATEIT_MYVOICE_STAGE_NONCE"
 MANUAL_STOP_ENV = "TRANSLATEIT_MYVOICE_MANUAL_STOP_PATH"
 GENERATION_ENV = "TRANSLATEIT_MYVOICE_RUN_GENERATION"
 
@@ -61,7 +62,11 @@ def requested(stage: str) -> bool:
         return False
     return (isinstance(message, dict)
             and message.get("run_token") == token
-            and message.get("stage") == stage)
+            and message.get("stage") == stage
+            and type(message.get("writer_pid")) is int
+            and message.get("writer_pid") == os.getpid()
+            and message.get("stage_nonce") == os.environ.get(STAGE_NONCE_ENV)
+            and bool(os.environ.get(STAGE_NONCE_ENV)))
 
 def checkpoint_candidate_present(directory: Path, pattern: str) -> bool:
     if directory.is_symlink() or not directory.is_dir():
@@ -82,6 +87,8 @@ def write_ack(stage: str, epoch: int) -> None:
         raise RuntimeError("my_voice:cooperative_ack_config_missing")
     body = json.dumps({
         "run_token": token, "stage": stage, "epoch": epoch,
+        "writer_pid": os.getpid(),
+        "stage_nonce": os.environ.get(STAGE_NONCE_ENV, ""),
         "kind": "checkpoint_candidate_not_resume_verified",
     }, sort_keys=True).encode("utf-8")
     with Path(target).open("xb") as stream:

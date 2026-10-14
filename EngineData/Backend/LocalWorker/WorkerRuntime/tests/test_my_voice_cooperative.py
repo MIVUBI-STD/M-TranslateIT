@@ -15,12 +15,17 @@ def configure(monkeypatch, tmp_path: Path, stage: str):
     monkeypatch.setenv(REQUEST_ENV, str(request))
     monkeypatch.setenv(ACK_ENV, str(ack))
     monkeypatch.setenv(STAGE_ENV, stage)
+    monkeypatch.setenv("TRANSLATEIT_MYVOICE_STAGE_NONCE", "b" * 32)
     monkeypatch.setenv("TRANSLATEIT_MYVOICE_RUN_GENERATION", "3")
     monkeypatch.setenv(
         "TRANSLATEIT_MYVOICE_EPOCH_PROGRESS_PATH",
         str(tmp_path / "epoch_progress.json"),
     )
-    request.write_text(json.dumps({"run_token": token, "stage": stage}))
+    import os
+    request.write_text(json.dumps({
+        "run_token": token, "stage": stage, "writer_pid": os.getpid(),
+        "stage_nonce": "b" * 32,
+    }))
     return ack
 
 def test_sovits_never_yields_before_checkpoint_epoch(tmp_path, monkeypatch):

@@ -18,29 +18,33 @@ ACTIVITY_ENV = "TRANSLATEIT_MYVOICE_EPOCH_ACTIVITY_PATH"
 TOKEN_ENV = "TRANSLATEIT_MYVOICE_RUN_TOKEN"
 GENERATION_ENV = "TRANSLATEIT_MYVOICE_RUN_GENERATION"
 STAGE_ENV = "TRANSLATEIT_MYVOICE_STOP_STAGE"
+STAGE_NONCE_ENV = "TRANSLATEIT_MYVOICE_STAGE_NONCE"
+NONCE_RE = re.compile(r"[0-9a-f]{32}\Z")
 MAX_RECEIPT_BYTES = 1024
 VALID_STAGES = {"sovits", "gpt"}
 
 
 def _identity(
     env: Mapping[str, str], stage: str, field: str = PROGRESS_ENV
-) -> tuple[str, int, Path]:
+) -> tuple[str, int, Path, str]:
     token = env.get(TOKEN_ENV, "")
     number = env.get(GENERATION_ENV, "")
+    nonce = env.get(STAGE_NONCE_ENV, "")
     path = env.get(field, "")
     if (stage not in VALID_STAGES or env.get(STAGE_ENV) != stage
         or not re.fullmatch(r"[0-9a-f]{64}", token)
+        or not NONCE_RE.fullmatch(nonce)
         or not number.isdecimal() or not 0 < int(number) < 2**64
         or not path or not Path(path).is_absolute()):
         raise RuntimeError("my_voice:checkpoint_progress_identity_missing")
     target = Path(path)
     if target.is_symlink() or not target.parent.is_dir() or target.parent.is_symlink():
         raise RuntimeError("my_voice:checkpoint_progress_path_untrusted")
-    return token, int(number), target
+    return token, int(number), target, nonce
 
 
 def publish_progress(stage: str, epoch: int, checkpoint_filename: str) -> None:
-    token, generation, target = _identity(os.environ, stage)
+    token, generation, target, nonce = _identity(os.environ, stage)
     if (type(epoch) is not int or not 1 <= epoch <= 10000
         or not checkpoint_filename or len(checkpoint_filename) > 100
         or not re.fullmatch(r"[A-Za-z0-9._=-]+", checkpoint_filename)
@@ -49,6 +53,7 @@ def publish_progress(stage: str, epoch: int, checkpoint_filename: str) -> None:
     data = json.dumps({
         "format": 1, "run_token": token, "run_generation": generation,
         "stage": stage, "epoch": epoch, "checkpoint": checkpoint_filename,
+        "writer_pid": os.getpid(), "stage_nonce": nonce,
         "kind": "checkpoint_written_not_resume_verified",
     }, sort_keys=True, separators=(",", ":")).encode("utf-8")
     if len(data) > MAX_RECEIPT_BYTES:
@@ -71,13 +76,14 @@ def publish_epoch_activity(stage: str, epoch: int) -> None:
 
     This is a cheap liveness milestone, NOT a successful optimizer save.
     """
-    token, generation, target = _identity(os.environ, stage, ACTIVITY_ENV)
+    token, generation, target, nonce = _identity(os.environ, stage, ACTIVITY_ENV)
     if type(epoch) is not int or not 1 <= epoch <= 10000:
         raise RuntimeError("my_voice:epoch_activity_invalid")
     data = json.dumps({
         "format": 1,
         "run_token": token, "run_generation": generation, "stage": stage,
         "epoch": epoch, "kind": "epoch_completed_not_checkpoint",
+        "writer_pid": os.getpid(), "stage_nonce": nonce,
     }, sort_keys=True, separators=(",", ":")).encode("utf-8")
     if len(data) > MAX_RECEIPT_BYTES:
         raise RuntimeError("my_voice:epoch_activity_too_large")
@@ -97,6 +103,7 @@ def publish_epoch_activity(stage: str, epoch: int) -> None:
 
 def read_epoch_activity(
     directory: Path, token: str, generation: int, stage: str, previous_epoch: int,
+    writer_pid: int, stage_nonce: str,
 ) -> int | None:
     """Bounded read by existing stage supervisor; never read model weights."""
     path = directory / "epoch_activity.json"
@@ -113,6 +120,8 @@ def read_epoch_activity(
     if (type(value) is not dict or value.get("format") != 1
         or value.get("run_token") != token or value.get("run_generation") != generation
         or value.get("stage") != stage or value.get("kind") != "epoch_completed_not_checkpoint"
+        or type(value.get("writer_pid")) is not int or value.get("writer_pid") != writer_pid
+        or value.get("stage_nonce") != stage_nonce or not NONCE_RE.fullmatch(stage_nonce)
         or type(value.get("epoch")) is not int or not 1 <= value["epoch"] <= 10000):
         raise RuntimeError("my_voice:epoch_activity_identity_mismatch")
     if value["epoch"] < previous_epoch:
@@ -122,7 +131,7 @@ def read_epoch_activity(
 
 def read_progress(
     directory: Path, token: str, generation: int, stage: str,
-    previous_epoch: int,
+    previous_epoch: int, writer_pid: int, stage_nonce: str,
 ) -> int | None:
     # Called at most once per existing stage supervisor monitoring cycle.
     path = directory / "epoch_progress.json"
@@ -140,6 +149,8 @@ def read_progress(
         type(item) is not dict or item.get("format") != 1
         or item.get("run_token") != token or item.get("run_generation") != generation
         or item.get("stage") != stage
+        or item.get("writer_pid") != writer_pid or type(item.get("writer_pid")) is not int
+        or item.get("stage_nonce") != stage_nonce or not NONCE_RE.fullmatch(stage_nonce)
         or item.get("kind") != "checkpoint_written_not_resume_verified"
         or type(item.get("epoch")) is not int or not 1 <= item["epoch"] <= 10000
         or not isinstance(item.get("checkpoint"), str)

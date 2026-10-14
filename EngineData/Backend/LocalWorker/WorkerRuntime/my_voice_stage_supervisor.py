@@ -10,6 +10,7 @@ from __future__ import annotations
 import ctypes
 import json
 import os
+import secrets
 import shutil
 import signal
 import subprocess
@@ -226,11 +227,15 @@ def gpu_free_mib(sensor: str, uuid: str) -> int:
         raise StageGuardError(str(exc)) from exc
 
 
-def _create_cooperative_request(directory: Path, token: str, stage: str, reason: str) -> None:
+def _create_cooperative_request(
+    directory: Path, token: str, stage: str, reason: str,
+    writer_pid: int, stage_nonce: str,
+) -> None:
     # New temporary stage-scoped file; a stale signal from a previous run
     # cannot affect a new build. This is not an authentication boundary.
     data = json.dumps({
         "run_token": token, "stage": stage, "reason": reason,
+        "writer_pid": writer_pid, "stage_nonce": stage_nonce,
     }, sort_keys=True).encode("utf-8")
     with (directory / "request.json").open("xb") as stream:
         stream.write(data)
@@ -238,7 +243,9 @@ def _create_cooperative_request(directory: Path, token: str, stage: str, reason:
         os.fsync(stream.fileno())
 
 
-def _acknowledged(directory: Path, token: str, stage: str) -> bool:
+def _acknowledged(
+    directory: Path, token: str, stage: str, writer_pid: int, stage_nonce: str
+) -> bool:
     path = directory / "ack.json"
     if not path.exists():
         return False
@@ -250,6 +257,9 @@ def _acknowledged(directory: Path, token: str, stage: str) -> bool:
         raise StageGuardError("my_voice:cooperative_ack_unreadable") from exc
     if (value.get("run_token") != token
         or value.get("stage") != stage
+        or type(value.get("writer_pid")) is not int
+        or value.get("writer_pid") != writer_pid
+        or value.get("stage_nonce") != stage_nonce
         or value.get("kind") != "checkpoint_candidate_not_resume_verified"
         or type(value.get("epoch")) is not int or value["epoch"] < 1):
         raise StageGuardError("my_voice:cooperative_ack_mismatch")
@@ -306,6 +316,8 @@ def run_supervised_stage(
             raise StageGuardError("my_voice:cooperative_workspace_unavailable")
         temporary = tempfile.mkdtemp(prefix="safe-yield-", dir=str(root))
         env = dict(env)
+        stage_nonce = secrets.token_hex(16)
+        env["TRANSLATEIT_MYVOICE_STAGE_NONCE"] = stage_nonce
         env["TRANSLATEIT_MYVOICE_STOP_REQUEST"] = str(Path(temporary) / "request.json")
         env["TRANSLATEIT_MYVOICE_STOP_ACK"] = str(Path(temporary) / "ack.json")
         env["TRANSLATEIT_MYVOICE_STOP_STAGE"] = cooperative_stage
@@ -328,6 +340,7 @@ def run_supervised_stage(
             tree.attach(proc)
             if os.name == "nt":
                 _resume_owned_suspended_process(proc.pid)
+            stage_nonce = env.get("TRANSLATEIT_MYVOICE_STAGE_NONCE", "")
             observer = PressureObserver(require_gpu=gpu_stage)
             previous_state: str | None = None
             emergency_readings = 0
@@ -361,7 +374,8 @@ def run_supervised_stage(
                         manual_requested_at = time.monotonic()
                     if not request_sent:
                         _create_cooperative_request(
-                            Path(temporary), token, cooperative_stage, "manual_stop"
+                            Path(temporary), token, cooperative_stage, "manual_stop",
+                            proc.pid, stage_nonce
                         )
                         request_sent = True
                     if time.monotonic() - manual_requested_at >= MANUAL_COOPERATIVE_MAX_SECONDS:
@@ -394,6 +408,7 @@ def run_supervised_stage(
                         completed = read_epoch_activity(
                             Path(temporary), token, int(generation_raw),
                             cooperative_stage, last_completed_epoch,
+                            proc.pid, stage_nonce,
                         )
                     except RuntimeError as exc:
                         tree.terminate()
@@ -411,6 +426,7 @@ def run_supervised_stage(
                         epoch = read_progress(
                             Path(temporary), token, int(generation_raw),
                             cooperative_stage, last_checkpoint_epoch,
+                            proc.pid, stage_nonce,
                         )
                     except RuntimeError as exc:
                         tree.terminate()
@@ -433,7 +449,8 @@ def run_supervised_stage(
                     raise StageGuardError("my_voice:emergency_resource_or_telemetry_failure")
                 if actionable_pressure and temporary and not request_sent:
                     _create_cooperative_request(
-                        Path(temporary), token, cooperative_stage, result.reason
+                        Path(temporary), token, cooperative_stage, result.reason,
+                        proc.pid, stage_nonce
                     )
                     request_sent = True
                 try:
@@ -457,6 +474,7 @@ def run_supervised_stage(
                     final_completed = read_epoch_activity(
                         Path(temporary), token, int(generation_raw),
                         cooperative_stage, last_completed_epoch,
+                        proc.pid, stage_nonce,
                     )
                 except RuntimeError as exc:
                     raise StageGuardError(str(exc)) from exc
@@ -469,6 +487,7 @@ def run_supervised_stage(
                     final_epoch = read_progress(
                         Path(temporary), token, int(generation_raw),
                         cooperative_stage, last_checkpoint_epoch,
+                        proc.pid, stage_nonce,
                     )
                 except RuntimeError as exc:
                     raise StageGuardError(str(exc)) from exc
@@ -476,7 +495,9 @@ def run_supervised_stage(
                     last_checkpoint_epoch = final_epoch
                     if on_checkpoint is not None:
                         on_checkpoint(cooperative_stage, final_epoch)
-            if temporary and _acknowledged(Path(temporary), token, cooperative_stage):
+            if temporary and _acknowledged(
+                Path(temporary), token, cooperative_stage, proc.pid, stage_nonce
+            ):
                 if not request_sent:
                     raise StageGuardError("my_voice:cooperative_unsolicited_ack")
                 # This is a completed stage-process exit at a checkpoint
