@@ -569,6 +569,17 @@ fn validate_nonempty_regular_file(path: &Path, label: &str) -> Result<(), String
     Ok(())
 }
 
+// Validate the ACTUAL copied model bytes against the immutable candidate
+// preserved before promotion. Actor schema validation alone cannot prove that
+// these are the very weights the user reviewed and approved.
+fn require_immutable_candidate_identity(actor: &Path, version_id: &str) -> Result<(), String> {
+    if actor_history::selected_actor_matches_version(actor, version_id)? {
+        Ok(())
+    } else {
+        Err("voice_lab:approved_candidate_identity_mismatch".into())
+    }
+}
+
 pub(super) fn promote_voice_actor_candidate_at(storage: &VoiceLabStoragePaths) -> Result<(), String> {
     let _guard = promotion_lock()
         .lock()
@@ -607,6 +618,9 @@ pub(super) fn promote_voice_actor_candidate_at(storage: &VoiceLabStoragePaths) -
             .map_err(|error| format!("voice_lab:actor_stage_copy_failed:{error}"))?;
     }
     validate_actor_package(&staging)?;
+    // Fail before moving the existing Meeting actor if the staged copy has
+    // diverged from the content-addressed candidate which passed review.
+    require_immutable_candidate_identity(&staging, &candidate_version_id)?;
 
     if storage.approved_actor_dir.exists() {
         if previous.exists() {
@@ -628,7 +642,14 @@ pub(super) fn promote_voice_actor_candidate_at(storage: &VoiceLabStoragePaths) -
         return Err(format!("voice_lab:actor_promotion_failed:{error}"));
     }
 
-    if let Err(validation_error) = validate_actor_package(&storage.approved_actor_dir) {
+    // A promotion is committed only when the selected actor still matches
+    // the reviewed immutable package byte-for-byte. Reuse existing rollback
+    // rather than advertising a structurally valid but different model.
+    let promoted_validation = validate_actor_package(&storage.approved_actor_dir)
+        .and_then(|_| require_immutable_candidate_identity(
+            &storage.approved_actor_dir, &candidate_version_id,
+        ));
+    if let Err(validation_error) = promoted_validation {
         let remove_result = fs::remove_dir_all(&storage.approved_actor_dir);
         if let Err(remove_error) = remove_result {
             return Err(format!(

@@ -20,6 +20,7 @@
 - Backup integrity now also binds the original immutable `DatasetSnapshots/<sha>.json` and `TrainingLineage/<sha>.json` path IDs to the SHA-256 of their actual content. This closes a gap where the backup's own index could be updated to match forged archive metadata, while the immutable history store would later reject the imported object. Added negative Rust fixtures; execution remains untested.
 - Backup semantic validation now checks each frozen DatasetSnapshot's original typed source manifest (authorization, take IDs/names and held-out separation), its audio-link cardinality, and each link's exact archive receipt line/text binding. TrainingLineage metadata must use the supported schema and engine revision before its references can pass. These source-only regressions are authored, not executed; the backup import still never activates a Meeting actor.
 - VoiceVersions backup verification now additionally checks the immutable actor receipt schema/revision, recorded payload sizes, and the existing Rust actor package validator before declaring a version restorable. This avoids accepting self-consistent backup hashes that could not be activated as MyVoice. Regression fixtures for unsupported version receipts are authored; native verification is unexecuted.
+- Create → Review → Approve promotion now requires the staged and promoted actor's actual SHA-256 package identity to equal the immutable candidate version preserved before replacing the selected Meeting actor. A mismatch before replacement leaves the current actor untouched; a mismatch afterward uses the existing rollback path. Rust and source-regression fixtures are authored but NOT EXECUTED.
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
@@ -29,7 +30,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Audit remaining Create → Review → Approve ownership and exact saved-actor preservation, then perform final static regression-contract admission for the pinned Local source. Do not expand product scope. If coherent, stop source mutation and prepare the single integrated Windows acceptance run using the existing runbook.** No test PASS without execution, hosted CI, alternate voice engines or optimizer Resume activation.
+**Perform final static regression-contract admission and cross-check source owner invariants at exact Local HEAD. If no source-provable blocker remains, stop source changes and prepare the existing single pinned-SHA Windows acceptance runbook for native testing; do not claim Node/Rust/Python or sound-quality PASS before execution.** No scope expansion, hosted CI or optimizer Resume activation.
 
 ## Deferred prior work
 

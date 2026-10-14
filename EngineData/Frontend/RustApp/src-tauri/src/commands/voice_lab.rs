@@ -638,12 +638,22 @@ mod tests {
             fs::read(storage.approved_actor_dir.join(GPT_WEIGHT_FILE)).expect("approved"),
             b"new"
         );
+        // The approved actor is not merely a well-formed personal package:
+        // its exact bytes must match one preserved immutable version.
+        let versions = actor_version_page(&storage, None).expect("saved versions");
+        let selected_version = versions.items.iter()
+            .find(|entry| selected_personal_actor_matches_version(&storage, &entry.version_id)
+                .unwrap_or(false))
+            .expect("reviewed candidate preserved")
+            .version_id.clone();
         fs::remove_file(storage.candidate_actor_dir.join(SOVITS_WEIGHT_FILE)).expect("invalidate");
         assert!(promote_voice_actor_candidate_at(&storage).is_err());
         assert_eq!(
             fs::read(storage.approved_actor_dir.join(GPT_WEIGHT_FILE)).expect("preserved"),
             b"new"
         );
+        assert!(selected_personal_actor_matches_version(&storage, &selected_version)
+            .expect("failed approval did not alter the selected model"));
         let _ = fs::remove_dir_all(root);
     }
 }

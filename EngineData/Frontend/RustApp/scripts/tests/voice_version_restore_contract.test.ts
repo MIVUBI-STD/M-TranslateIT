@@ -168,3 +168,25 @@ test("exact selected-version fingerprint runs off the UI thread and rechecks res
   const polling = build.slice(build.indexOf("fn current_status()"), build.indexOf("fn result("));
   assert.doesNotMatch(polling, /get_voice_lab_selected_version_match|selected_personal_actor_matches_version/);
 });
+
+test("candidate promotion verifies exact immutable weight identity before and after replacing Meeting actor", () => {
+  const storage = rust("voice_lab/storage.rs");
+  const owner = rust("voice_lab.rs");
+  const start = storage.indexOf("pub(super) fn promote_voice_actor_candidate_at(");
+  const end = storage.indexOf("fn recover_interrupted_promotion(", start);
+  assert.ok(start >= 0 && end > start);
+  const promotion = storage.slice(start, end);
+  assert.match(storage, /fn require_immutable_candidate_identity\(actor: &Path, version_id: &str\)/);
+  assert.match(storage, /actor_history::selected_actor_matches_version\(actor, version_id\)/);
+  assert.match(storage, /voice_lab:approved_candidate_identity_mismatch/);
+  const preserve = promotion.indexOf("let candidate_version_id = actor_history::preserve_actor_version");
+  const staged = promotion.indexOf("require_immutable_candidate_identity(&staging, &candidate_version_id)");
+  const swap = promotion.indexOf("fs::rename(&staging, &storage.approved_actor_dir)");
+  const verified = promotion.indexOf("let promoted_validation =");
+  const rollback = promotion.indexOf("fs::remove_dir_all(&storage.approved_actor_dir)", verified);
+  assert.ok(preserve >= 0 && staged > preserve && swap > staged && verified > swap && rollback > verified);
+  assert.match(promotion.slice(verified, rollback), /require_immutable_candidate_identity\(/);
+  assert.match(owner, /fn invalid_rebuild_candidate_never_replaces_current_actor/);
+  assert.match(owner, /selected_personal_actor_matches_version\(&storage, &selected_version\)/);
+  assert.match(owner, /failed approval did not alter the selected model/);
+});
