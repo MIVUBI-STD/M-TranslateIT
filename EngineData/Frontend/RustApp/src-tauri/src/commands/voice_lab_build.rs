@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Condvar, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 #[cfg(windows)]
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -324,10 +324,10 @@ struct BuildProcessState {
     cancel_requested_at: Option<Instant>,
 }
 
-static BUILD_PROCESS: OnceLock<(Mutex<BuildProcessState>, Condvar)> = OnceLock::new();
+static BUILD_PROCESS: OnceLock<Mutex<BuildProcessState>> = OnceLock::new();
 
-fn process_store() -> &'static (Mutex<BuildProcessState>, Condvar) {
-    BUILD_PROCESS.get_or_init(|| (Mutex::new(BuildProcessState::default()), Condvar::new()))
+fn process_store() -> &'static Mutex<BuildProcessState> {
+    BUILD_PROCESS.get_or_init(|| Mutex::new(BuildProcessState::default()))
 }
 
 fn storage() -> VoiceLabStoragePaths {
@@ -378,7 +378,7 @@ fn reviewable_evaluation(paths: &VoiceLabStoragePaths) -> Option<EvaluationManif
 }
 
 fn clear_build_terminal_message() {
-    if let Ok(mut process) = process_store().0.lock() {
+    if let Ok(mut process) = process_store().lock() {
         process.terminal_message.clear();
     }
 }
@@ -520,7 +520,6 @@ fn current_status() -> VoiceLabBuildStatus {
     let approved_ready = approved_voice_actor_ready(&paths);
     let selected_voice = selected_voice_info(&paths);
     let terminal_message = process_store()
-        .0
         .lock()
         .ok()
         .map(|state| state.terminal_message.clone())
@@ -929,7 +928,7 @@ fn start_voice_lab_build_selected(
         let _ = fail_voice_lab_build(generation);
         return result(false, "build_process_guard_failed", error);
     }
-    match process_store().0.lock() {
+    match process_store().lock() {
         Ok(mut process) => {
             process.generation = Some(generation);
             process.pid = Some(pid);
@@ -964,7 +963,7 @@ fn start_voice_lab_build_selected(
             match child.try_wait() {
                 Ok(Some(done)) => break Ok(done),
                 Ok(None) => {
-                    let expired = process_store().0.lock().ok().is_some_and(|process| {
+                    let expired = process_store().lock().ok().is_some_and(|process| {
                         process.generation == Some(generation)
                         && process.cancel_requested_at.is_some_and(|since|
                             since.elapsed() >= CANCEL_MAX_WAIT)
@@ -1046,7 +1045,7 @@ fn start_voice_lab_build_selected(
         } else {
             "voice_build_failed"
         };
-        let (lock, signal) = process_store();
+        let lock = process_store();
         if let Ok(mut process) = lock.lock() {
             if process.generation == Some(generation) {
                 process.pid = None;
@@ -1056,7 +1055,6 @@ fn start_voice_lab_build_selected(
                 process.terminal_message = message;
                 process.cancel_requested_at = None;
             }
-            signal.notify_all();
         }
         emit_voice_build_runtime_event(event_reason, generation);
     });
@@ -1078,7 +1076,7 @@ pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
         }
     }
 
-    let (lock, _) = process_store();
+    let lock = process_store();
     let mut process = match lock.lock() {
         Ok(process) => process,
         Err(_) => return result(false, "cancel_pending",

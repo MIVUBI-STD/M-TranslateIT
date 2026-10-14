@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 from my_voice_adaptive_safety import (
     PressureObserver, SafetySample, CRITICAL_GPU_MIB, soft_stop_ready,
 )
@@ -27,12 +27,10 @@ from my_voice_resource_guard import snapshot as resource_snapshot
 from my_voice_cooperative import manual_stop_requested
 
 from my_voice_resource_guard import (
-    ResourceGuardError, check_start as check_system_resources, critical as critical_resources,
+    ResourceGuardError, check_start as check_system_resources,
 )
-from typing import Any
 
 SENSOR_INTERVAL_SECONDS = 5
-SENSOR_TIMEOUT_SECONDS = 4
 CRITICAL_FREE_MIB = CRITICAL_GPU_MIB
 MAX_BAD_SAMPLES = 2
 MANUAL_COOPERATIVE_MAX_SECONDS = 300
