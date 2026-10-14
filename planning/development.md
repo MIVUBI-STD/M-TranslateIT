@@ -68,6 +68,12 @@
 - The stage runner installs its own CUDA allocator budget before loading verified upstream code. The adapter only applies if the exact Git blob hashes match the source revision pinned in this project; unknown source/patch shape aborts rather than training with unreviewed semantics.
 - **This is still UNVALIDATED SOURCE.** Windows loader/source-layout compatibility, optimizer/checkpoint semantics, training quality, data-loader children and CUDA native stability are unknown. No test execution requested/attempted. Pending: stronger Windows process-tree ownership, stage telemetry, per-run status generation and verification of every output before approval.
 
+## My Voice bounded stage supervisor source (2026-10-14)
+
+- Added Windows Job Object `KILL_ON_JOB_CLOSE` ownership around every upstream stage child. Training refuses unowned or unaccounted Windows process trees. This does not eliminate the brief process creation-to-job-assignment race; shutdown still requires native scrutiny.
+- An independent nvidia-smi free-VRAM sensor checks every CUDA stage periodically. Sustained critical VRAM (<768 MiB) or repeated sensor failure aborts the owned stage; downstream model approval remains guarded by existing review rules. The threshold is provisional and **not benchmarked**.
+- Source regression fixtures authored only. No Windows compile, GPU run, audio quality test or test execution authorized. Next: generation-bound status/completion receipts and GPU evaluation protection.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

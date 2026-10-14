@@ -233,17 +233,16 @@ def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) 
     child_env["NLTK_DATA"] = str(source_root / "nltk_data")
     runner = Path(__file__).resolve().with_name("voice_lab_upstream_stage.py")
     require_file(runner, "headless_stage_runner")
-    result = subprocess.run(
-        [sys.executable, "-s", str(runner), str(source_root), str(script), *args],
-        cwd=str(source_root),
-        env=child_env,
-        check=False,
-    )
-    if result.returncode != 0:
-        # A Windows native access violation is not automatically a CUDA OOM.
-        if result.returncode in (3221225477, -1073741819):
-            raise VoiceLabProviderError(f"upstream_native_worker_crash:{script.name}")
-        raise VoiceLabProviderError(f"upstream_stage_failed:{script.name}:{result.returncode}")
+    from my_voice_stage_supervisor import StageGuardError, run_supervised_stage
+
+    try:
+        run_supervised_stage(
+            [sys.executable, "-s", str(runner), str(source_root), str(script), *args],
+            cwd=str(source_root), env=child_env,
+            gpu_stage=script.name != "1-get-text.py",
+        )
+    except StageGuardError as exc:
+        raise VoiceLabProviderError(f"upstream_stage_guard:{script.name}:{exc}") from exc
 
 
 def merge_part(source: Path, target: Path, header: str | None = None) -> None:
