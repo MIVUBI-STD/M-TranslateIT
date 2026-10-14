@@ -463,7 +463,7 @@
   }
 
   async function cancelBuild(): Promise<void> {
-    if (busy || statusCheckUnavailable || quickPreviewBusy || !build.active) return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || !build.active || build.phase === "cancelling") return;
     invalidatePendingStatusReads();
     busy = true;
     try {
@@ -659,8 +659,8 @@
       <strong class="text-sm font-semibold">{activeTitle()}</strong>
       <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{activeDetail()}</p>
     </div>
-    <button type="button" class="ti-button ti-button-secondary mt-5" disabled={busy || statusCheckUnavailable} onclick={() => void cancelBuild()}>
-      <Square size={14} /><span>{busy ? "Stopping..." : "Stop Creating"}</span>
+    <button type="button" class="ti-button ti-button-secondary mt-5" disabled={busy || statusCheckUnavailable || build.phase === "cancelling"} onclick={() => void cancelBuild()}>
+      <Square size={14} /><span>{build.phase === "cancelling" ? "Stopping safely..." : busy ? "Stopping..." : "Stop Creating"}</span>
     </button>
   {:else if build.evaluation_ready}
     <div class="mt-5">

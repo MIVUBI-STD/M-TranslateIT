@@ -138,7 +138,8 @@ test("uncertain Create, Cancel and Approve reconcile before enabling further voi
     assert.match(body, /catch \{\s*await reconcileUncertainBuildAction\(/, name);
   }
   assert.match(getAction("cancelBuild"), /statusCheckUnavailable/);
-  assert.match(ui, /disabled=\{busy \|\| statusCheckUnavailable\} onclick=\{\(\) => void cancelBuild\(\)\}/);
+  assert.match(ui, /disabled=\{busy \|\| statusCheckUnavailable \|\| build\.phase === "cancelling"\} onclick=\{\(\) => void cancelBuild\(\)\}/);
+  assert.match(ui, /build\.phase === "cancelling" \? "Stopping safely\.\.\."/);
   const approve = getAction("approve");
   assert.match(approve, /else if \(result\.build\.phase === "unavailable"\)/);
   assert.match(approve, /await refreshMeetingAfterUncertainApproval\(\)/);
