@@ -61,6 +61,9 @@
   let statusReadVersion = 0;
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
+  // Invalidates delayed audio reads and event callbacks on cancellation,
+  // review changes, switching playback or component disposal.
+  let audioRequestVersion = 0;
   let reviewedLineIds = $state<number[]>([]);
   let qualityConfirmed = $state(false);
 
@@ -83,8 +86,14 @@
   }
 
   function stopAudio(): void {
-    audio?.pause();
+    audioRequestVersion += 1;
+    const previous = audio;
     audio = null;
+    if (previous) {
+      previous.onended = null;
+      previous.onerror = null;
+      previous.pause();
+    }
     playingLineId = null;
     quickPreviewPlaying = false;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
@@ -306,32 +315,40 @@
   }
 
   async function playQuickPreview(): Promise<void> {
-    if (busy || statusCheckUnavailable || quickPreviewBusy || !quickPreviewReady || quickPreviewPlaying) return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || !quickPreviewReady || audio !== null) return;
+    const requestVersion = ++audioRequestVersion;
     let bytes: ArrayBuffer | null;
     try {
       bytes = await myVoiceBuildApi.getQuickPreviewAudio();
     } catch {
-      if (!disposed) onNotice("Quick Preview audio couldn't be loaded.");
+      if (!disposed && requestVersion === audioRequestVersion) onNotice("Quick Preview audio couldn't be loaded.");
       return;
     }
-    if (disposed) return;
+    if (disposed || requestVersion !== audioRequestVersion || !quickPreviewReady) return;
     if (!bytes) {
       quickPreviewReady = false;
       onNotice("Quick Preview audio is unavailable.");
       return;
     }
     stopAudio();
+    const playbackVersion = audioRequestVersion;
     audioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
-    audio = new Audio(audioUrl);
+    const player = new Audio(audioUrl);
+    audio = player;
     quickPreviewPlaying = true;
-    audio.onended = stopAudio;
-    audio.onerror = () => {
+    player.onended = () => {
+      if (disposed || audio !== player || playbackVersion !== audioRequestVersion) return;
+      stopAudio();
+    };
+    player.onerror = () => {
+      if (disposed || audio !== player || playbackVersion !== audioRequestVersion) return;
       stopAudio();
       onNotice("Quick Preview could not be played.");
     };
     try {
-      await audio.play();
+      await player.play();
     } catch {
+      if (disposed || audio !== player || playbackVersion !== audioRequestVersion) return;
       stopAudio();
       onNotice("Quick Preview could not be played.");
     }
@@ -394,37 +411,44 @@
   }
 
   async function playEvaluation(lineId: number): Promise<void> {
-    if (busy || statusCheckUnavailable || playingLineId !== null) return;
+    if (busy || statusCheckUnavailable || audio !== null) return;
     const reviewId = build.evaluation_review_id;
     const expectedSha256 = build.evaluation_samples.find((sample) => sample.line_id === lineId)?.sha256;
     if (!reviewId || !expectedSha256) return;
+    const requestVersion = ++audioRequestVersion;
     let bytes: ArrayBuffer | null;
     try {
       bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId, expectedSha256);
     } catch {
-      if (!disposed) onNotice("This My Voice sample couldn't be loaded. Try again.");
+      if (!disposed && requestVersion === audioRequestVersion && reviewId === build.evaluation_review_id)
+        onNotice("This My Voice sample couldn't be loaded. Try again.");
       return;
     }
-    if (disposed || reviewId !== build.evaluation_review_id) return;
+    if (disposed || reviewId !== build.evaluation_review_id || requestVersion !== audioRequestVersion) return;
     if (!bytes) {
       onNotice("This My Voice preview is unavailable or failed its integrity check.");
       return;
     }
     stopAudio();
+    const playbackVersion = audioRequestVersion;
     audioUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
-    audio = new Audio(audioUrl);
+    const player = new Audio(audioUrl);
+    audio = player;
     playingLineId = lineId;
-    audio.onended = () => {
-      if (reviewId === build.evaluation_review_id && !reviewedLineIds.includes(lineId)) reviewedLineIds = [...reviewedLineIds, lineId];
+    player.onended = () => {
+      if (disposed || audio !== player || playbackVersion !== audioRequestVersion || reviewId !== build.evaluation_review_id) return;
+      if (!reviewedLineIds.includes(lineId)) reviewedLineIds = [...reviewedLineIds, lineId];
       stopAudio();
     };
-    audio.onerror = () => {
+    player.onerror = () => {
+      if (disposed || audio !== player || playbackVersion !== audioRequestVersion) return;
       stopAudio();
       onNotice("This My Voice preview couldn't be played.");
     };
     try {
-      await audio.play();
+      await player.play();
     } catch {
+      if (disposed || audio !== player || playbackVersion !== audioRequestVersion) return;
       stopAudio();
       onNotice("This My Voice preview couldn't be played.");
     }

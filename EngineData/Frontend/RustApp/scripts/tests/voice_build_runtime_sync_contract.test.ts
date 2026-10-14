@@ -47,7 +47,7 @@ test("My Voice polling and audio reads cannot resume after view disposal", () =>
   const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
   assert.ok(build.includes("if (disposed || !build.active) return;"));
   assert.match(build, /disposed = true;\s*if \(timer\) clearTimeout\(timer\);/);
-  assert.ok(build.includes("if (disposed || reviewId !== build.evaluation_review_id) return;"));
+  assert.match(build, /if \(disposed \|\| reviewId !== build\.evaluation_review_id \|\| requestVersion !== audioRequestVersion\) return;/);
   assert.ok(page.includes("if (disposed) return;"));
   assert.match(page, /disposed = true;\s*stopReplay\(\);/);
 });
@@ -176,4 +176,37 @@ test("My Voice ignores stale polling success and failure after a newer status re
     "verified mutation must fence any earlier polling response");
   assert.match(functionBody("reconcileUncertainBuildAction"), /invalidatePendingStatusReads\(\)/);
   assert.match(ui, /disposed = true;\s*if \(timer\) clearTimeout\(timer\);\s*timer = null;\s*statusReadVersion \+= 1;/);
+});
+
+test("only the current voice playback may mark a held-out sample as listened", () => {
+  const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const body = (name: string): string => {
+    const start = ui.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, name);
+    const end = ui.indexOf("\n  }", start);
+    assert.ok(end > start, name);
+    return ui.slice(start, end);
+  };
+  const stop = body("stopAudio");
+  assert.match(ui, /let audioRequestVersion = 0;/);
+  assert.match(stop, /audioRequestVersion \+= 1/);
+  assert.match(stop, /previous\.onended = null/);
+  assert.match(stop, /previous\.onerror = null/);
+  assert.match(stop, /previous\.pause\(\)/);
+
+  for (const name of ["playQuickPreview", "playEvaluation"]) {
+    const method = body(name);
+    assert.match(method, /const requestVersion = \+\+audioRequestVersion;/);
+    assert.match(method, /requestVersion !== audioRequestVersion/);
+    assert.match(method, /const playbackVersion = audioRequestVersion/);
+    assert.match(method, /audio !== player \|\| playbackVersion !== audioRequestVersion/);
+    assert.match(method, /await player\.play\(\)/);
+    assert.match(method, /player\.onerror = \(\) => \{[\s\S]*?audio !== player/);
+  }
+  const evaluation = body("playEvaluation");
+  const ended = evaluation.slice(evaluation.indexOf("player.onended ="), evaluation.indexOf("player.onerror ="));
+  assert.match(ended, /reviewId !== build\.evaluation_review_id/);
+  assert.ok(ended.indexOf("audio !== player") < ended.indexOf("reviewedLineIds ="),
+    "a stale onended callback must not mark a previous sample as listened");
+  assert.match(ui, /if \(build\.evaluation_review_id !== next\.evaluation_review_id\) \{[\s\S]*?stopAudio\(\)/);
 });

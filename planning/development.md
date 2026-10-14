@@ -12,6 +12,7 @@
 - Ambiguous Start/Stop/Retry/Accept recording outcomes keep recording coordination locked until a fresh Rust status read. Accepted-take consumers refresh after uncertain Accept without replaying its write.
 - Uncertain Create, Stop Creating and Approve responses freeze My Voice mutations until a fresh Rust build status is read. Ambiguous Approve also refreshes canonical Meeting selection without repeating approval or falsely claiming success.
 - My Voice view now rejects out-of-order polling reads (including failed reads), invalidates pending reads before explicit mutations, and prevents a verified mutation result from being overwritten by an older status. This is presentation-level sequencing, not an alternate Rust state owner.
+- Quick Preview and held-out evaluation audio reads use per-view request identity, and completion/error callbacks validate the current audio instance before touching review evidence. Stop/dispose/review change invalidates old reads and detaches old callbacks.
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
@@ -21,7 +22,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Review My Voice preview/audio lifecycle and restore/version selection for stale callbacks or invalid user-facing success, then correct the first source-provable failure with focused regression coverage.** Keep all tests source-only until the integrated local build/Windows acceptance phase; do not extend checkpoint Resume or add parallel state ownership.
+**Review saved voice-version activation and status reconciliation, especially ambiguous restore responses, late library reads and stale selection verification; repair the first source-provable failure with focused regression coverage.** Keep the existing Meeting/selection guards, and defer native/GPU acceptance and checkpoint Resume.
 
 ## Deferred prior work
 
