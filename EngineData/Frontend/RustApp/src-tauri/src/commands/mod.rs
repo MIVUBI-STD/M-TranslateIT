@@ -11,6 +11,7 @@ pub mod incident_log;
 pub mod long_session_health;
 pub mod helper_bridge_runtime;
 pub mod meeting_session;
+pub(crate) mod my_voice_resources;
 pub mod registry;
 pub mod reliability_snapshot;
 pub mod runtime_inventory;

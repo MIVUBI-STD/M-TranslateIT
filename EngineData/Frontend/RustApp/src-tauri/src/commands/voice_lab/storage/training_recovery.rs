@@ -199,6 +199,9 @@ pub(crate) fn preserve_training_checkpoints(
         return Ok(Some(id));
     }
     let pending = root.join(format!(".pending-{id}"));
+    // A complete immutable checkpoint archive may require substantial disk
+    // capacity. If insufficient, preserve source bytes and block cleanup.
+    crate::commands::my_voice_resources::ensure_archive_capacity(&root, total)?;
     if fs::symlink_metadata(&pending).is_ok() {
         verify_package(&pending, &receipt, &id)
             .map_err(|_| "voice_lab:recovery_partial_archive_needs_attention")?;

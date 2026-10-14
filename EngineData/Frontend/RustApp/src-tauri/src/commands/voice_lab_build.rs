@@ -727,6 +727,12 @@ fn start_voice_lab_build_selected(
     let Some(safe_budget_mib) = compute.safe_budget_mib else {
         return result(false, "gpu_admission_blocked", "SAFE_8GB memory budget could not be verified.");
     };
+    let resource_paths = storage();
+    if let Err(error) = super::my_voice_resources::preflight(
+        &resource_paths.cache_root, &resource_paths.saved_root,
+    ) {
+        return result(false, "resource_admission_blocked", error);
+    }
 
     let started = match begin_voice_lab_build() {
         Ok(snapshot) => snapshot,
@@ -825,6 +831,8 @@ fn start_voice_lab_build_selected(
         .arg(&run_identity.token)
         .arg("--run-generation")
         .arg(generation.to_string())
+        .env("TRANSLATEIT_MYVOICE_CACHE_ROOT", &paths.cache_root)
+        .env("TRANSLATEIT_MYVOICE_SAVED_ROOT", &paths.saved_root)
         .current_dir(worker_root())
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))

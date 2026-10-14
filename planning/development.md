@@ -98,6 +98,12 @@
 - These wrappers use the existing Windows APIs rather than a new dependency; no tests or native verification executed. Open question: process handles, nested job eligibility, service restrictions and driver-exception behavior remain unverified until explicitly authorized. This closes the intended user-code-before-job-assignment gap in source, not an audited Windows guarantee.
 - Next focus: RAM/disk pressure and preventing checkpoint copies without adequate real free space.
 
+## Native RAM/disk admission and checkpoint capacity — 2026-10-14
+
+- Added one `my_voice_resources.rs` owner with Windows GlobalMemoryStatusEx / GetDiskFreeSpaceExW readings. Create and Improve now fail closed before training when provisional available RAM (3 GiB), temporary storage (12 GiB) or saved storage (8 GiB) cannot be verified.
+- Training children receive exact native user cache/saved roots for ongoing monitoring. Interrupted checkpoint preservation additionally checks actual aggregate source checkpoint bytes **plus 2 GiB free margin before any archive copy**; if insufficient, leave original evidence untouched and block unsafe cleanup.
+- These provisional cutoffs are neither recommended PC minimums nor measured GPT-SoVITS resource peaks. No source tests, Windows build, training or hardware validation run.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.
