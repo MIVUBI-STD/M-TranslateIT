@@ -74,6 +74,12 @@
 - An independent nvidia-smi free-VRAM sensor checks every CUDA stage periodically. Sustained critical VRAM (<768 MiB) or repeated sensor failure aborts the owned stage; downstream model approval remains guarded by existing review rules. The threshold is provisional and **not benchmarked**.
 - Source regression fixtures authored only. No Windows compile, GPU run, audio quality test or test execution authorized. Next: generation-bound status/completion receipts and GPU evaluation protection.
 
+## Run-scoped source integrity — 2026-10-14
+
+- Added Rust-owned `run_identity.json` binding each frozen dataset SHA-256 to a unique run token/generation. The Python worker writes monotonically sequenced, token-bound status updates; Rust refuses stale/mismatched/invalid phases.
+- `ready_for_review` is no longer trusted alone. Only successful child exit, actual evaluation manifest/recording checks, and a new create-only Rust `completion.json` enable a reviewable candidate. Failed/interrupted runs remove completion evidence and preserve existing training recovery checks.
+- Existing approved personal actor and saved take archives remain unchanged; this is a source-only change, no compilation or runtime proof.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

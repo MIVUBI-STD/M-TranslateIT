@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -68,7 +69,10 @@ def atomic_json(path: Path, value: dict[str, Any]) -> None:
         raise
 
 
-def write_status(path: Path, phase: str, message: str) -> None:
+def write_status(
+    path: Path, phase: str, message: str,
+    run_token: str, run_generation: int, sequence: int,
+) -> None:
     atomic_json(
         path,
         {
@@ -76,7 +80,10 @@ def write_status(path: Path, phase: str, message: str) -> None:
             "engine": ENGINE,
             "engine_revision": ENGINE_REVISION,
             "phase": phase,
-            "message": message,
+            "message": message[:500],
+            "run_token": run_token,
+            "run_generation": run_generation,
+            "sequence": sequence,
         },
     )
 
@@ -173,9 +180,21 @@ def main() -> int:
     parser.add_argument("--work-dir", required=True)
     parser.add_argument("--status-path", required=True)
     parser.add_argument("--gpu-budget-mib", required=True, type=int)
+    parser.add_argument("--run-token", required=True)
+    parser.add_argument("--run-generation", required=True, type=int)
     args = parser.parse_args()
 
     status_path = Path(args.status_path).resolve()
+    if not re.fullmatch(r"[0-9a-f]{64}", args.run_token) or args.run_generation <= 0:
+        print("my_voice:run_identity_invalid", file=sys.stderr)
+        return 2
+    sequence = 0
+
+    def status(phase: str, message: str) -> None:
+        nonlocal sequence
+        sequence += 1
+        write_status(status_path, phase, message, args.run_token, args.run_generation, sequence)
+
     try:
         from my_voice_gpu_policy import MIN_STAGE_BUDGET_MIB
         if args.gpu_budget_mib < MIN_STAGE_BUDGET_MIB or args.gpu_budget_mib > 1024 * 1024:
@@ -185,7 +204,7 @@ def main() -> int:
         dataset_dir = Path(args.dataset_dir).resolve()
         manifest = validate_manifest(dataset_dir)
         validate_dataset_signal(dataset_dir, manifest)
-        write_status(status_path, "preparing", "Preparing VoiceLab training data.")
+        status("preparing", "Preparing VoiceLab training data.")
         build_candidate(
             source_root=Path(args.source_root).resolve(),
             asr_model_root=Path(args.asr_model_root).resolve(),
@@ -194,16 +213,16 @@ def main() -> int:
             evaluation_dir=Path(args.evaluation_dir).resolve(),
             work_dir=Path(args.work_dir).resolve(),
             manifest=manifest,
-            status_writer=lambda phase, message: write_status(status_path, phase, message),
+            status_writer=status,
         )
-        write_status(status_path, "ready_for_review", "Voice Actor samples are ready for review.")
+        status("ready_for_review", "Voice Actor samples are ready for review.")
         return 0
     except (BuildError, VoiceLabProviderError) as exc:
-        write_status(status_path, "failed", str(exc))
+        status("failed", str(exc))
         print(f"voice_lab_build_failed:{exc}", file=sys.stderr)
         return 2
     except Exception as exc:
-        write_status(status_path, "failed", f"unexpected:{type(exc).__name__}")
+        status("failed", f"unexpected:{type(exc).__name__}")
         print(f"voice_lab_build_failed:unexpected:{type(exc).__name__}", file=sys.stderr)
         return 3
 

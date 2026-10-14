@@ -34,6 +34,8 @@ use super::voice_lab_recording::{
 
 mod evaluation;
 mod phase;
+mod receipts;
+use receipts::{completion_file, completion_matches, commit_completion, create_identity, identity_file, read_identity};
 
 pub use evaluation::VoiceLabEvaluationSample;
 use phase::reconcile_phase;
@@ -112,6 +114,9 @@ struct BuildChildStatusFile {
     engine_revision: String,
     phase: String,
     message: String,
+    run_token: String,
+    run_generation: u64,
+    sequence: u64,
 }
 
 
@@ -315,6 +320,8 @@ fn remove_dir_if_present(path: &Path, label: &str) -> Result<(), String> {
 }
 
 fn clear_previous_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    remove_file_if_present(&completion_file(paths), "completion_receipt")?;
+    remove_file_if_present(&identity_file(paths), "run_identity")?;
     remove_file_if_present(&status_path(paths), "status")?;
     remove_dir_if_present(&evaluation_dir(paths), "evaluation")?;
     remove_dir_if_present(&work_dir(paths), "work")?;
@@ -340,6 +347,8 @@ fn cleanup_approved_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), 
         remove_dir_if_present(&paths.candidate_actor_dir, "candidate_actor"),
         remove_dir_if_present(&paths.build_dataset_dir, "build_dataset"),
         remove_file_if_present(&status_path(paths), "status"),
+        remove_file_if_present(&completion_file(paths), "completion_receipt"),
+        remove_file_if_present(&identity_file(paths), "run_identity"),
         remove_file_if_present(&log_path(paths), "build_log"),
     ] {
         if let Err(error) = result {
@@ -436,9 +445,14 @@ fn child_status(paths: &VoiceLabStoragePaths) -> Option<BuildChildStatusFile> {
         return None;
     }
     let value = serde_json::from_slice::<BuildChildStatusFile>(&bytes).ok()?;
+    let identity = read_identity(paths)?;
     (value.schema_version == VOICE_LAB_SCHEMA_VERSION
         && value.engine == VOICE_ACTOR_ENGINE
-        && value.engine_revision == VOICE_ACTOR_ENGINE_REVISION)
+        && value.engine_revision == VOICE_ACTOR_ENGINE_REVISION
+        && value.sequence > 0 && value.message.len() <= 500
+        && matches!(value.phase.as_str(), "preparing" | "training" | "evaluating" | "ready_for_review" | "failed")
+        && value.run_token == identity.token
+        && value.run_generation == identity.generation)
         .then_some(value)
 }
 
@@ -454,7 +468,8 @@ fn current_status() -> VoiceLabBuildStatus {
     let recording_suggestions = guided_recording_recommendations(
         &accepted_ids, missing_coverage.map(|group| group.coverage),
     );
-    let evaluation = reviewable_evaluation(&paths);
+    let evaluation = reviewable_evaluation(&paths)
+        .filter(|manifest| completion_matches(&paths, &manifest.review_id));
     let preview_active = super::voice_lab_preview::quick_voice_preview_active();
     let child = if preview_active { None } else { child_status(&paths) };
     let approved_ready = approved_voice_actor_ready(&paths);
@@ -755,6 +770,13 @@ fn start_voice_lab_build_selected(
         );
     }
 
+    let run_identity = match create_identity(&paths, generation) {
+        Ok(identity) => identity,
+        Err(error) => {
+            let _ = fail_voice_lab_build(generation);
+            return result(false, "build_identity_failed", error);
+        }
+    };
     let log = match File::create(log_path(&paths)) {
         Ok(file) => file,
         Err(error) => {
@@ -790,6 +812,10 @@ fn start_voice_lab_build_selected(
         .arg(status_path(&paths))
         .arg("--gpu-budget-mib")
         .arg(safe_budget_mib.to_string())
+        .arg("--run-token")
+        .arg(&run_identity.token)
+        .arg("--run-generation")
+        .arg(generation.to_string())
         .current_dir(worker_root())
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
@@ -824,11 +850,18 @@ fn start_voice_lab_build_selected(
         let exit = child.wait();
         let paths = storage();
         reconcile_phase(&paths);
-        let ready = exit.as_ref().map(|status| status.success()).unwrap_or(false)
+        let candidate = if exit.as_ref().map(|status| status.success()).unwrap_or(false)
             && child_status(&paths)
                 .map(|status| status.phase == "ready_for_review")
                 .unwrap_or(false)
-            && reviewable_evaluation(&paths).is_some();
+        { reviewable_evaluation(&paths) } else { None };
+        let ready = candidate.as_ref().is_some_and(|evaluation| {
+            commit_completion(&paths, &run_identity, &evaluation.review_id).is_ok()
+        });
+        if !ready {
+            // Never carry a ready status from an interrupted/failed attempt.
+            let _ = remove_file_if_present(&completion_file(&paths), "completion");
+        }
         // Only interrupted/incomplete runs retain optimizer checkpoint
         // candidates permanently. A completed approved candidate uses the
         // existing immutable VoiceVersion registry, not an unfinished run.
@@ -1163,7 +1196,8 @@ pub fn approve_voice_lab_candidate(
     let paths = storage();
     let ready_for_review = child_status(&paths)
         .map(|status| status.phase == "ready_for_review")
-        .unwrap_or(false);
+        .unwrap_or(false) && reviewable_evaluation(&paths)
+        .is_some_and(|evaluation| completion_matches(&paths, &evaluation.review_id));
     if !ready_for_review {
         return result(
             false,

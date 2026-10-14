@@ -45,6 +45,20 @@ test("progress labels follow actual SoVITS and GPT stage transitions, not elapse
   assert.match(ui, /build\.message\.replace\(/);
 });
 
+test("worker completion and Review are bound to one generation identity", () => {
+  const rust = read("src-tauri/src/commands/voice_lab_build.rs");
+  const python = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_build.py");
+  const receipts = read("src-tauri/src/commands/voice_lab_build/receipts.rs");
+  assert.match(rust, /\.arg\("--run-token"\)/);
+  assert.match(rust, /\.arg\("--run-generation"\)/);
+  assert.match(rust, /value\.run_token == identity\.token/);
+  assert.match(rust, /commit_completion\(&paths, &run_identity, &evaluation\.review_id\)/);
+  assert.match(rust, /completion_matches\(&paths, &evaluation\.review_id\)/);
+  assert.match(python, /"run_token": run_token/);
+  assert.match(python, /"sequence": sequence/);
+  assert.match(receipts, /create_new\(true\)/);
+});
+
 test("explicit compute checker remains in the release small-resource closure", () => {
   const config = JSON.parse(read("src-tauri/tauri.release.conf.json"));
   const key = "../../../Backend/LocalWorker/WorkerRuntime/my_voice_compute_probe.py";
