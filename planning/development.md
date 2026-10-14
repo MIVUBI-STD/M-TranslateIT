@@ -98,6 +98,12 @@ All source declarations above require later Windows/runtime confirmation. A hash
 - **Fail-closed controls:** missing cooperative stop request means continue; a present-but-corrupt or mismatched control record is an error, not permission to keep training. Existing supervisor owns all teardown and resource monitoring. No additional monitor or GPU allocation introduced.
 - **Version scope:** the source-hash-bound adapter still matches reviewed pinned GPT-SoVITS anchors and Lightning 2.6.5 callback source in read-only inspection. This is not a Python import, model training, Windows runtime or test-suite proof.
 
+## Stop versus completed-review serialization — 2026-10-14
+
+- Identified a native race where `current_voice_lab_build_snapshot()` was checked before/after a file receipt but without one shared mutex covering the operation, allowing an unexpected Stop request to interleave with completion.
+- Added one existing-lifecycle-mutex-backed `commit_voice_lab_review_if_active()` gate: a successful exited child with valid evaluation may create the small completion receipt and transition Evaluating → idle only while Stop cannot interleave. If Stop acquires the lifecycle lock first, this commit fails and recovery evidence is preserved without promotion. No new mutex, worker, polling, or model I/O is introduced.
+- This is source-authored only and requires later Rust compilation/Windows race injection, not a proven production fix.
+
 ## Single next step (source-only)
 
 Review the precise interaction of trainer cooperative stop, canceled completion receipts and Rust checkpoint archive preservation under unexpected worker exits. Do not activate optimizer resume until actual SoVITS G/D, GPT optimizer, scheduler, GradScaler and RNG load/continuation can be established with independent Windows runtime evidence. Continue in `Local` without running tests, CI, compilation or CUDA processing until explicitly authorized.

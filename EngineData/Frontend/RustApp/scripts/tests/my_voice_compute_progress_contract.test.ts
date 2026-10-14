@@ -58,6 +58,9 @@ test("worker completion and Review are bound to one generation identity", () => 
   assert.match(rust, /value\.run_token == identity\.token/);
   assert.match(rust, /commit_completion\(&paths, &run_identity, &evaluation\.review_id\)/);
   assert.match(rust, /completion_matches\(&paths, &evaluation\.review_id\)/);
+  assert.match(rust, /commit_voice_lab_review_if_active\(generation/);
+  assert.match(read("src-tauri/src/commands/voice_lab.rs"), /pub fn commit_voice_lab_review_if_active/);
+  assert.match(read("src-tauri/src/commands/voice_lab.rs"), /active\.phase != BuildPhase::Evaluating \|\| active\.cancel_requested/);
   assert.match(python, /"run_token": run_token/);
   assert.match(python, /"sequence": sequence/);
   assert.match(receipts, /create_new\(true\)/);

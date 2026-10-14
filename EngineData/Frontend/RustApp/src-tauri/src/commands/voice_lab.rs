@@ -272,6 +272,30 @@ pub fn request_voice_lab_build_cancel(generation: u64) -> Result<VoiceLabBuildSn
         .cancel(generation)
 }
 
+/// Atomically publish a ready-for-review receipt and finish one build.
+//// Stop requests share this lifecycle mutex: either a Stop wins first and
+//// the receipt is never written, or the completed build wins and Stop sees
+//// an idle generation. Disk work here is one small receipt write, never
+//// a checkpoint hash or model load.
+pub fn commit_voice_lab_review_if_active<F>(
+    generation: u64, publish: F,
+) -> Result<VoiceLabBuildSnapshot, String>
+where
+    F: FnOnce() -> Result<(), String>,
+{
+    let mut lifecycle = build_store()
+        .lock().map_err(|_| "voice_lab:build_state_unavailable".to_string())?;
+    let active = lifecycle.active.as_ref().ok_or("voice_lab:no_active_build")?;
+    if active.generation != generation {
+        return Err("voice_lab:stale_build_generation".into());
+    }
+    if active.phase != BuildPhase::Evaluating || active.cancel_requested {
+        return Err("voice_lab:completion_blocked_by_lifecycle".into());
+    }
+    publish()?;
+    lifecycle.finish(generation)
+}
+
 pub fn finish_voice_lab_build(generation: u64) -> Result<VoiceLabBuildSnapshot, String> {
     build_store()
         .lock()

@@ -20,6 +20,7 @@ use super::builtin_voice::{
 };
 use super::voice_lab::{
     approved_voice_actor_ready, begin_voice_lab_build, current_voice_lab_build_snapshot, fail_voice_lab_build,
+    commit_voice_lab_review_if_active,
     finish_voice_lab_build, preserve_training_checkpoints, prepare_guided_dataset,
     prepare_guided_dataset_from_archives, choose_archived_takes,
     promote_voice_actor_candidate,
@@ -1019,10 +1020,14 @@ fn start_voice_lab_build_selected(
                 .map(|status| status.phase == "ready_for_review")
                 .unwrap_or(false)
         { reviewable_evaluation(&paths) } else { None };
+        // This is the single linearization point for completion versus Stop.
+        // Keep the build lifecycle mutex while publishing only a tiny
+        // create-new receipt, then atomically transition Evaluating -> idle.
+        // If cancellation wins this mutex first, no completion can be written.
         let ready = candidate.as_ref().is_some_and(|evaluation| {
-            current_voice_lab_build_snapshot().phase != "cancelling"
-                && commit_completion(&paths, &run_identity, &evaluation.review_id).is_ok()
-                && current_voice_lab_build_snapshot().phase != "cancelling"
+            commit_voice_lab_review_if_active(generation, || {
+                commit_completion(&paths, &run_identity, &evaluation.review_id)
+            }).is_ok()
         });
         if !ready {
             // Never carry a ready status from an interrupted/failed attempt.
@@ -1042,9 +1047,9 @@ fn start_voice_lab_build_selected(
         });
         if recovery.is_err() {
             let _ = fail_voice_lab_build(generation);
-        } else if ready || cancelling {
+        } else if cancelling {
             let _ = finish_voice_lab_build(generation);
-        } else {
+        } else if !ready {
             let _ = fail_voice_lab_build(generation);
         }
         let message = if let Err(error) = recovery {
