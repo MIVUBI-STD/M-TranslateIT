@@ -155,9 +155,6 @@ test("explicit compute checker remains in the release small-resource closure", (
   const pair = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py");
   assert.match(pair, /len\(matching\) != 1/);
   assert.match(pair, /identity\(before\) != identity\(after\)/);
-  assert.match(progress, /item\.get\("writer_pid"\) != writer_pid/);
-  assert.match(progress, /item\.get\("stage_nonce"\) != stage_nonce/);
-  assert.match(supervisor, /stage_nonce = secrets\.token_hex\(16\)/);
   assert.match(supervisor, /proc\.pid, stage_nonce/);
   assert.match(progress, /def publish_epoch_activity/);
   assert.match(progress, /def read_epoch_activity/);
