@@ -46,6 +46,11 @@
 - Unrecognized historical checkpoint names (for example `last.ckpt` without trustworthy source epoch) block optional tensor inspection instead of silently selecting an arbitrary file. All byte/hash verification remains intact and `resume_available` remains **false**.
 - Regression fixtures are authored but unexecuted, with no torch import or checkpoint tensor reads performed during this change.
 
+## Windows Job handle lifetime before quiescence — 2026-10-14
+
+- After `Child::try_wait`/`wait`, the Rust completion owner now explicitly drops the reaped `Child` handle **before** asking its owned Job for the active-process count. Windows process accounting can retain process-object references until handles are released; retaining the root handle through the query could falsely block legitimate completion/recovery.
+- Descendant cleanup and fail-closed behavior are unchanged. No extra monitor, duplicate wait, or global process kill is added. Windows handle semantics remain to be confirmed during authorized runtime testing.
+
 ## Next focused source-only work
 
 **P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.

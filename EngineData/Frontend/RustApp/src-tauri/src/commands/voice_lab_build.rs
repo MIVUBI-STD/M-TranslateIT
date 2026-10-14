@@ -1034,6 +1034,12 @@ fn start_voice_lab_build_selected(
                 }
             }
         };
+        // Release our original Windows Child process HANDLE after its exit
+        // status has been reaped. Job accounting can retain references to
+        // terminated process objects until their handles are released.
+        // Keeping Child alive here can otherwise make the job appear active
+        // and spuriously block successful Review/immutable recovery.
+        drop(child);
         // Root exit does not imply descendants are gone. Do not archive
         // checkpoint bytes or publish Review while a Job child could still
         // be writing them. Verify quiescence using this SAME completion owner.
