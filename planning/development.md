@@ -33,6 +33,13 @@
 - The canonical My Voice status defers `evaluation_ready` and `can_build` during this short finalization window, exposing a presentation-only `finalizing` status that disables repeated Stop requests while retaining the existing status polling. The underlying lifecycle remains unchanged. No new state field, worker, mutex, or polling loop is introduced.
 - Source only. The window and UI behavior must be confirmed during eventual Windows acceptance.
 
+## Source hardening: Windows accounting failure paths — 2026-10-14
+
+- Cross-checked the owned Windows Job's `JOBOBJECT_BASIC_ACCOUNTING_INFORMATION` ABI against Microsoft's published structure, and authored a Windows-gated 48-byte compile-time layout assertion.
+- When querying the active descendants fails, Rust now **attempts owned-Job termination but still returns the original accounting error**. It does not confuse a failed query with a stopped tree and does not start Review or checkpoint archiving. `KILL_ON_JOB_CLOSE` remains a fallback.
+- Windows supports nested Job trees on current supported versions, but nested assignment/runtime compatibility is still unverified. No new process, background monitor, polling, or arbitrary external process termination was added.
+- Changes are source-only; Windows compilation and Job API fault-injection remain disallowed until authorized.
+
 ## Next focused source-only work
 
 **P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.

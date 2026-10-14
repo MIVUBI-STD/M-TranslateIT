@@ -57,6 +57,11 @@ struct JobAccounting {
     total_terminated_processes: u32,
 }
 
+// Windows JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: 4 LARGE_INTEGER
+// fields and 4 DWORD fields. Fail compilation on an unexpected ABI layout.
+#[cfg(windows)]
+const _: [(); 48] = [(); std::mem::size_of::<JobAccounting>()];
+
 #[cfg(windows)]
 #[link(name = "kernel32")]
 unsafe extern "system" {
@@ -193,8 +198,16 @@ impl OwnedBuildJob {
         // The Python coordinator may crash while a CUDA training child is
         // still running. Do NOT copy multi-GB checkpoints until *all* owned
         // descendants are gone; otherwise an archive may race a writer.
-        if self.active_processes()? == 0 {
-            return Ok(());
+        match self.active_processes() {
+            Ok(0) => return Ok(()),
+            Ok(_) => {}
+            Err(error) => {
+                // Even if accounting is unavailable, attempt to terminate
+                // only OUR owned job. Never infer quiescence from a failed
+                // query and never proceed with checkpoint copying.
+                let _ = self.terminate();
+                return Err(error);
+            }
         }
         if !self.terminate() {
             return Err("my_voice:build_job_terminate_unconfirmed".into());

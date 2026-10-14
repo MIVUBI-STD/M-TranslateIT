@@ -88,6 +88,8 @@ test("device-aware CUDA resource and process controls fail closed at native boun
   assert.match(nativeGuard, /GetDiskFreeSpaceExW/);
   assert.match(nativeGuard, /checkpoint_archive_space_insufficient/);
   assert.match(treeGuard, /ResumeThread/);
+  assert.match(treeGuard, /const _: \[\(\); 48\] = \[\(\); std::mem::size_of::<JobAccounting>\(\)\]/);
+  assert.match(treeGuard, /let _ = self\.terminate\(\);/);
   assert.match(supervisor, /_resume_owned_suspended_process\(proc\.pid\)/);
   assert.match(supervisor, /observer\.observe\(SafetySample/);
   assert.match(supervisor, /cooperative_safe_stop_checkpoint_candidate/);
