@@ -88,7 +88,8 @@ test("uncertain saved-version restore keeps selection locked and rechecks native
   assert.match(refresh, /requestVersion === selectedVoiceReadVersion/);
   assert.match(refresh, /return true/);
   assert.match(page, /onRecheck=\{verifySelectedVersion\}/);
-  assert.match(page, /if \(!await refreshVoiceSelection\(\) \|\| selectedVoiceKind !== "personal"\)/);
+  assert.match(page, /if \(!await refreshVoiceSelection\(\)\) return null/);
+  assert.match(page, /if \(selectedVoiceKind !== "personal"\) return false/);
   assert.match(page, /onVoiceActivated=\{async \(versionId, message\)/);
   assert.match(page, /throw new Error\("selected_meeting_voice_unverified"\)/);
 });
@@ -117,7 +118,30 @@ test("on-demand selected actor fingerprint proves exact version without hashing 
   assert.match(browser, /await onRecheck\(versionId\)/);
   assert.match(browser, /await onVoiceActivated\(versionId, result\.message\)/);
   assert.match(browser, /uncertainVersionId = versionId/);
-  assert.match(browser, /selectionUnknown = !verified/);
+  assert.match(browser, /selectionUnknown = matched === null/);
+  assert.match(browser, /if \(matched !== null\) uncertainVersionId = null/);
+  assert.match(browser, /if \(matched === false\)/);
+  assert.match(parent, /if \(await verifySelectedVersion\(versionId\) !== true\)/);
+  assert.match(parent, /if \(!await refreshVoiceSelection\(\)\) return null/);
   const statusOwner = build.slice(build.indexOf("fn current_status()"), build.indexOf("fn result("));
   assert.doesNotMatch(statusOwner, /selected_personal_actor_matches_version|selected_actor_matches_version/);
+});
+
+test("a verified different Meeting actor unlocks retry without pretending restore succeeded", () => {
+  const browser = frontend("components/my-voice/VoiceVersionBrowser.svelte");
+  const page = frontend("pages/MyVoice.svelte");
+  const retry = browser.slice(browser.indexOf("async function retrySelectionStatus("),
+    browser.indexOf("async function reconcileUncertainSelection("));
+  assert.match(browser, /onRecheck: \(versionId: string\) => Promise<boolean \| null>/);
+  assert.match(retry, /const matched = await onRecheck\(versionId\)/);
+  assert.match(retry, /selectionUnknown = matched === null/);
+  assert.match(retry, /if \(matched !== null\) uncertainVersionId = null/);
+  assert.match(retry, /if \(matched === false\)/);
+  assert.match(retry, /That saved version is not selected/);
+  assert.match(retry, /if \(matched === null\)/);
+  assert.match(page, /async function verifySelectedVersion\(versionId: string\): Promise<boolean \| null>/);
+  assert.match(page, /if \(!await refreshVoiceSelection\(\)\) return null/);
+  assert.match(page, /if \(selectedVoiceKind !== "personal"\) return false/);
+  assert.match(page, /return await myVoiceBuildApi\.verifySelectedVoiceVersion\(versionId\)/);
+  assert.match(page, /if \(await verifySelectedVersion\(versionId\) !== true\)/);
 });

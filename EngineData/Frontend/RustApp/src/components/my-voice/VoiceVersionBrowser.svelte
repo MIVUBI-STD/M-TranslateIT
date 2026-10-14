@@ -12,7 +12,7 @@
     voiceChangesLocked: boolean;
     onNotice: (message: string) => void;
     onVoiceActivated: (versionId: string, message?: string) => void | Promise<void>;
-    onRecheck: (versionId: string) => Promise<boolean>;
+    onRecheck: (versionId: string) => Promise<boolean | null>;
   } = $props();
 
   let opened = $state(false);
@@ -68,11 +68,17 @@
     if (!versionId) return;
     busy = true;
     try {
-      const verified = await onRecheck(versionId);
+      const matched = await onRecheck(versionId);
       if (disposed) return;
-      selectionUnknown = !verified;
-      if (verified) uncertainVersionId = null;
-      if (!verified) onNotice("Couldn't verify the requested saved version. Voice selection remains unavailable.");
+      // true: requested actor active; false: verified different actor active;
+      // null: cannot establish identity, keep selection locked.
+      selectionUnknown = matched === null;
+      if (matched !== null) uncertainVersionId = null;
+      if (matched === false) {
+        onNotice("That saved version is not selected. The current Meeting voice remains available.");
+      } else if (matched === null) {
+        onNotice("Couldn't verify the requested saved version. Voice selection remains unavailable.");
+      }
     } catch {
       if (!disposed) selectionUnknown = true;
     } finally {
