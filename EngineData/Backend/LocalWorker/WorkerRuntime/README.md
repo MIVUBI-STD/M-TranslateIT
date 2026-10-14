@@ -100,13 +100,27 @@ and never imports PyTorch, initializes CUDA or preloads a model just for metrics
 - `state=measured`: current PyTorch device ordinal and allocator values in
   MiB (`allocated`, `reserved`, `peak_allocated`, `peak_reserved`).
   Peaks are process-lifetime values; they are not per-turn peaks.
+- `device_memory.state=measured`: CUDA-reported instantaneous device
+  `free_mib`, `total_mib` and derived `used_mib`. This is **not**
+  PyTorch-specific consumption and may include CTranslate2/other processes.
+  Device-memory failure retains valid allocator metrics, marking the nested
+  observation unavailable with a typed, redacted `reason`.
 
-These values exclude Faster Whisper/CTranslate2 allocations, external CUDA
-allocations, Windows graphics applications and other processes. They are
-**not** total/free VRAM, safe training admission, a reservation or proof of
-meeting stability. Combine target-Windows whole-device GPU observation and
-the existing Meeting stage timings before changing residency, precision or
-batch policy. No continuous polling/telemetry service is introduced.
+Do not subtract allocator values from device usage and label the difference as
+Faster Whisper memory: CUDA contexts, libraries, WDDM, other applications and
+memory accounting can overlap or differ. On multi-GPU systems, the PyTorch
+current-device ordinal alone does not establish CTranslate2 physical GPU
+identity. No reading is a safe training reservation, a device-wide peak, or
+proof of Meeting stability.
+
+For the eventual coordinated TARGET_WINDOWS acceptance, pair the existing
+per-stage Meeting timings (`asr_ms`, `translation_ms`, `tts_ms` and
+scheduler waits) with read-only worker status snapshots after cold preload,
+warm readiness, sustained Live and Stop, plus the existing independent
+whole-device `nvidia-smi` / Windows GPU observations. Compare the same
+pinned Local SHA and GPU identity. A single status snapshot cannot attribute
+GPU usage to individual stages or capture transient peaks. Do not query
+the full status path on every utterance or add a background sampler.
 
 ## Developer checks
 

@@ -462,6 +462,7 @@ def test_torch_allocator_snapshot_reports_only_measured_pytorch_bytes(monkeypatc
         memory_reserved=lambda device: 4 * mib if device == 0 else -1,
         max_memory_allocated=lambda device: 3 * mib if device == 0 else -1,
         max_memory_reserved=lambda device: 5 * mib if device == 0 else -1,
+        mem_get_info=lambda device: (6 * mib, 8 * mib) if device == 0 else (-1, 0),
     )
     monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=cuda))
     assert common.torch_allocator_snapshot() == {
@@ -471,6 +472,12 @@ def test_torch_allocator_snapshot_reports_only_measured_pytorch_bytes(monkeypatc
         "reserved_mib": 4,
         "peak_allocated_mib": 3,
         "peak_reserved_mib": 5,
+        "device_memory": {
+            "state": "measured",
+            "free_mib": 6,
+            "total_mib": 8,
+            "used_mib": 2,
+        },
     }
 
 
@@ -486,6 +493,56 @@ def test_torch_allocator_snapshot_failure_is_explicit_not_zero(monkeypatch) -> N
     assert common.torch_allocator_snapshot() == {
         "state": "unavailable",
         "reason": "torch_cuda_allocator_probe_failed:RuntimeError",
+    }
+
+
+def test_cuda_device_memory_failure_preserves_measured_allocator(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+    mib = 1024 * 1024
+
+    def failed_device_probe(_device):
+        raise RuntimeError("sensitive driver message")
+
+    cuda = types.SimpleNamespace(
+        is_initialized=lambda: True,
+        current_device=lambda: 0,
+        memory_allocated=lambda _device: mib,
+        memory_reserved=lambda _device: 2 * mib,
+        max_memory_allocated=lambda _device: mib,
+        max_memory_reserved=lambda _device: 2 * mib,
+        mem_get_info=failed_device_probe,
+    )
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=cuda))
+    snapshot = common.torch_allocator_snapshot()
+    assert snapshot["state"] == "measured"
+    assert snapshot["allocated_mib"] == 1
+    assert snapshot["reserved_mib"] == 2
+    assert snapshot["device_memory"] == {
+        "state": "unavailable",
+        "reason": "cuda_device_memory_probe_failed:RuntimeError",
+    }
+
+
+def test_cuda_device_memory_rejects_inconsistent_free_total(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+    mib = 1024 * 1024
+    cuda = types.SimpleNamespace(
+        is_initialized=lambda: True,
+        current_device=lambda: 0,
+        memory_allocated=lambda _device: mib,
+        memory_reserved=lambda _device: 2 * mib,
+        max_memory_allocated=lambda _device: mib,
+        max_memory_reserved=lambda _device: 2 * mib,
+        mem_get_info=lambda _device: (10 * mib, 8 * mib),
+    )
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=cuda))
+    snapshot = common.torch_allocator_snapshot()
+    assert snapshot["state"] == "measured"
+    assert snapshot["device_memory"] == {
+        "state": "unavailable",
+        "reason": "cuda_device_memory_values_invalid",
     }
 
 

@@ -130,9 +130,10 @@ def torch_status() -> dict[str, Any]:
 def torch_allocator_snapshot() -> dict[str, Any]:
     """Read only the current PyTorch device allocator, without initializing CUDA.
 
-    This is not total GPU usage: CTranslate2, CUDA libraries, desktop apps and
-    other processes are excluded. Peaks are lifetime values, not per-utterance.
-    An unavailable observation is never interpreted as zero memory usage.
+    Allocator metrics exclude CTranslate2 and other CUDA clients. The nested
+    device_memory reading reports CUDA-visible device free/total at one instant
+    and must not be misread as PyTorch ownership or a peak. PyTorch peaks are
+    lifetime values, not per-utterance. Unavailable is never treated as zero.
     """
     torch_module = sys.modules.get("torch")
     if torch_module is None:
@@ -162,6 +163,34 @@ def torch_allocator_snapshot() -> dict[str, Any]:
         ):
             return {"state": "unavailable", "reason": "torch_allocator_values_invalid"}
         mib = 1024 * 1024
+        # CUDA-reported free/total memory is device-scoped, not allocator-owned.
+        # It may include CTranslate2 and other processes; WDDM observations
+        # require independent confirmation during Windows acceptance.
+        try:
+            free_bytes, total_bytes = cuda.mem_get_info(device)
+            if (
+                type(free_bytes) is not int
+                or type(total_bytes) is not int
+                or total_bytes <= 0
+                or free_bytes < 0
+                or free_bytes > total_bytes
+            ):
+                device_memory = {
+                    "state": "unavailable",
+                    "reason": "cuda_device_memory_values_invalid",
+                }
+            else:
+                device_memory = {
+                    "state": "measured",
+                    "free_mib": free_bytes // mib,
+                    "total_mib": total_bytes // mib,
+                    "used_mib": (total_bytes - free_bytes) // mib,
+                }
+        except Exception as exc:
+            device_memory = {
+                "state": "unavailable",
+                "reason": f"cuda_device_memory_probe_failed:{type(exc).__name__}",
+            }
         return {
             "state": "measured",
             "device_index": device,
@@ -169,6 +198,7 @@ def torch_allocator_snapshot() -> dict[str, Any]:
             "reserved_mib": values["reserved"] // mib,
             "peak_allocated_mib": values["peak_allocated"] // mib,
             "peak_reserved_mib": values["peak_reserved"] // mib,
+            "device_memory": device_memory,
         }
     except Exception as exc:
         # Diagnostics must not turn an otherwise healthy Meeting into failure.
