@@ -65,8 +65,8 @@ test("approved My Voice distinguishes selected actor from separately saved copy 
 
 test("a verified My Voice action clears prior unavailable-bridge warning without erasing unknown state", () => {
   const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
-  assert.match(ui, /if \(result\.build\.phase === "unavailable"\) \{\s*statusCheckUnavailable = true;/);
-  assert.match(ui, /else \{\s*\/\/ A verified native response supersedes a previous bridge failure\.\s*statusCheckUnavailable = false;\s*applyStatus\(result\.build\);/);
+  assert.match(ui, /if \(result\.build\.phase === "unavailable"\) \{\s*await reconcileUncertainBuildAction\(/);
+  assert.match(ui, /\/\/ A verified native response supersedes a previous bridge failure\.\s*statusCheckUnavailable = false;\s*applyStatus\(result\.build\);/);
 });
 
 test("approved My Voice cannot replace the selected actor during an active Meeting", () => {
@@ -111,4 +111,38 @@ test("voice switching attempts validated single-backup recovery before declaring
     assert.match(action, /if meeting_blocks_voice_change\(\)/);
     assert.match(action, /voice_selection_guard\(\)/);
   }
+});
+
+test("uncertain Create, Cancel and Approve reconcile before enabling further voice mutations", () => {
+  const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const getAction = (name: string): string => {
+    const start = ui.indexOf(`async function ${name}(`);
+    assert.ok(start >= 0, `Missing action ${name}`);
+    const end = ui.indexOf("\n  }", start);
+    assert.ok(end > start, `Missing action boundary ${name}`);
+    return ui.slice(start, end);
+  };
+  const reconcile = getAction("reconcileUncertainBuildAction");
+  assert.match(reconcile, /statusCheckUnavailable = true/);
+  assert.match(reconcile, /onBuildStatusUnavailable\?\.\(\)/);
+  assert.match(reconcile, /await refresh\(\)/);
+
+  for (const [name, operation] of [
+    ["startBuild", "myVoiceBuildApi.start"],
+    ["cancelBuild", "myVoiceBuildApi.cancel"],
+    ["approve", "myVoiceBuildApi.approve"],
+  ]) {
+    const body = getAction(name);
+    assert.ok(body.includes(operation), name);
+    assert.match(body, /await applyResult\(/, name);
+    assert.match(body, /catch \{\s*await reconcileUncertainBuildAction\(/, name);
+  }
+  assert.match(getAction("cancelBuild"), /statusCheckUnavailable/);
+  assert.match(ui, /disabled=\{busy \|\| statusCheckUnavailable\} onclick=\{\(\) => void cancelBuild\(\)\}/);
+  const approve = getAction("approve");
+  assert.match(approve, /else if \(result\.build\.phase === "unavailable"\)/);
+  assert.match(approve, /await refreshMeetingAfterUncertainApproval\(\)/);
+  const meeting = getAction("refreshMeetingAfterUncertainApproval");
+  assert.match(meeting, /onMeetingVoiceChanged\(/);
+  assert.doesNotMatch(meeting, /myVoiceBuildApi\.approve|selectBuiltin|selectActorVersion/);
 });

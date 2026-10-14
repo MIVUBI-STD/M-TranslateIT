@@ -10,6 +10,7 @@
 - Keep ordinary recording, Quick Preview, frozen-dataset Create, eight held-out review samples, explicit approval/Meeting selection, saved-version Improve (rebuild), and immutable backup as the first-release target.
 - Preserve previous saved recordings and selected Meeting voice; unknown storage/worker state fails closed. Backup verification requires receipt-to-payload **and payload-to-receipt** linkage and content-addressed receipt identity; unreferenced archive bytes are not restorable objects.
 - Ambiguous Start/Stop/Retry/Accept recording outcomes keep recording coordination locked until a fresh Rust status read. Accepted-take consumers refresh after uncertain Accept without replaying its write.
+- Uncertain Create, Stop Creating and Approve responses freeze My Voice mutations until a fresh Rust build status is read. Ambiguous Approve also refreshes canonical Meeting selection without repeating approval or falsely claiming success.
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
@@ -19,7 +20,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Audit Create → Review → Approve → Meeting transitions on exact current `Local` source; repair the first source-provable build/approval/selection failure with focused regression coverage.** Preserve existing listening and consent gates; avoid UI redesign, new engines, and Resume expansion.
+**Audit stale and out-of-order My Voice build-status responses around background polling, review identity changes and approval; correct the first source-provable race without adding another state owner.** Preserve listening/consent and Meeting ownership; avoid UI redesign, new engines and Resume expansion.
 
 ## Deferred prior work
 

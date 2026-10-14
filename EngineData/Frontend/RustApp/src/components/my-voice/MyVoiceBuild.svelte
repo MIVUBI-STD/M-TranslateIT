@@ -203,17 +203,41 @@
     return "Your accepted recordings are ready.";
   }
 
-  function applyResult(result: MyVoiceBuildActionResult): void {
+  // A mutation may reach Rust even when its reply is lost. Freeze controls
+  // until a new authoritative build snapshot replaces stale local state.
+  async function reconcileUncertainBuildAction(message: string): Promise<void> {
+    if (disposed) return;
+    statusCheckUnavailable = true;
+    onBuildStatusUnavailable?.();
+    onNotice(message);
+    await refresh();
+  }
+
+  async function applyResult(result: MyVoiceBuildActionResult): Promise<void> {
     if (disposed) return;
     if (result.build.phase === "unavailable") {
-      statusCheckUnavailable = true;
-      onBuildStatusUnavailable?.();
-    } else {
-      // A verified native response supersedes a previous bridge failure.
-      statusCheckUnavailable = false;
-      applyStatus(result.build);
+      await reconcileUncertainBuildAction(
+        "Couldn't verify this My Voice action. Checking the current build status.",
+      );
+      return;
     }
+    // A verified native response supersedes a previous bridge failure.
+    statusCheckUnavailable = false;
+    applyStatus(result.build);
     onNotice(productMessage(result));
+  }
+
+  async function refreshMeetingAfterUncertainApproval(): Promise<void> {
+    if (disposed) return;
+    // This refresh is read-only. It must not claim the candidate was approved
+    // or silently repeat a voice selection request.
+    try {
+      await onMeetingVoiceChanged(
+        "My Voice approval could not be confirmed. Check the selected Meeting voice.",
+      );
+    } catch {
+      if (!disposed) onNotice("Couldn't verify the selected Meeting voice. Check its status before using it.");
+    }
   }
 
   async function refresh(): Promise<void> {
@@ -223,6 +247,7 @@
       if (next.phase === "unavailable") {
         statusCheckUnavailable = true;
         onBuildStatusUnavailable?.();
+        schedulePoll();
         return;
       }
       statusCheckUnavailable = false;
@@ -304,21 +329,25 @@
     reviewedLineIds = [];
     busy = true;
     try {
-      applyResult(await myVoiceBuildApi.start(authorized));
+      await applyResult(await myVoiceBuildApi.start(authorized));
     } catch {
-      if (!disposed) onNotice("My Voice creation couldn't start. Check the recording status and try again.");
+      await reconcileUncertainBuildAction(
+        "Couldn't confirm whether My Voice creation started. Checking status.",
+      );
     } finally {
       busy = false;
     }
   }
 
   async function cancelBuild(): Promise<void> {
-    if (busy || quickPreviewBusy || !build.active) return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || !build.active) return;
     busy = true;
     try {
-      applyResult(await myVoiceBuildApi.cancel());
+      await applyResult(await myVoiceBuildApi.cancel());
     } catch {
-      if (!disposed) onNotice("Couldn't confirm that My Voice creation stopped. Check its status.");
+      await reconcileUncertainBuildAction(
+        "Couldn't confirm whether My Voice creation stopped. Checking status.",
+      );
     } finally {
       busy = false;
     }
@@ -330,12 +359,17 @@
     busy = true;
     try {
       const result = await myVoiceBuildApi.approve(reviewedLineIds, qualityConfirmed, build.evaluation_review_id);
-      applyResult(result);
+      await applyResult(result);
       if (result.ok && ["approved", "approved_cleanup_attention", "approved_archive_attention"].includes(result.state)) {
         await onMeetingVoiceChanged(productMessage(result));
+      } else if (result.build.phase === "unavailable") {
+        await refreshMeetingAfterUncertainApproval();
       }
     } catch {
-      if (!disposed) onNotice("Couldn't confirm My Voice approval. Check its status before trying again.");
+      await reconcileUncertainBuildAction(
+        "Couldn't confirm whether My Voice was approved. Checking status.",
+      );
+      await refreshMeetingAfterUncertainApproval();
     } finally {
       busy = false;
     }
@@ -456,7 +490,7 @@
       <strong class="text-sm font-semibold">{activeTitle()}</strong>
       <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{activeDetail()}</p>
     </div>
-    <button type="button" class="ti-button ti-button-secondary mt-5" disabled={busy} onclick={() => void cancelBuild()}>
+    <button type="button" class="ti-button ti-button-secondary mt-5" disabled={busy || statusCheckUnavailable} onclick={() => void cancelBuild()}>
       <Square size={14} /><span>{busy ? "Stopping..." : "Stop Creating"}</span>
     </button>
   {:else if build.evaluation_ready}
