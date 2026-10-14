@@ -423,6 +423,21 @@ def run_supervised_stage(
                 if proc.returncode in (3221225477, -1073741819):
                     raise StageGuardError("my_voice:native_worker_crash")
                 raise StageGuardError(f"my_voice:stage_exit_nonzero:{proc.returncode}")
+            # A short last epoch can finish between supervision samples.
+            # Read the same tiny receipt once on clean exit, before accepting
+            # a completed stage; no extra watcher, timer or model I/O.
+            if temporary:
+                try:
+                    final_epoch = read_progress(
+                        Path(temporary), token, int(generation_raw),
+                        cooperative_stage, last_checkpoint_epoch,
+                    )
+                except RuntimeError as exc:
+                    raise StageGuardError(str(exc)) from exc
+                if final_epoch is not None:
+                    last_checkpoint_epoch = final_epoch
+                    if on_checkpoint is not None:
+                        on_checkpoint(cooperative_stage, final_epoch)
             if temporary and _acknowledged(Path(temporary), token, cooperative_stage):
                 if not request_sent:
                     raise StageGuardError("my_voice:cooperative_unsolicited_ack")

@@ -27,3 +27,10 @@ def test_rejected_when_progress_rolls_back(tmp_path, monkeypatch):
     publish_progress("sovits", 2, "pair_100.json")
     with pytest.raises(RuntimeError, match="rolled_back"):
         read_progress(tmp_path, "a"*64, 3, "sovits", 4)
+
+
+def test_nonprogress_interval_does_not_fake_new_epoch(tmp_path, monkeypatch):
+    setup(monkeypatch, tmp_path)
+    assert read_progress(tmp_path, "a"*64, 3, "sovits", 0) is None
+    publish_progress("sovits", 2, "pair_100.json")
+    assert read_progress(tmp_path, "a"*64, 3, "sovits", 2) is None

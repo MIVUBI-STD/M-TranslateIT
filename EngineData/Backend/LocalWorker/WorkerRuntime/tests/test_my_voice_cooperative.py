@@ -15,6 +15,11 @@ def configure(monkeypatch, tmp_path: Path, stage: str):
     monkeypatch.setenv(REQUEST_ENV, str(request))
     monkeypatch.setenv(ACK_ENV, str(ack))
     monkeypatch.setenv(STAGE_ENV, stage)
+    monkeypatch.setenv("TRANSLATEIT_MYVOICE_RUN_GENERATION", "3")
+    monkeypatch.setenv(
+        "TRANSLATEIT_MYVOICE_EPOCH_PROGRESS_PATH",
+        str(tmp_path / "epoch_progress.json"),
+    )
     request.write_text(json.dumps({"run_token": token, "stage": stage}))
     return ack
 

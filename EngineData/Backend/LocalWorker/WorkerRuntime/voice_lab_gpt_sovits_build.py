@@ -287,7 +287,11 @@ def run_stage(
             message = f"{stage}: resource pressure has returned to normal."
         status_writer("training", message)
 
+    last_verified_checkpoint_epoch: int | None = None
+
     def checkpoint(stage: str, epoch: int) -> None:
+        nonlocal last_verified_checkpoint_epoch
+        last_verified_checkpoint_epoch = epoch
         if status_writer is not None:
             name = "SoVITS" if stage == "sovits" else "GPT"
             status_writer(
@@ -304,8 +308,13 @@ def run_stage(
             )
             # This heartbeat proves the supervisor loop is responsive,
             # not that an epoch advanced or the model is converging.
+            milestone = (
+                f" Last saved checkpoint epoch: {last_verified_checkpoint_epoch} (resume unverified)."
+                if last_verified_checkpoint_epoch is not None
+                else " No checkpoint progression reported yet."
+            )
             status_writer("training",
-                f"{stage_name}: safety supervisor responsive ({state}); model progress not verified.")
+                f"{stage_name}: safety supervisor responsive ({state}).{milestone}")
 
     try:
         run_supervised_stage(
