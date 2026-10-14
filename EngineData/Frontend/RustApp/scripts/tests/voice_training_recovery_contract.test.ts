@@ -21,7 +21,12 @@ test("recoverable checkpoint capture is pinned to exact unchanged GPT-SoVITS sou
   assert.match(recovery, /sovits-D/);
   assert.match(recovery, /gpt-config\.yaml/);
   assert.match(recovery, /sovits-config\.json/);
-  assert.match(pipeline, /"if_save_latest": True/);
+  assert.match(pipeline, /"if_save_latest": False/);
+  assert.match(recovery, /"sovits-pair"/);
+  const audit = worker("voice_lab_resume_validation.py");
+  assert.match(audit, /MAX_PARTS = 28/);
+  assert.match(audit, /sovits_pair_receipt_hash_mismatch/);
+  assert.match(audit, /resume_available": False/);
   assert.match(pipeline, /run_stage\(source_root, assets\["sovits_train"\]/);
   assert.match(pipeline, /run_stage\(source_root, assets\["gpt_train"\]/);
 });

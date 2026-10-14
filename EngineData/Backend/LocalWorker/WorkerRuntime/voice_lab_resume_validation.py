@@ -25,10 +25,15 @@ from voice_lab_gpt_sovits import ENGINE_REVISION, GPT_EPOCHS, SOVITS_EPOCHS
 MAX_RECEIPT_BYTES = 16 * 1024
 MAX_MANIFEST_BYTES = 512 * 1024
 MAX_CHECKPOINT_BYTES = 8 * 1024**3
-MAX_PARTS = 22
+MAX_PARTS = 28
+MAX_GROUP = 12
 SUPPORTED_STATUS = "checkpoint_preserved_not_verified_for_resume"
 HEX64 = re.compile(r"[a-f0-9]{64}\Z")
-PART_LABEL = re.compile(r"(?:gpt-[0-7]\.ckpt|sovits-[GD]-[0-7]\.pth)\Z")
+PART_LABEL = re.compile(
+    r"(?:gpt-(?:[0-9]|1[01])\\.ckpt"
+    r"|sovits-[GD]-(?:[0-9]|1[01])\\.pth"
+    r"|sovits-pair-(?:[0-9]|1[01])\\.json)\\Z"
+)
 SOURCE_BLOBS = {
     "GPT_SoVITS/s1_train.py": "1176f0bcef869d2f66574d47d9a55d0cc7e1ac0c",
     "GPT_SoVITS/s2_train.py": "333e6a05aedd9f62009ecd6012518116d1326a93",
@@ -206,9 +211,12 @@ def audit_archive(
 
     blockers: list[str] = []
     tensor_inspected = False
-    gpts = sorted(p for p in labels if re.fullmatch(r"gpt-[0-7]\.ckpt", p))
-    gens = sorted(p for p in labels if re.fullmatch(r"sovits-G-[0-7]\.pth", p))
-    discs = sorted(p for p in labels if re.fullmatch(r"sovits-D-[0-7]\.pth", p))
+    gpts = sorted(p for p in labels if re.fullmatch(r"gpt-(?:[0-9]|1[01])\.ckpt", p))
+    gens = sorted(p for p in labels if re.fullmatch(r"sovits-G-(?:[0-9]|1[01])\.pth", p))
+    discs = sorted(p for p in labels if re.fullmatch(r"sovits-D-(?:[0-9]|1[01])\.pth", p))
+    pairs = sorted(p for p in labels if re.fullmatch(r"sovits-pair-(?:[0-9]|1[01])\.json", p))
+    if any(len(group) > MAX_GROUP for group in (gpts, gens, discs, pairs)):
+        raise ResumeAuditError("recovery_checkpoint_group_count_exceeded")
     if not gpts:
         blockers.append("gpt_full_checkpoint_missing")
     if not gens or not discs:
@@ -227,6 +235,42 @@ def audit_archive(
     for label in gpts:
         if not originals[label].endswith(".ckpt"):
             blockers.append("gpt_original_checkpoint_name_invalid")
+    # Resume inventory must not confuse a hash-valid archive with matching
+    # original G/D tensor checkpoint evidence. Validate tiny pair receipts
+    # against already verified per-file hashes; do NOT rehash GB weights.
+    paired_steps: set[int] = set()
+    for label in pairs:
+        receipt = _json(labels[label], 4096)
+        original = originals[label]
+        match = re.fullmatch(r"pair_([0-9]+)\.json", original)
+        if not match or type(receipt.get("global_step")) is not int:
+            raise ResumeAuditError("sovits_pair_receipt_identity_invalid")
+        step = int(match.group(1))
+        if (receipt.get("format") != 1 or step < 1
+            or receipt["global_step"] != step
+            or type(receipt.get("epoch")) is not int
+            or not 1 <= receipt["epoch"] <= SOVITS_EPOCHS):
+            raise ResumeAuditError("sovits_pair_receipt_schema_invalid")
+        for role, key in (("G", "generator"), ("D", "discriminator")):
+            member = receipt.get(key)
+            matching = [
+                item for item in (gens if role == "G" else discs)
+                if originals[item] == f"{role}_{step}.pth"
+            ]
+            if len(matching) != 1 or not isinstance(member, dict):
+                raise ResumeAuditError("sovits_pair_receipt_member_missing")
+            component = matching[0]
+            # Recovery source receipt hashes are already checked above.
+            record = next(p for p in parts if p["label"] == component)
+            if (member.get("name") != originals[component]
+                or member.get("sha256") != record["sha256"]
+                or member.get("bytes") != record["bytes"]):
+                raise ResumeAuditError("sovits_pair_receipt_hash_mismatch")
+        if step in paired_steps:
+            raise ResumeAuditError("sovits_pair_duplicate_step")
+        paired_steps.add(step)
+    if gens and discs and not pairs:
+        blockers.append("sovits_paired_checkpoint_receipt_absent_legacy")
     if not {"gpt-config.yaml", "sovits-config.json"} <= labels.keys():
         blockers.append("training_config_missing")
     if source_root is None:
@@ -307,8 +351,8 @@ def _training_state_blockers(
             or s2_train.get("epochs") != SOVITS_EPOCHS
             or s1_train.get("precision") not in ("16-mixed", "32")
             or s2_train.get("fp16_run") not in (True, False)
-            or s1_train.get("if_save_latest") is not True
-            or s2_train.get("if_save_latest") is not True
+            or type(s1_train.get("if_save_latest")) is not bool
+            or type(s2_train.get("if_save_latest")) is not bool
             or s2_model.get("version") != "v2ProPlus"):
         blockers.append("training_configuration_mismatch")
     if not isinstance(gpt, dict) or not isinstance(gpt.get("state_dict"), dict) or not gpt["state_dict"]:

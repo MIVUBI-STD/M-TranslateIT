@@ -165,3 +165,11 @@ class RecoveryAuditContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_updated_checkpoint_counts_and_legacy_resume_remains_disabled():
+    from voice_lab_resume_validation import MAX_PARTS, PART_LABEL
+    assert MAX_PARTS == 28
+    assert PART_LABEL.fullmatch("sovits-pair-11.json")
+    assert PART_LABEL.fullmatch("gpt-11.ckpt")
+    assert not PART_LABEL.fullmatch("gpt-12.ckpt")

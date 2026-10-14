@@ -62,6 +62,12 @@
 - The bounded pure `EpochStallObserver` learns a local baseline from two completed epoch intervals on the *actual user device*, then emits one suspicious-slow-progress warning after max(20 minutes, 6× slowest of the last four observed epoch intervals). With just one completed epoch, it may warn after 45 minutes of no further epoch; with zero completed epochs it emits at most one warning after 45 minutes but cannot establish a stall. If several short epochs are coalesced into one observer read, their elapsed duration is normalized by completed epoch count. Warnings never auto-kill a slower GPU or pretend to prove deadlock. Critical VRAM/RAM/disk telemetry and user Stop retain their separate fail-closed behavior.
 - No new worker, no model loads, and no timer or polling loop. These thresholds are provisional source design parameters, not measured performance envelopes. Epoch/Lightning source runtime proof remains deferred.
 
+## Recovery audit compatibility: no silent resume eligibility
+
+- The existing developer-only `voice_lab_resume_validation.py` audit has been aligned to the current immutable Rust `TrainingRecovery` receipt: maximum 28 parts, up to 12 checkpoints per family and optional `sovits-pair-*.json` artifacts with step, G/D name, size and SHA-256 linkage to the already hash-verified archived inputs. This is a tiny metadata comparison; it never reloads checkpoint tensors automatically or rehashes large files twice.
+- Both historical (`if_save_latest=True`) and new loss-resistant (`if_save_latest=False`) configuration receipts may be audited, with a blocker for legacy archives lacking a pair receipt. **The auditor never sets `resume_available=True`**. Its protected structural inspection and stricter runtime-worker acknowledgment contracts remain developer-only.
+- The old release source-contract expectation for latest-saving has been updated; fixture examples are authored but unexecuted. No GPU, Rust, Python or Node validation performed.
+
 ## Single next step (source-only)
 
 Review the final Rust/Python source contracts, stage heartbeat provenance and checkpoint stop semantics; then close any source-provable gaps without adding workers or changing training quality **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.
