@@ -87,6 +87,27 @@ Accelerate   1.14.0 resolved by uv.lock
 
 Transformers 4.57.6 is the validated MiLMMT runtime version. Implementation/dependency details belong here and in their source/lock owners rather than `CONTEXT.md` or `next-action.md`.
 
+## PyTorch allocator diagnostic
+
+The existing `status` response includes `gpu.torch_allocator` as a read-only,
+best-effort observation. It inspects an **already initialized** CUDA context
+and never imports PyTorch, initializes CUDA or preloads a model just for metrics.
+
+- `state=not_initialized`: no initialized PyTorch CUDA allocator to inspect;
+  **not** evidence that the GPU is unused.
+- `state=unavailable`: inspection is unsupported or failed; an explicit
+  `reason` accompanies it. This cannot change readiness or activate CPU fallback.
+- `state=measured`: current PyTorch device ordinal and allocator values in
+  MiB (`allocated`, `reserved`, `peak_allocated`, `peak_reserved`).
+  Peaks are process-lifetime values; they are not per-turn peaks.
+
+These values exclude Faster Whisper/CTranslate2 allocations, external CUDA
+allocations, Windows graphics applications and other processes. They are
+**not** total/free VRAM, safe training admission, a reservation or proof of
+meeting stability. Combine target-Windows whole-device GPU observation and
+the existing Meeting stage timings before changing residency, precision or
+batch policy. No continuous polling/telemetry service is introduced.
+
 ## Developer checks
 
 Repository-only MiLMMT validation does not require model/GPU inference:

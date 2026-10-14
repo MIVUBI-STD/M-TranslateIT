@@ -254,7 +254,7 @@ def build_status_payload(payload: dict[str, Any] | None = None) -> dict[str, Any
             "blocker": str(actor["blocker"]),
             "actor_token": str(actor["actor_token"]),
         },
-        "gpu": gpu,
+        "gpu": {**gpu, "torch_allocator": common.torch_allocator_snapshot()},
         "asr_primary_model_ready": asr_primary_ready,
         "asr_model_ready": asr_active_ready,
         "asr_backup_model_ready": asr_backup_ready,

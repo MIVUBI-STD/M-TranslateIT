@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -124,6 +125,57 @@ def torch_status() -> dict[str, Any]:
             "blocker": f"cuda:torch_probe_failed:{type(exc).__name__}",
         }
     return {"import_ready": True, "cuda_probe_ok": True, "cuda_available": available, "blocker": ""}
+
+
+def torch_allocator_snapshot() -> dict[str, Any]:
+    """Read only the current PyTorch device allocator, without initializing CUDA.
+
+    This is not total GPU usage: CTranslate2, CUDA libraries, desktop apps and
+    other processes are excluded. Peaks are lifetime values, not per-utterance.
+    An unavailable observation is never interpreted as zero memory usage.
+    """
+    torch_module = sys.modules.get("torch")
+    if torch_module is None:
+        return {"state": "not_initialized"}
+    cuda = getattr(torch_module, "cuda", None)
+    if cuda is None:
+        return {"state": "unavailable", "reason": "torch_cuda_api_missing"}
+    try:
+        # current_device() and allocator reads are not called before the CUDA
+        # context is initialized by real model work.
+        if not cuda.is_initialized():
+            return {"state": "not_initialized"}
+        device = cuda.current_device()
+        values = {
+            "allocated": cuda.memory_allocated(device),
+            "reserved": cuda.memory_reserved(device),
+            "peak_allocated": cuda.max_memory_allocated(device),
+            "peak_reserved": cuda.max_memory_reserved(device),
+        }
+        if (
+            type(device) is not int
+            or device < 0
+            or any(type(value) is not int or value < 0 for value in values.values())
+            or values["allocated"] > values["reserved"]
+            or values["peak_allocated"] < values["allocated"]
+            or values["peak_reserved"] < values["reserved"]
+        ):
+            return {"state": "unavailable", "reason": "torch_allocator_values_invalid"}
+        mib = 1024 * 1024
+        return {
+            "state": "measured",
+            "device_index": device,
+            "allocated_mib": values["allocated"] // mib,
+            "reserved_mib": values["reserved"] // mib,
+            "peak_allocated_mib": values["peak_allocated"] // mib,
+            "peak_reserved_mib": values["peak_reserved"] // mib,
+        }
+    except Exception as exc:
+        # Diagnostics must not turn an otherwise healthy Meeting into failure.
+        return {
+            "state": "unavailable",
+            "reason": f"torch_cuda_allocator_probe_failed:{type(exc).__name__}",
+        }
 
 
 def ctranslate2_status() -> dict[str, Any]:

@@ -167,8 +167,17 @@ def test_worker_status_reports_milmmt_revision_for_both_directions(monkeypatch) 
         "voice_actor_static_status",
         lambda: {"ready": True, "actor_token": "actor-v1", "blocker": ""},
     )
+    monkeypatch.setattr(
+        worker.io_runtime.common,
+        "torch_allocator_snapshot",
+        lambda: {"state": "unavailable", "reason": "torch_cuda_api_missing"},
+    )
     status = worker.build_status_payload({})
     assert status["ok"] is True
+    assert status["gpu"]["torch_allocator"] == {
+        "state": "unavailable",
+        "reason": "torch_cuda_api_missing",
+    }
     for key in ("translation_id_en", "translation_en_id"):
         assert status["models"][key]["id"] == "milmmt-46-1b-v1.0"
         assert status["models"][key]["revision"] == worker.MILMMT_MODEL_REVISION
@@ -419,6 +428,65 @@ def test_translation_preload_does_not_run_full_worker_status(monkeypatch) -> Non
     assert result["ok"] is True
     assert result["translation_degraded"] is True
     assert result["warnings"] == ["cuda_unavailable_cpu_fallback_active"]
+
+
+def test_torch_allocator_snapshot_never_initializes_cuda(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+    monkeypatch.delitem(sys.modules, "torch", raising=False)
+    assert common.torch_allocator_snapshot() == {"state": "not_initialized"}
+
+    def forbidden():
+        raise AssertionError("allocator observation initialized CUDA")
+
+    cuda = types.SimpleNamespace(
+        is_initialized=lambda: False,
+        current_device=forbidden,
+        memory_allocated=forbidden,
+        memory_reserved=forbidden,
+        max_memory_allocated=forbidden,
+        max_memory_reserved=forbidden,
+    )
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=cuda))
+    assert common.torch_allocator_snapshot() == {"state": "not_initialized"}
+
+
+def test_torch_allocator_snapshot_reports_only_measured_pytorch_bytes(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+    mib = 1024 * 1024
+    cuda = types.SimpleNamespace(
+        is_initialized=lambda: True,
+        current_device=lambda: 0,
+        memory_allocated=lambda device: 2 * mib if device == 0 else -1,
+        memory_reserved=lambda device: 4 * mib if device == 0 else -1,
+        max_memory_allocated=lambda device: 3 * mib if device == 0 else -1,
+        max_memory_reserved=lambda device: 5 * mib if device == 0 else -1,
+    )
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=cuda))
+    assert common.torch_allocator_snapshot() == {
+        "state": "measured",
+        "device_index": 0,
+        "allocated_mib": 2,
+        "reserved_mib": 4,
+        "peak_allocated_mib": 3,
+        "peak_reserved_mib": 5,
+    }
+
+
+def test_torch_allocator_snapshot_failure_is_explicit_not_zero(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+
+    def broken_probe():
+        raise RuntimeError("private driver message")
+
+    cuda = types.SimpleNamespace(is_initialized=broken_probe)
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=cuda))
+    assert common.torch_allocator_snapshot() == {
+        "state": "unavailable",
+        "reason": "torch_cuda_allocator_probe_failed:RuntimeError",
+    }
 
 
 def test_gpu_capability_snapshot_is_reused_until_probe_implementation_changes(monkeypatch) -> None:
