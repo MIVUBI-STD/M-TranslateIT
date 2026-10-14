@@ -136,7 +136,7 @@ struct PairedFile {
     sha256: String,
 }
 
-fn verify_source_pair(path: &Path, root: &Path) -> Result<(), String> {
+fn verify_source_pair(path: &Path, hashed_parts: &[RecoveryPart]) -> Result<(), String> {
     let raw = read_regular_bounded(path, 4096)
         .map_err(|_| "voice_lab:recovery_sovits_pair_read_failed")?;
     let evidence: PairEvidence = serde_json::from_slice(&raw)
@@ -153,8 +153,20 @@ fn verify_source_pair(path: &Path, root: &Path) -> Result<(), String> {
         {
             return Err("voice_lab:recovery_sovits_pair_mismatch".into());
         }
-        let (hash, bytes) = hash_regular_file(&root.join(&entry.name), LIMIT_FILE)?;
-        if hash != entry.sha256 || bytes != entry.bytes {
+        // Reuse the first-pass hashes already calculated for immutable
+        // archive parts. The following copy step independently verifies that
+        // the sources did not change while copying, and verify_package checks
+        // the destination. No second G/D scan just for a tiny JSON receipt.
+        let expected_label = format!("sovits-{label}-");
+        let mut matches = hashed_parts.iter().filter(|part| {
+            part.label.starts_with(&expected_label) && part.original_filename == entry.name
+        });
+        let Some(part) = matches.next() else {
+            return Err("voice_lab:recovery_sovits_pair_member_missing".into());
+        };
+        if matches.next().is_some()
+            || part.sha256 != entry.sha256 || part.bytes != entry.bytes
+        {
             return Err("voice_lab:recovery_sovits_pair_digest_mismatch".into());
         }
     }
@@ -175,12 +187,9 @@ fn inputs(storage: &VoiceLabStoragePaths) -> Result<Vec<Input>, String> {
     files.extend(collect_checkpoint_files(&s2_dir, "sovits-pair")?);
     files.extend(collect_checkpoint_files(&exp.join("logs_s1_v2ProPlus").join("ckpt"), "gpt")?);
     if files.is_empty() { return Ok(files); }
-    // Pair receipts belong to the same frozen original checkpoint bytes.
-    // Unpaired legacy checkpoints are evidence only, never verified resume.
-    for file in files.iter().filter(|part| part.label.starts_with("sovits-pair-")) {
-        verify_source_pair(&file.source, &s2_dir)?;
-    }
-
+    // Pair receipts are validated after first-pass hashes are collected in
+    // preserve_training_checkpoints. Avoid hashing multi-GB G/D checkpoints
+    // twice during this metadata inventory pass.
     for (name, label) in [
         ("translateit_s1.yaml", "gpt-config.yaml"),
         ("translateit_s2.json", "sovits-config.json"),
@@ -246,6 +255,14 @@ pub(crate) fn preserve_training_checkpoints(
             original_filename: input.original_filename.clone(),
             sha256, bytes,
         });
+    }
+    // Both G/D and the tiny pair receipt have already been hashed above.
+    // Check their exact original file names, byte sizes and SHA identities
+    // without another scan of model/optimizer checkpoint payloads.
+    for (input, record) in files.iter().zip(parts.iter()) {
+        if record.label.starts_with("sovits-pair-") {
+            verify_source_pair(&input.source, &parts)?;
+        }
     }
     let receipt = RecoveryReceipt {
         format: FORMAT,

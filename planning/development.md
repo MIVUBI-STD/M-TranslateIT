@@ -110,6 +110,12 @@ All source declarations above require later Windows/runtime confirmation. A hash
 - If Windows accounting or termination is unavailable/unconfirmed, the run fails closed and existing Build/Runtime checkpoint bytes are left untouched for attention. Only verified-quiescent runs may publish Review or begin immutable recovery copying. Normal root and stage child exit paths still use the original job ownership.
 - Implementation is source-only; Job query layout, nested Windows jobs, driver faults and the exact error-path behavior require authorized Windows acceptance later.
 
+## Zero-waste pairing metadata in Rust recovery — 2026-10-14
+
+- Removed redundant large-file hash scans from Rust's `inputs()` pair-manifest verification. `preserve_training_checkpoints()` now calculates the original file SHA-256 once for each archive part and verifies the G/D pair's epoch/step/filename/size/hash using these exact already available hashes.
+- This keeps both protections against mid-copy source mutation (the existing post-copy original hash check) and destination/archive corruption (the existing immutable `verify_package` scan). The pair receipt remains untrusted, not an optimizer resume authorization. Normal UI status does not read model checkpoints.
+- No additional worker, disk copy or monitoring loop was introduced. This optimization is source-only; real Windows/drive I/O behavior remains unverified.
+
 ## Single next step (source-only)
 
 Review the precise interaction of trainer cooperative stop, canceled completion receipts and Rust checkpoint archive preservation under unexpected worker exits. Do not activate optimizer resume until actual SoVITS G/D, GPT optimizer, scheduler, GradScaler and RNG load/continuation can be established with independent Windows runtime evidence. Continue in `Local` without running tests, CI, compilation or CUDA processing until explicitly authorized.
