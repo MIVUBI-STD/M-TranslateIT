@@ -227,6 +227,10 @@ def run_upstream_script(source_root: Path, script: Path, script_args: list[str])
 
     install_preflight_allocator_budget(relative_script)
     install_headless_my_utils(source_root)
+    strict_developer_probe = script_args[:1] in (
+        ["--translateit-dev-strict-sovits-probe"],
+        ["--translateit-dev-strict-gpt-probe"],
+    )
     if relative_script.as_posix() == "GPT_SoVITS/prepare_datasets/1-get-text.py":
         _run_english_text_stage()
         return
@@ -250,6 +254,16 @@ def run_upstream_script(source_root: Path, script: Path, script_args: list[str])
         script_args = ["--config_file", plan.config_path]
 
     sys.argv = [str(script), *script_args]
+    if (not strict_developer_probe and relative_script.as_posix() in (
+        "GPT_SoVITS/s2_train.py", "GPT_SoVITS/s1_train.py"
+    )):
+        from my_voice_single_gpu_adapter import single_gpu_source
+        revised_source = single_gpu_source(script, relative_script.as_posix())
+        exec(
+            compile(revised_source, str(script), "exec"),
+            {"__name__": "__main__", "__file__": str(script), "__package__": None},
+        )
+        return
     runpy.run_path(str(script), run_name="__main__")
 
 

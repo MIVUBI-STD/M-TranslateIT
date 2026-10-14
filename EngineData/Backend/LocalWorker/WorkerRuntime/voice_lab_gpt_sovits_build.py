@@ -458,6 +458,8 @@ def train(
     sovits_dir.mkdir(parents=True, exist_ok=True)
     gpt_dir.mkdir(parents=True, exist_ok=True)
     s2, s1, env = training_configs(assets, exp, sovits_dir, gpt_dir)
+    # The headless runner applies the pinned single-GPU adapter. No upstream
+    # source files are edited and source-hash drift blocks training.
     status_writer("training", "Learning voice characteristics (SoVITS training stage).")
     run_stage(source_root, assets["sovits_train"], env, "--config", str(s2))
     status_writer("training", "Learning speech generation (GPT training stage).")

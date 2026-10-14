@@ -62,6 +62,12 @@
 - Initial 8 GB reserve/budget thresholds are hypotheses and may reject training or still permit OOM. No Windows, GPU, model or test execution performed; do not claim RTX 3070 compatibility.
 - Next: implement an explicitly versioned Windows single-GPU trainer adapter / spawn-child allocator coverage and owned process tree, then integrity-bound per-run status and recovery. Do not allow partial GPU guard to imply zero-crash safety.
 
+## Single-GPU trainer adapter source — 2026-10-14
+
+- Added a **revision/hash-bound**, fail-closed GPT-SoVITS `s2_train.py` / `s1_train.py` in-memory adapter. SoVITS executes single-GPU `run(0,1,hps)` without `mp.spawn`, Gloo group initialization or DDP wrapping. GPT Lightning uses `devices=1` and `strategy="auto"`. The original pinned upstream files remain unchanged.
+- The stage runner installs its own CUDA allocator budget before loading verified upstream code. The adapter only applies if the exact Git blob hashes match the source revision pinned in this project; unknown source/patch shape aborts rather than training with unreviewed semantics.
+- **This is still UNVALIDATED SOURCE.** Windows loader/source-layout compatibility, optimizer/checkpoint semantics, training quality, data-loader children and CUDA native stability are unknown. No test execution requested/attempted. Pending: stronger Windows process-tree ownership, stage telemetry, per-run status generation and verification of every output before approval.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

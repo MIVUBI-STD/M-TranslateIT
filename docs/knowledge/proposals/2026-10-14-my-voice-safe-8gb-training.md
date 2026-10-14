@@ -158,7 +158,8 @@ When the user later authorizes validation, require traceable end-to-end evidence
 - Added shared `my_voice_gpu_policy.py` with versioned free-VRAM admission arithmetic; `my_voice_compute_probe.py` reports live GPU free VRAM, reserve and budget.
 - Rust Create and Improve now require a fresh backend admission and forward the original budget. UI remains advisory and shows free VRAM.
 - Python rechecks free GPU memory before expensive upstream stages; physical SoVITS/GPT batch starts at 1; launcher bounds its **own** PyTorch allocator fraction. No successful runs claimed.
-- **Critical outstanding gap:** SoVITS `mp.spawn` and GPT Lightning DDP workers may allocate outside that launcher cap; Windows single-GPU DDP remains. No safe-memory or native-crash certification is established; next implementation priority is worker-child coverage, process ownership and trainer adapter. A 12 GB GPU is not a requirement.
+- A revision-locked in-memory adapter is now staged: SoVITS has a single-device in-process entrypoint and no DDP wrapper; GPT Lightning selects one GPU with automatic non-DDP strategy. Original upstream bytes remain intact; unexpected pinned Git blob identity fails closed.
+- **Critical remaining gaps:** the adapter has not been compiled or executed against the actual Windows trainer, and data-loader subprocesses/non-PyTorch allocations are not globally capped. No safe-memory or native-crash certification is established; next priority is process-tree ownership, stage memory telemetry, receipt integrity and native validation when authorized. A 12 GB GPU is not a requirement.
 
 ## 11. External documentation used for rationale
 

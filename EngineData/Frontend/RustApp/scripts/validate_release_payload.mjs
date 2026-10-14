@@ -159,6 +159,7 @@ for (const file of [
   "voice_lab_build.py",
   "my_voice_compute_probe.py",
   "my_voice_gpu_policy.py",
+  "my_voice_single_gpu_adapter.py",
   "voice_lab_gpt_sovits_build.py",
   "voice_lab_gpt_sovits.py",
   "voice_lab_quick_preview.py",
