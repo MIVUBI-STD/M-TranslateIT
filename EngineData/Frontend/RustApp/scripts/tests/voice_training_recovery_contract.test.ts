@@ -71,3 +71,27 @@ test("backup includes checkpoint recovery objects but never converts a candidate
   assert.match(ui, /preserved_checkpoint_candidates/);
   assert.doesNotMatch(ui, /onclick=.*resumeVoiceTraining/i);
 });
+
+test("My Voice Create and Improve cannot start training on unsupported platforms", () => {
+  const build = rust("voice_lab_build.rs");
+  const sharedStart = build.indexOf("fn start_voice_lab_build_selected(");
+  const platformGate = build.indexOf("if !cfg!(windows)", sharedStart);
+  const platformDenied = build.indexOf('"platform_unsupported"', platformGate);
+  const firstWork = build.indexOf("if voice_backup_active()", sharedStart);
+  const spawn = build.indexOf("let mut child = match command.spawn()", sharedStart);
+  assert.ok(sharedStart > 0 && platformGate > sharedStart);
+  assert.ok(platformDenied > platformGate && platformDenied < firstWork);
+  assert.ok(platformGate < firstWork && firstWork < spawn);
+  assert.match(build, /start_voice_lab_build_selected\(authorized_voice_confirmed, None\)/);
+  assert.match(build, /start_voice_lab_build_selected\(authorized_voice_confirmed, Some\(archive_ids\)\)/);
+});
+
+test("non-Windows top-level process cleanup never claims verified descendants", () => {
+  const build = rust("voice_lab_build.rs");
+  const completion = build.slice(build.indexOf("let exit = loop {"));
+  assert.match(completion, /#\[cfg\(not\(windows\)\)\][\s\S]*?let owned_tree_quiescent: Result<\(\), String>\s*=\s*Err\("my_voice:non_windows_process_tree_quiescence_unverified"\.into\(\)\)/);
+  assert.doesNotMatch(completion, /#\[cfg\(not\(windows\)\)\]\s*let owned_tree_quiescent[^;]+Ok\(\)/);
+  assert.match(completion, /candidate = if owned_tree_quiescent\.is_ok\(\)/);
+  assert.match(completion, /let recovery = if let Err\(error\) = &owned_tree_quiescent/);
+  assert.match(completion, /if owned_tree_quiescent\.is_ok\(\) \{/);
+});

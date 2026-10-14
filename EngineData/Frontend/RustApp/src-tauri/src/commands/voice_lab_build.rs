@@ -747,6 +747,14 @@ fn start_voice_lab_build_selected(
     authorized_voice_confirmed: bool,
     selected_archives: Option<Vec<String>>,
 ) -> VoiceLabBuildActionResult {
+    // The desktop's trained My Voice engine is Windows-only. This is the
+    // authoritative native gate shared by Create and Improve, before any
+    // recording selection, dataset mutation or Python process launch.
+    // A CUDA probe on another OS must not silently grant training support.
+    if !cfg!(windows) {
+        return result(false, "platform_unsupported",
+            "My Voice training currently requires Windows.");
+    }
     if voice_backup_active() {
         return result(false, "backup_active", "Finish the My Voice backup or restore before starting training.");
     }
@@ -1107,7 +1115,8 @@ fn start_voice_lab_build_selected(
         #[cfg(windows)]
         let owned_tree_quiescent = _job_lifetime.terminate_and_verify_quiescence();
         #[cfg(not(windows))]
-        let owned_tree_quiescent: Result<(), String> = Ok(());
+        let owned_tree_quiescent: Result<(), String> =
+            Err("my_voice:non_windows_process_tree_quiescence_unverified".into());
         let paths = storage();
         reconcile_phase(&paths);
         let cancelling_before_review = current_voice_lab_build_snapshot().phase == "cancelling";
@@ -1191,8 +1200,12 @@ fn start_voice_lab_build_selected(
                     // and generation as a hard gate on all future Start /
                     // Approve / Meeting changes. Do not erase Runtime work.
                     // KILL_ON_JOB_CLOSE still runs when the app exits.
-                    process.terminal_message =
-                        "Training process cleanup could not be verified. Existing work and checkpoints were preserved; close the application to release its owned Job. Do not start another training session until recovery is checked.".into();
+                    #[cfg(windows)]
+                    { process.terminal_message =
+                        "Training process cleanup could not be verified. Existing work and checkpoints were preserved; close the application to release its owned Job. Do not start another training session until recovery is checked.".into(); }
+                    #[cfg(not(windows))]
+                    { process.terminal_message =
+                        "My Voice training is unsupported on this platform and process cleanup cannot be verified. Existing work was preserved; do not start another training session.".into(); }
                 }
                 if owned_tree_quiescent.is_ok() {
                     process.terminal_message = message;

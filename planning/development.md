@@ -121,12 +121,28 @@ These are future **acceptance scenarios**, not tests performed or runtime result
   This does not enable Linux/macOS My Voice training, change GPU admission,
   alter checkpoint publication, or imply Windows Job behavior was tested.
 
+## Rust top-level non-Windows ownership audit — source-only (2026-10-14)
+
+- Native Create and Improve share an early Windows-only admission guard before
+  the dataset, accepted recording selection, GPU checks or child spawn. An
+  available CUDA probe on Linux does not permit My Voice training.
+- The previously unconditional non-Windows `owned_tree_quiescent = Ok(())`
+  was unsafe: root exit and `kill -TERM <pid>` do not prove descendant
+  cleanup. Its defensive fallback now remains `Err`, preserving Work files,
+  preventing review publication and blocking another build rather than
+  promoting unsupported cleanup to success. Any fallback attention text
+  is explicitly non-Windows, not a claim that a Windows Job Object exists.
+- The existing Rust source-contract suite now checks both entrypoints and the
+  fail-closed completion/recovery gate. These checks were authored only;
+  Node/Cargo, process execution and target-Windows validation were NOT RUN.
+  No cross-platform training support or POSIX top-level process-group owner
+  was introduced; Windows Job implementation remains unchanged.
+
 ## Single next source-only step
 
-Audit the **Rust top-level My Voice process owner** on non-Windows paths for
-false-success cleanup or return-code assumptions, while retaining current
-Windows-only training admission. Do not add cross-platform runtime support or
-change GPU/optimizer-resume policy. After source-level proof is exhausted,
-keep native Windows checks NOT EXECUTED until the integrated acceptance phase.
+Perform a bounded static review of the **Windows My Voice training process
+ownership and checkpoint finalization interactions** for unresolved
+source-provable errors. If no new defect is demonstrated, STOP further
+speculative source changes and retain native acceptance as NOT EXECUTED.
 
 **STOP boundary:** Do not run tests, Python/Node execution, cargo, Windows/CUDA probes, fault injection or training until the user explicitly authorizes validation.
