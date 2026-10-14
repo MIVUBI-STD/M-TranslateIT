@@ -48,13 +48,20 @@
 - GPT-SoVITS emits explicit worker stage messages before dataset feature extraction, SoVITS training and GPT training, then the existing held-out evaluation stage. The UI displays authoritative child messages without invented percentages, ETAs or epoch accounting. Rust owns the existing build lifecycle and cancellation.
 - The small-resource release map and validators include the new explicit hardware probe. Regression tests are authored for probe states, wiring and stage ordering; **not executed** in this GitHub-only pass. Exact-HEAD compile, Windows CUDA/CPU paths, responsive render, checkpoint safety, training audio/Meeting and clean-machine installation remain **unverified**.
 
+## User-requested safe RTX 3070 8 GB design — 2026-10-14
+
+- The user explicitly declined validation for now and requested memory-safe, crash-contained custom-voice generation focused on the RTX 3070 8 GB. 12 GB is optional margin, not a product minimum.
+- Drafted the bounded `docs/knowledge/proposals/2026-10-14-my-voice-safe-8gb-training.md` source-informed RFC. This is a **proposal**, not an implemented feature, passed test or verified hardware capability.
+- Source risks: total-VRAM-derived training batch (8 GB can yield batch 4), no actual free-VRAM admission, stages executed through non-supervised subprocesses, one-GPU Windows DDP native-crash exposure, evaluation model lifetime, partial checkpoint/cancellation risks.
+- Next engineering work is code safeguards and integrity before any test authorization. Preserve original user audio, immutable versions, pinned engine/model source, one Rust authority, and existing Meeting voice selection throughout.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.
 
 ## Single next step
 
-**UI/UX source and one-run acceptance criteria are ready for a single externally pinned Local-SHA developer build and Windows validation when that environment is available. Execute existing Node/Svelte/source-contract and Rust/Python checks first; after PASS, inspect actual layout, stage navigation, accessible playback/loading, Meeting voice selection and backup in the same controlled Windows session. Stop on the first demonstrated failure.** No hosted CI, incremental PC tests, invented PASS, optimizer Resume, or promotion to `main`.
+**User-requested 8 GB safe training architecture comes first.** Review and implement the bounded proposal at `docs/knowledge/proposals/2026-10-14-my-voice-safe-8gb-training.md`: native Create/Improve admission, per-stage CUDA memory budget and batch=1, explicit single-GPU DDP compatibility decision, isolated child lifecycle, and checkpoint/output integrity. **No validation, tests, hosted CI, native training, release or GPU experiment is authorized in this design phase.** Existing Windows acceptance runbook remains deferred until user explicitly requests it; no premature promotion to `main`.
 
 ## Deferred prior work
 
