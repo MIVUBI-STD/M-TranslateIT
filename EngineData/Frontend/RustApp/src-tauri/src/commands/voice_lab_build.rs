@@ -1007,14 +1007,17 @@ fn start_voice_lab_build_selected(
                 }
             }
         };
-        // Reap owned descendants before checkpoint preservation; a dead root
-        // cannot imply its stage subprocesses also ended cleanly.
+        // Root exit does not imply descendants are gone. Do not archive
+        // checkpoint bytes or publish Review while a Job child could still
+        // be writing them. Verify quiescence using this SAME completion owner.
         #[cfg(windows)]
-        let _ = _job_lifetime.terminate();
+        let owned_tree_quiescent = _job_lifetime.terminate_and_verify_quiescence();
+        #[cfg(not(windows))]
+        let owned_tree_quiescent: Result<(), String> = Ok(());
         let paths = storage();
         reconcile_phase(&paths);
         let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
-        let candidate = if !cancelling
+        let candidate = if owned_tree_quiescent.is_ok() && !cancelling
             && exit.as_ref().map(|status| status.success()).unwrap_or(false)
             && child_status(&paths)
                 .map(|status| status.phase == "ready_for_review")
@@ -1036,7 +1039,11 @@ fn start_voice_lab_build_selected(
         // Only interrupted/incomplete runs retain optimizer checkpoint
         // candidates permanently. A completed approved candidate uses the
         // existing immutable VoiceVersion registry, not an unfinished run.
-        let recovery = if ready {
+        let recovery = if let Err(error) = &owned_tree_quiescent {
+            // Preserve the original Build/Runtime tree for investigation.
+            // Never copy files while an owned writer is still possibly alive.
+            Err(error.clone())
+        } else if ready {
             Ok(None)
         } else {
             preserve_training_checkpoints(&paths)

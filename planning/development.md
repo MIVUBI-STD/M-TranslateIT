@@ -104,6 +104,12 @@ All source declarations above require later Windows/runtime confirmation. A hash
 - Added one existing-lifecycle-mutex-backed `commit_voice_lab_review_if_active()` gate: a successful exited child with valid evaluation may create the small completion receipt and transition Evaluating → idle only while Stop cannot interleave. If Stop acquires the lifecycle lock first, this commit fails and recovery evidence is preserved without promotion. No new mutex, worker, polling, or model I/O is introduced.
 - This is source-authored only and requires later Rust compilation/Windows race injection, not a proven production fix.
 
+## Owned process tree quiescence before recovery — 2026-10-14
+
+- The Rust completion owner now queries its own Windows Job Object active-process count (not a system-wide process scan). After the root coordinator exits, it terminates still-owned descendants and checks that no owned processes remain before reading, copying, or promoting checkpoint files. No new long-lived watcher or process is created.
+- If Windows accounting or termination is unavailable/unconfirmed, the run fails closed and existing Build/Runtime checkpoint bytes are left untouched for attention. Only verified-quiescent runs may publish Review or begin immutable recovery copying. Normal root and stage child exit paths still use the original job ownership.
+- Implementation is source-only; Job query layout, nested Windows jobs, driver faults and the exact error-path behavior require authorized Windows acceptance later.
+
 ## Single next step (source-only)
 
 Review the precise interaction of trainer cooperative stop, canceled completion receipts and Rust checkpoint archive preservation under unexpected worker exits. Do not activate optimizer resume until actual SoVITS G/D, GPT optimizer, scheduler, GradScaler and RNG load/continuation can be established with independent Windows runtime evidence. Continue in `Local` without running tests, CI, compilation or CUDA processing until explicitly authorized.

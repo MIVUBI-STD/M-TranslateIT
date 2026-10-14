@@ -2,6 +2,8 @@
  //! Kill-on-close prevents orphaned Python stage trees after desktop exit.
  //! Assignment follows spawn, so the brief initial race is not eliminated.
 use std::process::Child;
+#[cfg(windows)]
+use std::time::Duration;
 
 #[cfg(windows)]
 use std::ffi::c_void;
@@ -43,6 +45,19 @@ struct ExtendedLimit {
 }
 
 #[cfg(windows)]
+#[repr(C)]
+struct JobAccounting {
+    total_user_time: i64,
+    total_kernel_time: i64,
+    this_period_total_user_time: i64,
+    this_period_total_kernel_time: i64,
+    total_page_fault_count: u32,
+    total_processes: u32,
+    active_processes: u32,
+    total_terminated_processes: u32,
+}
+
+#[cfg(windows)]
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn CreateJobObjectW(security: *mut c_void, name: *const u16) -> *mut c_void;
@@ -54,6 +69,10 @@ unsafe extern "system" {
     fn OpenThread(access: u32, inherit: i32, thread_id: u32) -> *mut c_void;
     fn ResumeThread(thread: *mut c_void) -> u32;
     fn TerminateJobObject(job: *mut c_void, exit_code: u32) -> i32;
+    fn QueryInformationJobObject(
+        job: *mut c_void, info_kind: i32, info: *mut c_void,
+        length: u32, returned_length: *mut u32,
+    ) -> i32;
     fn CloseHandle(handle: *mut c_void) -> i32;
 }
 
@@ -151,6 +170,42 @@ impl OwnedBuildJob {
             return Err("my_voice:build_thread_resume_failed".into());
         }
         Ok(())
+    }
+
+    fn active_processes(&self) -> Result<u32, String> {
+        // JobObjectBasicAccountingInformation, documented class 1. Verify
+        // the owned tree, never scan or terminate unrelated user processes.
+        let mut record: JobAccounting = unsafe { std::mem::zeroed() };
+        let ok = unsafe {
+            QueryInformationJobObject(
+                self.ptr(), 1, &mut record as *mut _ as *mut c_void,
+                std::mem::size_of::<JobAccounting>() as u32,
+                std::ptr::null_mut(),
+            )
+        };
+        if ok == 0 {
+            return Err("my_voice:build_job_accounting_unavailable".into());
+        }
+        Ok(record.active_processes)
+    }
+
+    pub(super) fn terminate_and_verify_quiescence(&self) -> Result<(), String> {
+        // The Python coordinator may crash while a CUDA training child is
+        // still running. Do NOT copy multi-GB checkpoints until *all* owned
+        // descendants are gone; otherwise an archive may race a writer.
+        if self.active_processes()? == 0 {
+            return Ok(());
+        }
+        if !self.terminate() {
+            return Err("my_voice:build_job_terminate_unconfirmed".into());
+        }
+        for _ in 0..10 {
+            if self.active_processes()? == 0 {
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        Err("my_voice:build_job_descendants_not_stopped".into())
     }
 
     pub(super) fn terminate(&self) -> bool {
