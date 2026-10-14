@@ -220,6 +220,62 @@ Capture **steady and peak** values rather than one averaged number:
 | TTS | | | | | | |
 | Delivery | | | | | | |
 
+### 5A. GPU observer coherence and latency baseline — staged source acceptance
+
+This section tests the **existing** worker `gpu.torch_allocator` status field and
+Settings → Diagnostics display introduced on `Local`. It is part of the same
+integrated Windows source/build/Meeting acceptance, **not** a separate PC test
+cycle, new profiler, persistent telemetry process or quality claim. Use the exact
+candidate SHA from the hardware table and the existing source-contract,
+frontend typecheck/test, and Python worker test gates before interpreting live
+values. Authored tests are not executed proof.
+
+1. **Preload and absence:** capture the existing explicit **Check Again**
+   Diagnostics status before heavy models load, where the normal lifecycle
+   permits. `not_initialized` means the PyTorch CUDA allocator has not yet been
+   initialized; `unavailable` means the reading could not be made. Neither
+   means 0 MiB used or proves CTranslate2/Windows GPU inactivity. Do not force
+   a model unload or CUDA reset to manufacture this state.
+2. **Warm residency:** after actual ASR, MiLMMT and selected-voice functional
+   inference, use **Check Again** once while the worker is idle. Where
+   `torch_allocator.state=measured`, record the allocated, reserved,
+   peak-allocated and peak-reserved MiB, plus the nested instantaneous
+   `device_memory.free_mib` and `total_mib` only if its own state is
+   `measured`. Record the worker's `generation_token`, GPU identity where
+   independently available, and loaded ASR/translation/voice state. A CUDA
+   status field can be unavailable even when normal inference succeeded.
+3. **Internal consistency:** reject an observation as valid if any numeric
+   field is negative/invalid, allocated exceeds reserved, a lifetime peak
+   falls below its current value, or device free exceeds device total.
+   Do not require the allocator's process-lifetime peak to equal an
+   instantaneous whole-device peak. Neither the allocator nor the whole-device
+   figure can isolate Faster Whisper's CTranslate2 usage.
+4. **Stopped and restarted worker:** after a *normal, controlled* Stop and
+   optional normal helper restart, refresh Diagnostics again. Within one
+   unchanged worker generation, peaks are cumulative since that allocator's
+   initialization; memory may remain reserved after Stop. Across different
+   `generation_token` values, never compare peak counters as a continuous
+   series or display the previous worker's status as current. If a worker
+   restart races the status request, the product must reject a mismatched
+   generation; subsequent explicit refresh may obtain the new status.
+   Do not intentionally terminate or crash the user's GPU process to test
+   this.
+5. **Measurement overlap:** pair the *same run* with the existing ASR,
+   translation, TTS, scheduler wait and first-playback timings, plus the
+   independent Windows Task Manager / NVIDIA GPU device observation above.
+   Record steady state and externally observed peak. `Check Again` is a
+   discrete, potentially queued snapshot; it cannot capture per-utterance
+   allocation peaks or prove which model caused a VRAM spike.
+
+**STOP / classification:** a malformed, stale or failed GPU observation must
+remain `not checked` or `not available`, never fabricated as zero or used to
+change CUDA selection, release models, change training admission or mark Meeting
+unready. If requesting diagnostics disrupts a healthy Meeting, or a stale
+worker generation appears as current, treat that as a reproducible
+source/runtime defect and STOP the related acceptance lane. If whole-device
+VRAM, model latency or perceptual quality has not been observed, report
+`UNKNOWN / NOT EXECUTED` rather than asserting a PyTorch performance win.
+
 ### 6. Optional incoming isolation
 
 After the outbound-only baseline is healthy, enable the intended Meeting Sound source and repeat several outbound utterances while English incoming speech is present.
