@@ -67,7 +67,11 @@ test("My Voice UI has one collapsible voice selector and a stage-aware recording
   assert.match(recordingUi, /<MyVoiceBuild \{onNotice\}/);
   assert.match(ui, /onBuildStatus\?\.\(next\)/);
   assert.match(recordingUi, /Browse lines/);
-  assert.match(recordingUi, /You don't have to record all 128/);
+  // The recording catalog contains 600 prompts, but a single build still
+  // accepts at most 128 takes. Never hard-code the old prompt count in UI.
+  assert.match(recordingUi, /You don't have to record all \{recordingState\.lines\.length\} sentences\./);
+  assert.doesNotMatch(recordingUi, /You don't have to record all 128/);
+  assert.match(status, /takes\.len\(\) <= MAX_TRAINING_TAKES/);
   assert.match(recordingUi, /!buildSnapshot\.can_build/);
   assert.match(recordingUi, /buildSnapshot\.minimum_duration_ms/);
 });
@@ -273,5 +277,10 @@ test("review playback hashes the actual returned WAV and never accepts a stale c
   assert.match(bridge, /subtle\.digest\("SHA-256", bytes\)/);
   assert.match(bridge, /actual === expectedSha256 \? bytes : null/);
   assert.match(ui, /sample\.line_id === lineId\)\?\.sha256/);
-  assert.match(ui, /reviewId === build\.evaluation_review_id && !reviewedLineIds\.includes\(lineId\)/);
+  // A stale onended callback must not satisfy the held-out review. The
+  // active player, request generation and current review ID must all match.
+  const playback = ui.slice(ui.indexOf("async function playEvaluation("));
+  const ended = playback.slice(playback.indexOf("player.onended ="), playback.indexOf("player.onerror ="));
+  assert.match(ended, /audio !== player \|\| playbackVersion !== audioRequestVersion \|\| reviewId !== build\.evaluation_review_id/);
+  assert.ok(ended.indexOf("audio !== player") < ended.indexOf("reviewedLineIds ="));
 });

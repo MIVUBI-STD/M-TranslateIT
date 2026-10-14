@@ -14,6 +14,8 @@
 - My Voice view now rejects out-of-order polling reads (including failed reads), invalidates pending reads before explicit mutations, and prevents a verified mutation result from being overwritten by an older status. This is presentation-level sequencing, not an alternate Rust state owner.
 - Quick Preview and held-out evaluation audio reads use per-view request identity, and completion/error callbacks validate the current audio instance before touching review evidence. Stop/dispose/review change invalidates old reads and detaches old callbacks.
 - Saved-version selection invalidates stale confirmation on failed or changed version inventory, blocks changes while the inventory is unreadable, and checks native Meeting voice after an uncertain restore without replaying that mutation. Selection reads are ordered, and a personal voice is not announced as selected when status cannot verify it.
+- Source contract audit repaired two stale Quick Preview assertions: the displayed prompt total follows the 600-line catalog dynamically while the build cap stays at 128; held-out `Listened` proof follows the current audio instance/generation/review ID rather than the previous callback shape. The assertions were inspected, not executed.
+- A current `selected_voice_kind=personal` status does not cryptographically prove the exact immutable version ID after an uncertain restore; do not promote it to exact-version acceptance without further backend identity evidence.
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
@@ -23,7 +25,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Audit accumulated My Voice source changes against existing Svelte, Rust and Python contracts, correct the first verifiable mismatch, and prepare one integrated exact-SHA local acceptance run.** No hosted CI, incremental user-PC testing, extra voice engines or checkpoint-Resume activation.
+**Check My Voice version-selection identity and build/review/backup boundaries for any remaining source-provable acceptance blocker; resolve it only within the existing Rust/Svelte/Python owners.** The existing `docs/knowledge/operations/target-windows-performance.md` is the single eventual exact-SHA local build and Windows acceptance entry; tests, voice quality and installed behavior remain unexecuted. Do not dispatch hosted CI or enable Resume.
 
 ## Deferred prior work
 
