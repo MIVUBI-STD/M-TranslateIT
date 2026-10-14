@@ -4,6 +4,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Condvar, Mutex, OnceLock};
+#[cfg(windows)]
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::engine::paths::ProjectPaths;
@@ -35,6 +37,9 @@ use super::voice_lab_recording::{
 mod evaluation;
 mod phase;
 mod receipts;
+mod process_owner;
+#[cfg(windows)]
+use process_owner::OwnedBuildJob;
 use receipts::{completion_file, completion_matches, commit_completion, create_identity, identity_file, read_identity};
 
 pub use evaluation::VoiceLabEvaluationSample;
@@ -278,6 +283,8 @@ pub struct VoiceLabBuildActionResult {
 struct BuildProcessState {
     generation: Option<u64>,
     pid: Option<u32>,
+    #[cfg(windows)]
+    owned_job: Option<Arc<OwnedBuildJob>>,
     terminal_message: String,
 }
 
@@ -820,6 +827,14 @@ fn start_voice_lab_build_selected(
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(stderr));
+    #[cfg(windows)]
+    let owned_job = match OwnedBuildJob::new() {
+        Ok(job) => Arc::new(job),
+        Err(error) => {
+            let _ = fail_voice_lab_build(generation);
+            return result(false, "build_process_guard_failed", error);
+        }
+    };
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => {
@@ -828,13 +843,25 @@ fn start_voice_lab_build_selected(
         }
     };
     let pid = child.id();
+    #[cfg(windows)]
+    if let Err(error) = owned_job.assign(&child) {
+        let _ = terminate_process_tree(pid);
+        let _ = child.wait();
+        let _ = fail_voice_lab_build(generation);
+        return result(false, "build_process_guard_failed", error);
+    }
     match process_store().0.lock() {
         Ok(mut process) => {
             process.generation = Some(generation);
             process.pid = Some(pid);
+            #[cfg(windows)]
+            { process.owned_job = Some(Arc::clone(&owned_job)); }
             process.terminal_message.clear();
         }
         Err(_) => {
+            #[cfg(windows)]
+            let _ = owned_job.terminate();
+            #[cfg(not(windows))]
             let _ = terminate_process_tree(pid);
             let _ = child.wait();
             let _ = fail_voice_lab_build(generation);
@@ -846,7 +873,11 @@ fn start_voice_lab_build_selected(
         }
     }
 
+    #[cfg(windows)]
+    let worker_job = Arc::clone(&owned_job);
     std::thread::spawn(move || {
+        #[cfg(windows)]
+        let _job_lifetime = worker_job;
         let exit = child.wait();
         let paths = storage();
         reconcile_phase(&paths);
@@ -899,6 +930,8 @@ fn start_voice_lab_build_selected(
             if process.generation == Some(generation) {
                 process.pid = None;
                 process.generation = None;
+                #[cfg(windows)]
+                { process.owned_job = None; }
                 process.terminal_message = message;
             }
             signal.notify_all();
@@ -921,12 +954,25 @@ pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
         return result(false, "cancel_failed", error);
     }
     let (lock, signal) = process_store();
-    let pid = lock.lock().ok().and_then(|state| state.pid);
-    let Some(pid) = pid else {
+    let process_identity = lock.lock().ok().map(|state| {
+        (
+            state.pid,
+            #[cfg(windows)]
+            state.owned_job.clone(),
+        )
+    });
+    let Some(process_identity) = process_identity else {
+        return result(false, "cancel_pending", "My Voice cannot verify which training process to stop.");
+    };
+    let Some(pid) = process_identity.0 else {
         return result(false, "cancel_pending", "VoiceLab is stopping, but the build process could not be addressed yet.");
     };
-    if !terminate_process_tree(pid) {
-        return result(false, "cancel_pending", "VoiceLab could not confirm that the build process stopped yet.");
+    #[cfg(windows)]
+    let stopped = process_identity.1.as_ref().is_some_and(|job| job.terminate());
+    #[cfg(not(windows))]
+    let stopped = terminate_process_tree(pid);
+    if !stopped {
+        return result(false, "cancel_pending", "My Voice could not confirm the owned training process stopped.");
     }
     let guard = match lock.lock() {
         Ok(guard) => guard,

@@ -86,6 +86,12 @@
 - The evaluator applies a per-process CUDA allocator fraction before TTS model loading; GPU memory is released by child exit rather than relying only on `empty_cache()`. No automatic retry or fallback is introduced.
 - This is source-authored work. No test, GPU inference, human voice quality listening, native build or Windows Job execution has occurred. Further source review needed for load/driver failure and restart behavior.
 
+## Native Python build-tree owner source — 2026-10-14
+
+- Added a Windows-only Rust Job Object owner for the top-level `voice_lab_build.py` process. Assignment and KILL_ON_JOB_CLOSE survive UI closure and desktop termination (assuming the process was assigned). Cancellation uses the owned Job rather than arbitrary process enumeration, and declines to call the build stopped until the worker reconciles.
+- Windows Job APIs are invoked through a scoped internal Rust module, no new Cargo dependency/lock edits. Assignment occurs just after `Command::spawn` (initial race remains). Existing trusted checkpoint preservation runs after subprocess exit.
+- No cargo build, Windows runtime, native process lifecycle or validation was executed. Product safety remains unverified.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.
