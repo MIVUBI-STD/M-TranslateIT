@@ -35,6 +35,11 @@ export type MyVoiceComputeStatus = {
   cpu_name: string;
   gpu_name: string | null;
   vram_mib: number | null;
+  free_vram_mib: number | null;
+  reserve_mib: number | null;
+  safe_budget_mib: number | null;
+  admission_state: "admitted" | "blocked_gpu_headroom" | "unknown";
+  profile: string;
   detail: string;
 };
 

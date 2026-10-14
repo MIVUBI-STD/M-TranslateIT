@@ -9,7 +9,7 @@ lifecycle: ACTIVE
 
 # My Voice — Safe 8 GB Training and Failure Containment (design proposal)
 
-**Status:** DESIGN ONLY / NOT IMPLEMENTED / NOT VALIDATED. Do not treat this RFC as a shipped safety control.
+**Status:** STAGED SOURCE IMPLEMENTATION + OPEN SAFETY WORK / NOT VALIDATED. Native source additions are not proof of GPU memory safety. Remaining single-GPU trainer/child-process safeguards are explicitly unfinished.
 **Baseline:** MIVUBI-STD/M-TranslateIT `Local` at `f4389b05ae9607659f8c3498335ef10b34b7c3e6` (2026-10-14).
 **Target:** single NVIDIA GeForce RTX 3070 8 GB GDDR6 on Windows, GPT-SoVITS V2ProPlus with existing pinned model assets and one Rust/Tauri control authority. 12 GB is OPTIONAL headroom, not a hard eligibility requirement.
 **User instruction:** DESIGN FIRST; do not run tests, host CI, local GPU experiments, audio validation, or release/install validation during this design phase.
@@ -152,6 +152,13 @@ Do not implement half of the native gate such that only the UI protects it; do n
 ## 10. Future acceptance requirements (explicitly deferred by user)
 
 When the user later authorizes validation, require traceable end-to-end evidence for RTX 3070 8 GB, foreign GPU pressure, long accepted utterances, SoVITS/GPT first batch, all evaluation candidates, CUDA OOM, native child crash, cancel during save, app termination/restart, full protected checkpoint archive and unchanged selected voice; compare exact pinned source/config. Until such evidence exists, the result is **DESIGNED / UNVALIDATED**, never "8 GB training certified".
+
+## Source implementation checkpoint (2026-10-14; no validation)
+
+- Added shared `my_voice_gpu_policy.py` with versioned free-VRAM admission arithmetic; `my_voice_compute_probe.py` reports live GPU free VRAM, reserve and budget.
+- Rust Create and Improve now require a fresh backend admission and forward the original budget. UI remains advisory and shows free VRAM.
+- Python rechecks free GPU memory before expensive upstream stages; physical SoVITS/GPT batch starts at 1; launcher bounds its **own** PyTorch allocator fraction. No successful runs claimed.
+- **Critical outstanding gap:** SoVITS `mp.spawn` and GPT Lightning DDP workers may allocate outside that launcher cap; Windows single-GPU DDP remains. No safe-memory or native-crash certification is established; next implementation priority is worker-child coverage, process ownership and trainer adapter. A 12 GB GPU is not a requirement.
 
 ## 11. External documentation used for rationale
 

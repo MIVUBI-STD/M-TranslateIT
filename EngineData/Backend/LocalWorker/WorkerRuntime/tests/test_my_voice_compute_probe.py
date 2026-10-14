@@ -16,11 +16,15 @@ def test_cuda_probe_reports_total_not_available_vram() -> None:
         is_available=lambda: True,
         get_device_name=lambda index: "Test GPU",
         get_device_properties=lambda index: SimpleNamespace(total_memory=12 * 1024**3),
+        mem_get_info=lambda index: (10 * 1024**3, 12 * 1024**3),
     )
     report = detect_compute(SimpleNamespace(cuda=cuda), "Test CPU")
     assert report["state"] == "cuda_detected"
     assert report["gpu_name"] == "Test GPU"
     assert report["vram_mib"] == 12 * 1024
+    assert report["free_vram_mib"] == 10 * 1024
+    assert report["safe_budget_mib"] >= 3072
+    assert report["admission_state"] == "admitted"
     assert "not yet been verified" in report["detail"]
 
 

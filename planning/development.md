@@ -55,6 +55,13 @@
 - Source risks: total-VRAM-derived training batch (8 GB can yield batch 4), no actual free-VRAM admission, stages executed through non-supervised subprocesses, one-GPU Windows DDP native-crash exposure, evaluation model lifetime, partial checkpoint/cancellation risks.
 - Next engineering work is code safeguards and integrity before any test authorization. Preserve original user audio, immutable versions, pinned engine/model source, one Rust authority, and existing Meeting voice selection throughout.
 
+## SAFE_8GB source foundation — 2026-10-14
+
+- Added provisional GPU free/total headroom calculation, original admission budget and CPU-only block through one Python policy owner. Rust applies a native Create/Improve guard **before** dataset freeze and passes the bounded budget to training; UI reflects the admission result. This is source code, not hardware proof.
+- Physical SoVITS/GPT batch is now 1 rather than deriving batch 4 from total 8 GB. Stage runner rechecks free GPU memory ahead of each heavy stage and applies a PyTorch allocator fraction in its own process. Windows SoVITS/GPT spawned children, non-PyTorch allocations and external GPU users are **NOT guaranteed capped**; full process containment and one-GPU DDP compatibility remain open.
+- Initial 8 GB reserve/budget thresholds are hypotheses and may reject training or still permit OOM. No Windows, GPU, model or test execution performed; do not claim RTX 3070 compatibility.
+- Next: implement an explicitly versioned Windows single-GPU trainer adapter / spawn-child allocator coverage and owned process tree, then integrity-bound per-run status and recovery. Do not allow partial GPU guard to imply zero-crash safety.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

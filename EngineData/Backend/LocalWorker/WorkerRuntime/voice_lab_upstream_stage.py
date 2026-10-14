@@ -192,6 +192,29 @@ def install_headless_my_utils(source_root: Path) -> None:
     _install_english_only_tts_model_init()
 
 
+def install_preflight_allocator_budget(relative_script: Path) -> None:
+    """Constrain this *process's* PyTorch allocator before it loads CUDA models.
+
+    This does not cover CUDA allocations outside PyTorch or SoVITS/GPT spawned
+    child processes. Windows single-GPU spawn needs a separate compatibility
+    change; never interpret this as a global GPU-memory ceiling.
+    """
+    if relative_script.as_posix() == "GPT_SoVITS/prepare_datasets/1-get-text.py":
+        return
+    budget_raw = os.environ.get("TRANSLATEIT_MYVOICE_STAGE_GPU_BUDGET_MIB", "")
+    if not budget_raw.isdecimal():
+        raise RuntimeError("my_voice:gpu_stage_budget_missing")
+    import torch
+    if not torch.cuda.is_available():
+        raise RuntimeError("my_voice:gpu_stage_cuda_unavailable")
+    total_mib = int(torch.cuda.get_device_properties(0).total_memory // (1024 * 1024))
+    budget_mib = int(budget_raw)
+    if budget_mib < 3072 or total_mib < budget_mib:
+        raise RuntimeError("my_voice:gpu_stage_budget_invalid")
+    fraction = min(0.70, budget_mib / total_mib)
+    torch.cuda.set_per_process_memory_fraction(fraction, device=0)
+
+
 def run_upstream_script(source_root: Path, script: Path, script_args: list[str]) -> None:
     source_root = source_root.resolve()
     script = script.resolve()
@@ -202,6 +225,7 @@ def run_upstream_script(source_root: Path, script: Path, script_args: list[str])
     if not script.is_file():
         raise RuntimeError("voice_lab:upstream_script_missing")
 
+    install_preflight_allocator_budget(relative_script)
     install_headless_my_utils(source_root)
     if relative_script.as_posix() == "GPT_SoVITS/prepare_datasets/1-get-text.py":
         _run_english_text_stage()

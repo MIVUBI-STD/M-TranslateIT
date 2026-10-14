@@ -17,9 +17,13 @@ test("My Voice explicit hardware check is bounded, truthful, and not build-statu
   assert.match(probe, /torch_module\.cuda\.is_available\(\)/);
   assert.match(probe, /get_device_properties\(0\)/);
   assert.match(probe, /vram_mib/);
+  assert.match(probe, /mem_get_info\(0\)/);
   assert.match(bridge, /getComputeStatus\(\)/);
   assert.match(ui, /computeReadVersion \+= 1/);
-  assert.match(ui, /cpuTrainingAcknowledged/);
+  assert.match(ui, /computeStatus\.admission_state === "admitted"/);
+  assert.match(owner, /let compute = probe_my_voice_compute_status\(\);/);
+  assert.match(owner, /gpu_admission_blocked/);
+  assert.match(owner, /\.arg\("--gpu-budget-mib"\)/);
   assert.match(ui, /!computeCanStart/);
   assert.match(ui, /onTrainingComputeEligibility\?\.\(computeCanStart\)/);
   const parent = read("src/pages/MyVoice.svelte");
@@ -47,5 +51,6 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.equal(config.bundle.resources[key], "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_compute_probe.py");
   assert.match(read("scripts/validate_release_package_contract.mjs"), /my_voice_compute_probe\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_compute_probe\.py/);
+  assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_gpu_policy\.py/);
   assert.match(read("src-tauri/src/commands/registry.rs"), /get_my_voice_compute_status/);
 });

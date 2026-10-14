@@ -158,6 +158,7 @@ for (const file of [
   "translation_envelope.py",
   "voice_lab_build.py",
   "my_voice_compute_probe.py",
+  "my_voice_gpu_policy.py",
   "voice_lab_gpt_sovits_build.py",
   "voice_lab_gpt_sovits.py",
   "voice_lab_quick_preview.py",

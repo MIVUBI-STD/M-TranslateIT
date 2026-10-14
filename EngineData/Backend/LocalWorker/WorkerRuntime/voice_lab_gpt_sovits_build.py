@@ -195,9 +195,40 @@ def select_reference(
     return min(ranked, key=lambda item: item[0])[1]
 
 
+def stage_gpu_budget() -> int:
+    """Recheck actual free VRAM immediately before a heavy child starts.
+
+    A passed check is not a VRAM reservation or protection against DDP spawn.
+    """
+    from my_voice_gpu_policy import check_stage_budget
+
+    original_raw = os.environ.get("TRANSLATEIT_MYVOICE_GPU_BUDGET_MIB", "")
+    if not original_raw.isdecimal():
+        raise VoiceLabProviderError("gpu_budget_missing")
+    original = int(original_raw)
+    probe_path = Path(__file__).resolve().with_name("my_voice_compute_probe.py")
+    completed = subprocess.run(
+        [sys.executable, "-s", str(probe_path)],
+        cwd=str(Path(__file__).resolve().parent),
+        stdin=subprocess.DEVNULL, capture_output=True,
+        timeout=20, check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout or len(completed.stdout) > 4096:
+        raise VoiceLabProviderError("gpu_recheck_unavailable")
+    try:
+        report = json.loads(completed.stdout)
+        return check_stage_budget(report, original)
+    except (ValueError, TypeError, RuntimeError) as exc:
+        raise VoiceLabProviderError("gpu_headroom_insufficient_or_unknown") from exc
+
+
 def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) -> None:
     child_env = os.environ.copy()
     child_env.update(env)
+    # The English text step does not need CUDA; every remaining stage does.
+    if script.name != "1-get-text.py":
+        budget_mib = stage_gpu_budget()
+        child_env["TRANSLATEIT_MYVOICE_STAGE_GPU_BUDGET_MIB"] = str(budget_mib)
     child_env["PYTHONNOUSERSITE"] = "1"
     child_env["NLTK_DATA"] = str(source_root / "nltk_data")
     runner = Path(__file__).resolve().with_name("voice_lab_upstream_stage.py")
@@ -209,6 +240,9 @@ def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) 
         check=False,
     )
     if result.returncode != 0:
+        # A Windows native access violation is not automatically a CUDA OOM.
+        if result.returncode in (3221225477, -1073741819):
+            raise VoiceLabProviderError(f"upstream_native_worker_crash:{script.name}")
         raise VoiceLabProviderError(f"upstream_stage_failed:{script.name}:{result.returncode}")
 
 
@@ -276,9 +310,10 @@ def batch_and_half() -> tuple[int, bool]:
     import torch
 
     if not torch.cuda.is_available():
-        return 1, False
-    memory_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3) + 0.4
-    return max(1, int(memory_gb // 2)), True
+        raise VoiceLabProviderError("safe8gb_requires_cuda")
+    # A physical batch of one prevents the previous 8 GB -> batch 4 heuristic.
+    # This is a conservative attempt, NOT verified OOM-free training.
+    return 1, True
 
 
 def training_configs(

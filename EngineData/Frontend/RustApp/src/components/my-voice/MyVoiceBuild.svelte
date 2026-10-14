@@ -63,12 +63,11 @@
   let statusCheckUnavailable = $state(false);
   let computeStatus = $state<MyVoiceComputeStatus | null>(null);
   let computeChecking = $state(false);
-  let cpuTrainingAcknowledged = $state(false);
   let computeReadVersion = 0;
   const computeCanStart = $derived(
     !computeChecking &&
-    (computeStatus?.state === "cuda_detected" ||
-      (computeStatus?.state === "cpu_only" && cpuTrainingAcknowledged)),
+    computeStatus?.state === "cuda_detected" &&
+    computeStatus.admission_state === "admitted",
   );
 
   // One hardware eligibility view, reused by Create and archive-backed Improve.
@@ -171,6 +170,8 @@
         return result.message || "Record a few more clear and varied lines before creating My Voice.";
       case "build_blocked":
         return "Stop Meeting translation before creating My Voice, then try again.";
+      case "gpu_admission_blocked":
+        return result.message;
       case "meeting_active":
         return "Stop Meeting translation before selecting My Voice.";
       case "cancel_pending":
@@ -387,7 +388,6 @@
     const requestVersion = ++computeReadVersion;
     computeChecking = true;
     computeStatus = null;
-    cpuTrainingAcknowledged = false;
     try {
       const next = await myVoiceBuildApi.getComputeStatus();
       if (disposed || requestVersion !== computeReadVersion) return;
@@ -396,6 +396,11 @@
         cpu_name: "CPU name unavailable",
         gpu_name: null,
         vram_mib: null,
+        free_vram_mib: null,
+        reserve_mib: null,
+        safe_budget_mib: null,
+        admission_state: "unknown",
+        profile: "SAFE_8GB_V1",
         detail: "Could not verify local compute hardware.",
       };
     } catch {
@@ -405,6 +410,11 @@
         cpu_name: "CPU name unavailable",
         gpu_name: null,
         vram_mib: null,
+        free_vram_mib: null,
+        reserve_mib: null,
+        safe_budget_mib: null,
+        admission_state: "unknown",
+        profile: "SAFE_8GB_V1",
         detail: "Hardware check failed. Retry before training.",
       };
     } finally {
@@ -572,22 +582,20 @@
       </button>
     </div>
     <p class="mb-0 mt-2 text-sm font-semibold" role="status">
-      {computeChecking ? "Checking local CPU and CUDA..." : computeStatus?.state === "cuda_detected"
-        ? "CUDA detected — training not yet verified" : computeStatus?.state === "cpu_only"
-        ? "CPU mode — unverified / may be slow" : "Training hardware unavailable"}
+      {computeChecking ? "Checking GPU memory..." : computeStatus?.admission_state === "admitted"
+        ? "SAFE_8GB — memory check passed (training unverified)" : computeStatus?.state === "cpu_only"
+        ? "CPU-only training blocked — not verified" : computeStatus?.admission_state === "blocked_gpu_headroom"
+        ? "Insufficient free GPU memory" : "Training hardware unavailable"}
     </p>
     {#if computeStatus}
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">CPU: {computeStatus.cpu_name}</p>
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
-        GPU: {computeStatus.gpu_name ?? "No usable CUDA device reported"}{computeStatus.vram_mib !== null ? ` · Total VRAM: ${Math.round(computeStatus.vram_mib / 1024 * 10) / 10} GB (not free VRAM)` : ""}
+        GPU: {computeStatus.gpu_name ?? "No usable CUDA device reported"}{computeStatus.vram_mib !== null ? ` · Total VRAM: ${Math.round(computeStatus.vram_mib / 1024 * 10) / 10} GiB` : ""}{computeStatus.free_vram_mib !== null ? ` · Currently free: ${Math.round(computeStatus.free_vram_mib / 1024 * 10) / 10} GiB` : ""}
       </p>
-      <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">{computeStatus.detail}</p>
-      {#if computeStatus.state === "cpu_only"}
-        <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
-          <input type="checkbox" class="mt-0.5 size-4 accent-[var(--ti-accent)]" bind:checked={cpuTrainingAcknowledged} />
-          I understand that CPU-only training is unverified, may be very slow, and may fail.
-        </label>
+      {#if computeStatus.safe_budget_mib !== null}
+        <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">Initial per-stage budget: {Math.round(computeStatus.safe_budget_mib / 1024 * 10) / 10} GiB · Headroom reserve: {Math.round((computeStatus.reserve_mib ?? 0) / 1024 * 10) / 10} GiB · Not an absolute GPU cap.</p>
       {/if}
+      <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">{computeStatus.detail}</p>
     {:else if !computeChecking}
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">Recheck to identify your local compute environment before creating a voice.</p>
     {/if}

@@ -172,10 +172,16 @@ def main() -> int:
     parser.add_argument("--evaluation-dir", required=True)
     parser.add_argument("--work-dir", required=True)
     parser.add_argument("--status-path", required=True)
+    parser.add_argument("--gpu-budget-mib", required=True, type=int)
     args = parser.parse_args()
 
     status_path = Path(args.status_path).resolve()
     try:
+        from my_voice_gpu_policy import MIN_STAGE_BUDGET_MIB
+        if args.gpu_budget_mib < MIN_STAGE_BUDGET_MIB or args.gpu_budget_mib > 1024 * 1024:
+            raise BuildError("gpu_budget_invalid")
+        # Available to short-lived stage children. No implicit CPU fallback.
+        os.environ["TRANSLATEIT_MYVOICE_GPU_BUDGET_MIB"] = str(args.gpu_budget_mib)
         dataset_dir = Path(args.dataset_dir).resolve()
         manifest = validate_manifest(dataset_dir)
         validate_dataset_signal(dataset_dir, manifest)

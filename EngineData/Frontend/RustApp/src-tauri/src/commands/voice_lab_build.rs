@@ -121,6 +121,11 @@ pub struct MyVoiceComputeStatus {
     pub cpu_name: String,
     pub gpu_name: Option<String>,
     pub vram_mib: Option<u64>,
+    pub free_vram_mib: Option<u64>,
+    pub reserve_mib: Option<u64>,
+    pub safe_budget_mib: Option<u64>,
+    pub admission_state: String,
+    pub profile: String,
     pub detail: String,
 }
 
@@ -131,6 +136,11 @@ impl MyVoiceComputeStatus {
             cpu_name: "CPU name unavailable".into(),
             gpu_name: None,
             vram_mib: None,
+            free_vram_mib: None,
+            reserve_mib: None,
+            safe_budget_mib: None,
+            admission_state: "unknown".into(),
+            profile: "SAFE_8GB_V1".into(),
             detail: detail.into(),
         }
     }
@@ -183,11 +193,24 @@ fn probe_my_voice_compute_status() -> MyVoiceComputeStatus {
                     return MyVoiceComputeStatus::unavailable("Hardware checker output is unreadable.");
                 };
                 if !matches!(report.state.as_str(), "cuda_detected" | "cpu_only" | "unavailable")
+                    || !matches!(report.admission_state.as_str(), "admitted" | "blocked_gpu_headroom" | "unknown")
+                    || report.profile != "SAFE_8GB_V1"
                     || report.cpu_name.len() > 200 || report.detail.len() > 500
                     || report.gpu_name.as_ref().is_some_and(|name| name.len() > 200)
                     || report.vram_mib.is_some_and(|mib| mib > 1_048_576)
+                    || report.free_vram_mib.is_some_and(|mib| mib > 1_048_576)
+                    || report.safe_budget_mib.is_some_and(|mib| mib > 1_048_576)
+                    || report.reserve_mib.is_some_and(|mib| mib > 1_048_576)
                     || (report.state != "cuda_detected"
-                        && (report.gpu_name.is_some() || report.vram_mib.is_some()))
+                        && (report.gpu_name.is_some() || report.vram_mib.is_some()
+                            || report.free_vram_mib.is_some() || report.safe_budget_mib.is_some()))
+                    || (report.state == "cuda_detected"
+                        && (report.gpu_name.is_none() || report.vram_mib.is_none()
+                            || report.free_vram_mib.is_none() || report.safe_budget_mib.is_none()
+                            || report.reserve_mib.is_none()))
+                    || (report.admission_state == "admitted"
+                        && (report.safe_budget_mib.unwrap_or(0) < 3072
+                            || report.safe_budget_mib > report.free_vram_mib))
                 {
                     return MyVoiceComputeStatus::unavailable("Hardware checker returned inconsistent data.");
                 }
@@ -664,6 +687,22 @@ fn start_voice_lab_build_selected(
         Some(command) => command,
         None => return result(false, "python_unavailable", worker_python_unavailable_message()),
     };
+    // Authoritative gate: direct native Create and Improve must not bypass
+    // the advisory Svelte badge. Rechecked again before each Python GPU stage.
+    if meeting_blocks_voice_change() {
+        return result(false, "voice_busy",
+            "Stop the active Meeting before preparing My Voice training.");
+    }
+    let compute = probe_my_voice_compute_status();
+    if compute.state != "cuda_detected" || compute.admission_state != "admitted" {
+        return result(false, "gpu_admission_blocked", format!(
+            "My Voice SAFE_8GB cannot start: {} Recheck the GPU and free VRAM.",
+            compute.detail
+        ));
+    }
+    let Some(safe_budget_mib) = compute.safe_budget_mib else {
+        return result(false, "gpu_admission_blocked", "SAFE_8GB memory budget could not be verified.");
+    };
 
     let started = match begin_voice_lab_build() {
         Ok(snapshot) => snapshot,
@@ -749,6 +788,8 @@ fn start_voice_lab_build_selected(
         .arg(work_dir(&paths))
         .arg("--status-path")
         .arg(status_path(&paths))
+        .arg("--gpu-budget-mib")
+        .arg(safe_budget_mib.to_string())
         .current_dir(worker_root())
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
