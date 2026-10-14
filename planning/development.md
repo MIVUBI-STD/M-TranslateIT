@@ -1,6 +1,6 @@
 # Active development — My Voice source stabilization (2026-10-14)
 
-**State:** SOURCE_CANDIDATE. My Voice source hardening is the current user-selected priority. No source-only change may be reported as compiled, Windows-tested, or audio-quality accepted.
+**State:** SOURCE_CANDIDATE — STATIC_ADMISSION_REVIEWED / EXECUTION_NOT_RUN. The current bounded My Voice source pass is provisionally frozen for the first integrated local gate, **not** compiled, quality accepted, Windows-tested or release ready.
 
 **Authority:** `MIVUBI-STD/M-TranslateIT`, branch `Local`. Pin the actual `Local` HEAD for each read/write and all future executable acceptance. The 2026-10-12 partial developer checks on `230ca94faae178659a7738fa82399485c267c991` do not certify newer My Voice revisions.
 
@@ -24,13 +24,21 @@
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
+## Final bounded source admission — 2026-10-14
+
+- **Reviewed code authority:** `Local` source HEAD `fe5647249bfdd420693630fd48acac96da046c0a`; this decision record is documentation-only. The next real local run MUST externally pin its own actual 40-character `Local` commit SHA after this note is committed.
+- **Inspected boundaries:** guided recording -> frozen Rust dataset -> one Python `voice_lab_build.py` worker CLI -> held-out review identity -> explicit user quality consent -> immutable candidate fingerprint -> selected Meeting actor with rollback; archive/backup schema, content identity, training snapshot prompt binding and VoiceVersions package admission.
+- **Regression-contract spot-checks:** direct source-regex assertions in `voice_build_runtime_sync_contract.test.ts`, `voice_version_restore_contract.test.ts`, `voice_event_refresh_contract.test.ts`, and `voice_quick_preview_isolation_contract.test.ts` showed no confirmed source mismatch after respecting variable shadowing inside individual test scopes. This was manual/static inspection, **NOT** test execution, not complete AST/typechecking, and not proof of every dynamic assertion. Rust -> Python CLI flags were compared with the Python argparse declarations; no contract mismatch observed in the inspected arguments.
+- **No known source-proven blocker in this bounded review.** Do not add another source patch without fresh, reproducible source or exact-SHA execution evidence. Unexecuted Svelte/Node/Rust/Python tests, native file promotion/rollback, target GPU model performance, actual voice quality, VB-CABLE/Meeting reception, backup recovery, and full installed-product acceptance all remain **UNKNOWN / NOT EXECUTED**.
+- **Existing single acceptance owner:** `docs/knowledge/operations/target-windows-performance.md`. Keep the prescribed one-SHA order: verify clean checkout and Node/Rust/Python/uv versions and locks; `npm ci`, `npm run validate:source-contracts`, `npm run typecheck`, `npm run test:frontend-runtime` plus pinned Python tests; `DEV.cmd build` with externally pinned `TRANSLATEIT_EXPECTED_SHA`; only after successful compiler/source gates, `DEV.cmd run` and controlled native My Voice / Meeting / backup scenarios. STOP and record the first failure, never skip to audio acceptance. No hosted CI, fabricated receipts, or piecemeal PC testing.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.
 
 ## Single next step
 
-**Perform final static regression-contract admission and cross-check source owner invariants at exact Local HEAD. If no source-provable blocker remains, stop source changes and prepare the existing single pinned-SHA Windows acceptance runbook for native testing; do not claim Node/Rust/Python or sound-quality PASS before execution.** No scope expansion, hosted CI or optimizer Resume activation.
+**Source stabilization is provisionally frozen. The only next execution step, once a local development/Windows environment is available, is the existing one-SHA integrated compiler/source gate followed (only after PASS) by controlled native My Voice, Meeting and backup acceptance. On the first failure, identify and repair its actual owner on `Local`; otherwise do not expand scope.** No hosted CI, optimizer Resume, test PASS by inspection, or promotion to `main`.
 
 ## Deferred prior work
 
