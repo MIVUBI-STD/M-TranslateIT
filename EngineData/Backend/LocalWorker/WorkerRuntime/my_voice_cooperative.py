@@ -101,7 +101,7 @@ def sovits_epoch_boundary(epoch: int, save_every: int, exp_dir: str, version: st
 
 def gpt_epoch_boundary(trainer: object, save_every: int, checkpoint_dir: str) -> None:
     epoch = int(getattr(trainer, "current_epoch", -1)) + 1
-    if not requested("gpt") or save_every <= 0 or epoch % save_every != 0:
+    if save_every <= 0 or epoch % save_every != 0:
         return
     # This function is called only *after* pinned ModelCheckpoint has
     # completed its full save and latest-save operations for this epoch.
@@ -111,6 +111,12 @@ def gpt_epoch_boundary(trainer: object, save_every: int, checkpoint_dir: str) ->
         if p.is_file() and not p.is_symlink() and p.stat().st_size > 4096
     ]
     if not candidates:
+        raise RuntimeError("my_voice:gpt_current_epoch_checkpoint_missing")
+    # A filesystem milestone, not a claim that checkpoint can resume the
+    # optimizer. Only one stat/filename needed; never re-read full weights.
+    from my_voice_epoch_progress import publish_progress
+    publish_progress("gpt", epoch, sorted(candidates, key=lambda p: p.name)[0].name)
+    if not requested("gpt"):
         return
     write_ack("gpt", epoch)
     # Mark the current trainer for graceful stop AFTER its save completed.

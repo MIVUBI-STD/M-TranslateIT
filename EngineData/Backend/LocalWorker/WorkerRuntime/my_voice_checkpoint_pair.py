@@ -70,6 +70,10 @@ def publish_pair(directory: Path, step: int, epoch: int) -> None:
         if target.exists() or target.is_symlink():
             raise RuntimeError("my_voice:pair_receipt_collision")
         os.replace(staged, target)
+        # Use the already-computed G/D hash receipt; never hash both
+        # multi-gigabyte checkpoints again simply to update UI progress.
+        from my_voice_epoch_progress import publish_progress
+        publish_progress("sovits", epoch, target.name)
     finally:
         # Crash/interrupted writes leave a .pending file for recovery to
         # detect. os.replace consumes it on successful publication.

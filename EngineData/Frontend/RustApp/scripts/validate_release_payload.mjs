@@ -164,6 +164,7 @@ for (const file of [
   "my_voice_checkpoint_io.py",
   "my_voice_checkpoint_pair.py",
   "my_voice_precision_policy.py",
+  "my_voice_epoch_progress.py",
   "my_voice_single_gpu_adapter.py",
   "my_voice_stage_supervisor.py",
   "my_voice_resource_guard.py",

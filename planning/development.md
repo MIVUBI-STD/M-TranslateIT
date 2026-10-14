@@ -50,6 +50,12 @@
 - Reduced full-checkpoint frequency to one generic bounded budget: up to four SoVITS G/D paired saves and five GPT full-save epochs across the fixed training schedule (approximately every 2 SoVITS epochs or 3 GPT epochs). The pinned Lightning ModelCheckpoint now sets `save_last=False`, suppressing duplicate full-size `last*.ckpt` copies while preserving versioned epoch-specific full checkpoints. Planned source inventory is at most 4×3 SoVITS optimizer/pair artifacts + 5 GPT optimizer checkpoints + 2 configs = **19 items**, under Rust's 28-file overall and 12/group bounds. The existing 48 GiB total archive limit and measured disk admission are **not relaxed**. This trades slightly longer intervals between checkpoints for far less disk I/O; optimizer resume remains unavailable.
 - Repaired authored SoVITS cooperative-stop fixture to require a hash-bound G/D pair receipt, rather than merely two arbitrarily named nonempty files. No tests or GPU stages were executed.
 
+## Run-bound checkpoint evidence (source-only)
+
+- The same existing stage-supervisor loop can now read one tiny create-in-run, atomically replaced `epoch_progress.json` **only when a full checkpoint is saved**. SoVITS emits it after G/D pair receipt publication; GPT emits it after the pinned epoch checkpoint callback has saved the current epoch file. Only epoch increases with matching stage, run token and generation count as progress.
+- This avoids extra polling threads, full G/D rehash just for UI progress, misleading heartbeat-based epoch claims and repeated status writes when no checkpoint advanced. A checkpoint event is **not** optimizer resume eligibility. Faults/stale identities remain fail-closed, and no GPU processing has been run.
+- Remaining work: exact source/packaging static consistency and process-stop outcomes; do not pretend progress is continuous when epochs between checkpoints are unknown.
+
 ## Single next step (source-only)
 
 Review the final Rust/Python source contracts, stage heartbeat provenance and checkpoint stop semantics; then close any source-provable gaps without adding workers or changing training quality **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.

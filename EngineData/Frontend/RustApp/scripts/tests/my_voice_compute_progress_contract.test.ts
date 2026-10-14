@@ -139,6 +139,13 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(adapter, /gpt_full_checkpoint_not_metric_dependent/);
   assert.match(adapter, /monitor=None/);
   assert.match(adapter, /gpt_no_redundant_last_checkpoint/);
+  const progress = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_epoch_progress.py");
+  const supervisor = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py");
+  assert.match(progress, /checkpoint_written_not_resume_verified/);
+  assert.match(supervisor, /read_progress\(/);
+  assert.match(supervisor, /on_checkpoint\(cooperative_stage, epoch\)/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py"), /publish_progress\("sovits"/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_cooperative.py"), /publish_progress\("gpt"/);
   assert.match(adapter, /save_last=False/);
   const build = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py");
   const recovery = read("src-tauri/src/commands/voice_lab/storage/training_recovery.rs");

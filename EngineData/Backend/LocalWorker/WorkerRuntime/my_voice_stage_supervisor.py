@@ -25,6 +25,7 @@ from my_voice_gpu_identity import (
 )
 from my_voice_resource_guard import snapshot as resource_snapshot
 from my_voice_cooperative import manual_stop_requested
+from my_voice_epoch_progress import read_progress
 
 from my_voice_resource_guard import (
     ResourceGuardError, check_start as check_system_resources,
@@ -259,6 +260,7 @@ def run_supervised_stage(
     cooperative_stage: str | None = None,
     on_safety_change: Callable[[str, str], None] | None = None,
     on_heartbeat: Callable[[str], None] | None = None,
+    on_checkpoint: Callable[[str, int], None] | None = None,
 ) -> None:
     """One supervised stage, no throttling fiction and no automatic resume.
 
@@ -304,6 +306,9 @@ def run_supervised_stage(
         env["TRANSLATEIT_MYVOICE_STOP_REQUEST"] = str(Path(temporary) / "request.json")
         env["TRANSLATEIT_MYVOICE_STOP_ACK"] = str(Path(temporary) / "ack.json")
         env["TRANSLATEIT_MYVOICE_STOP_STAGE"] = cooperative_stage
+        env["TRANSLATEIT_MYVOICE_EPOCH_PROGRESS_PATH"] = str(
+            Path(temporary) / "epoch_progress.json"
+        )
     try:
         with OwnedStageTree() as tree:
             try:
@@ -323,6 +328,10 @@ def run_supervised_stage(
             request_sent = False
             manual_requested_at: float | None = None
             last_heartbeat = time.monotonic()
+            last_checkpoint_epoch = 0
+            generation_raw = env.get("TRANSLATEIT_MYVOICE_RUN_GENERATION", "")
+            if temporary and (not generation_raw.isdecimal() or int(generation_raw) <= 0):
+                raise StageGuardError("my_voice:checkpoint_progress_generation_invalid")
             stage_started = last_heartbeat
             pressure_samples = 0
             while proc.poll() is None:
@@ -371,6 +380,20 @@ def run_supervised_stage(
                     previous_state = effective_state
                     if on_safety_change is not None:
                         on_safety_change(effective_state, result.reason)
+                if temporary:
+                    try:
+                        epoch = read_progress(
+                            Path(temporary), token, int(generation_raw),
+                            cooperative_stage, last_checkpoint_epoch,
+                        )
+                    except RuntimeError as exc:
+                        tree.terminate()
+                        proc.wait(timeout=8)
+                        raise StageGuardError(str(exc)) from exc
+                    if epoch is not None:
+                        last_checkpoint_epoch = epoch
+                        if on_checkpoint is not None:
+                            on_checkpoint(cooperative_stage, epoch)
                 if on_heartbeat is not None and now - last_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
                     on_heartbeat(result.state)
                     last_heartbeat = now

@@ -287,6 +287,14 @@ def run_stage(
             message = f"{stage}: resource pressure has returned to normal."
         status_writer("training", message)
 
+    def checkpoint(stage: str, epoch: int) -> None:
+        if status_writer is not None:
+            name = "SoVITS" if stage == "sovits" else "GPT"
+            status_writer(
+                "training",
+                f"{name} checkpoint written at epoch {epoch}; optimizer resume not verified.",
+            )
+
     def heartbeat(state: str) -> None:
         if status_writer is not None:
             stage_name = (
@@ -310,6 +318,7 @@ def run_stage(
             ),
             on_safety_change=safety_change if status_writer is not None else None,
             on_heartbeat=heartbeat if status_writer is not None else None,
+            on_checkpoint=checkpoint if status_writer is not None else None,
         )
     except StageGuardError as exc:
         raise VoiceLabProviderError(f"upstream_stage_guard:{script.name}:{exc}") from exc
