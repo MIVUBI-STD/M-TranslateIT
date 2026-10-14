@@ -116,6 +116,11 @@ All source declarations above require later Windows/runtime confirmation. A hash
 - This keeps both protections against mid-copy source mutation (the existing post-copy original hash check) and destination/archive corruption (the existing immutable `verify_package` scan). The pair receipt remains untrusted, not an optimizer resume authorization. Normal UI status does not read model checkpoints.
 - No additional worker, disk copy or monitoring loop was introduced. This optimization is source-only; real Windows/drive I/O behavior remains unverified.
 
+## Pinned Python 3.12 checkpoint metadata compatibility
+
+- The pinned local runtime uses Python `>=3.12,<3.13`. G/D streaming identity checks use `Path.lstat()` rather than `Path.stat(follow_symlinks=False)`, so symlink-free metadata reads do not rely on a newer pathlib API signature. The existing `os.fstat` before/after streaming hash and immutable Rust archive checks remain unchanged.
+- Added an unexecuted fixture to reject a symlink checkpoint before hashing its payload. Source-level only; Python 3.12 runtime tests remain deferred.
+
 ## Single next step (source-only)
 
 Review the precise interaction of trainer cooperative stop, canceled completion receipts and Rust checkpoint archive preservation under unexpected worker exits. Do not activate optimizer resume until actual SoVITS G/D, GPT optimizer, scheduler, GradScaler and RNG load/continuation can be established with independent Windows runtime evidence. Continue in `Local` without running tests, CI, compilation or CUDA processing until explicitly authorized.

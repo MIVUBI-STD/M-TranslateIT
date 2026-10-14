@@ -27,7 +27,7 @@ def file_identity(path: Path) -> dict[str, Any]:
     but this guard also catches unexpected external modification or a path
     swap while reading. The Rust archive independently verifies copied bytes.
     """
-    before = path.stat(follow_symlinks=False)
+    before = path.lstat()
     if not stat.S_ISREG(before.st_mode) or not 4096 < before.st_size <= MAX_FULL_BYTES:
         raise RuntimeError("my_voice:pair_file_untrusted")
     digest = hashlib.sha256()
@@ -52,7 +52,7 @@ def file_identity(path: Path) -> dict[str, Any]:
             closed = os.fstat(stream.fileno())
     except OSError as exc:
         raise RuntimeError("my_voice:pair_file_unavailable") from exc
-    after = path.stat(follow_symlinks=False)
+    after = path.lstat()
     def identity(meta: Any) -> tuple[int, int, int, int, int]:
         return (meta.st_dev, meta.st_ino, meta.st_size, meta.st_mtime_ns, meta.st_ctime_ns)
     if (

@@ -60,3 +60,13 @@ def test_modified_checkpoint_rejected_without_loading_tensor(tmp_path):
     publish_pair(tmp_path, 120, 2)
     (tmp_path / "D_120.pth").write_bytes(b"z" * 8192)
     assert not verified_pair_for_epoch(tmp_path, 2)
+
+
+def test_pair_file_lstat_rejects_symlink_without_loading_payload(tmp_path):
+    from my_voice_checkpoint_pair import file_identity
+    original = tmp_path / "G_101.pth"
+    original.write_bytes(b"G" * 8192)
+    link = tmp_path / "G_102.pth"
+    link.symlink_to(original)
+    with pytest.raises(RuntimeError, match="pair_file_untrusted"):
+        file_identity(link)
