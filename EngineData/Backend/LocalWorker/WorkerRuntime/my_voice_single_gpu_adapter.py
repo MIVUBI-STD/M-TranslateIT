@@ -39,6 +39,12 @@ def single_gpu_source(path: Path, relative: str) -> str:
     if relative == "GPT_SoVITS/s2_train.py":
         source = _replace_one(
             source,
+            'os.environ["CUDA_VISIBLE_DEVICES"] = hps.train.gpu_numbers.replace("-", ",")',
+            'os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["TRANSLATEIT_MYVOICE_GPU_UUID"]',
+            "sovits_preserve_physical_gpu_uuid",
+        )
+        source = _replace_one(
+            source,
             """    mp.spawn(
         run,
         nprocs=n_gpus,

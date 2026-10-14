@@ -205,8 +205,14 @@ def install_preflight_allocator_budget(relative_script: Path) -> None:
     if not budget_raw.isdecimal():
         raise RuntimeError("my_voice:gpu_stage_budget_missing")
     import torch
+    from my_voice_gpu_identity import cuda_device_uuid, normalize_uuid
     if not torch.cuda.is_available():
         raise RuntimeError("my_voice:gpu_stage_cuda_unavailable")
+    expected_uuid = normalize_uuid(os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", ""))
+    if os.environ.get("CUDA_VISIBLE_DEVICES") != expected_uuid:
+        raise RuntimeError("my_voice:gpu_stage_visible_device_changed")
+    if torch.cuda.device_count() != 1 or cuda_device_uuid(torch.cuda, 0) != expected_uuid:
+        raise RuntimeError("my_voice:gpu_stage_wrong_physical_device")
     total_mib = int(torch.cuda.get_device_properties(0).total_memory // (1024 * 1024))
     budget_mib = int(budget_raw)
     if budget_mib < 3072 or total_mib < budget_mib:

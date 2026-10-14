@@ -17,6 +17,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 from my_voice_adaptive_safety import PressureObserver, SafetySample, CRITICAL_GPU_MIB
+from my_voice_gpu_identity import (
+    DeviceIdentityError, normalize_uuid, sensor_executable, sensor_memory_mib,
+)
 from my_voice_resource_guard import snapshot as resource_snapshot
 
 from my_voice_resource_guard import (
@@ -203,31 +206,19 @@ class OwnedStageTree:
             self.close()
 
 def locate_sensor() -> str:
-    found = shutil.which("nvidia-smi")
-    if found:
-        return found
-    if os.name == "nt":
-        candidate = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "NVIDIA Corporation/NVSMI/nvidia-smi.exe"
-        if candidate.is_file():
-            return str(candidate)
-    raise StageGuardError("my_voice:gpu_sensor_unavailable")
-
-def gpu_free_mib(sensor: str) -> int:
     try:
-        result = subprocess.run(
-            [sensor, "--id=0", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, check=False, timeout=SENSOR_TIMEOUT_SECONDS,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise StageGuardError("my_voice:gpu_sensor_timeout") from exc
-    lines = result.stdout.strip().splitlines()
-    if result.returncode != 0 or len(lines) != 1 or not lines[0].strip().isdecimal():
-        raise StageGuardError("my_voice:gpu_sensor_unreadable")
-    value = int(lines[0].strip())
-    if value < 0 or value > 1048576:
-        raise StageGuardError("my_voice:gpu_sensor_invalid")
-    return value
+        return sensor_executable()
+    except DeviceIdentityError as exc:
+        raise StageGuardError(str(exc)) from exc
+
+
+def gpu_free_mib(sensor: str, uuid: str) -> int:
+    try:
+        total, free = sensor_memory_mib(uuid, executable=sensor)
+        return free
+    except DeviceIdentityError as exc:
+        raise StageGuardError(str(exc)) from exc
+
 
 def _create_cooperative_request(directory: Path, token: str, stage: str, reason: str) -> None:
     # New temporary stage-scoped file; a stale signal from a previous run
@@ -278,8 +269,16 @@ def run_supervised_stage(
         check_system_resources()
     except ResourceGuardError as exc:
         raise StageGuardError(str(exc)) from exc
+    expected_uuid = env.get("TRANSLATEIT_MYVOICE_GPU_UUID", "")
+    if gpu_stage:
+        try:
+            expected_uuid = normalize_uuid(expected_uuid)
+        except DeviceIdentityError as exc:
+            raise StageGuardError("my_voice:gpu_identity_missing_for_monitor") from exc
+        if env.get("CUDA_VISIBLE_DEVICES") != expected_uuid:
+            raise StageGuardError("my_voice:gpu_monitor_device_scope_mismatch")
     sensor = locate_sensor() if gpu_stage else None
-    if sensor and gpu_free_mib(sensor) < CRITICAL_FREE_MIB:
+    if sensor and gpu_free_mib(sensor, expected_uuid) < CRITICAL_FREE_MIB:
         raise StageGuardError("my_voice:gpu_pressure_before_stage")
 
     temporary: str | None = None
@@ -317,7 +316,7 @@ def run_supervised_stage(
                 # therefore never silently converted to NORMAL.
                 try:
                     ram, cache, saved = resource_snapshot()
-                    free_gpu = gpu_free_mib(sensor) if sensor else None
+                    free_gpu = gpu_free_mib(sensor, expected_uuid) if sensor else None
                     result = observer.observe(SafetySample(free_gpu, ram, cache, saved))
                 except (ResourceGuardError, StageGuardError):
                     result = observer.observe(SafetySample(None, -1, -1, -1))

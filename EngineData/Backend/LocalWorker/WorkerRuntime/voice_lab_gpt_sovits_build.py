@@ -201,7 +201,14 @@ def stage_gpu_budget() -> int:
     A passed check is not a VRAM reservation or protection against DDP spawn.
     """
     from my_voice_gpu_policy import check_stage_budget
+    from my_voice_gpu_identity import DeviceIdentityError, normalize_uuid
 
+    try:
+        expected_uuid = normalize_uuid(os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", ""))
+    except DeviceIdentityError as exc:
+        raise VoiceLabProviderError("gpu_device_identity_missing") from exc
+    if os.environ.get("CUDA_VISIBLE_DEVICES") != expected_uuid:
+        raise VoiceLabProviderError("gpu_visible_device_mismatch")
     original_raw = os.environ.get("TRANSLATEIT_MYVOICE_GPU_BUDGET_MIB", "")
     if not original_raw.isdecimal():
         raise VoiceLabProviderError("gpu_budget_missing")
@@ -217,7 +224,7 @@ def stage_gpu_budget() -> int:
         raise VoiceLabProviderError("gpu_recheck_unavailable")
     try:
         report = json.loads(completed.stdout)
-        return check_stage_budget(report, original)
+        return check_stage_budget(report, original, expected_uuid)
     except (ValueError, TypeError, RuntimeError) as exc:
         raise VoiceLabProviderError("gpu_headroom_insufficient_or_unknown") from exc
 
@@ -228,6 +235,9 @@ def run_stage(
 ) -> None:
     child_env = os.environ.copy()
     child_env.update(env)
+    expected_uuid = os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", "")
+    if not expected_uuid or child_env.get("CUDA_VISIBLE_DEVICES") != expected_uuid:
+        raise VoiceLabProviderError("gpu_stage_device_mismatch")
     # The English text step does not need CUDA; every remaining stage does.
     if script.name != "1-get-text.py":
         budget_mib = stage_gpu_budget()
@@ -335,7 +345,7 @@ def batch_and_half() -> tuple[int, bool]:
     import torch
 
     if not torch.cuda.is_available():
-        raise VoiceLabProviderError("safe8gb_requires_cuda")
+        raise VoiceLabProviderError("safe_cuda_requires_supported_gpu")
     # A physical batch of one prevents the previous 8 GB -> batch 4 heuristic.
     # This is a conservative attempt, NOT verified OOM-free training.
     return 1, True
@@ -346,6 +356,13 @@ def training_configs(
 ) -> tuple[Path, Path, dict[str, str]]:
     import yaml
 
+    from my_voice_gpu_identity import DeviceIdentityError, normalize_uuid
+    try:
+        physical_uuid = normalize_uuid(os.environ["TRANSLATEIT_MYVOICE_GPU_UUID"])
+    except (KeyError, DeviceIdentityError) as exc:
+        raise VoiceLabProviderError("gpu_uuid_unavailable_for_training") from exc
+    if os.environ.get("CUDA_VISIBLE_DEVICES") != physical_uuid:
+        raise VoiceLabProviderError("gpu_uuid_changed_before_training")
     batch, half = batch_and_half()
     sovits_save_every = max(1, SOVITS_EPOCHS // MAX_TRAINING_CANDIDATES)
     gpt_save_every = max(1, GPT_EPOCHS // MAX_TRAINING_CANDIDATES)
@@ -361,7 +378,7 @@ def training_configs(
             "if_save_latest": True,
             "if_save_every_weights": True,
             "save_every_epoch": sovits_save_every,
-            "gpu_numbers": "0",
+            "gpu_numbers": "0",  # Only local ordinal after physical UUID scoping
             "grad_ckpt": False,
             "lora_rank": "32",
             "fp16_run": half,
@@ -403,7 +420,7 @@ def training_configs(
             "version": VERSION,
             "hz": "25hz",
             "is_half": str(half),
-            "_CUDA_VISIBLE_DEVICES": "0",
+            "_CUDA_VISIBLE_DEVICES": physical_uuid,
         },
     )
 
