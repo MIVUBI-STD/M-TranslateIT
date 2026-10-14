@@ -954,21 +954,19 @@ pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
         return result(false, "cancel_failed", error);
     }
     let (lock, signal) = process_store();
-    let process_identity = lock.lock().ok().map(|state| {
-        (
-            state.pid,
-            #[cfg(windows)]
-            state.owned_job.clone(),
-        )
-    });
-    let Some(process_identity) = process_identity else {
-        return result(false, "cancel_pending", "My Voice cannot verify which training process to stop.");
+    let process = match lock.lock() {
+        Ok(process) => process,
+        Err(_) => return result(false, "cancel_pending", "My Voice cannot verify which training process to stop."),
     };
-    let Some(pid) = process_identity.0 else {
+    let pid = process.pid;
+    #[cfg(windows)]
+    let owned_job = process.owned_job.clone();
+    drop(process);
+    let Some(pid) = pid else {
         return result(false, "cancel_pending", "VoiceLab is stopping, but the build process could not be addressed yet.");
     };
     #[cfg(windows)]
-    let stopped = process_identity.1.as_ref().is_some_and(|job| job.terminate());
+    let stopped = owned_job.as_ref().is_some_and(|job| job.terminate());
     #[cfg(not(windows))]
     let stopped = terminate_process_tree(pid);
     if !stopped {
