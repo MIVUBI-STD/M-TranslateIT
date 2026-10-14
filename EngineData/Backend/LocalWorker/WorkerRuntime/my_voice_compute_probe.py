@@ -62,36 +62,47 @@ def detect_compute(
         candidates: list[dict[str, Any]] = []
         seen: set[str] = set()
         for index in range(count):
-            props = cuda.get_device_properties(index)
-            uuid = cuda_device_uuid(cuda, index)
-            if uuid in seen:
-                raise DeviceIdentityError("duplicate_cuda_uuid")
-            seen.add(uuid)
-            if target is not None and uuid != target:
+            try:
+                props = cuda.get_device_properties(index)
+                uuid = cuda_device_uuid(cuda, index)
+                if uuid in seen:
+                    raise DeviceIdentityError("duplicate_cuda_uuid")
+                seen.add(uuid)
+                if target is not None and uuid != target:
+                    continue
+                name = str(cuda.get_device_name(index)).strip()
+                total = int(props.total_memory)
+                cuda_free, cuda_total = cuda.mem_get_info(index)
+                smi_total_mib, smi_free_mib = sensor_reader(uuid)
+                if (
+                    not name or total <= 0
+                    or type(cuda_free) is not int or type(cuda_total) is not int
+                    or abs(cuda_total - total) > 256 * MIB
+                    or abs(smi_total_mib * MIB - total) > max(1024 * MIB, total // 8)
+                ):
+                    raise DeviceIdentityError("cuda_nvidia_memory_identity_mismatch")
+                # UUID, not a potentially different driver memory report, is
+                # the device identity; use lower free reading conservatively.
+                free = min(cuda_free, smi_free_mib * MIB)
+                policy = assess_memory(total, free)
+                candidates.append({
+                    "name": name[:200], "uuid": uuid, "index": index,
+                    "vram_mib": total // MIB,
+                    "free_vram_mib": free // MIB,
+                    "reserve_mib": policy["reserve_mib"],
+                    "safe_budget_mib": policy["safe_budget_mib"],
+                    "admission_state": policy["state"],
+                })
+            except DeviceIdentityError as exc:
+                if str(exc) == "duplicate_cuda_uuid" or target is not None:
+                    raise
+                # Other GPUs may be incompatible or unavailable. Never
+                # select them; continue with any independently verified GPU.
                 continue
-            name = str(cuda.get_device_name(index)).strip()
-            total = int(props.total_memory)
-            cuda_free, cuda_total = cuda.mem_get_info(index)
-            smi_total_mib, smi_free_mib = sensor_reader(uuid)
-            if (
-                not name or total <= 0
-                or type(cuda_free) is not int or type(cuda_total) is not int
-                or abs(cuda_total - total) > 256 * MIB
-                or abs(smi_total_mib * MIB - total) > 256 * MIB
-            ):
-                raise DeviceIdentityError("cuda_nvidia_memory_identity_mismatch")
-            # Both independent readings must agree on the same UUID.
-            # Do not treat available memory as an exclusive reservation.
-            free = min(cuda_free, smi_free_mib * MIB)
-            policy = assess_memory(total, free)
-            candidates.append({
-                "name": name[:200], "uuid": uuid, "index": index,
-                "vram_mib": total // MIB,
-                "free_vram_mib": free // MIB,
-                "reserve_mib": policy["reserve_mib"],
-                "safe_budget_mib": policy["safe_budget_mib"],
-                "admission_state": policy["state"],
-            })
+            except (OSError, RuntimeError, ValueError, AttributeError, TypeError):
+                if target is not None:
+                    raise
+                continue
         if not candidates:
             raise DeviceIdentityError("requested_cuda_uuid_missing")
         # Prefer a device that passes admission, then the most usable budget.

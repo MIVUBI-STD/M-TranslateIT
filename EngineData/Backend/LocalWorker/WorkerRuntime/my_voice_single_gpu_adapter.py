@@ -1,4 +1,4 @@
-"""Revision-locked, fail-closed single-GPU training adapter for SAFE_8GB.
+"""Revision-locked, fail-closed single-GPU training adapter for SAFE_CUDA.
 
 The original GPT-SoVITS V2ProPlus sources stay immutable. This adapter can
 only transform the exact reviewed Git blob revisions; drift is a hard error.

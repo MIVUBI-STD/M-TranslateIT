@@ -35,6 +35,17 @@ def test_multiple_devices_choose_more_usable_memory():
     assert report["profile"] == "SAFE_CUDA_V1"
     assert report["admission_state"] == "admitted"
 
+def test_bad_other_gpu_does_not_block_valid_gpu():
+    def sensor(uuid):
+        if uuid == UUID_A:
+            raise RuntimeError("sensor unavailable for first GPU")
+        return 12288, 10000
+    report = detect_compute(fake_torch([
+        (UUID_A, 8192, 7000), (UUID_B, 12288, 9400),
+    ]), "CPU", sensor_reader=sensor)
+    assert report["gpu_uuid"] == UUID_B
+    assert report["admission_state"] == "admitted"
+
 def test_required_uuid_never_falls_back_to_another_card():
     report = detect_compute(fake_torch([
         (UUID_A, 8192, 7000), (UUID_B, 12288, 9400),
@@ -54,15 +65,16 @@ def test_cpu_only_is_not_implicitly_admitted():
     assert report["gpu_uuid"] is None
 
 def test_bad_gpu_sensor_identity_blocks_admission():
+    def invalid_sensor(_):
+        raise RuntimeError("wrong physical UUID")
     report = detect_compute(fake_torch([(UUID_A, 8192, 7000)]), "CPU",
-                            sensor_reader=lambda _: (8192, 7000) if False else (_ for _ in ()).throw(ValueError()))
+                            sensor_reader=invalid_sensor)
     assert report["admission_state"] == "unknown"
 
 def test_nvidia_sensor_row_checks_uuid_not_ordinal():
     assert parse_sensor_row(UUID_B + ", 12288, 10500", UUID_B) == (12288, 10500)
-    try:
+    from my_voice_gpu_identity import DeviceIdentityError
+    import pytest
+    with pytest.raises(DeviceIdentityError):
         parse_sensor_row(UUID_B + ", 12288, 10500", UUID_A)
-        assert False
-    except Exception:
-        pass
     assert normalize_uuid(UUID_A) == UUID_A

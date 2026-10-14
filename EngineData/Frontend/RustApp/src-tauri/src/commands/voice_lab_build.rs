@@ -158,7 +158,7 @@ impl MyVoiceComputeStatus {
             reserve_mib: None,
             safe_budget_mib: None,
             admission_state: "unknown".into(),
-            profile: "SAFE_8GB_V1".into(),
+            profile: "SAFE_CUDA_V1".into(),
             detail: detail.into(),
         }
     }
