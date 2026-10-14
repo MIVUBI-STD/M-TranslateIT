@@ -100,6 +100,11 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 - The runtime event is emitted as a failed build when recovery/quiescence needs attention, even if Stop had been requested. This changes diagnostics only; it never claims Review or resume completed.
 - No additional state owner, worker, polling or I/O channel. Source-only; not runtime tested.
 
+## Repair of stale source regression contracts
+
+- Previously authored Node source assertions referenced an earlier Rust expression (`!cancelling && exit...` and `let recovery = if ready`) that no longer matches the hardened lifecycle. Contracts now check the actual `owned_tree_quiescent`, `cancelling_before_review` and `recovery_failed` gates.
+- This removes known future false-negative source failures without weakening the actual safety conditions. Tests were authored only, not executed, in accordance with the user's source-only boundary.
+
 ## Single next source-only step
 
 Review whether a Python stage subprocess can leave a live descendant after its root exits in **non-Windows** packaging, and audit all source return-code/exception paths for fail-closed behavior. Do not alter `main`, change the selected GPU policy, or enable optimizer resume.

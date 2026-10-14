@@ -41,8 +41,9 @@ test("interrupted checkpoint capture blocks destructive old-work cleanup on fail
   const capture = build.indexOf("preserve_training_checkpoints(&paths)", start);
   assert.ok(start > 0 && capture > start && capture < prepare);
   assert.match(build, /prior_training_recovery_required/);
-  assert.match(build, /let recovery = if ready/);
-  assert.match(build, /if recovery\.is_err\(\)/);
+  assert.match(build, /let recovery = if let Err\(error\) = &owned_tree_quiescent/);
+  assert.match(build, /let recovery_failed = recovery\.is_err\(\)/);
+  assert.match(build, /if owned_tree_quiescent\.is_ok\(\) \{/);
   assert.match(recovery, /create_dir\(&pending\)/);
   assert.match(recovery, /verify_package\(&pending/);
   assert.match(recovery, /fs::rename\(&pending, &complete\)/);

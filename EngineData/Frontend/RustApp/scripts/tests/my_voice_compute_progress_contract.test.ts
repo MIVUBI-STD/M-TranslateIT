@@ -137,7 +137,8 @@ test("manual Stop reuses the existing process owners and cannot claim success af
   assert.match(native, /if owned_tree_quiescent\.is_ok\(\) \{/);
   assert.match(native, /process\.terminal_message =/);
   assert.match(native, /CANCEL_MAX_WAIT/);
-  assert.match(native, /!cancelling\s*&& exit\.as_ref\(\)/);
+  assert.match(native, /owned_tree_quiescent\.is_ok\(\) && !cancelling_before_review/);
+  assert.match(native, /let recovery = if let Err\(error\) = &owned_tree_quiescent/);
   assert.match(native, /"TRANSLATEIT_MYVOICE_MANUAL_STOP_PATH", manual_stop_file\(&paths\)/);
   assert.match(receipts, /"manual_cooperative_stop"/);
   assert.match(receipts, /run_generation/);
