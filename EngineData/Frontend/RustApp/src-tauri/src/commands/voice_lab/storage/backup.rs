@@ -304,6 +304,12 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
             let data = read_regular_bounded(&root.join(rel), 64 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:version_receipt_invalid")?;
+            if json.get("schema_version").and_then(|v| v.as_u64()) != Some(1)
+                || json.get("engine_revision").and_then(|v| v.as_str())
+                    != Some(VOICE_ACTOR_ENGINE_REVISION)
+            {
+                return Err("voice_backup:version_receipt_unsupported".into());
+            }
             let files = json.get("files").and_then(|v| v.as_array())
                 .ok_or("voice_backup:version_files_missing")?;
             if files.len() != 4 { return Err("voice_backup:version_file_count_invalid".into()); }
@@ -314,14 +320,20 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
                     .ok_or("voice_backup:version_file_missing")?;
                 let expected = referenced.get("sha256").and_then(|f| f.as_str())
                     .ok_or("voice_backup:version_hash_missing")?;
+                let expected_bytes = referenced.get("bytes").and_then(|f| f.as_u64())
+                    .ok_or("voice_backup:version_size_missing")?;
                 let file_path = format!("{prefix}{name}");
                 let actual = map.get(file_path.as_str())
                     .ok_or("voice_backup:version_object_missing")?;
-                if actual.sha256 != expected {
-                    return Err("voice_backup:version_hash_mismatch".into());
+                if actual.sha256 != expected || actual.bytes != expected_bytes {
+                    return Err("voice_backup:version_hash_or_size_mismatch".into());
                 }
                 referenced_payloads.insert(file_path);
             }
+            // Verify this actor is actually usable by the same native owner
+            // that will validate it on a future explicit version selection.
+            super::validate_actor_package(&root.join(prefix))
+                .map_err(|_| "voice_backup:actor_package_invalid")?;
         }
         if rel.starts_with("DatasetSnapshots/") && rel.ends_with(".json") {
             // Immutable dataset snapshots are addressed by the SHA-256 of
@@ -705,6 +717,43 @@ mod tests {
             assert_ne!(sha256, id);
             let entry = BackupEntry { path, bytes, sha256 };
             assert_eq!(check_references(&root, &[entry]).unwrap_err(), error);
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_rejects_version_receipts_with_unsupported_model_contracts() {
+        use super::super::immutable_store::hash_bytes;
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "translateit-backup-actor-schema-{}-{stamp}", std::process::id()
+        ));
+        for (schema, revision) in [
+            (2_u64, VOICE_ACTOR_ENGINE_REVISION),
+            (1_u64, "unsupported-engine"),
+        ] {
+            let files = ["actor.json", "gpt.ckpt", "sovits.pth", "reference.wav"]
+                .into_iter().map(|name| serde_json::json!({
+                    "name": name,
+                    "sha256": "a".repeat(64),
+                    "bytes": 5
+                })).collect::<Vec<_>>();
+            let bytes = serde_json::to_vec(&serde_json::json!({
+                "schema_version": schema,
+                "engine_revision": revision,
+                "files": files,
+            })).unwrap();
+            let id = hash_bytes(&bytes);
+            let relative = format!("VoiceVersions/{}/{id}/version.json", &id[..2]);
+            let file = root.join(&relative);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, &bytes).unwrap();
+            let (sha256, size) = hash_regular_file(&file, MAX_FILE_BYTES).unwrap();
+            let entry = BackupEntry { path: relative, bytes: size, sha256 };
+            assert_eq!(
+                check_references(&root, &[entry]).unwrap_err(),
+                "voice_backup:version_receipt_unsupported"
+            );
         }
         fs::remove_dir_all(root).unwrap();
     }
