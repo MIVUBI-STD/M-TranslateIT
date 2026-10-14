@@ -172,31 +172,33 @@ install_sovits_inference_writer(process_ckpt)""",
             '        strategy="auto",',
             "gpt_ddp_strategy",
         )
+        # Use the pinned MyVoice ModelCheckpoint callback itself rather than
+        # another callback whose ordering against ModelCheckpoint may change
+        # across Lightning versions. The safe-stop check executes only AFTER
+        # the current checkpoint writer returned successfully.
+        source = _replace_one(
+            source,
+            "            self._save_last_checkpoint(trainer, monitor_candidates)",
+            """            self._save_last_checkpoint(trainer, monitor_candidates)
+            from my_voice_cooperative import gpt_epoch_boundary
+            gpt_epoch_boundary(
+                trainer, self.config["train"]["save_every_n_epoch"], str(self.dirpath)
+            )""",
+            "gpt_cooperative_after_checkpoint",
+        )
         source = _replace_one(
             source,
             '''    trainer: Trainer = Trainer(''',
-            '''    from pytorch_lightning.callbacks import Callback
-    from my_voice_cooperative import gpt_epoch_boundary
-    from my_voice_checkpoint_io import create_atomic_lightning_checkpoint_io
-
-    class MyVoiceSafeStopOnCheckpoint(Callback):
-        def on_train_epoch_end(self, trainer, pl_module):
-            gpt_epoch_boundary(trainer, config["train"]["save_every_n_epoch"], str(ckpt_dir))
+            '''    from my_voice_checkpoint_io import create_atomic_lightning_checkpoint_io
 
     trainer: Trainer = Trainer(''',
-            "gpt_cooperative_callback",
+            "gpt_local_checkpoint_io_import",
         )
         source = _replace_one(
             source,
             "        callbacks=[ckpt_callback],",
-            "        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],",
-            "gpt_cooperative_callback_order",
-        )
-        source = _replace_one(
-            source,
-            '        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],',
-            '''        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],
-        plugins=[create_atomic_lightning_checkpoint_io()],''',
+            """        callbacks=[ckpt_callback],
+        plugins=[create_atomic_lightning_checkpoint_io()],""",
             "gpt_full_optimizer_atomic_plugin",
         )
     else:

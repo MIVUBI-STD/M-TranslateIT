@@ -103,9 +103,16 @@ def gpt_epoch_boundary(trainer: object, save_every: int, checkpoint_dir: str) ->
     epoch = int(getattr(trainer, "current_epoch", -1)) + 1
     if not requested("gpt") or save_every <= 0 or epoch % save_every != 0:
         return
-    if not checkpoint_candidate_present(Path(checkpoint_dir), "*.ckpt"):
+    # This function is called only *after* pinned ModelCheckpoint has
+    # completed its full save and latest-save operations for this epoch.
+    # A checkpoint from a previous epoch alone can never authorize yielding.
+    candidates = [
+        p for p in Path(checkpoint_dir).glob(f"epoch={epoch-1}-step=*.ckpt")
+        if p.is_file() and not p.is_symlink() and p.stat().st_size > 4096
+    ]
+    if not candidates:
         return
     write_ack("gpt", epoch)
-    # The existing GPT ModelCheckpoint hook runs first in callback order.
-    # This sets a cooperative end-of-epoch stop, not a continuation claim.
+    # Mark the current trainer for graceful stop AFTER its save completed.
+    # This does not assert optimizer-resumable training state.
     trainer.should_stop = True
