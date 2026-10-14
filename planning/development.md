@@ -91,6 +91,13 @@ All source declarations above require later Windows/runtime confirmation. A hash
 - A nonexistent cooperative request remains an ordinary continue. However, an existing request with invalid JSON, symlink, wrong PID, wrong run token, wrong stage or wrong nonce now throws an explicit control error instead of being ignored. This prevents missing a stop because a control file was ambiguous, while still requiring the existing parent supervisor to reconcile nonzero exits and preserve checkpoint evidence.
 - The parent similarly refuses non-dictionary or wrong-identity checkpoint-boundary acknowledgment metadata. These conditions do not promote a candidate, do not enable resume and do not add polling. Source-only fixtures authored, not executed.
 
+## Implementation checkpoint — 2026-10-14
+
+- **Checkpoint G/D TOCTOU:** the existing hash scan now requires before/open/after stable filesystem identity and hashes only the requested epoch's unique G/D pair. Distinct original optimizer checkpoint filenames and Rust archive-level postcopy hash verification remain unchanged.
+- **Trainer-origin evidence:** epoch progress, full-checkpoint milestones and cooperative stop requests/acknowledgments carry run token, generation, stage, *owned trainer PID* and a fresh nonce created at each stage launch. This prevents accidental acceptance of files produced by older workers; it is not an adversarial OS security boundary.
+- **Fail-closed controls:** missing cooperative stop request means continue; a present-but-corrupt or mismatched control record is an error, not permission to keep training. Existing supervisor owns all teardown and resource monitoring. No additional monitor or GPU allocation introduced.
+- **Version scope:** the source-hash-bound adapter still matches reviewed pinned GPT-SoVITS anchors and Lightning 2.6.5 callback source in read-only inspection. This is not a Python import, model training, Windows runtime or test-suite proof.
+
 ## Single next step (source-only)
 
-Perform one bounded review of **checkpoint pair race handling**, **worker-origin progress identity**, and **Lightning 2.6.5 plugin/source API compatibility**. Prioritize removal of concrete source defects without adding workers, polling or speculative resume. Continue using the user device's verified physical GPU UUID and measured epoch cadence. Do not run tests, CI, Windows builds, CUDA training or fault injection until explicitly authorized; `main` stays untouched.
+Review the precise interaction of trainer cooperative stop, canceled completion receipts and Rust checkpoint archive preservation under unexpected worker exits. Do not activate optimizer resume until actual SoVITS G/D, GPT optimizer, scheduler, GradScaler and RNG load/continuation can be established with independent Windows runtime evidence. Continue in `Local` without running tests, CI, compilation or CUDA processing until explicitly authorized.
