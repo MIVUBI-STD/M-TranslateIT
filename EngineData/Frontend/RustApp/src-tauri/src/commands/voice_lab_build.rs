@@ -1016,8 +1016,8 @@ fn start_voice_lab_build_selected(
         let owned_tree_quiescent: Result<(), String> = Ok(());
         let paths = storage();
         reconcile_phase(&paths);
-        let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
-        let candidate = if owned_tree_quiescent.is_ok() && !cancelling
+        let cancelling_before_review = current_voice_lab_build_snapshot().phase == "cancelling";
+        let candidate = if owned_tree_quiescent.is_ok() && !cancelling_before_review
             && exit.as_ref().map(|status| status.success()).unwrap_or(false)
             && child_status(&paths)
                 .map(|status| status.phase == "ready_for_review")
@@ -1036,6 +1036,10 @@ fn start_voice_lab_build_selected(
             // Never carry a ready status from an interrupted/failed attempt.
             let _ = remove_file_if_present(&completion_file(&paths), "completion");
         }
+        // Stop may have won the lifecycle mutex AFTER the earlier phase
+        // snapshot but BEFORE review completion. Classify that as cancelled
+        // rather than an unexpected worker failure. No extra status poller.
+        let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
         // Only interrupted/incomplete runs retain optimizer checkpoint
         // candidates permanently. A completed approved candidate uses the
         // existing immutable VoiceVersion registry, not an unfinished run.
