@@ -7,13 +7,21 @@ authority: REFERENCE
 lifecycle: ACTIVE
 ---
 
-# My Voice — Safe 8 GB Training and Failure Containment (design proposal)
+# My Voice — Device-aware Safe CUDA Training and Failure Containment
 
 **Status:** STAGED SOURCE IMPLEMENTATION + OPEN SAFETY WORK / NOT VALIDATED. Native source additions are not proof of GPU memory safety. Remaining single-GPU trainer/child-process safeguards are explicitly unfinished.
 **Baseline:** MIVUBI-STD/M-TranslateIT `Local` at `f4389b05ae9607659f8c3498335ef10b34b7c3e6` (2026-10-14).
-**Target:** single NVIDIA GeForce RTX 3070 8 GB GDDR6 on Windows, GPT-SoVITS V2ProPlus with existing pinned model assets and one Rust/Tauri control authority. 12 GB is OPTIONAL headroom, not a hard eligibility requirement.
+**Target:** Windows desktops with identifiable NVIDIA CUDA devices supported by the packaged PyTorch/GPT-SoVITS runtime. A GeForce RTX 3070 8 GB is a representative low-memory case, not a hardcoded or required model. Capacity-based admission also applies to other supported 6/8/12/16/24+ GiB CUDA configurations; memory size alone is not a guarantee of trainability. 12 GB is OPTIONAL headroom, not a mandatory minimum. CPUs and AMD/Intel/Apple GPU training require separate, validated compute backends.
 **User instruction:** DESIGN FIRST; do not run tests, host CI, local GPU experiments, audio validation, or release/install validation during this design phase.
 **Priority:** protect accepted recordings, immutable snapshots, checkpoint evidence, current Meeting voice, host availability and diagnostics. A GPU OOM/native access violation may still occur; containment and fail-closed behavior, not zero-crash guarantees, are the objective.
+
+## Implementation update: physical GPU discovery and checkpoint ownership (2026-10-14)
+
+- `SAFE_CUDA_V1` supersedes the hardcoded `SAFE_8GB_V1` source profile. The budget is computed from the **selected device's actual free and total VRAM**, not its marketing name; unsupported/small/occupied devices fail closed. Hardware is enumerated through CUDA, NVIDIA inventory is queried once, and UUID identity must agree.
+- On a multi-GPU system, prefer the independently verified CUDA device with the largest admissible safety budget. Pin `CUDA_VISIBLE_DEVICES` to that physical UUID in the Rust-owned training worker; upstream SoVITS/GPT adapter cannot silently override it with the host's GPU 0. Monitor `nvidia-smi` using exactly the selected physical UUID, not a guessed index.
+- Hardware outside this validated CUDA route is **recognized as lacking supported CUDA** and training is blocked; this is not a claim that AMD/Intel/Apple cards have been benchmarked or that unsupported CPU-only training is equivalent. Device-detection failures are explicit.
+- Full SoVITS G/D optimizer files are staged in the **same destination directory** and published individually via atomic rename using the pinned adapter. Complete checkpoints are not deleted merely because a newer file is being written. This does not make the G/D pair transactional, make GPT checkpoint writing fully atomic, or verify optimizer resume.
+- No native Windows/CUDA execution has been authorized; the changes above are source implementation only. The provisional safety thresholds and CUDA/PyTorch package compatibility remain unverified on user devices.
 
 ## 1. Source-visible risks (why a detection badge is insufficient)
 
