@@ -33,3 +33,12 @@ def test_watch_state_returns_to_normal_when_headroom_recovers():
     monitor = PressureObserver(require_gpu=True)
     assert monitor.observe(sample(1100)).state == "watch"
     assert monitor.observe(sample(2600)).state == "normal"
+
+
+
+def test_soft_yield_ignores_initial_allocation_ramp():
+    from my_voice_adaptive_safety import soft_stop_ready
+    assert not soft_stop_ready("pressure", 20, 7)
+    assert not soft_stop_ready("pressure", 100, 1)
+    assert soft_stop_ready("pressure", 100, 3)
+    assert not soft_stop_ready("critical", 100, 3)

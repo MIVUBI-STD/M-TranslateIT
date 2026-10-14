@@ -18,6 +18,16 @@ TREND_GPU_MIB = 256
 TREND_RAM_MIB = 256
 TREND_DISK_MIB = 512
 
+# Ignore ordinary CUDA allocator ramp-up when deciding a *soft* yield.
+# CRITICAL or UNKNOWN decisions must never be postponed by these controls.
+STAGE_WARMUP_SECONDS = 90
+SOFT_PRESSURE_SAMPLES = 3
+
+
+def soft_stop_ready(state: str, elapsed_seconds: float, consecutive_pressure: int) -> bool:
+    return (state == "pressure" and elapsed_seconds >= STAGE_WARMUP_SECONDS
+            and consecutive_pressure >= SOFT_PRESSURE_SAMPLES)
+
 @dataclass(frozen=True)
 class SafetySample:
     gpu_free_mib: int | None

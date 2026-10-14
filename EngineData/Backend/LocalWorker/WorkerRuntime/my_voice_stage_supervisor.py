@@ -17,7 +17,9 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Callable
-from my_voice_adaptive_safety import PressureObserver, SafetySample, CRITICAL_GPU_MIB
+from my_voice_adaptive_safety import (
+    PressureObserver, SafetySample, CRITICAL_GPU_MIB, soft_stop_ready,
+)
 from my_voice_gpu_identity import (
     DeviceIdentityError, normalize_uuid, sensor_executable, sensor_memory_mib,
 )
@@ -323,6 +325,8 @@ def run_supervised_stage(
             request_sent = False
             manual_requested_at: float | None = None
             last_heartbeat = time.monotonic()
+            stage_started = last_heartbeat
+            pressure_samples = 0
             while proc.poll() is None:
                 # Manual stop shares this existing supervisor cycle; no new
                 # polling thread or second training process is needed.
@@ -356,11 +360,19 @@ def run_supervised_stage(
                     result = observer.observe(SafetySample(free_gpu, ram, cache, saved))
                 except (ResourceGuardError, StageGuardError):
                     result = observer.observe(SafetySample(None, -1, -1, -1))
-                if result.state != previous_state:
-                    previous_state = result.state
-                    if on_safety_change is not None:
-                        on_safety_change(result.state, result.reason)
+                pressure_samples = pressure_samples + 1 if result.state == "pressure" else 0
                 now = time.monotonic()
+                actionable_pressure = soft_stop_ready(
+                    result.state, now - stage_started, pressure_samples
+                )
+                effective_state = (
+                    "watch" if result.state == "pressure" and not actionable_pressure
+                    else result.state
+                )
+                if effective_state != previous_state:
+                    previous_state = effective_state
+                    if on_safety_change is not None:
+                        on_safety_change(effective_state, result.reason)
                 if on_heartbeat is not None and now - last_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
                     on_heartbeat(result.state)
                     last_heartbeat = now
@@ -372,7 +384,7 @@ def run_supervised_stage(
                     tree.terminate()
                     proc.wait(timeout=8)
                     raise StageGuardError("my_voice:emergency_resource_or_telemetry_failure")
-                if result.state == "pressure" and temporary and not request_sent:
+                if actionable_pressure and temporary and not request_sent:
                     _create_cooperative_request(
                         Path(temporary), token, cooperative_stage, result.reason
                     )

@@ -263,7 +263,7 @@ def run_stage(
             else script.name
         )
         if state == "watch":
-            message = f"{stage}: resource use is high but stable; continuing under observation."
+            message = f"{stage}: resource use is high or changing; continuing under observation."
         elif state == "pressure":
             message = f"{stage}: resources are declining; requesting a checkpoint-boundary stop."
         elif state in ("critical", "unknown"):
