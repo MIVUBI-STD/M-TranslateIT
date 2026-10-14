@@ -92,6 +92,30 @@ test("device-aware CUDA resource and process controls fail closed at native boun
   assert.match(ui, /case "build_process_guard_failed":/);
 });
 
+test("manual Stop reuses the existing process owners and cannot claim success after cancellation", () => {
+  const native = read("src-tauri/src/commands/voice_lab_build.rs");
+  const receipts = read("src-tauri/src/commands/voice_lab_build/receipts.rs");
+  const supervisor = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py");
+  const coordinator = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_build.py");
+  const policy = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_adaptive_safety.py");
+  assert.match(native, /request_manual_stop\(&storage\(\), generation\)/);
+  assert.match(native, /cancel_requested_at/);
+  assert.match(native, /child\.try_wait\(\)/);
+  assert.match(native, /CANCEL_MAX_WAIT/);
+  assert.match(native, /!cancelling\s*&& exit\.as_ref\(\)/);
+  assert.match(native, /"TRANSLATEIT_MYVOICE_MANUAL_STOP_PATH", manual_stop_file\(&paths\)/);
+  assert.match(receipts, /"manual_cooperative_stop"/);
+  assert.match(receipts, /run_generation/);
+  assert.match(supervisor, /manual_stop_requested\(env\)/);
+  assert.match(supervisor, /MANUAL_COOPERATIVE_MAX_SECONDS/);
+  assert.match(supervisor, /on_heartbeat\(result\.state\)/);
+  assert.match(coordinator, /manual_stop_before_review/);
+  assert.match(policy, /STAGE_WARMUP_SECONDS = 90/);
+  assert.match(policy, /SOFT_PRESSURE_SAMPLES = 3/);
+  assert.doesNotMatch(native.match(/pub fn cancel_voice_lab_build\(\)[\s\S]*?\n\}/)?.[0] ?? "",
+    /\bCANCEL_WAIT\b/);
+});
+
 test("explicit compute checker remains in the release small-resource closure", () => {
   const config = JSON.parse(read("src-tauri/tauri.release.conf.json"));
   const key = "../../../Backend/LocalWorker/WorkerRuntime/my_voice_compute_probe.py";

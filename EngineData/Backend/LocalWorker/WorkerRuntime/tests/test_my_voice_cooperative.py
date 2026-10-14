@@ -63,3 +63,16 @@ def test_manual_cancel_is_run_and_generation_bound(tmp_path, monkeypatch):
     import pytest
     with pytest.raises(RuntimeError, match="manual_stop_identity_mismatch"):
         manual_stop_requested()
+
+
+
+def test_manual_stop_rejects_malformed_signal(tmp_path, monkeypatch):
+    from my_voice_cooperative import manual_stop_requested, MANUAL_STOP_ENV, GENERATION_ENV
+    import pytest
+    signal = tmp_path / "stop.json"
+    monkeypatch.setenv(TOKEN_ENV, "a" * 64)
+    monkeypatch.setenv(GENERATION_ENV, "3")
+    monkeypatch.setenv(MANUAL_STOP_ENV, str(signal))
+    signal.write_text("not json", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="manual_stop_signal_unavailable"):
+        manual_stop_requested()

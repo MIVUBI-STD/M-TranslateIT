@@ -179,6 +179,15 @@ Implemented in `Local` as unvalidated code: free-VRAM admission, batch=1, per-st
 
 **Remaining engineering:** synchronize physical GPU identity across CUDA and nvidia-smi sensors, stronger phase/heartbeat provenance, compare actual protected disk requirements during every prolonged save, and native Windows acceptance later only when the user requests it.
 
+## Runtime efficiency and manual-stop boundary (2026-10-14, source-only)
+
+- No new background worker or polling process: manual Stop writes a small run-token/generation-bound signal, the existing Python stage-supervisor loop honors it, and the Rust completion owner enforces a bounded deadline. A Stop arriving before Python launch prevents unnecessary GPU startup.
+- A cooperative request during SoVITS/GPT attempts to stop at a checkpoint epoch; other stages stop immediately. Acknowledge only a clean process exit and checkpoint candidate evidence. Never advertise optimizer resume, successful candidate generation or voice approval from this acknowledgment.
+- A 30-second heartbeat reuses the canonical run-bound status file; it establishes only that the existing supervisor remained responsive, not batch/epoch progress, GPU health certification or time to completion.
+- Soft-pressure detection waits through an initial provisional 90-second model allocation stabilization and requires three sustained pressure observations to avoid wasting early model-loading work. Emergency VRAM/RAM/disk or unknown readings still interrupt promptly. All time thresholds remain unvalidated hypotheses.
+- The local Python lock pins PyTorch Lightning `2.6.5`. CheckpointIO rejects version drift; Lightning removal requests preserve prior full checkpoint files instead of failing the run or destroying potential recovery evidence. Memory/disk headroom is still enforced.
+- **Hardware validation has not been authorized.** The Windows native process model, nested Job lifetime, ModelCheckpoint callback ordering, stage GPU allocations and safe-stop timing remain unproven until later acceptance.
+
 ## 11. External documentation used for rationale
 
 - NVIDIA RTX 3070: https://www.nvidia.com/id-id/geforce/graphics-cards/30-series/rtx-3070-3070ti/
