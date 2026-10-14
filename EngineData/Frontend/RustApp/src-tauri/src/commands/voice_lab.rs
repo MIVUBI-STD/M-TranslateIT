@@ -167,6 +167,25 @@ impl BuildLifecycle {
         Ok(self.snapshot())
     }
 
+    fn complete_review<F>(
+        &mut self, generation: u64, publish: F,
+    ) -> Result<VoiceLabBuildSnapshot, String>
+    where
+        F: FnOnce() -> Result<(), String>,
+    {
+        let active = self.active.as_ref().ok_or("voice_lab:no_active_build")?;
+        if active.generation != generation {
+            return Err("voice_lab:stale_build_generation".into());
+        }
+        if active.phase != BuildPhase::Evaluating || active.cancel_requested {
+            return Err("voice_lab:completion_blocked_by_lifecycle".into());
+        }
+        // The caller retains the existing lifecycle mutex while this
+        // create-only small receipt is published. Stop cannot interleave.
+        publish()?;
+        self.finish(generation)
+    }
+
     fn finish(&mut self, generation: u64) -> Result<VoiceLabBuildSnapshot, String> {
         let Some(active) = self.active.as_ref() else {
             return Err("voice_lab:no_active_build".to_string());
@@ -283,17 +302,10 @@ pub fn commit_voice_lab_review_if_active<F>(
 where
     F: FnOnce() -> Result<(), String>,
 {
-    let mut lifecycle = build_store()
-        .lock().map_err(|_| "voice_lab:build_state_unavailable".to_string())?;
-    let active = lifecycle.active.as_ref().ok_or("voice_lab:no_active_build")?;
-    if active.generation != generation {
-        return Err("voice_lab:stale_build_generation".into());
-    }
-    if active.phase != BuildPhase::Evaluating || active.cancel_requested {
-        return Err("voice_lab:completion_blocked_by_lifecycle".into());
-    }
-    publish()?;
-    lifecycle.finish(generation)
+    build_store()
+        .lock()
+        .map_err(|_| "voice_lab:build_state_unavailable".to_string())?
+        .complete_review(generation, publish)
 }
 
 pub fn finish_voice_lab_build(generation: u64) -> Result<VoiceLabBuildSnapshot, String> {
@@ -392,6 +404,50 @@ mod tests {
             .map(|duration| duration.as_nanos())
             .unwrap_or(0);
         std::env::temp_dir().join(format!("translateit_voicelab_{label}_{now}"))
+    }
+
+    #[test]
+    fn review_completion_refuses_a_prior_stop_without_publishing() {
+        use std::cell::Cell;
+        let mut state = BuildLifecycle::default();
+        let gen = state.begin().unwrap().generation.unwrap();
+        state.transition(gen, BuildPhase::Preparing, BuildPhase::Training).unwrap();
+        state.transition(gen, BuildPhase::Training, BuildPhase::Evaluating).unwrap();
+        state.cancel(gen).unwrap();
+        let published = Cell::new(false);
+        assert!(state.complete_review(gen, || {
+            published.set(true);
+            Ok(())
+        }).is_err());
+        assert!(!published.get());
+        assert_eq!(state.snapshot().phase, "cancelling");
+    }
+
+    #[test]
+    fn reviewed_completion_wins_before_later_stop() {
+        let mut state = BuildLifecycle::default();
+        let gen = state.begin().unwrap().generation.unwrap();
+        state.transition(gen, BuildPhase::Preparing, BuildPhase::Training).unwrap();
+        state.transition(gen, BuildPhase::Training, BuildPhase::Evaluating).unwrap();
+        let mut invoked = 0;
+        state.complete_review(gen, || {
+            invoked += 1;
+            Ok(())
+        }).unwrap();
+        assert_eq!(invoked, 1);
+        assert!(!state.snapshot().active);
+        assert!(state.cancel(gen).is_err());
+    }
+
+    #[test]
+    fn receipt_write_failure_does_not_complete_build() {
+        let mut state = BuildLifecycle::default();
+        let gen = state.begin().unwrap().generation.unwrap();
+        state.transition(gen, BuildPhase::Preparing, BuildPhase::Training).unwrap();
+        state.transition(gen, BuildPhase::Training, BuildPhase::Evaluating).unwrap();
+        assert!(state.complete_review(gen, || Err("receipt_write_failed".into())).is_err());
+        assert_eq!(state.snapshot().phase, "evaluating");
+        assert!(state.cancel(gen).is_ok());
     }
 
     fn write_wav(path: &Path, duration_ms: u64) {
