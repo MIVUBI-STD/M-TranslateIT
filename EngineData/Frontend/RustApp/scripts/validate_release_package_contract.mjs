@@ -88,6 +88,7 @@ const expectedResources = {
   "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_build.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_build.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_compute_probe.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_compute_probe.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_gpu_policy.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_gpu_policy.py",
+  "../../../Backend/LocalWorker/WorkerRuntime/my_voice_gpu_identity.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_gpu_identity.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py",
   "../../../Backend/LocalWorker/WorkerRuntime/my_voice_resource_guard.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_resource_guard.py",

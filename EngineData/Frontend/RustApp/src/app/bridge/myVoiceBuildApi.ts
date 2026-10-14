@@ -34,6 +34,9 @@ export type MyVoiceComputeStatus = {
   state: "cuda_detected" | "cpu_only" | "unavailable";
   cpu_name: string;
   gpu_name: string | null;
+  gpu_uuid: string | null;
+  cuda_index: number | null;
+  visible_cuda_devices: number;
   vram_mib: number | null;
   free_vram_mib: number | null;
   reserve_mib: number | null;

@@ -132,6 +132,9 @@ pub struct MyVoiceComputeStatus {
     pub state: String,
     pub cpu_name: String,
     pub gpu_name: Option<String>,
+    pub gpu_uuid: Option<String>,
+    pub cuda_index: Option<u32>,
+    pub visible_cuda_devices: u32,
     pub vram_mib: Option<u64>,
     pub free_vram_mib: Option<u64>,
     pub reserve_mib: Option<u64>,
@@ -147,6 +150,9 @@ impl MyVoiceComputeStatus {
             state: "unavailable".into(),
             cpu_name: "CPU name unavailable".into(),
             gpu_name: None,
+            gpu_uuid: None,
+            cuda_index: None,
+            visible_cuda_devices: 0,
             vram_mib: None,
             free_vram_mib: None,
             reserve_mib: None,
@@ -156,6 +162,14 @@ impl MyVoiceComputeStatus {
             detail: detail.into(),
         }
     }
+}
+
+fn valid_nvidia_gpu_uuid(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 40 && bytes.starts_with(b"GPU-") && bytes[4..].iter().enumerate().all(|(i, b)| {
+        (matches!(i, 8 | 13 | 18 | 23) && *b == b'-')
+            || (!matches!(i, 8 | 13 | 18 | 23) && b.is_ascii_hexdigit())
+    })
 }
 
 // Explicit-only read-only probe. Do NOT add CUDA/PyTorch imports to the
@@ -206,7 +220,10 @@ fn probe_my_voice_compute_status() -> MyVoiceComputeStatus {
                 };
                 if !matches!(report.state.as_str(), "cuda_detected" | "cpu_only" | "unavailable")
                     || !matches!(report.admission_state.as_str(), "admitted" | "blocked_gpu_headroom" | "unknown")
-                    || report.profile != "SAFE_8GB_V1"
+                    || report.profile != "SAFE_CUDA_V1"
+                    || report.visible_cuda_devices > 8
+                    || report.gpu_uuid.as_ref().is_some_and(|uuid| !valid_nvidia_gpu_uuid(uuid))
+                    || report.cuda_index.is_some_and(|index| index >= report.visible_cuda_devices)
                     || report.cpu_name.len() > 200 || report.detail.len() > 500
                     || report.gpu_name.as_ref().is_some_and(|name| name.len() > 200)
                     || report.vram_mib.is_some_and(|mib| mib > 1_048_576)
@@ -214,10 +231,12 @@ fn probe_my_voice_compute_status() -> MyVoiceComputeStatus {
                     || report.safe_budget_mib.is_some_and(|mib| mib > 1_048_576)
                     || report.reserve_mib.is_some_and(|mib| mib > 1_048_576)
                     || (report.state != "cuda_detected"
-                        && (report.gpu_name.is_some() || report.vram_mib.is_some()
+                        && (report.gpu_name.is_some() || report.gpu_uuid.is_some()
+                            || report.cuda_index.is_some() || report.vram_mib.is_some()
                             || report.free_vram_mib.is_some() || report.safe_budget_mib.is_some()))
                     || (report.state == "cuda_detected"
-                        && (report.gpu_name.is_none() || report.vram_mib.is_none()
+                        && (report.gpu_name.is_none() || report.gpu_uuid.is_none()
+                            || report.cuda_index.is_none() || report.vram_mib.is_none()
                             || report.free_vram_mib.is_none() || report.safe_budget_mib.is_none()
                             || report.reserve_mib.is_none()))
                     || (report.admission_state == "admitted"
@@ -720,12 +739,16 @@ fn start_voice_lab_build_selected(
     let compute = probe_my_voice_compute_status();
     if compute.state != "cuda_detected" || compute.admission_state != "admitted" {
         return result(false, "gpu_admission_blocked", format!(
-            "My Voice SAFE_8GB cannot start: {} Recheck the GPU and free VRAM.",
+            "My Voice cannot start on the detected device: {} Recheck GPU identification and free VRAM.",
             compute.detail
         ));
     }
     let Some(safe_budget_mib) = compute.safe_budget_mib else {
-        return result(false, "gpu_admission_blocked", "SAFE_8GB memory budget could not be verified.");
+        return result(false, "gpu_admission_blocked", "Selected GPU memory budget could not be verified.");
+    };
+    let Some(gpu_uuid) = compute.gpu_uuid.filter(|uuid| valid_nvidia_gpu_uuid(uuid)) else {
+        return result(false, "gpu_admission_blocked",
+            "Cannot safely identify the physical NVIDIA GPU for this training run.");
     };
     let resource_paths = storage();
     if let Err(error) = super::my_voice_resources::preflight(
@@ -831,6 +854,9 @@ fn start_voice_lab_build_selected(
         .arg(&run_identity.token)
         .arg("--run-generation")
         .arg(generation.to_string())
+        // Restrict all child CUDA ordinals to one verified physical GPU.
+        .env("CUDA_VISIBLE_DEVICES", &gpu_uuid)
+        .env("TRANSLATEIT_MYVOICE_GPU_UUID", &gpu_uuid)
         .env("TRANSLATEIT_MYVOICE_CACHE_ROOT", &paths.cache_root)
         .env("TRANSLATEIT_MYVOICE_SAVED_ROOT", &paths.saved_root)
         .current_dir(worker_root())

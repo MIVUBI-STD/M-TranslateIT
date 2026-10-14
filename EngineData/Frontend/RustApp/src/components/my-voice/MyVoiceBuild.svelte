@@ -407,12 +407,15 @@
         state: "unavailable",
         cpu_name: "CPU name unavailable",
         gpu_name: null,
+        gpu_uuid: null,
+        cuda_index: null,
+        visible_cuda_devices: 0,
         vram_mib: null,
         free_vram_mib: null,
         reserve_mib: null,
         safe_budget_mib: null,
         admission_state: "unknown",
-        profile: "SAFE_8GB_V1",
+        profile: "SAFE_CUDA_V1",
         detail: "Could not verify local compute hardware.",
       };
     } catch {
@@ -421,12 +424,15 @@
         state: "unavailable",
         cpu_name: "CPU name unavailable",
         gpu_name: null,
+        gpu_uuid: null,
+        cuda_index: null,
+        visible_cuda_devices: 0,
         vram_mib: null,
         free_vram_mib: null,
         reserve_mib: null,
         safe_budget_mib: null,
         admission_state: "unknown",
-        profile: "SAFE_8GB_V1",
+        profile: "SAFE_CUDA_V1",
         detail: "Hardware check failed. Retry before training.",
       };
     } finally {
@@ -594,8 +600,8 @@
       </button>
     </div>
     <p class="mb-0 mt-2 text-sm font-semibold" role="status">
-      {computeChecking ? "Checking GPU memory..." : computeStatus?.admission_state === "admitted"
-        ? "SAFE_8GB — memory check passed (training unverified)" : computeStatus?.state === "cpu_only"
+      {computeChecking ? "Checking GPU identity and memory..." : computeStatus?.admission_state === "admitted"
+        ? "Device-aware CUDA safety — preliminary memory check passed" : computeStatus?.state === "cpu_only"
         ? "CPU-only training blocked — not verified" : computeStatus?.admission_state === "blocked_gpu_headroom"
         ? "Insufficient free GPU memory" : "Training hardware unavailable"}
     </p>
@@ -604,6 +610,9 @@
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
         GPU: {computeStatus.gpu_name ?? "No usable CUDA device reported"}{computeStatus.vram_mib !== null ? ` · Total VRAM: ${Math.round(computeStatus.vram_mib / 1024 * 10) / 10} GiB` : ""}{computeStatus.free_vram_mib !== null ? ` · Currently free: ${Math.round(computeStatus.free_vram_mib / 1024 * 10) / 10} GiB` : ""}
       </p>
+      {#if computeStatus.gpu_uuid}
+        <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">Verified GPU ID: {computeStatus.gpu_uuid} · Visible CUDA devices: {computeStatus.visible_cuda_devices} · Selected CUDA index: {computeStatus.cuda_index}</p>
+      {/if}
       {#if computeStatus.safe_budget_mib !== null}
         <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">Initial per-stage budget: {Math.round(computeStatus.safe_budget_mib / 1024 * 10) / 10} GiB · Headroom reserve: {Math.round((computeStatus.reserve_mib ?? 0) / 1024 * 10) / 10} GiB · Not an absolute GPU cap.</p>
       {/if}

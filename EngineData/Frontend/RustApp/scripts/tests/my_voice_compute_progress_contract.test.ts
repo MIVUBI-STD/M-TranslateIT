@@ -17,12 +17,16 @@ test("My Voice explicit hardware check is bounded, truthful, and not build-statu
   assert.match(probe, /torch_module\.cuda\.is_available\(\)/);
   assert.match(probe, /get_device_properties\(0\)/);
   assert.match(probe, /vram_mib/);
-  assert.match(probe, /mem_get_info\(0\)/);
+  assert.match(probe, /cuda\.mem_get_info\(index\)/);
+  assert.match(probe, /cuda_device_uuid\(cuda, index\)/);
+  assert.match(probe, /sensor_reader\(uuid\)/);
   assert.match(bridge, /getComputeStatus\(\)/);
   assert.match(ui, /computeReadVersion \+= 1/);
   assert.match(ui, /computeStatus\.admission_state === "admitted"/);
   assert.match(owner, /let compute = probe_my_voice_compute_status\(\);/);
   assert.match(owner, /gpu_admission_blocked/);
+  assert.match(owner, /"CUDA_VISIBLE_DEVICES", &gpu_uuid/);
+  assert.match(owner, /"TRANSLATEIT_MYVOICE_GPU_UUID", &gpu_uuid/);
   assert.match(owner, /\.arg\("--gpu-budget-mib"\)/);
   assert.match(ui, /!computeCanStart/);
   assert.match(ui, /onTrainingComputeEligibility\?\.\(computeCanStart\)/);
@@ -95,6 +99,7 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(read("scripts/validate_release_package_contract.mjs"), /my_voice_compute_probe\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_compute_probe\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_gpu_policy\.py/);
+  assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_gpu_identity\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_single_gpu_adapter\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_resource_guard\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_adaptive_safety\.py/);
@@ -103,6 +108,7 @@ test("explicit compute checker remains in the release small-resource closure", (
   const runner = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_upstream_stage.py");
   assert.match(adapter, /single_gpu_source_revision_mismatch/);
   assert.match(adapter, /run\(0, 1, hps\)/);
+  assert.match(adapter, /sovits_preserve_physical_gpu_uuid/);
   assert.match(adapter, /strategy="auto"/);
   assert.match(runner, /single_gpu_source\(script, relative_script\.as_posix\(\)\)/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"), /evaluation_child_guard/);

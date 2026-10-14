@@ -1,10 +1,11 @@
 # Active development — My Voice SAFE_8GB
 
-**State:** SOURCE_CANDIDATE / NOT EXECUTED. **Scope:** RTX 3070 8 GB, Windows, one GPT-SoVITS V2ProPlus training pipeline. This document records current intention, not runtime proof. Earlier implementation history stays in `Local` commits and the detailed reference `docs/knowledge/proposals/2026-10-14-my-voice-safe-8gb-training.md`.
+**State:** SOURCE_CANDIDATE / NOT EXECUTED. **Scope:** device-aware Windows CUDA training across supported NVIDIA GPUs, with RTX 3070 8 GB as one reference device, one GPT-SoVITS V2ProPlus training pipeline. This document records current intention, not runtime proof. Earlier implementation history stays in `Local` commits and the detailed reference `docs/knowledge/proposals/2026-10-14-my-voice-safe-8gb-training.md`.
 
 ## Canonical source ownership
 
 - **Rust/Tauri:** sole Create/Improve resource authority, Meeting exclusion, run identity and completion receipts, native memory/disk admission, Windows build-process Job Object, final evaluation/approved-voice promotion and recovery archive.
+- **Device selection:** enumerate PyTorch CUDA-visible GPUs, verify each physical UUID against NVIDIA sensor total/free memory, choose a safely admitted GPU by current budget, then bind its UUID through Rust, Python, pinned SoVITS/GPT loader and live monitoring. The ordinal 0 is only a **local CUDA index after UUID scoping**.
 - **Python:** one existing local training coordinator; `my_voice_gpu_policy.py` (preflight arithmetic), `my_voice_adaptive_safety.py` (pure NORMAL/WATCH/PRESSURE/CRITICAL trend rules), `my_voice_stage_supervisor.py` (owned child lifecycle and telemetry), `my_voice_cooperative.py` (scoped checkpoint-boundary request/ack), `my_voice_single_gpu_adapter.py` (pinned SoVITS/GPT single-GPU compatibility). No second runtime/provider.
 - **Svelte:** presentation only; read existing Rust build snapshot and safely bound hardware advisory. No independent training state writer or invented percent/ETA.
 - **Pinned upstream:** GPT-SoVITS V2ProPlus source/model revisions remain unchanged on disk; adapter source-hash mismatch fails closed. The English-only actor/evaluation contract and eight held-out reviews remain unchanged.
@@ -21,11 +22,11 @@
 ## Explicit limitations
 
 - This is **source written to GitHub only**. No Rust/Node/Python suite, static checker, target-Windows compilation, CUDA/GPU run, generated voice listening, Meeting end-to-end test, packaging/install, fault injection or backup restore was executed during the requested source-only work. Source comparisons are not acceptance tests.
-- 8 GB is a design target and 12 GB is optional headroom, not a mandatory minimum. Provisional VRAM/RAM/disk thresholds may still block viable work or fail to prevent OOM; actual safe operating envelopes remain unknown.
+- RTX 3070 8 GB is a reference case, not a hardware-specific code path. GPU capability and free capacity determine admission; 12 GB is optional headroom, not a mandatory minimum. CPU-only, AMD/Intel GPU and Apple accelerator My Voice training remain unsupported/unverified by the current NVIDIA CUDA engine; detection alone is not compatibility. Provisional VRAM/RAM/disk thresholds may still block viable work or fail to prevent OOM; actual safe operating envelopes remain unknown.
 - Cooperative stop preserves only a possible checkpoint boundary; the model/optimizer/scheduler/AMP continuity is **not resume-certified**. UI `Stop Creating` remains the existing immediate cancellation route, not this new cooperative mechanism.
 - Global free VRAM, PyTorch allocated/reserved and OS GPU indices are not yet independently reconciled to a stable physical device identity. GPU driver faults and sudden OOM can occur between sensor readings. Checkpoint writes in pinned upstream code are not guaranteed transactional.
 - Initial stage process ownership, nested Job Object behavior, Lightning callback order, pinned source adapter runtime behavior and low-memory pipeline semantics all require future Windows evidence. Never claim zero-crash safety.
 
 ## Single next step (source-only)
 
-Review/strengthen stable GPU identity across native CUDA and NVIDIA telemetry; then inspect checkpoint writer atomicity, heartbeat provenance and graceful manual-stop integration **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.
+Inspect checkpoint writer atomicity, heartbeat provenance, per-device precision compatibility and graceful manual-stop integration **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.
