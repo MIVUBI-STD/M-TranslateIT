@@ -53,6 +53,7 @@ unsafe extern "system" {
 }
 
 #[cfg(windows)]
+#[derive(Debug)]
 pub(super) struct OwnedBuildJob {
     handle: isize,
 }
