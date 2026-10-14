@@ -39,6 +39,7 @@
 - Show Loading audio during the verification/download of Quick Preview and held-out samples, with request-identity fencing and playback/listening integrity preserved. Avoid repeated Quick Preview explanation; expose a complete immutable version ID on demand without fabricating a version date.
 - Manual backup folder path stays because the current native dialog plugin is not part of the already installed runtime; do not add a new Tauri dependency or pretend to have a folder-picker integration in a source-only UI pass.
 - These Svelte/Node test assertions are **authored only**. Layout, keyboard navigation, responsive rendering and accessibility must be assessed on an actually running Windows build at the same exact SHA; STATIC REVIEW IS NOT A VISUAL PASS.
+- The existing integrated U4/A9 Windows acceptance runbook now has bounded My Voice UI checks for the compact current-voice picker, workspace precedence, keyboard-accessible stage switching/Return to Review, pending audio indicators with stale callback handling, and saved-tool disclosures. This is an acceptance plan update, **NOT EXECUTED**; no new test harness, backend selection logic or model changes.
 
 ## Verification boundary
 
@@ -46,7 +47,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Review the current frontend-only My Voice UI batch for static markup/contract mismatches and complete a single expected-SHA Local commit. Then return to the existing one-SHA integrated compiler/source gate, followed (only after PASS) by controlled native UI, My Voice, Meeting and backup acceptance.** Preserve backend selection logic, no hosted CI, optimizer Resume, test PASS by inspection, or promotion to `main`.
+**UI/UX source and one-run acceptance criteria are ready for a single externally pinned Local-SHA developer build and Windows validation when that environment is available. Execute existing Node/Svelte/source-contract and Rust/Python checks first; after PASS, inspect actual layout, stage navigation, accessible playback/loading, Meeting voice selection and backup in the same controlled Windows session. Stop on the first demonstrated failure.** No hosted CI, incremental PC tests, invented PASS, optimizer Resume, or promotion to `main`.
 
 ## Deferred prior work
 
