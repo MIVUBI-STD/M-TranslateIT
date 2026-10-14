@@ -138,10 +138,10 @@ def torch_allocator_snapshot() -> dict[str, Any]:
     torch_module = sys.modules.get("torch")
     if torch_module is None:
         return {"state": "not_initialized"}
-    cuda = getattr(torch_module, "cuda", None)
-    if cuda is None:
-        return {"state": "unavailable", "reason": "torch_cuda_api_missing"}
     try:
+        cuda = getattr(torch_module, "cuda", None)
+        if cuda is None:
+            return {"state": "unavailable", "reason": "torch_cuda_api_missing"}
         # current_device() and allocator reads are not called before the CUDA
         # context is initialized by real model work.
         if not cuda.is_initialized():

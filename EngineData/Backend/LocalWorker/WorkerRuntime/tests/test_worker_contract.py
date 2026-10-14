@@ -481,6 +481,22 @@ def test_torch_allocator_snapshot_reports_only_measured_pytorch_bytes(monkeypatc
     }
 
 
+def test_torch_allocator_snapshot_cuda_attribute_failure_is_nonfatal(monkeypatch) -> None:
+    worker = load_worker_module()
+    common = worker.io_runtime.common
+
+    class BrokenTorch:
+        @property
+        def cuda(self):
+            raise RuntimeError("private CUDA initialization detail")
+
+    monkeypatch.setitem(sys.modules, "torch", BrokenTorch())
+    assert common.torch_allocator_snapshot() == {
+        "state": "unavailable",
+        "reason": "torch_cuda_allocator_probe_failed:RuntimeError",
+    }
+
+
 def test_torch_allocator_snapshot_failure_is_explicit_not_zero(monkeypatch) -> None:
     worker = load_worker_module()
     common = worker.io_runtime.common
