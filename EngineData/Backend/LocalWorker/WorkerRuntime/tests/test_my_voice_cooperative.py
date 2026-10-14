@@ -45,3 +45,21 @@ def test_mismatched_run_token_ignored(tmp_path, monkeypatch):
     configure(monkeypatch, tmp_path, "sovits")
     monkeypatch.setenv(TOKEN_ENV, "b" * 64)
     assert not requested("sovits")
+
+
+def test_manual_cancel_is_run_and_generation_bound(tmp_path, monkeypatch):
+    from my_voice_cooperative import manual_stop_requested, MANUAL_STOP_ENV, GENERATION_ENV
+    token = "a" * 64
+    file = tmp_path / "manual-stop.json"
+    monkeypatch.setenv(TOKEN_ENV, token)
+    monkeypatch.setenv(GENERATION_ENV, "7")
+    monkeypatch.setenv(MANUAL_STOP_ENV, str(file))
+    assert not manual_stop_requested()
+    file.write_text(json.dumps({
+        "run_token": token, "run_generation": 7, "kind": "manual_cooperative_stop",
+    }))
+    assert manual_stop_requested()
+    monkeypatch.setenv(GENERATION_ENV, "8")
+    import pytest
+    with pytest.raises(RuntimeError, match="manual_stop_identity_mismatch"):
+        manual_stop_requested()

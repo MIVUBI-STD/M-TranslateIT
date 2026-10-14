@@ -202,6 +202,7 @@ def main() -> int:
         # Available to short-lived stage children. No implicit CPU fallback.
         os.environ["TRANSLATEIT_MYVOICE_GPU_BUDGET_MIB"] = str(args.gpu_budget_mib)
         os.environ["TRANSLATEIT_MYVOICE_RUN_TOKEN"] = args.run_token
+        os.environ["TRANSLATEIT_MYVOICE_RUN_GENERATION"] = str(args.run_generation)
         dataset_dir = Path(args.dataset_dir).resolve()
         manifest = validate_manifest(dataset_dir)
         validate_dataset_signal(dataset_dir, manifest)
@@ -216,6 +217,9 @@ def main() -> int:
             manifest=manifest,
             status_writer=status,
         )
+        from my_voice_cooperative import manual_stop_requested
+        if manual_stop_requested():
+            raise BuildError("manual_stop_before_review")
         status("ready_for_review", "Voice Actor samples are ready for review.")
         return 0
     except (BuildError, VoiceLabProviderError) as exc:

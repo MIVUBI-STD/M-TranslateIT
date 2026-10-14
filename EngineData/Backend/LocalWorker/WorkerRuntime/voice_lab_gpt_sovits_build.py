@@ -233,6 +233,12 @@ def run_stage(
     source_root: Path, script: Path, env: dict[str, str], *args: str,
     status_writer: Callable[[str, str], None] | None = None,
 ) -> None:
+    from my_voice_cooperative import manual_stop_requested
+    try:
+        if manual_stop_requested():
+            raise VoiceLabProviderError("manual_stop_before_stage")
+    except RuntimeError as exc:
+        raise VoiceLabProviderError(f"manual_stop_unreadable:{exc}") from exc
     child_env = os.environ.copy()
     child_env.update(env)
     expected_uuid = os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", "")
@@ -266,6 +272,13 @@ def run_stage(
             message = f"{stage}: resource pressure has returned to normal."
         status_writer("training", message)
 
+    def heartbeat(state: str) -> None:
+        if status_writer is not None:
+            stage_name = "SoVITS" if script.name == "s2_train.py" else (
+                "GPT" if script.name == "s1_train.py" else script.name
+            )
+            status_writer("training", f"{stage_name} stage running; resource safety: {state}.")
+
     try:
         run_supervised_stage(
             [sys.executable, "-s", str(runner), str(source_root), str(script), *args],
@@ -276,6 +289,7 @@ def run_stage(
                 else "gpt" if script.name == "s1_train.py" else None
             ),
             on_safety_change=safety_change if status_writer is not None else None,
+            on_heartbeat=heartbeat if status_writer is not None else None,
         )
     except StageGuardError as exc:
         raise VoiceLabProviderError(f"upstream_stage_guard:{script.name}:{exc}") from exc

@@ -8,11 +8,42 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Mapping
 
 REQUEST_ENV = "TRANSLATEIT_MYVOICE_STOP_REQUEST"
 ACK_ENV = "TRANSLATEIT_MYVOICE_STOP_ACK"
 TOKEN_ENV = "TRANSLATEIT_MYVOICE_RUN_TOKEN"
 STAGE_ENV = "TRANSLATEIT_MYVOICE_STOP_STAGE"
+MANUAL_STOP_ENV = "TRANSLATEIT_MYVOICE_MANUAL_STOP_PATH"
+GENERATION_ENV = "TRANSLATEIT_MYVOICE_RUN_GENERATION"
+
+
+def manual_stop_requested(environment: Mapping[str, str] | None = None) -> bool:
+    """Check the existing Rust run-bound stop signal without extra workers."""
+    env = os.environ if environment is None else environment
+    name = env.get(MANUAL_STOP_ENV, "")
+    if not name:
+        return False
+    token = env.get(TOKEN_ENV, "")
+    generation = env.get(GENERATION_ENV, "")
+    if len(token) != 64 or not generation.isdecimal() or int(generation) < 1:
+        raise RuntimeError("my_voice:manual_stop_identity_missing")
+    path = Path(name)
+    try:
+        if not path.exists() and not path.is_symlink():
+            return False
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
+            raise RuntimeError("my_voice:manual_stop_signal_untrusted")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("my_voice:manual_stop_signal_unavailable") from exc
+    if not isinstance(payload, dict) or (
+        payload.get("run_token") != token
+        or payload.get("run_generation") != int(generation)
+        or payload.get("kind") != "manual_cooperative_stop"
+    ):
+        raise RuntimeError("my_voice:manual_stop_identity_mismatch")
+    return True
 
 def requested(stage: str) -> bool:
     token = os.environ.get(TOKEN_ENV, "")

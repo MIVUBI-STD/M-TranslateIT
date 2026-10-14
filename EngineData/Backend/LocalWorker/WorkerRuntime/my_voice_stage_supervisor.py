@@ -14,6 +14,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Callable
 from my_voice_adaptive_safety import PressureObserver, SafetySample, CRITICAL_GPU_MIB
@@ -21,6 +22,7 @@ from my_voice_gpu_identity import (
     DeviceIdentityError, normalize_uuid, sensor_executable, sensor_memory_mib,
 )
 from my_voice_resource_guard import snapshot as resource_snapshot
+from my_voice_cooperative import manual_stop_requested
 
 from my_voice_resource_guard import (
     ResourceGuardError, check_start as check_system_resources, critical as critical_resources,
@@ -31,6 +33,8 @@ SENSOR_INTERVAL_SECONDS = 5
 SENSOR_TIMEOUT_SECONDS = 4
 CRITICAL_FREE_MIB = CRITICAL_GPU_MIB
 MAX_BAD_SAMPLES = 2
+MANUAL_COOPERATIVE_MAX_SECONDS = 300
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 class StageGuardError(RuntimeError):
     pass
@@ -254,6 +258,7 @@ def run_supervised_stage(
     argv: list[str], *, cwd: str, env: dict[str, str], gpu_stage: bool,
     cooperative_stage: str | None = None,
     on_safety_change: Callable[[str, str], None] | None = None,
+    on_heartbeat: Callable[[str], None] | None = None,
 ) -> None:
     """One supervised stage, no throttling fiction and no automatic resume.
 
@@ -265,6 +270,11 @@ def run_supervised_stage(
         raise StageGuardError("my_voice:cooperative_stage_invalid")
     if cooperative_stage and not gpu_stage:
         raise StageGuardError("my_voice:cooperative_requires_cuda")
+    try:
+        if manual_stop_requested(env):
+            raise StageGuardError("my_voice:manual_stop_before_stage")
+    except RuntimeError as exc:
+        raise StageGuardError(str(exc)) from exc
     try:
         check_system_resources()
     except ResourceGuardError as exc:
@@ -311,7 +321,33 @@ def run_supervised_stage(
             previous_state: str | None = None
             emergency_readings = 0
             request_sent = False
+            manual_requested_at: float | None = None
+            last_heartbeat = time.monotonic()
             while proc.poll() is None:
+                # Manual stop shares this existing supervisor cycle; no new
+                # polling thread or second training process is needed.
+                try:
+                    manual = manual_stop_requested(env)
+                except RuntimeError as exc:
+                    tree.terminate()
+                    proc.wait(timeout=8)
+                    raise StageGuardError(str(exc)) from exc
+                if manual:
+                    if cooperative_stage is None:
+                        tree.terminate()
+                        proc.wait(timeout=8)
+                        raise StageGuardError("my_voice:manual_stop_nontraining_stage")
+                    if manual_requested_at is None:
+                        manual_requested_at = time.monotonic()
+                    if not request_sent:
+                        _create_cooperative_request(
+                            Path(temporary), token, cooperative_stage, "manual_stop"
+                        )
+                        request_sent = True
+                    if time.monotonic() - manual_requested_at >= MANUAL_COOPERATIVE_MAX_SECONDS:
+                        tree.terminate()
+                        proc.wait(timeout=8)
+                        raise StageGuardError("my_voice:manual_stop_safe_boundary_timeout")
                 # Read once per cycle; missing RAM/disk data is unknown and
                 # therefore never silently converted to NORMAL.
                 try:
@@ -324,6 +360,10 @@ def run_supervised_stage(
                     previous_state = result.state
                     if on_safety_change is not None:
                         on_safety_change(result.state, result.reason)
+                now = time.monotonic()
+                if on_heartbeat is not None and now - last_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
+                    on_heartbeat(result.state)
+                    last_heartbeat = now
                 if result.state in ("critical", "unknown"):
                     emergency_readings += 1
                 else:
@@ -357,9 +397,14 @@ def run_supervised_stage(
                 # boundary, NOT completion of the full training run.
                 raise StageGuardError("my_voice:cooperative_safe_stop_checkpoint_candidate")
             if request_sent:
-                # Some trainers might exit naturally before their next eligible
-                # checkpoint. Do not silently continue after a stop was requested.
+                # A clean child exit without the matching ack is not a completed
+                # run after stop was requested.
                 raise StageGuardError("my_voice:cooperative_stop_not_acknowledged")
+            try:
+                if manual_stop_requested(env):
+                    raise StageGuardError("my_voice:manual_stop_after_stage")
+            except RuntimeError as exc:
+                raise StageGuardError(str(exc)) from exc
     finally:
         if temporary:
             shutil.rmtree(temporary, ignore_errors=True)
