@@ -196,6 +196,12 @@ install_sovits_inference_writer(process_ckpt)""",
         )
         source = _replace_one(
             source,
+            '        monitor="top_3_acc",',
+            '        monitor=None,',
+            "gpt_full_checkpoint_not_metric_dependent",
+        )
+        source = _replace_one(
+            source,
             '''        save_on_train_epoch_end=True,''',
             '''        save_on_train_epoch_end=True,
         save_last=False,''',
