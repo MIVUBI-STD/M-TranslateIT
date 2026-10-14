@@ -71,7 +71,9 @@ def publish_pair(directory: Path, step: int, epoch: int) -> None:
             raise RuntimeError("my_voice:pair_receipt_collision")
         os.replace(staged, target)
     finally:
-        # Preserve any abnormal partial as attention, never as a valid pair.
+        # Crash/interrupted writes leave a .pending file for recovery to
+        # detect. os.replace consumes it on successful publication.
+        # Deliberately do not unlink an uncommitted pair receipt here.
         pass
 
 
