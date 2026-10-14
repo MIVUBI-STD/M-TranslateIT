@@ -57,7 +57,7 @@ test("typed Quick Preview bridge exposes only generation, cancellation and readi
 
 test("My Voice UI has one collapsible voice selector and a stage-aware recording workspace", () => {
   const selector = readFileSync(new URL("../../src/components/my-voice/BuiltinVoicePicker.svelte", import.meta.url), "utf8");
-  assert.match(selector, /Voice for meetings/);
+  assert.match(selector, /Current Meeting voice/);
   assert.match(selector, /aria-expanded={choicesOpen \|\| builtinPendingId !== null}/);
   assert.match(selector, /hidden={!choicesOpen && !builtinPendingId}/);
   assert.match(recordingUi, /Create My Voice/);
@@ -283,4 +283,67 @@ test("review playback hashes the actual returned WAV and never accepts a stale c
   const ended = playback.slice(playback.indexOf("player.onended ="), playback.indexOf("player.onerror ="));
   assert.match(ended, /audio !== player \|\| playbackVersion !== audioRequestVersion \|\| reviewId !== build\.evaluation_review_id/);
   assert.ok(ended.indexOf("audio !== player") < ended.indexOf("reviewedLineIds ="));
+});
+
+test("My Voice puts the compact current Meeting voice above an accessible three-stage workspace and advanced libraries below it", () => {
+  const page = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  const picker = readFileSync(new URL("../../src/components/my-voice/BuiltinVoicePicker.svelte", import.meta.url), "utf8");
+  const versions = readFileSync(new URL("../../src/components/my-voice/VoiceVersionBrowser.svelte", import.meta.url), "utf8");
+
+  const current = page.indexOf("<BuiltinVoicePicker");
+  const create = page.indexOf('aria-labelledby="my-voice-create-title"');
+  const library = page.indexOf('aria-label="Recording library"');
+  const history = page.indexOf("<VoiceVersionBrowser");
+  const backup = page.indexOf("<VoiceBackupRestore");
+  assert.ok(current >= 0 && current < create, "current voice stays above creation");
+  assert.ok(create < library && library < history && history < backup,
+    "record/create/review must precede secondary saved-version and backup controls");
+  assert.match(picker, /Current Meeting voice/);
+  assert.match(picker, /p-3 sm:p-4/);
+  assert.match(picker, /onPreview=|onSelect|onConfirm/);
+  assert.match(page, /onPreview=\{previewBuiltin\}/);
+  assert.match(page, /onSelect=\{selectBuiltin\}/);
+  assert.match(page, /onConfirm=\{confirmPendingBuiltin\}/);
+  assert.match(page, /onSelectPersonal=\{selectStoredPersonalVoice\}/);
+  assert.match(page, /onVoiceActivated=\{async \(versionId, message\)/);
+  assert.match(versions, /<details class="mt-2 text-xs/);
+  assert.match(versions, /\{voice\.version_id\}<\/code>/);
+  assert.doesNotMatch(versions, /created_at|createdAt|last_used_at/,
+    "do not invent dates or provenance which the version API cannot supply");
+
+  const nav = page.slice(page.indexOf('<nav class="mt-4'),
+    page.indexOf("hidden={!showRecordPanel}"));
+  assert.match(nav, /<nav class=/);
+  assert.match(nav, /aria-current=\{activeStage === "review" \? "step"/);
+  assert.match(nav, /disabled=\{busy \|\| recordingStatusUnknown \|\| buildStatusUnavailable/);
+  assert.match(nav, /onclick=\{\(\) => \{ selectedPane = "record"; \}\}/);
+  assert.match(nav, /onclick=\{\(\) => \{ selectedPane = "create"; \}\}/);
+  assert.match(nav, /onclick=\{\(\) => \{ selectedPane = "review"; \}\}/);
+  assert.match(page, /\{#if buildSnapshot\.evaluation_ready && !isRecording && pendingLineId === null\}/);
+  assert.match(page, /Return to Review/);
+  assert.match(page, /let selectedPane = \$state<"auto" \| "record" \| "create" \| "review">/);
+});
+
+test("My Voice keeps audio load feedback separate from verified playback and invalidates pending requests", () => {
+  const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const preview = readFileSync(new URL("../../src/components/my-voice/QuickVoicePreview.svelte", import.meta.url), "utf8");
+  const stop = ui.slice(ui.indexOf("function stopAudio()"), ui.indexOf("function schedulePoll()"));
+  const quick = ui.slice(ui.indexOf("async function playQuickPreview("), ui.indexOf("async function startBuild("));
+  const evaluation = ui.slice(ui.indexOf("async function playEvaluation("), ui.indexOf("  $effect("));
+  assert.match(ui, /let evaluationLoadingLineId = \$state<number \| null>\(null\)/);
+  assert.match(ui, /let quickPreviewLoading = \$state\(false\)/);
+  assert.match(stop, /audioRequestVersion \+= 1/);
+  assert.match(stop, /evaluationLoadingLineId = null/);
+  assert.match(stop, /quickPreviewLoading = false/);
+  assert.match(quick, /quickPreviewLoading = true/);
+  assert.match(quick, /finally \{\s*if \(!disposed && requestVersion === audioRequestVersion\) quickPreviewLoading = false/);
+  assert.match(evaluation, /evaluationLoadingLineId = lineId/);
+  assert.match(evaluation, /finally \{\s*if \(!disposed && requestVersion === audioRequestVersion\) evaluationLoadingLineId = null/);
+  assert.match(ui, /aria-busy=\{evaluationLoadingLineId === sample\.line_id\}/);
+  assert.match(ui, /evaluationLoadingLineId === sample\.line_id \? "Loading audio\.\.\."/);
+  assert.match(ui, /\{quickPreviewLoading\}/);
+  assert.match(preview, /aria-busy=\{quickPreviewLoading\}/);
+  assert.match(preview, /quickPreviewLoading \? "Loading audio\.\.\."/);
+  assert.match(evaluation, /reviewId !== build\.evaluation_review_id/);
+  assert.match(evaluation, /audio !== player \|\| playbackVersion !== audioRequestVersion/);
 });

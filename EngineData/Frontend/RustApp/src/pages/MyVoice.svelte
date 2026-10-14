@@ -65,7 +65,7 @@
   // Presentation-only copy of the build owner's VERIFIED snapshot. No second polling loop.
   let buildSnapshot = $state<MyVoiceBuildStatus | null>(null);
   let buildStatusUnavailable = $state(false);
-  let selectedPane = $state<"auto" | "record" | "create">("auto");
+  let selectedPane = $state<"auto" | "record" | "create" | "review">("auto");
   let browseLinesOpen = $state(false);
   let browseLevel = $state("all");
   let browseFocus = $state("all");
@@ -775,67 +775,6 @@
     onCancel={() => { builtinPendingId = null; }}
     onRetry={refreshVoiceSelection}
   />
-  <VoiceVersionBrowser
-    voiceChangesLocked={voiceChangesLocked || busy || !selectedVoiceVerified || buildStatusUnavailable ||
-      buildSnapshot?.active === true || buildSnapshot?.preview_active === true ||
-      recordingStatusUnknown || isRecording || pendingLineId !== null}
-    {onNotice}
-    onVoiceActivated={async (versionId, message) => {
-      if (await verifySelectedVersion(versionId) !== true) {
-        throw new Error("selected_meeting_voice_unverified");
-      }
-      buildRefreshRevision += 1;
-      await onMeetingVoiceChanged(message);
-    }}
-    onRecheck={verifySelectedVersion}
-  />
-
-
-  <VoiceBackupRestore
-    voiceChangesLocked={voiceChangesLocked || busy || improvementStarting || recordingStatusUnknown ||
-      isRecording || pendingLineId !== null || buildStatusUnavailable ||
-      buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
-    {onNotice}
-    onRestored={async () => {
-      savedLibraryPage = null;
-      if (savedLibraryOpen) await loadSavedLibrary();
-      await refreshLegacyProtection();
-    }}
-  />
-
-  {#if legacyProtectionUnknown || (legacyProtection && (legacyProtection.total_sources > 0 || legacyProtection.attention_sources > 0))}
-    <section class="ti-panel mt-4 p-4 sm:p-5" aria-label="Saved recording protection">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <strong class="text-sm font-semibold">Protect earlier recordings</strong>
-          {#if legacyProtectionUnknown}
-            <p role="status" class="mb-0 mt-1 text-sm text-[var(--ti-warning)]">
-              Couldn't verify older recordings. Their original files were not intentionally removed.
-            </p>
-          {:else if legacyProtection}
-            <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">
-              {legacyProtection.protected_sources} of {legacyProtection.total_sources} older recordings verified in saved storage. Original files stay on this computer.
-            </p>
-            {#if legacyProtection.attention_sources > 0}
-              <p role="alert" class="mb-0 mt-2 text-sm text-[var(--ti-warning)]">
-                {legacyProtection.attention_sources} recording file issues need attention. Files have not been deleted.
-              </p>
-            {/if}
-          {/if}
-        </div>
-        {#if legacyProtectionUnknown}
-          <button type="button" class="ti-button ti-button-secondary" disabled={legacyProtectionBusy} onclick={() => void refreshLegacyProtection()}>Retry status</button>
-        {:else if legacyProtection && (legacyProtection.unprotected_sources > 0 || legacyProtection.attention_sources > 0)}
-          <button type="button" class="ti-button ti-button-secondary"
-            disabled={legacyProtectionBusy || busy || voiceChangesLocked || isRecording || pendingLineId !== null || recordingStatusUnknown || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
-            onclick={() => void protectLegacyRecordings()}>
-            {legacyProtectionBusy ? "Protecting..." : "Save protected copies"}
-          </button>
-        {/if}
-      </div>
-    </section>
-  {/if}
-
   {#if recordingStatusUnknown}
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] p-4" role="alert">
       <p class="m-0 text-sm text-[var(--ti-warning)]">Couldn't verify recording status. The last confirmed state was kept.</p>
@@ -844,88 +783,6 @@
   {/if}
 
 
-  <section class="mt-4" aria-label="Recording library">
-    <button type="button" class="text-left text-sm font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
-      aria-expanded={savedLibraryOpen}
-      onclick={toggleSavedLibrary}>Saved recordings</button>
-    {#if savedLibraryOpen}
-      <div class="ti-panel mt-3 p-4 sm:p-5">
-        <p class="mb-2 text-sm leading-5 text-[var(--ti-text-muted)]">
-          Your saved recording versions remain on this computer. Listen to a saved take without changing the one used for training.
-        </p>
-        {#if savedLibraryError}
-          <p role="alert" class="text-sm text-[var(--ti-warning)]">
-            Couldn't verify saved recordings. Some files may need attention.
-          </p>
-          <button type="button" class="ti-button ti-button-secondary" disabled={savedLibraryBusy}
-            onclick={() => void loadSavedLibrary()}>Retry library</button>
-        {:else if savedLibraryBusy && !savedLibraryPage}
-          <p role="status" class="text-sm text-[var(--ti-text-muted)]">Checking saved recordings...</p>
-        {:else if savedLibraryPage}
-          {#if savedLibraryPage.attention_entries > 0}
-            <p role="alert" class="mb-3 text-sm text-[var(--ti-warning)]">
-              {savedLibraryPage.attention_entries} archive entries need attention and are not shown as verified.
-            </p>
-          {/if}
-          {#if savedLibraryPage.items.length === 0}
-            <p class="text-sm text-[var(--ti-text-muted)]">No verified saved recordings in this page yet.</p>
-          {:else}
-            <div class="space-y-2">
-              {#each savedLibraryPage.items as take (take.archive_id)}
-                <div class="flex flex-wrap items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
-                  <div class="min-w-0 flex-1">
-                    <p class="m-0 text-xs font-semibold">Line {take.line_id} · {formatRecordingDuration(take.duration_ms)}</p>
-                    <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{take.text}</p>
-                  </div>
-
-                  <label class="flex shrink-0 items-center gap-2 text-xs text-[var(--ti-text-muted)]">
-                    <input type="checkbox" class="size-4 accent-[var(--ti-accent)]"
-                      checked={improvementTakes[take.line_id] === take.archive_id}
-                      disabled={improvementStarting || busy || isRecording || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
-                      onchange={() => selectSavedTake(take)} />
-                    Include
-                  </label>
-                  <button type="button" class="ti-button ti-button-secondary"
-                    disabled={busy || replaying || voiceChangesLocked || isRecording || activeStage === "review" || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
-                    onclick={() => void playSavedRecording(take.archive_id)}>
-                    <Play size={14} /><span>{savedPlayingId === take.archive_id ? "Playing..." : "Listen"}</span>
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-
-          <div class="mt-4 border-t border-[var(--ti-border)] pt-4">
-            <strong class="text-sm font-semibold">Improve My Voice</strong>
-            <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">
-              Choose one saved recording per sentence. You can mix earlier and newer recordings.
-              Your current Meeting voice and all saved takes will be kept.
-            </p>
-            <p class="mt-2 text-sm font-medium">{improvementIds.length} recordings chosen · maximum 128 per build</p>
-            <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
-              The training check requires at least one minute of speech, a short reference recording and varied sentence categories. You don't need to finish every line.
-            </p>
-            <label class="mt-3 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
-              <input type="checkbox" class="mt-0.5 size-4 accent-[var(--ti-accent)]"
-                bind:checked={improvementAuthorized} disabled={improvementStarting} />
-              <span class="text-sm text-[var(--ti-text-muted)]">I own these recordings or have permission to create this personal voice.</span>
-            </label>
-            <button type="button" class="ti-button mt-3"
-              disabled={improvementStarting || busy || !improvementAuthorized || improvementIds.length < 2 || improvementIds.length > 128 || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || activeStage === "review"}
-              onclick={() => void startImprovement()}>
-              {improvementStarting ? "Starting..." : "Create improved version"}
-            </button>
-          </div>
-          {#if savedLibraryPage.next_cursor}
-            <button type="button" class="ti-button ti-button-secondary mt-3" disabled={savedLibraryBusy}
-              onclick={() => void loadSavedLibrary(true)}>
-              {savedLibraryBusy ? "Loading..." : "Show more recordings"}
-            </button>
-          {/if}
-        {/if}
-      </div>
-    {/if}
-  </section>
 
   <section class="border-t border-[var(--ti-border)] pt-5" aria-labelledby="my-voice-create-title">
     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -934,13 +791,22 @@
         <p class="mb-0 mt-1 text-sm leading-6 text-[var(--ti-text-muted)]">Record natural English samples, create your voice, then listen before using it.</p>
       </div>
     </div>
-    <div class="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold" aria-label="My Voice creation stages">
-      <span aria-current={activeStage === "record" ? "step" : undefined} class={activeStage === "record" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>1. Record</span>
-      <ChevronRight size={14} class="text-[var(--ti-text-soft)]" />
-      <span aria-current={activeStage === "create" ? "step" : undefined} class={activeStage === "create" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>2. Create</span>
-      <ChevronRight size={14} class="text-[var(--ti-text-soft)]" />
-      <span aria-current={activeStage === "review" ? "step" : undefined} class={activeStage === "review" ? "rounded-full bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "px-3 py-2 text-[var(--ti-text-muted)]"}>3. Review</span>
-    </div>
+    <nav class="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold" aria-label="My Voice creation stages">
+      <button type="button" aria-current={activeStage === "record" ? "step" : undefined}
+        class={activeStage === "record" ? "rounded-full border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "rounded-full px-3 py-2 text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
+        disabled={busy || recordingStatusUnknown || isRecording || pendingLineId !== null}
+        onclick={() => { selectedPane = "record"; }}>1. Record</button>
+      <ChevronRight size={14} class="text-[var(--ti-text-soft)]" aria-hidden="true" />
+      <button type="button" aria-current={activeStage === "create" ? "step" : undefined}
+        class={activeStage === "create" ? "rounded-full border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "rounded-full px-3 py-2 text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
+        disabled={busy || recordingStatusUnknown || buildStatusUnavailable || isRecording || pendingLineId !== null || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || !buildSnapshot?.can_build}
+        onclick={() => { selectedPane = "create"; }}>2. Create</button>
+      <ChevronRight size={14} class="text-[var(--ti-text-soft)]" aria-hidden="true" />
+      <button type="button" aria-current={activeStage === "review" ? "step" : undefined}
+        class={activeStage === "review" ? "rounded-full border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "rounded-full px-3 py-2 text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
+        disabled={busy || recordingStatusUnknown || buildStatusUnavailable || isRecording || pendingLineId !== null || buildSnapshot?.active === true || !buildSnapshot?.evaluation_ready}
+        onclick={() => { selectedPane = "review"; }}>3. Review</button>
+    </nav>
 
     {#if showRecordPanel && showBuildPanel}
       <p role="status" class="mb-0 mt-4 text-xs leading-5 text-[var(--ti-warning)]">A status check needs attention. Use Stop or Retry status where available before continuing.</p>
@@ -1076,7 +942,9 @@
                   </div>
                 </div>
               {/if}
-              {#if buildSnapshot.can_build && !buildSnapshot.active && !isRecording && pendingLineId === null}
+              {#if buildSnapshot.evaluation_ready && !isRecording && pendingLineId === null}
+                <button type="button" class="ti-button mt-4 w-full" disabled={buildStatusUnavailable || recordingStatusUnknown || busy} onclick={() => { selectedPane = "review"; }}>Return to Review</button>
+              {:else if buildSnapshot.can_build && !buildSnapshot.active && !isRecording && pendingLineId === null}
                 <button type="button" class="ti-button mt-4 w-full" disabled={voiceChangesLocked || buildStatusUnavailable || recordingStatusUnknown} onclick={() => { selectedPane = "create"; }}>Continue to Create</button>
               {/if}
             {:else}
@@ -1167,4 +1035,153 @@
         refreshRevision={buildRefreshRevision} />
     </div>
   </section>
+  <div class="mt-8 border-t border-[var(--ti-border)] pt-6">
+    <h3 class="mb-0 text-lg font-semibold">Saved voices &amp; tools</h3>
+    <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">Manage earlier recordings, voice versions and backups when you need them.</p>
+  </div>
+  <section class="mt-4" aria-label="Recording library">
+    <button type="button" class="text-left text-sm font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
+      aria-expanded={savedLibraryOpen}
+      onclick={toggleSavedLibrary}>Saved recordings</button>
+    {#if savedLibraryOpen}
+      <div class="ti-panel mt-3 p-4 sm:p-5">
+        <p class="mb-2 text-sm leading-5 text-[var(--ti-text-muted)]">
+          Your saved recording versions remain on this computer. Listen to a saved take without changing the one used for training.
+        </p>
+        {#if savedLibraryError}
+          <p role="alert" class="text-sm text-[var(--ti-warning)]">
+            Couldn't verify saved recordings. Some files may need attention.
+          </p>
+          <button type="button" class="ti-button ti-button-secondary" disabled={savedLibraryBusy}
+            onclick={() => void loadSavedLibrary()}>Retry library</button>
+        {:else if savedLibraryBusy && !savedLibraryPage}
+          <p role="status" class="text-sm text-[var(--ti-text-muted)]">Checking saved recordings...</p>
+        {:else if savedLibraryPage}
+          {#if savedLibraryPage.attention_entries > 0}
+            <p role="alert" class="mb-3 text-sm text-[var(--ti-warning)]">
+              {savedLibraryPage.attention_entries} archive entries need attention and are not shown as verified.
+            </p>
+          {/if}
+          {#if savedLibraryPage.items.length === 0}
+            <p class="text-sm text-[var(--ti-text-muted)]">No verified saved recordings in this page yet.</p>
+          {:else}
+            <div class="space-y-2">
+              {#each savedLibraryPage.items as take (take.archive_id)}
+                <div class="flex flex-wrap items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
+                  <div class="min-w-0 flex-1">
+                    <p class="m-0 text-xs font-semibold">Line {take.line_id} · {formatRecordingDuration(take.duration_ms)}</p>
+                    <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{take.text}</p>
+                  </div>
+
+                  <label class="flex shrink-0 items-center gap-2 text-xs text-[var(--ti-text-muted)]">
+                    <input type="checkbox" class="size-4 accent-[var(--ti-accent)]"
+                      checked={improvementTakes[take.line_id] === take.archive_id}
+                      disabled={improvementStarting || busy || isRecording || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+                      onchange={() => selectSavedTake(take)} />
+                    Include
+                  </label>
+                  <button type="button" class="ti-button ti-button-secondary"
+                    disabled={busy || replaying || voiceChangesLocked || isRecording || activeStage === "review" || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+                    onclick={() => void playSavedRecording(take.archive_id)}>
+                    <Play size={14} /><span>{savedPlayingId === take.archive_id ? "Playing..." : "Listen"}</span>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          <div class="mt-4 border-t border-[var(--ti-border)] pt-4">
+            <strong class="text-sm font-semibold">Improve My Voice</strong>
+            <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">
+              Choose one saved recording per sentence. You can mix earlier and newer recordings.
+              Your current Meeting voice and all saved takes will be kept.
+            </p>
+            <p class="mt-2 text-sm font-medium">{improvementIds.length} recordings chosen · maximum 128 per build</p>
+            <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
+              The training check requires at least one minute of speech, a short reference recording and varied sentence categories. You don't need to finish every line.
+            </p>
+            <label class="mt-3 flex items-start gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
+              <input type="checkbox" class="mt-0.5 size-4 accent-[var(--ti-accent)]"
+                bind:checked={improvementAuthorized} disabled={improvementStarting} />
+              <span class="text-sm text-[var(--ti-text-muted)]">I own these recordings or have permission to create this personal voice.</span>
+            </label>
+            <button type="button" class="ti-button mt-3"
+              disabled={improvementStarting || busy || !improvementAuthorized || improvementIds.length < 2 || improvementIds.length > 128 || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || activeStage === "review"}
+              onclick={() => void startImprovement()}>
+              {improvementStarting ? "Starting..." : "Create improved version"}
+            </button>
+          </div>
+          {#if savedLibraryPage.next_cursor}
+            <button type="button" class="ti-button ti-button-secondary mt-3" disabled={savedLibraryBusy}
+              onclick={() => void loadSavedLibrary(true)}>
+              {savedLibraryBusy ? "Loading..." : "Show more recordings"}
+            </button>
+          {/if}
+        {/if}
+      </div>
+    {/if}
+  </section>
+
+  <VoiceVersionBrowser
+    voiceChangesLocked={voiceChangesLocked || busy || !selectedVoiceVerified || buildStatusUnavailable ||
+      buildSnapshot?.active === true || buildSnapshot?.preview_active === true ||
+      recordingStatusUnknown || isRecording || pendingLineId !== null}
+    {onNotice}
+    onVoiceActivated={async (versionId, message) => {
+      if (await verifySelectedVersion(versionId) !== true) {
+        throw new Error("selected_meeting_voice_unverified");
+      }
+      buildRefreshRevision += 1;
+      await onMeetingVoiceChanged(message);
+    }}
+    onRecheck={verifySelectedVersion}
+  />
+
+
+  <VoiceBackupRestore
+    voiceChangesLocked={voiceChangesLocked || busy || improvementStarting || recordingStatusUnknown ||
+      isRecording || pendingLineId !== null || buildStatusUnavailable ||
+      buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+    {onNotice}
+    onRestored={async () => {
+      savedLibraryPage = null;
+      if (savedLibraryOpen) await loadSavedLibrary();
+      await refreshLegacyProtection();
+    }}
+  />
+
+  {#if legacyProtectionUnknown || (legacyProtection && (legacyProtection.total_sources > 0 || legacyProtection.attention_sources > 0))}
+    <section class="ti-panel mt-4 p-4 sm:p-5" aria-label="Saved recording protection">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <strong class="text-sm font-semibold">Protect earlier recordings</strong>
+          {#if legacyProtectionUnknown}
+            <p role="status" class="mb-0 mt-1 text-sm text-[var(--ti-warning)]">
+              Couldn't verify older recordings. Their original files were not intentionally removed.
+            </p>
+          {:else if legacyProtection}
+            <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">
+              {legacyProtection.protected_sources} of {legacyProtection.total_sources} older recordings verified in saved storage. Original files stay on this computer.
+            </p>
+            {#if legacyProtection.attention_sources > 0}
+              <p role="alert" class="mb-0 mt-2 text-sm text-[var(--ti-warning)]">
+                {legacyProtection.attention_sources} recording file issues need attention. Files have not been deleted.
+              </p>
+            {/if}
+          {/if}
+        </div>
+        {#if legacyProtectionUnknown}
+          <button type="button" class="ti-button ti-button-secondary" disabled={legacyProtectionBusy} onclick={() => void refreshLegacyProtection()}>Retry status</button>
+        {:else if legacyProtection && (legacyProtection.unprotected_sources > 0 || legacyProtection.attention_sources > 0)}
+          <button type="button" class="ti-button ti-button-secondary"
+            disabled={legacyProtectionBusy || busy || voiceChangesLocked || isRecording || pendingLineId !== null || recordingStatusUnknown || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true}
+            onclick={() => void protectLegacyRecordings()}>
+            {legacyProtectionBusy ? "Protecting..." : "Save protected copies"}
+          </button>
+        {/if}
+      </div>
+    </section>
+  {/if}
+
+
 </section>

@@ -193,10 +193,14 @@
             {#each versions.items as voice (voice.version_id)}
               <div class="flex flex-wrap items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
                 <div class="min-w-0 flex-1">
-                  <p class="m-0 text-sm font-semibold">Saved voice · {voice.version_id.slice(0, 10)}</p>
+                  <p class="m-0 text-sm font-semibold">Saved version · {voice.version_id.slice(0, 10)}</p>
                   <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
                     Full model integrity will be verified before use.
                   </p>
+                  <details class="mt-2 text-xs text-[var(--ti-text-muted)]">
+                    <summary class="cursor-pointer">View version ID</summary>
+                    <code class="mt-1 block break-all" title={voice.version_id}>{voice.version_id}</code>
+                  </details>
                 </div>
                 <button type="button" class="ti-button ti-button-secondary"
                   disabled={busy || error || voiceChangesLocked || selectionUnknown}

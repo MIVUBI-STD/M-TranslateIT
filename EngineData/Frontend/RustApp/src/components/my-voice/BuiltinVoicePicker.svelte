@@ -31,12 +31,12 @@
   );
 </script>
 
-<section class="ti-panel p-4 sm:p-5" aria-labelledby="my-voice-selected-heading">
+<section class="ti-panel p-3 sm:p-4" aria-labelledby="my-voice-selected-heading">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="min-w-0">
-      <h3 id="my-voice-selected-heading" class="mb-0 text-base font-semibold">Voice for meetings</h3>
-      <p class="mb-0 mt-1 text-sm font-medium">{currentLabel}</p>
-      <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
+      <h3 id="my-voice-selected-heading" class="mb-0 text-xs font-semibold uppercase tracking-wide text-[var(--ti-text-muted)]">Current Meeting voice</h3>
+      <p class="mb-0 mt-0.5 text-base font-semibold">{currentLabel}</p>
+      <p class="mb-0 mt-0.5 text-xs text-[var(--ti-text-muted)]">
         {selectedVoiceVerified
           ? (selectedVoiceKind === "none" || selectedVoiceKind === "unknown" ? "Select a voice to use for meetings." : "Selected for meetings")
           : "Couldn't verify the current selection."}

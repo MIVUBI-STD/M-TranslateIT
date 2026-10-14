@@ -50,8 +50,10 @@
   let quickPreviewBusy = $state(false);
   let quickPreviewReady = $state(false);
   let quickPreviewPlaying = $state(false);
+  let quickPreviewLoading = $state(false);
   let busy = $state(false);
   let playingLineId = $state<number | null>(null);
+  let evaluationLoadingLineId = $state<number | null>(null);
   let seenRefreshRevision = untrack(() => refreshRevision);
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
@@ -95,7 +97,9 @@
       previous.pause();
     }
     playingLineId = null;
+    evaluationLoadingLineId = null;
     quickPreviewPlaying = false;
+    quickPreviewLoading = false;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     audioUrl = null;
   }
@@ -315,14 +319,17 @@
   }
 
   async function playQuickPreview(): Promise<void> {
-    if (busy || statusCheckUnavailable || quickPreviewBusy || !quickPreviewReady || audio !== null) return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || quickPreviewLoading || !quickPreviewReady || audio !== null) return;
     const requestVersion = ++audioRequestVersion;
+    quickPreviewLoading = true;
     let bytes: ArrayBuffer | null;
     try {
       bytes = await myVoiceBuildApi.getQuickPreviewAudio();
     } catch {
       if (!disposed && requestVersion === audioRequestVersion) onNotice("Quick Preview audio couldn't be loaded.");
       return;
+    } finally {
+      if (!disposed && requestVersion === audioRequestVersion) quickPreviewLoading = false;
     }
     if (disposed || requestVersion !== audioRequestVersion || !quickPreviewReady) return;
     if (!bytes) {
@@ -411,11 +418,12 @@
   }
 
   async function playEvaluation(lineId: number): Promise<void> {
-    if (busy || statusCheckUnavailable || audio !== null) return;
+    if (busy || statusCheckUnavailable || evaluationLoadingLineId !== null || audio !== null) return;
     const reviewId = build.evaluation_review_id;
     const expectedSha256 = build.evaluation_samples.find((sample) => sample.line_id === lineId)?.sha256;
     if (!reviewId || !expectedSha256) return;
     const requestVersion = ++audioRequestVersion;
+    evaluationLoadingLineId = lineId;
     let bytes: ArrayBuffer | null;
     try {
       bytes = await myVoiceBuildApi.getEvaluationAudio(lineId, reviewId, expectedSha256);
@@ -423,6 +431,8 @@
       if (!disposed && requestVersion === audioRequestVersion && reviewId === build.evaluation_review_id)
         onNotice("This My Voice sample couldn't be loaded. Try again.");
       return;
+    } finally {
+      if (!disposed && requestVersion === audioRequestVersion) evaluationLoadingLineId = null;
     }
     if (disposed || reviewId !== build.evaluation_review_id || requestVersion !== audioRequestVersion) return;
     if (!bytes) {
@@ -523,7 +533,7 @@
   {#if quickPreviewBusy || build.preview_active}
     <div class="mt-5" role="status">
       <strong class="text-sm font-semibold">Creating Quick Preview</strong>
-      <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">Using GPT-SoVITS locally. This preview cannot be used in Meeting.</p>
+      <p class="mb-0 mt-1 text-sm text-[var(--ti-text-muted)]">Generating a temporary local listening sample.</p>
       <button type="button" class="ti-button ti-button-secondary mt-3" onclick={() => void cancelQuickPreview()}>
         <Square size={14} /><span>Stop Preview</span>
       </button>
@@ -543,8 +553,8 @@
       <div class="mt-4 space-y-2">
         {#each build.evaluation_samples as sample}
           <div class="flex items-center gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] px-4 py-3">
-            <button type="button" class="ti-button ti-button-secondary shrink-0" disabled={statusCheckUnavailable || playingLineId !== null} onclick={() => void playEvaluation(sample.line_id)}>
-              <Play size={14} /><span>{playingLineId === sample.line_id ? "Playing..." : "Preview"}</span>
+            <button type="button" class="ti-button ti-button-secondary shrink-0" aria-busy={evaluationLoadingLineId === sample.line_id} disabled={statusCheckUnavailable || playingLineId !== null || evaluationLoadingLineId !== null} onclick={() => void playEvaluation(sample.line_id)}>
+              <Play size={14} /><span aria-live="polite">{evaluationLoadingLineId === sample.line_id ? "Loading audio..." : playingLineId === sample.line_id ? "Playing..." : "Preview"}</span>
             </button>
             <span class="min-w-0 flex-1 text-sm leading-5 text-[var(--ti-text-muted)]">{sample.exact_text}</span>
             {#if reviewedLineIds.includes(sample.line_id)}
@@ -602,6 +612,7 @@
     {quickPreviewBusy}
     {quickPreviewReady}
     {quickPreviewPlaying}
+    {quickPreviewLoading}
     bind:previewAuthorized
     bind:quickPreviewOptionsOpen
     onGenerate={generateQuickPreview}

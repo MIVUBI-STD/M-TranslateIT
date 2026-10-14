@@ -2,7 +2,7 @@
   import { Play } from "@lucide/svelte";
   import type { MyVoiceBuildStatus } from "../../app/bridge/myVoiceBuildApi";
   let {
-    build, busy, quickPreviewBusy, quickPreviewReady, quickPreviewPlaying,
+    build, busy, quickPreviewBusy, quickPreviewReady, quickPreviewPlaying, quickPreviewLoading,
     previewAuthorized = $bindable(false),
     quickPreviewOptionsOpen = $bindable(false),
     onGenerate, onPlay,
@@ -12,6 +12,7 @@
     quickPreviewBusy: boolean;
     quickPreviewReady: boolean;
     quickPreviewPlaying: boolean;
+    quickPreviewLoading: boolean;
     previewAuthorized?: boolean;
     quickPreviewOptionsOpen?: boolean;
     onGenerate: () => void | Promise<void>;
@@ -22,8 +23,8 @@
 <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <strong class="text-sm font-semibold">Optional Quick Preview · Not for meetings</strong>
-        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Listen to a temporary sample before training. Not for meetings.</p>
+        <strong class="text-sm font-semibold">Quick Preview (optional) · Not for meetings</strong>
+        <p class="mb-0 mt-1 text-xs leading-5 text-[var(--ti-text-muted)]">Hear a temporary sample before full training.</p>
       </div>
       <button
         type="button"
@@ -35,18 +36,17 @@
       >{quickPreviewOptionsOpen || quickPreviewBusy || build.preview_active ? "Hide options" : "Show options"}</button>
     </div>
     <div id="my-voice-quick-preview-options" hidden={!quickPreviewOptionsOpen && !quickPreviewBusy && !build.preview_active}>
-        <p class="mb-0 mt-3 text-xs leading-5 text-[var(--ti-text-muted)]">This temporary sample is for checking your recordings. It cannot be selected for meetings.</p>
         <label class="mt-3 flex items-start gap-2 text-xs text-[var(--ti-text-muted)]">
           <input class="mt-0.5 size-4 accent-[var(--ti-accent)]" type="checkbox" bind:checked={previewAuthorized} />
           I own this voice or have permission to create a preview.
         </label>
         <div class="mt-3 flex flex-wrap gap-2">
           <button type="button" class="ti-button ti-button-secondary"
-            disabled={!previewAuthorized || busy || quickPreviewBusy || build.active || build.preview_active || build.accepted_take_count === 0}
+            disabled={!previewAuthorized || busy || quickPreviewBusy || quickPreviewLoading || build.active || build.preview_active || build.accepted_take_count === 0}
             onclick={() => void onGenerate()}>Generate Quick Preview</button>
           {#if quickPreviewReady}
-            <button type="button" class="ti-button ti-button-secondary" disabled={busy || quickPreviewBusy || quickPreviewPlaying}
-              onclick={() => void onPlay()}><Play size={14} />{quickPreviewPlaying ? "Playing..." : "Listen to Preview"}</button>
+            <button type="button" class="ti-button ti-button-secondary" aria-busy={quickPreviewLoading} disabled={busy || quickPreviewBusy || quickPreviewLoading || quickPreviewPlaying}
+              onclick={() => void onPlay()}><Play size={14} /><span aria-live="polite">{quickPreviewLoading ? "Loading audio..." : quickPreviewPlaying ? "Playing..." : "Listen to Preview"}</span></button>
           {/if}
         </div>
       </div>

@@ -1,6 +1,6 @@
 # Active development — My Voice source stabilization (2026-10-14)
 
-**State:** SOURCE_CANDIDATE — STATIC_ADMISSION_REVIEWED / EXECUTION_NOT_RUN. The current bounded My Voice source pass is provisionally frozen for the first integrated local gate, **not** compiled, quality accepted, Windows-tested or release ready.
+**State:** SOURCE_CANDIDATE — UI_UX_SOURCE_REFINEMENT / EXECUTION_NOT_RUN. The previously frozen backend source scope stays unchanged while the user-approved My Voice frontend layout receives a bounded UX pass; no UI, native, sound-quality or installed-product acceptance has been executed.
 
 **Authority:** `MIVUBI-STD/M-TranslateIT`, branch `Local`. Pin the actual `Local` HEAD for each read/write and all future executable acceptance. The 2026-10-12 partial developer checks on `230ca94faae178659a7738fa82399485c267c991` do not certify newer My Voice revisions.
 
@@ -32,13 +32,21 @@
 - **No known source-proven blocker in this bounded review.** Do not add another source patch without fresh, reproducible source or exact-SHA execution evidence. Unexecuted Svelte/Node/Rust/Python tests, native file promotion/rollback, target GPU model performance, actual voice quality, VB-CABLE/Meeting reception, backup recovery, and full installed-product acceptance all remain **UNKNOWN / NOT EXECUTED**.
 - **Existing single acceptance owner:** `docs/knowledge/operations/target-windows-performance.md`. Keep the prescribed one-SHA order: verify clean checkout and Node/Rust/Python/uv versions and locks; `npm ci`, `npm run validate:source-contracts`, `npm run typecheck`, `npm run test:frontend-runtime` plus pinned Python tests; `DEV.cmd build` with externally pinned `TRANSLATEIT_EXPECTED_SHA`; only after successful compiler/source gates, `DEV.cmd run` and controlled native My Voice / Meeting / backup scenarios. STOP and record the first failure, never skip to audio acceptance. No hosted CI, fabricated receipts, or piecemeal PC testing.
 
+## User-approved My Voice UI/UX refinement — 2026-10-14
+
+- Compact current Meeting voice selector remains at top with the **same** BuiltinVoicePicker handlers and Rust-owned selected-voice verification. No Tauri commands, selection logic, models, or voice archive formats change.
+- Prioritize the Record → Create → Review workspace directly after current voice status; collapse secondary Saved Recordings / Voice Versions / Storage & Backup and earlier-recording protection below the primary workflow. Stage labels become accessible navigation, including an explicit Return to Review from recording when a review candidate remains available.
+- Show Loading audio during the verification/download of Quick Preview and held-out samples, with request-identity fencing and playback/listening integrity preserved. Avoid repeated Quick Preview explanation; expose a complete immutable version ID on demand without fabricating a version date.
+- Manual backup folder path stays because the current native dialog plugin is not part of the already installed runtime; do not add a new Tauri dependency or pretend to have a folder-picker integration in a source-only UI pass.
+- These Svelte/Node test assertions are **authored only**. Layout, keyboard navigation, responsive rendering and accessibility must be assessed on an actually running Windows build at the same exact SHA; STATIC REVIEW IS NOT A VISUAL PASS.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.
 
 ## Single next step
 
-**Source stabilization is provisionally frozen. The only next execution step, once a local development/Windows environment is available, is the existing one-SHA integrated compiler/source gate followed (only after PASS) by controlled native My Voice, Meeting and backup acceptance. On the first failure, identify and repair its actual owner on `Local`; otherwise do not expand scope.** No hosted CI, optimizer Resume, test PASS by inspection, or promotion to `main`.
+**Review the current frontend-only My Voice UI batch for static markup/contract mismatches and complete a single expected-SHA Local commit. Then return to the existing one-SHA integrated compiler/source gate, followed (only after PASS) by controlled native UI, My Voice, Meeting and backup acceptance.** Preserve backend selection logic, no hosted CI, optimizer Resume, test PASS by inspection, or promotion to `main`.
 
 ## Deferred prior work
 
