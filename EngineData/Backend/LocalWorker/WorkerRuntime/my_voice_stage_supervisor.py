@@ -25,7 +25,8 @@ from my_voice_gpu_identity import (
 )
 from my_voice_resource_guard import snapshot as resource_snapshot
 from my_voice_cooperative import manual_stop_requested
-from my_voice_epoch_progress import read_progress
+from my_voice_epoch_progress import read_progress, read_epoch_activity
+from my_voice_stall_policy import EpochStallObserver
 
 from my_voice_resource_guard import (
     ResourceGuardError, check_start as check_system_resources,
@@ -261,6 +262,8 @@ def run_supervised_stage(
     on_safety_change: Callable[[str, str], None] | None = None,
     on_heartbeat: Callable[[str], None] | None = None,
     on_checkpoint: Callable[[str, int], None] | None = None,
+    on_stall_warning: Callable[[str, str], None] | None = None,
+    on_epoch: Callable[[str, int], None] | None = None,
 ) -> None:
     """One supervised stage, no throttling fiction and no automatic resume.
 
@@ -309,6 +312,9 @@ def run_supervised_stage(
         env["TRANSLATEIT_MYVOICE_EPOCH_PROGRESS_PATH"] = str(
             Path(temporary) / "epoch_progress.json"
         )
+        env["TRANSLATEIT_MYVOICE_EPOCH_ACTIVITY_PATH"] = str(
+            Path(temporary) / "epoch_activity.json"
+        )
     try:
         with OwnedStageTree() as tree:
             try:
@@ -329,6 +335,8 @@ def run_supervised_stage(
             manual_requested_at: float | None = None
             last_heartbeat = time.monotonic()
             last_checkpoint_epoch = 0
+            last_completed_epoch = 0
+            stage_stall = EpochStallObserver()
             generation_raw = env.get("TRANSLATEIT_MYVOICE_RUN_GENERATION", "")
             if temporary and (not generation_raw.isdecimal() or int(generation_raw) <= 0):
                 raise StageGuardError("my_voice:checkpoint_progress_generation_invalid")
@@ -382,6 +390,23 @@ def run_supervised_stage(
                         on_safety_change(effective_state, result.reason)
                 if temporary:
                     try:
+                        completed = read_epoch_activity(
+                            Path(temporary), token, int(generation_raw),
+                            cooperative_stage, last_completed_epoch,
+                        )
+                    except RuntimeError as exc:
+                        tree.terminate()
+                        proc.wait(timeout=8)
+                        raise StageGuardError(str(exc)) from exc
+                    if completed is not None:
+                        last_completed_epoch = completed
+                        stage_stall.observe_epoch(completed, now)
+                        if on_epoch is not None:
+                            on_epoch(cooperative_stage, completed)
+                    stalled_reason = stage_stall.possible_stall(now)
+                    if stalled_reason is not None and on_stall_warning is not None:
+                        on_stall_warning(cooperative_stage, stalled_reason)
+                    try:
                         epoch = read_progress(
                             Path(temporary), token, int(generation_raw),
                             cooperative_stage, last_checkpoint_epoch,
@@ -427,6 +452,18 @@ def run_supervised_stage(
             # Read the same tiny receipt once on clean exit, before accepting
             # a completed stage; no extra watcher, timer or model I/O.
             if temporary:
+                try:
+                    final_completed = read_epoch_activity(
+                        Path(temporary), token, int(generation_raw),
+                        cooperative_stage, last_completed_epoch,
+                    )
+                except RuntimeError as exc:
+                    raise StageGuardError(str(exc)) from exc
+                if final_completed is not None:
+                    last_completed_epoch = final_completed
+                    stage_stall.observe_epoch(final_completed, time.monotonic())
+                    if on_epoch is not None:
+                        on_epoch(cooperative_stage, final_completed)
                 try:
                     final_epoch = read_progress(
                         Path(temporary), token, int(generation_raw),

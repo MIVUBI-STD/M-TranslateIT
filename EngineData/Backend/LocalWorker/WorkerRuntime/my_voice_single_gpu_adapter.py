@@ -143,6 +143,8 @@ install_sovits_inference_writer(process_ckpt)""",
     print("training done")''',
             '''        scheduler_g.step()
         scheduler_d.step()
+        from my_voice_epoch_progress import publish_epoch_activity
+        publish_epoch_activity("sovits", epoch)
         from my_voice_cooperative import sovits_epoch_boundary
         if sovits_epoch_boundary(epoch, hps.train.save_every_epoch,
                                  hps.data.exp_dir, hps.model.version):
@@ -183,7 +185,9 @@ install_sovits_inference_writer(process_ckpt)""",
             from my_voice_cooperative import gpt_epoch_boundary
             gpt_epoch_boundary(
                 trainer, self.config["train"]["save_every_n_epoch"], str(self.dirpath)
-            )""",
+            )
+            from my_voice_epoch_progress import publish_epoch_activity
+            publish_epoch_activity("gpt", trainer.current_epoch + 1)""",
             "gpt_cooperative_after_checkpoint",
         )
         source = _replace_one(

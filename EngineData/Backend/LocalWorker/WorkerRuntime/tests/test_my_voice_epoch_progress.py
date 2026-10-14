@@ -34,3 +34,20 @@ def test_nonprogress_interval_does_not_fake_new_epoch(tmp_path, monkeypatch):
     assert read_progress(tmp_path, "a"*64, 3, "sovits", 0) is None
     publish_progress("sovits", 2, "pair_100.json")
     assert read_progress(tmp_path, "a"*64, 3, "sovits", 2) is None
+
+
+def test_completed_epoch_not_checkpoint(tmp_path, monkeypatch):
+    from my_voice_epoch_progress import publish_epoch_activity, read_epoch_activity
+    setup(monkeypatch, tmp_path)
+    publish_epoch_activity("sovits", 1)
+    assert read_epoch_activity(tmp_path, "a"*64, 3, "sovits", 0) == 1
+    assert read_progress(tmp_path, "a"*64, 3, "sovits", 0) is None
+    assert read_epoch_activity(tmp_path, "a"*64, 3, "sovits", 1) is None
+
+
+def test_wrong_generation_never_counted_as_epoch(tmp_path, monkeypatch):
+    from my_voice_epoch_progress import publish_epoch_activity, read_epoch_activity
+    setup(monkeypatch, tmp_path)
+    publish_epoch_activity("sovits", 1)
+    with pytest.raises(RuntimeError, match="epoch_activity_identity_mismatch"):
+        read_epoch_activity(tmp_path, "a"*64, 7, "sovits", 0)

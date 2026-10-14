@@ -56,6 +56,12 @@
 - This avoids extra polling threads, full G/D rehash just for UI progress, misleading heartbeat-based epoch claims and repeated status writes when no checkpoint advanced. Sparse heartbeat includes the last checkpoint epoch only when an actual milestone receipt was observed; it does not imply a GPU batch progressed since that checkpoint. A checkpoint event is **not** optimizer resume eligibility. Faults/stale identities remain fail-closed, and no GPU processing has been run.
 - Remaining work: exact source/packaging static consistency and process-stop outcomes; do not pretend progress is continuous when epochs between checkpoints are unknown.
 
+## Device-adaptive stall observation, NOT automatic hang killing
+
+- Added an epoch-completion event independent of full checkpoints, emitted by the source-hash-bound SoVITS/GPT trainer at epoch boundaries. It reuses the same stage supervisor loop, a separate tiny stage-scoped JSON and the canonical status writer, not another worker/monitor. Epoch evidence says only the epoch completed; no claim about checkpoint consistency or optimizer resume.
+- The bounded pure `EpochStallObserver` learns a local baseline from two completed epoch intervals on the *actual user device*, then emits one suspicious-slow-progress warning after max(20 minutes, 6× slowest of the last four observed epoch intervals). With just one completed epoch, it may warn after 45 minutes of no further epoch; with zero completed epochs it cannot establish a stall. Warnings never auto-kill a slower GPU or pretend to prove deadlock. Critical VRAM/RAM/disk telemetry and user Stop retain their separate fail-closed behavior.
+- No new worker, no model loads, and no timer or polling loop. These thresholds are provisional source design parameters, not measured performance envelopes. Epoch/Lightning source runtime proof remains deferred.
+
 ## Single next step (source-only)
 
 Review the final Rust/Python source contracts, stage heartbeat provenance and checkpoint stop semantics; then close any source-provable gaps without adding workers or changing training quality **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.

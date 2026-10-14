@@ -288,6 +288,8 @@ def run_stage(
         status_writer("training", message)
 
     last_verified_checkpoint_epoch: int | None = None
+    last_completed_epoch: int | None = None
+    stall_warning: str | None = None
 
     def checkpoint(stage: str, epoch: int) -> None:
         nonlocal last_verified_checkpoint_epoch
@@ -298,6 +300,24 @@ def run_stage(
                 "training",
                 f"{name} checkpoint written at epoch {epoch}; optimizer resume not verified.",
             )
+
+    def observed_epoch(stage: str, epoch: int) -> None:
+        nonlocal last_completed_epoch, stall_warning
+        last_completed_epoch = epoch
+        stall_warning = None
+        if status_writer is not None:
+            name = "SoVITS" if stage == "sovits" else "GPT"
+            status_writer("training",
+                          f"{name} epoch {epoch} completed (checkpoint/resume not implied).")
+
+    def stall_alert(stage: str, reason: str) -> None:
+        nonlocal stall_warning
+        stall_warning = reason
+        if status_writer is not None:
+            name = "SoVITS" if stage == "sovits" else "GPT"
+            status_writer("training",
+                          f"{name}: progress observation warning ({reason}). "
+                          "No automatic termination; current checkpoint remains protected.")
 
     def heartbeat(state: str) -> None:
         if status_writer is not None:
@@ -313,8 +333,17 @@ def run_stage(
                 if last_verified_checkpoint_epoch is not None
                 else " No checkpoint progression reported yet."
             )
+            completed = (
+                f" Last completed epoch: {last_completed_epoch}."
+                if last_completed_epoch is not None else " No completed epoch reported yet."
+            )
+            warning = (
+                f" Progress needs attention: {stall_warning}; training not automatically stopped."
+                if stall_warning is not None else ""
+            )
             status_writer("training",
-                f"{stage_name}: safety supervisor responsive ({state}).{milestone}")
+                f"{stage_name}: safety supervisor responsive ({state})."
+                f"{completed}{milestone}{warning}")
 
     try:
         run_supervised_stage(
@@ -328,6 +357,8 @@ def run_stage(
             on_safety_change=safety_change if status_writer is not None else None,
             on_heartbeat=heartbeat if status_writer is not None else None,
             on_checkpoint=checkpoint if status_writer is not None else None,
+            on_epoch=observed_epoch if status_writer is not None else None,
+            on_stall_warning=stall_alert if status_writer is not None else None,
         )
     except StageGuardError as exc:
         raise VoiceLabProviderError(f"upstream_stage_guard:{script.name}:{exc}") from exc
