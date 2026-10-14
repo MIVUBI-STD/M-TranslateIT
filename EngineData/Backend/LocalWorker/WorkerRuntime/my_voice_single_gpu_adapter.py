@@ -196,6 +196,13 @@ install_sovits_inference_writer(process_ckpt)""",
         )
         source = _replace_one(
             source,
+            '''        save_on_train_epoch_end=True,''',
+            '''        save_on_train_epoch_end=True,
+        save_last=False,''',
+            "gpt_no_redundant_last_checkpoint",
+        )
+        source = _replace_one(
+            source,
             "        callbacks=[ckpt_callback],",
             """        callbacks=[ckpt_callback],
         plugins=[create_atomic_lightning_checkpoint_io()],""",
