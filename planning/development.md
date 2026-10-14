@@ -138,11 +138,34 @@ These are future **acceptance scenarios**, not tests performed or runtime result
   No cross-platform training support or POSIX top-level process-group owner
   was introduced; Windows Job implementation remains unchanged.
 
-## Single next source-only step
+## Windows My Voice process ownership and checkpoint finalization audit — source-only (2026-10-14)
 
-Perform a bounded static review of the **Windows My Voice training process
-ownership and checkpoint finalization interactions** for unresolved
-source-provable errors. If no new defect is demonstrated, STOP further
-speculative source changes and retain native acceptance as NOT EXECUTED.
+- Found a definite exceptional-path hang: after Python spawn, a poisoned
+  `process_store()` mutex could execute unbounded `child.wait()` despite
+  the existing forced-stop timeout policy. It could also claim the child was
+  stopped without verifying that result.
+- The exception path now requests termination of its exact already-owned
+  Windows Job, performs bounded root reaping, releases the root HANDLE and
+  verifies Job descendant quiescence before describing the tree as stopped.
+  Failure retains the cancellation/attention gate and preserves existing
+  training files. Non-Windows remains unsupported and cannot claim cleanup.
+- Review publication still requires `owned_tree_quiescent.is_ok()`, an
+  authoritative ready-for-review worker receipt, and the existing
+  cancellation-versus-completion lifecycle lock. Recovery copying is refused
+  when owned child quiescence is not proven. The signed/verified checkpoint
+  and automatic optimizer-resume policies were not changed.
+- Added an exact-source regression contract covering the former unbounded
+  wait and false-success branch. Tests were authored only; no Node, Cargo,
+  Windows Job, model runtime or GPU checks were performed. An OS failure to
+  terminate a genuinely unowned process remains an environment-level
+  limitation, never a claimed success.
+
+## Single next step
+
+Keep the current `Local` source as a candidate for the existing integrated
+Windows admission and GPU/Meeting/My Voice acceptance. When local testing is
+unavailable, **STOP speculative source edits** unless a new reproducible,
+source-provable defect appears; compiler and native checks remain
+`UNKNOWN / NOT EXECUTED`.
 
 **STOP boundary:** Do not run tests, Python/Node execution, cargo, Windows/CUDA probes, fault injection or training until the user explicitly authorizes validation.

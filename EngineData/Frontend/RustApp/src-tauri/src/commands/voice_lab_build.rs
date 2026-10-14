@@ -1045,16 +1045,41 @@ fn start_voice_lab_build_selected(
             }
         }
         Err(_) => {
+            // A poisoned owner mutex is not permission to wait forever or
+            // report that the child stopped. This root has not been handed
+            // off to the normal completion thread.
             #[cfg(windows)]
             let _ = owned_job.terminate();
             #[cfg(not(windows))]
             let _ = terminate_process_tree(pid);
-            let _ = child.wait();
+            let reaped = bounded_reap_after_forced_stop(&mut child);
+            #[cfg(windows)]
+            let quiescent = if reaped.is_ok() {
+                // Release the reaped process HANDLE before querying Job
+                // accounting, or a dead root may still appear active.
+                drop(child);
+                owned_job.terminate_and_verify_quiescence().is_ok()
+            } else {
+                false
+            };
+            #[cfg(not(windows))]
+            let quiescent = { let _ = reaped; false };
+            if !quiescent {
+                // Keep the existing lifecycle's cancellation gate. On
+                // Windows the owned Job is killed on final handle close,
+                // but that fallback is not proof of completed cleanup.
+                let _ = request_voice_lab_build_cancel(generation);
+                return result(
+                    false,
+                    "build_process_guard_attention",
+                    "My Voice process ownership failed and cleanup could not be verified. Keep existing training files and do not start another build.",
+                );
+            }
             let _ = fail_voice_lab_build(generation);
             return result(
                 false,
                 "build_state_unavailable",
-                "VoiceLab started the local build process, but process ownership could not be recorded safely. The child process was stopped.",
+                "VoiceLab started the local build process, but process ownership could not be recorded safely. Its owned process tree was stopped.",
             );
         }
     }

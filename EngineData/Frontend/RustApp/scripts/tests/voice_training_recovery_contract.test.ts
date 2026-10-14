@@ -95,3 +95,20 @@ test("non-Windows top-level process cleanup never claims verified descendants", 
   assert.match(completion, /let recovery = if let Err\(error\) = &owned_tree_quiescent/);
   assert.match(completion, /if owned_tree_quiescent\.is_ok\(\) \{/);
 });
+
+test("poisoned My Voice process ownership never makes an unbounded wait or false cleanup claim", () => {
+  const build = rust("voice_lab_build.rs");
+  const launch = build.indexOf("let mut child = match command.spawn()");
+  const owner = build.indexOf("match process_store().lock()", launch);
+  const completion = build.indexOf("let worker_job = Arc::clone(&owned_job)", owner);
+  assert.ok(launch >= 0 && owner > launch && completion > owner);
+  const branch = build.slice(owner, completion);
+  assert.match(branch, /let reaped = bounded_reap_after_forced_stop\(&mut child\)/);
+  assert.match(branch, /drop\(child\);[\s\S]*owned_job\.terminate_and_verify_quiescence\(\)\.is_ok\(\)/);
+  assert.match(branch, /if !quiescent \{[\s\S]*request_voice_lab_build_cancel\(generation\)/);
+  assert.match(branch, /build_process_guard_attention/);
+  assert.doesNotMatch(branch, /child\.wait\(\)/);
+  // The common candidate/recovery gate must continue to require owned tree proof.
+  assert.match(build, /candidate = if owned_tree_quiescent\.is_ok\(\)/);
+  assert.match(build, /let recovery = if let Err\(error\) = &owned_tree_quiescent/);
+});
