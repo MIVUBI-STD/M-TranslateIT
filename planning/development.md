@@ -51,6 +51,12 @@
 - After `Child::try_wait`/`wait`, the Rust completion owner now explicitly drops the reaped `Child` handle **before** asking its owned Job for the active-process count. Windows process accounting can retain process-object references until handles are released; retaining the root handle through the query could falsely block legitimate completion/recovery.
 - Descendant cleanup and fail-closed behavior are unchanged. No extra monitor, duplicate wait, or global process kill is added. Windows handle semantics remain to be confirmed during authorized runtime testing.
 
+## CPython subprocess HANDLE lifetime before stage Job accounting — 2026-10-14
+
+- Pinned CPython 3.12 `subprocess.Popen` retains a Windows process `Handle` object until it is closed/finalized. After the stage root has exited and its returncode is cached, the existing Python supervisor now explicitly closes that root HANDLE before querying its owned Job's active-process count. This prevents a retained Python handle from potentially causing a false `stage_descendants_still_running` failure on otherwise successful stages.
+- The Job remains owned by the same supervisor and still kills true descendants if any remain; a missing/invalid HANDLE refuses to infer quiescence. No new subprocess, worker, polling loop or GPU allocation is introduced.
+- Source-only, without Python execution on Windows. This relies on the currently pinned CPython 3.12 `Popen._handle` implementation, which should be reconfirmed if the Python runtime changes.
+
 ## Next focused source-only work
 
 **P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.

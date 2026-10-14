@@ -173,6 +173,28 @@ class OwnedStageTree:
                 self.terminate()
                 raise StageGuardError("my_voice:job_assign_failed")
 
+    def release_reaped_root_handle(self) -> None:
+        """Drop CPython 3.12 Windows Popen's completed root process HANDLE.
+
+        Its Handle keeps a reference to the exited process object until
+        Close(). Job ActiveProcesses accounting should be queried only after
+        the already-waited root HANDLE is released; never close it while the
+        child is still running. The return code is cached on Popen.
+        """
+        proc = self.process
+        if proc is None or proc.returncode is None:
+            raise StageGuardError("my_voice:root_handle_release_before_exit")
+        if os.name != "nt":
+            return
+        handle = getattr(proc, "_handle", None)
+        if handle is None or not callable(getattr(handle, "Close", None)):
+            raise StageGuardError("my_voice:root_handle_unavailable")
+        try:
+            handle.Close()
+        except OSError as exc:
+            raise StageGuardError("my_voice:root_handle_close_failed") from exc
+        proc._handle = None
+
     def remaining(self) -> int:
         if os.name == "nt":
             info = _Accounting()
@@ -458,6 +480,10 @@ def run_supervised_stage(
                     proc.wait(timeout=SENSOR_INTERVAL_SECONDS)
                 except subprocess.TimeoutExpired:
                     pass
+            # The root is already reaped. Release its process-object HANDLE
+            # before counting active Job descendants; the handle itself can
+            # otherwise keep Windows accounting references alive.
+            tree.release_reaped_root_handle()
             if tree.remaining() != 0:
                 tree.terminate()
                 raise StageGuardError("my_voice:stage_descendants_still_running")
