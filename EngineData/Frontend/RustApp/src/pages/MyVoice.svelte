@@ -499,14 +499,36 @@
     }
   }
 
-  function applyResult(result: GuidedRecordingActionResult): void {
+  // A lost mutation response does not prove the backend operation failed.
+  // Keep the recording guard closed until a fresh Rust snapshot is verified.
+  async function reconcileUncertainRecordingAction(
+    message: string,
+    acceptedMayHaveChanged = false,
+  ): Promise<void> {
+    if (disposed) return;
+    recordingStatusUnknown = true;
+    onRecordingChange(true);
+    onNotice(message);
+    await refresh();
+    if (!disposed && acceptedMayHaveChanged && !recordingStatusUnknown) {
+      // Accept might have reached Rust. Refresh the read-only consumers;
+      // never repeat the mutation to guess whether a take was saved.
+      buildRefreshRevision += 1;
+      void refreshLegacyProtection();
+      if (savedLibraryOpen) void loadSavedLibrary();
+    }
+  }
+
+  async function applyResult(
+    result: GuidedRecordingActionResult,
+    acceptedMayHaveChanged = false,
+  ): Promise<void> {
     if (disposed) return;
     if (result.state === "frontend_bridge_error" || !result.recording) {
-      // The call may have reached Rust despite the missing response. Never
-      // consume the empty fallback state or assert that capture has stopped.
-      recordingStatusUnknown = true;
-      onRecordingChange(true);
-      onNotice("Couldn't verify recording status. Select Retry status before continuing.");
+      await reconcileUncertainRecordingAction(
+        "Couldn't verify the recording action. Checking recording status.",
+        acceptedMayHaveChanged,
+      );
       return;
     }
     recordingStatusUnknown = false;
@@ -546,12 +568,11 @@
     busy = true;
     try {
       selectedPane = "record";
-      applyResult(await myVoiceApi.startTake(selectedLineId, authorized));
+      await applyResult(await myVoiceApi.startTake(selectedLineId, authorized));
     } catch {
-      if (!disposed) {
-        onNotice("Couldn't confirm whether recording started. Check the recording status.");
-        await refresh();
-      }
+      await reconcileUncertainRecordingAction(
+        "Couldn't confirm whether recording started. Checking recording status.",
+      );
     } finally {
       busy = false;
     }
@@ -562,7 +583,7 @@
     busy = true;
     try {
       const result = await myVoiceApi.stopTake(recordingState.recording_line_id);
-      applyResult(result);
+      await applyResult(result);
       if (result.recording?.pending_review && result.state === "needs_review") {
         // Stop is replaced by Replay; give keyboard users a stable next action.
         busy = false;
@@ -570,10 +591,9 @@
         if (!disposed) reviewReplayButton?.focus();
       }
     } catch {
-      if (!disposed) {
-        onNotice("Couldn't confirm whether recording stopped. Check the recording status.");
-        await refresh();
-      }
+      await reconcileUncertainRecordingAction(
+        "Couldn't confirm whether recording stopped. Checking recording status.",
+      );
     } finally {
       busy = false;
     }
@@ -585,14 +605,16 @@
     busy = true;
     try {
       const result = await myVoiceApi.retryTake(pendingLineId);
-      applyResult(result);
+      await applyResult(result);
       if (result.ok && result.recording && !result.recording.pending_review) {
         busy = false;
         await tick();
         if (!disposed) recordActionButton?.focus();
       }
     } catch {
-      if (!disposed) onNotice("Couldn't retry this recording. Try again.");
+      await reconcileUncertainRecordingAction(
+        "Couldn't confirm whether the pending recording was discarded. Checking recording status.",
+      );
     } finally {
       busy = false;
     }
@@ -603,8 +625,9 @@
     stopReplay();
     busy = true;
     try {
-      const result = await myVoiceApi.acceptTake(pendingLineId);
-      applyResult(result);
+      const acceptedLineId = pendingLineId;
+      const result = await myVoiceApi.acceptTake(acceptedLineId);
+      await applyResult(result, true);
       if (result.ok && result.recording) {
         // Keep the recording workspace stable after an explicit Accept.
         // The backend may already permit Create; the user controls that transition.
@@ -612,13 +635,16 @@
         buildRefreshRevision += 1;
         void refreshLegacyProtection();
         if (savedLibraryOpen) void loadSavedLibrary();
-        selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? pendingLineId;
+        selectedLineId = result.recording.lines.find((line) => !line.accepted)?.line_id ?? acceptedLineId;
         busy = false;
         await tick();
         if (!disposed) recordActionButton?.focus();
       }
     } catch {
-      if (!disposed) onNotice("Couldn't confirm that this recording was saved. Check your recordings before trying again.");
+      await reconcileUncertainRecordingAction(
+        "Couldn't confirm whether the recording was saved. Checking recording status.",
+        true,
+      );
     } finally {
       busy = false;
     }

@@ -40,3 +40,40 @@ test("background Voice build completion uses a global backend event", () => {
   assert.match(voiceSync, /unlisten\?\.\(\)/);
   assert.doesNotMatch(app, /onRuntimeStateChanged/);
 });
+
+const myVoicePage = readFileSync(
+  new URL("../../src/pages/MyVoice.svelte", import.meta.url),
+  "utf8",
+);
+
+function myVoiceAction(name: string): string {
+  const start = myVoicePage.indexOf(`async function ${name}(`);
+  assert.ok(start >= 0, `Missing My Voice action ${name}`);
+  const end = myVoicePage.indexOf("\n  }", start);
+  assert.ok(end > start, `Missing end of My Voice action ${name}`);
+  return myVoicePage.slice(start, end);
+}
+
+test("unknown recording mutation responses re-read backend truth without repeating writes", () => {
+  const reconcile = myVoiceAction("reconcileUncertainRecordingAction");
+  assert.match(reconcile, /recordingStatusUnknown = true/);
+  assert.match(reconcile, /onRecordingChange\(true\)/);
+  assert.match(reconcile, /await refresh\(\)/);
+  assert.match(reconcile, /!recordingStatusUnknown/);
+  const result = myVoiceAction("applyResult");
+  assert.match(result, /frontend_bridge_error/);
+  assert.match(result, /!result\.recording/);
+  assert.match(result, /await reconcileUncertainRecordingAction\(/);
+
+  for (const name of ["startRecording", "stopRecording", "retryTake", "acceptTake"]) {
+    const body = myVoiceAction(name);
+    assert.match(body, /await applyResult\(/, `${name} must await reconciliation`);
+    assert.match(body, /catch \{\s*await reconcileUncertainRecordingAction\(/,
+      `${name} must reconcile an unknown mutation outcome`);
+  }
+  const accept = myVoiceAction("acceptTake");
+  assert.match(accept, /await applyResult\(result, true\)/);
+  assert.match(accept, /acceptedLineId/);
+  assert.match(accept, /reconcileUncertainRecordingAction\([\s\S]*?true/);
+  assert.doesNotMatch(accept.slice(accept.indexOf("} catch {")), /myVoiceApi\.acceptTake\(/);
+});

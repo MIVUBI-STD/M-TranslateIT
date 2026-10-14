@@ -9,6 +9,7 @@
 - Preserve the current Tauri/Svelte + Rust storage owner + one Python worker, GPT-SoVITS V2ProPlus revision, 600 guided English prompts and the **128-take maximum per build**. The larger prompt catalog is not a promise to train 600 takes at once.
 - Keep ordinary recording, Quick Preview, frozen-dataset Create, eight held-out review samples, explicit approval/Meeting selection, saved-version Improve (rebuild), and immutable backup as the first-release target.
 - Preserve previous saved recordings and selected Meeting voice; unknown storage/worker state fails closed. Backup verification requires receipt-to-payload **and payload-to-receipt** linkage and content-addressed receipt identity; unreferenced archive bytes are not restorable objects.
+- Ambiguous Start/Stop/Retry/Accept recording outcomes keep recording coordination locked until a fresh Rust status read. Accepted-take consumers refresh after uncertain Accept without replaying its write.
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
@@ -18,7 +19,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Audit the My Voice Record → Create → Review → Approve → Meeting transition on exact current `Local` source, identify the first reproducible source-contract failure or contradictory UI/backend state, and repair it with a focused regression test.** Avoid unrelated UI redesign, new voice engines, and broader checkpoint-Resume implementation.
+**Audit Create → Review → Approve → Meeting transitions on exact current `Local` source; repair the first source-provable build/approval/selection failure with focused regression coverage.** Preserve existing listening and consent gates; avoid UI redesign, new engines, and Resume expansion.
 
 ## Deferred prior work
 
