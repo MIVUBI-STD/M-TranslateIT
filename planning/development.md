@@ -88,6 +88,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 - On the rare failure to prove that the suspended Rust process stopped, the native lifecycle stays in cancelling/attention state and prevents launching another training generation rather than claiming a clean failure. These exceptional paths cannot guarantee orphan prevention when Windows itself refuses termination; explicit diagnostics remain required.
 - This is unexecuted source; do not claim fault containment is validated.
 
+## Source-only POSIX process group ownership — 2026-10-14
+
+- The stage supervisor no longer treats root PID exit as proof that all POSIX descendants exited. Because a POSIX stage starts in its own new session, the supervisor checks its specific stage process-group ID even after root exit and sends SIGKILL only to that dedicated group if descendants remain.
+- Uncertain group ownership, permissions, and leftover descendants continue to fail closed. This **does not** enable My Voice training on Linux/macOS: the current native admission is Windows-only, and no cross-platform training claims are made. The main Rust non-Windows process owner needs separate hardening before any future non-Windows backend is supported.
+- No new stage, process, watcher or polling channel was introduced. Source fixtures authored but not executed.
+
 ## Single next source-only step
 
 Review whether a Python stage subprocess can leave a live descendant after its root exits in **non-Windows** packaging, and audit all source return-code/exception paths for fail-closed behavior. Do not alter `main`, change the selected GPU policy, or enable optimizer resume.

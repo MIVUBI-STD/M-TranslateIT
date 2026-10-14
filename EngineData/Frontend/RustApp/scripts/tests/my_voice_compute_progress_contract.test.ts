@@ -101,6 +101,8 @@ test("device-aware CUDA resource and process controls fail closed at native boun
   assert.match(supervisor, /on_safety_change\(result.state, result.reason\)/);
   assert.match(supervisor, /proc\.returncode != 0/);
   assert.match(supervisor, /tree\.release_reaped_root_handle\(\)/);
+  assert.match(supervisor, /os\.killpg\(self\.process\.pid, 0\)/);
+  assert.match(supervisor, /os\.killpg\(self\.process\.pid, signal\.SIGKILL\)/);
   assert.match(supervisor, /handle\.Close\(\)/);
   assert.match(owner, /stopped_at_checkpoint_boundary/);
   assert.match(systemGuard, /START_CACHE_MIB = 12 \* 1024/);

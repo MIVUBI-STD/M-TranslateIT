@@ -28,3 +28,14 @@ def test_windows_unassigned_root_cleanup_is_not_a_job_kill_only():
     ).read_text(encoding="utf-8")
     assert "proc.kill()" in source
     assert "unowned_suspended_stage_cleanup_unconfirmed" in source
+
+
+def test_posix_root_exit_does_not_prove_child_process_group_empty():
+    # Source contract; do not spawn or signal real processes in this fixture.
+    from pathlib import Path
+    source = Path(__file__).resolve().parents[1].joinpath(
+        "my_voice_stage_supervisor.py"
+    ).read_text(encoding="utf-8")
+    assert "os.killpg(self.process.pid, 0)" in source
+    assert "os.killpg(self.process.pid, signal.SIGKILL)" in source
+    assert "start_new_session=os.name != \"nt\"" in source

@@ -213,17 +213,34 @@ class OwnedStageTree:
             ):
                 raise StageGuardError("my_voice:job_accounting_unavailable")
             return int(info.ActiveProcesses)
-        return int(self.process is not None and self.process.poll() is None)
+        if self.process is None:
+            return 0
+        if self.process.poll() is None:
+            return 1
+        # Each POSIX stage is launched with start_new_session=True, so the
+        # root PID is also the isolated process-group ID. Root exit alone
+        # does not establish that forked CUDA/data-loader children exited.
+        try:
+            os.killpg(self.process.pid, 0)
+        except ProcessLookupError:
+            return 0
+        except PermissionError as exc:
+            raise StageGuardError("my_voice:posix_process_group_unverifiable") from exc
+        return 1
 
     def terminate(self) -> None:
         if os.name == "nt" and self.handle:
             if not kernel.TerminateJobObject(self.handle, 1):
                 raise StageGuardError("my_voice:job_terminate_failed")
-        elif self.process is not None and self.process.poll() is None:
+        elif self.process is not None:
+            # Owned isolated stage process group, not an arbitrary PID.
+            # Descendants must be killed even when their root already exited.
             try:
                 os.killpg(self.process.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+            except PermissionError as exc:
+                raise StageGuardError("my_voice:posix_process_group_termination_denied") from exc
 
     def close(self) -> None:
         if os.name == "nt" and self.handle:
@@ -235,22 +252,27 @@ class OwnedStageTree:
 
     def __exit__(self, _kind: Any, _exc: Any, _tb: Any) -> None:
         try:
-            if self.process is not None and self.process.poll() is None:
-                # If assignment never succeeded, Job termination alone does
-                # not cover this suspended child. The attach() failure path
-                # uses Popen.kill(); here we also attempt exact-root cleanup.
-                if os.name == "nt":
+            if self.process is not None:
+                should_cleanup = (
+                    self.process.poll() is None if os.name == "nt"
+                    else self.remaining() != 0
+                )
+                if should_cleanup:
+                    # Windows assignment failures may leave an unassigned
+                    # suspended root; kill that exact Child. On POSIX, always
+                    # terminate the dedicated stage group including orphans.
+                    if os.name == "nt":
+                        try:
+                            self.process.kill()
+                        except OSError:
+                            pass
+                    self.terminate()
                     try:
-                        self.process.kill()
-                    except OSError:
-                        pass
-                self.terminate()
-                try:
-                    self.process.wait(timeout=8)
-                except subprocess.TimeoutExpired as exc:
-                    raise StageGuardError(
-                        "my_voice:stage_cleanup_not_confirmed"
-                    ) from exc
+                        self.process.wait(timeout=8)
+                    except subprocess.TimeoutExpired as exc:
+                        raise StageGuardError(
+                            "my_voice:stage_cleanup_not_confirmed"
+                        ) from exc
         finally:
             self.close()
 
