@@ -43,6 +43,12 @@
 - Added generation-bound manual Stop checks at CPU-side boundaries: before workdir creation, feature extraction, SoVITS/GPT training, held-out evaluation, each new evaluation candidate, and candidate promotion. This reuses one existing stop file rather than extra worker/threads and prevents avoidable GPU launches after Stop.
 - These are source changes only. Checkpoint integrity, native Windows behavior, Lightning plugin API and generation races remain unproven until later explicit validation.
 
+## Source-only follow-up: bounded optimizer checkpoint budget
+
+- Identified an internal count mismatch: saving full GPT optimizer state every epoch could produce at least 15 checkpoint files plus last-version variants, exceeding the Rust recovery group limit of eight and blocking recovery on a failed run.
+- Reduced full-checkpoint frequency from epoch-count/CUDA model heuristics to one generic bounded budget: up to four SoVITS G/D paired saves and up to five GPT full-save epochs across the fixed training schedule. Full optimizer checkpoint timing is about 2 SoVITS epochs or 3 GPT epochs; expected worst-case named checkpoint inventory (including historical Lightning `last*` names) fits the now bounded Rust limit of 28 files and 12/group. The existing 48 GiB total capacity limit and actual free-disk admission are **not relaxed**. This trades more time between valid full checkpoints for significantly fewer costly disk writes; full optimizer resume is still unavailable.
+- Repaired authored SoVITS cooperative-stop fixture to require a hash-bound G/D pair receipt, rather than merely two arbitrarily named nonempty files. No tests or GPU stages were executed.
+
 ## Single next step (source-only)
 
 Review the final Rust/Python source contracts, stage heartbeat provenance and checkpoint stop semantics; then close any source-provable gaps without adding workers or changing training quality **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.

@@ -21,7 +21,13 @@ use crate::commands::voice_lab::VOICE_ACTOR_ENGINE_REVISION;
 const FORMAT: u32 = 1;
 const LIMIT_FILE: u64 = 8 * 1024 * 1024 * 1024;
 const LIMIT_TOTAL: u64 = 48 * 1024 * 1024 * 1024;
-const LIMIT_COUNT: usize = 22;
+// Four SoVITS complete G/D pairs => 12 entries. Five GPT epoch
+// saves may create 5 named checkpoints plus up to 5 Lightning last*
+// versions when pruning is disabled. Two source configs => <= 24 entries.
+// Include headroom for an in-flight duplicate without accepting unbounded
+// checkpoint accumulation.
+const LIMIT_COUNT: usize = 28;
+const MAX_FILES_PER_GROUP: usize = 12;
 const MAX_RECEIPT: u64 = 16 * 1024;
 static CAPTURE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
@@ -101,7 +107,7 @@ fn collect_checkpoint_files(dir: &Path, group: &str) -> Result<Vec<Input>, Strin
             return Err("voice_lab:recovery_checkpoint_untrusted".into());
         }
         files.push(Input { label: String::new(), source: entry.path(), original_filename: name });
-        if files.len() > 8 {
+        if files.len() > MAX_FILES_PER_GROUP {
             return Err("voice_lab:recovery_checkpoint_count_exceeded".into());
         }
     }
@@ -398,7 +404,8 @@ mod tests {
     #[test]
     fn captured_state_is_explicitly_not_automatically_resumable() {
         assert_eq!(FORMAT, 1);
-        assert!(LIMIT_COUNT <= 22);
+        assert!(LIMIT_COUNT <= 28);
+        assert!(MAX_FILES_PER_GROUP >= 12);
         assert!(LIMIT_TOTAL >= LIMIT_FILE);
     }
     #[test]

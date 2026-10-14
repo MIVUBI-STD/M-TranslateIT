@@ -26,6 +26,8 @@ def test_sovits_never_yields_before_checkpoint_epoch(tmp_path, monkeypatch):
     (directory / "D_1.pth").write_bytes(b"y" * 4097)
     assert not sovits_epoch_boundary(1, 2, str(tmp_path), "v2ProPlus")
     assert not ack.exists()
+    from my_voice_checkpoint_pair import publish_pair
+    publish_pair(directory, 1, 2)
     assert sovits_epoch_boundary(2, 2, str(tmp_path), "v2ProPlus")
     assert json.loads(ack.read_text())["kind"] == "checkpoint_candidate_not_resume_verified"
 

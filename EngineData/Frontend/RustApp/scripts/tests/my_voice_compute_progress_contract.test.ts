@@ -136,6 +136,12 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(adapter, /install_sovits_atomic_writer\(utils\)/);
   assert.match(adapter, /create_atomic_lightning_checkpoint_io\(\)/);
   assert.match(adapter, /gpt_cooperative_after_checkpoint/);
+  const build = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py");
+  const recovery = read("src-tauri/src/commands/voice_lab/storage/training_recovery.rs");
+  assert.match(build, /MAX_FULL_SOVITS_PAIR_SAVES = 4/);
+  assert.match(build, /MAX_FULL_GPT_SAVE_EPOCHS = 5/);
+  assert.match(recovery, /MAX_FILES_PER_GROUP: usize = 12/);
+  assert.match(recovery, /LIMIT_COUNT: usize = 28/);
   assert.doesNotMatch(adapter, /MyVoiceSafeStopOnCheckpoint/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_cooperative.py"), /epoch=\{epoch-1\}-step=/);
   assert.match(adapter, /atomic_gpt_inference_save as my_save/);

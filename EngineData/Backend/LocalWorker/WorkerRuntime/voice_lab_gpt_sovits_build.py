@@ -49,6 +49,20 @@ from voice_lab_gpt_sovits import (
 )
 from voice_lab_speaker_consistency import inspect_speaker_embeddings
 
+# Full optimizer checkpoints are significantly larger than inference weights.
+# Keep bounded checkpoint opportunities without exhausting the immutable
+# recovery inventory (G + D + one pair receipt per SoVITS save).
+MAX_FULL_SOVITS_PAIR_SAVES = 4
+MAX_FULL_GPT_SAVE_EPOCHS = 5
+
+def optimizer_checkpoint_interval(total_epochs: int, max_saves: int) -> int:
+    if type(total_epochs) is not int or total_epochs <= 0:
+        raise VoiceLabProviderError("checkpoint_epoch_count_invalid")
+    if type(max_saves) is not int or max_saves <= 0:
+        raise VoiceLabProviderError("checkpoint_save_budget_invalid")
+    # ceil div; controls how many large optimizer snapshots can be created.
+    return max(1, (total_epochs + max_saves - 1) // max_saves)
+
 
 def source_assets(source_root: Path) -> dict[str, Path]:
     assets = inference_source_assets(source_root)
@@ -388,8 +402,12 @@ def training_configs(
     if os.environ.get("CUDA_VISIBLE_DEVICES") != physical_uuid:
         raise VoiceLabProviderError("gpu_uuid_changed_before_training")
     batch, half = batch_and_half()
-    sovits_save_every = max(1, SOVITS_EPOCHS // MAX_TRAINING_CANDIDATES)
-    gpt_save_every = max(1, GPT_EPOCHS // MAX_TRAINING_CANDIDATES)
+    sovits_save_every = optimizer_checkpoint_interval(
+        SOVITS_EPOCHS, MAX_FULL_SOVITS_PAIR_SAVES
+    )
+    gpt_save_every = optimizer_checkpoint_interval(
+        GPT_EPOCHS, MAX_FULL_GPT_SAVE_EPOCHS
+    )
 
     s2 = json.loads(assets["s2_config"].read_text(encoding="utf-8"))
     s2["train"].update(
