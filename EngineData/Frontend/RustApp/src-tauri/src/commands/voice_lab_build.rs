@@ -879,17 +879,29 @@ pub fn get_voice_lab_actor_versions(after: Option<String>) -> Result<ActorVersio
 }
 
 /// Explicit read-only check of the currently selected Meeting actor's exact
-/// immutable version identity; never run this costly hash during polling.
+/// immutable version identity. Full model SHA-256 hashing is blocking I/O:
+/// never run this on Tauri's UI thread or in routine status polling.
 #[tauri::command]
-pub fn get_voice_lab_selected_version_match(version_id: String) -> Result<bool, String> {
-    if meeting_blocks_voice_change() || voice_lab_build_blocks_meeting()
-        || voice_lab_recording_active() || super::voice_lab_preview::quick_voice_preview_active()
-    {
-        return Err("voice_lab:version_identity_busy".into());
-    }
-    let _guard = voice_selection_guard()
-        .map_err(|_| "voice_lab:version_identity_lock_unavailable".to_string())?;
-    selected_personal_actor_matches_version(&storage(), &version_id)
+pub async fn get_voice_lab_selected_version_match(version_id: String) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if meeting_blocks_voice_change() || voice_lab_build_blocks_meeting()
+            || voice_lab_recording_active() || super::voice_lab_preview::quick_voice_preview_active()
+        {
+            return Err("voice_lab:version_identity_busy".into());
+        }
+        let _guard = voice_selection_guard()
+            .map_err(|_| "voice_lab:version_identity_lock_unavailable".to_string())?;
+        // Re-check after lock acquisition: a voice resource may have changed
+        // while this request waited for an earlier version selection.
+        if meeting_blocks_voice_change() || voice_lab_build_blocks_meeting()
+            || voice_lab_recording_active() || super::voice_lab_preview::quick_voice_preview_active()
+        {
+            return Err("voice_lab:version_identity_busy".into());
+        }
+        selected_personal_actor_matches_version(&storage(), &version_id)
+    })
+    .await
+    .map_err(|_| "voice_lab:version_identity_worker_failed".to_string())?
 }
 
 /// Explicit opt-in restoration from a full immutable and validated actor

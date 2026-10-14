@@ -110,7 +110,7 @@ test("on-demand selected actor fingerprint proves exact version without hashing 
   assert.match(store, /ActorKind::Personal => actor_history::selected_actor_matches_version/);
   assert.match(store, /ActorKind::Builtin\(_\) => Ok\(false\)/);
   assert.match(facade, /selected_personal_actor_matches_version/);
-  assert.match(build, /pub fn get_voice_lab_selected_version_match\(version_id: String\) -> Result<bool, String>/);
+  assert.match(build, /pub async fn get_voice_lab_selected_version_match\(version_id: String\) -> Result<bool, String>/);
   assert.match(build, /selected_personal_actor_matches_version\(&storage\(\), &version_id\)/);
   assert.match(registry, /voice_lab_build::get_voice_lab_selected_version_match/);
   assert.match(bridge, /get_voice_lab_selected_version_match", \{ versionId \}/);
@@ -144,4 +144,27 @@ test("a verified different Meeting actor unlocks retry without pretending restor
   assert.match(page, /if \(selectedVoiceKind !== "personal"\) return false/);
   assert.match(page, /return await myVoiceBuildApi\.verifySelectedVoiceVersion\(versionId\)/);
   assert.match(page, /if \(await verifySelectedVersion\(versionId\) !== true\)/);
+});
+
+test("exact selected-version fingerprint runs off the UI thread and rechecks resource guards under selection lock", () => {
+  const build = rust("voice_lab_build.rs");
+  const registry = rust("registry.rs");
+  const bridge = frontend("app/bridge/myVoiceBuildApi.ts");
+  const start = build.indexOf("pub async fn get_voice_lab_selected_version_match(");
+  const end = build.indexOf("/// Explicit opt-in restoration", start);
+  assert.ok(start >= 0 && end > start);
+  const command = build.slice(start, end);
+  assert.match(command, /tauri::async_runtime::spawn_blocking\(move \|\| \{/);
+  assert.match(command, /\.await\s*\.map_err\(\|_\| "voice_lab:version_identity_worker_failed"/);
+  const lock = command.indexOf("let _guard = voice_selection_guard()");
+  const hash = command.indexOf("selected_personal_actor_matches_version(&storage(), &version_id)");
+  assert.ok(lock >= 0 && hash > lock);
+  const resourceChecks = [...command.matchAll(/meeting_blocks_voice_change\(\) \|\| voice_lab_build_blocks_meeting\(\)/g)];
+  assert.equal(resourceChecks.length, 2, "check before and after acquiring the shared selection lock");
+  assert.ok(resourceChecks[0]!.index < lock && resourceChecks[1]!.index > lock);
+  assert.ok(resourceChecks[1]!.index < hash);
+  assert.match(registry, /voice_lab_build::get_voice_lab_selected_version_match/);
+  assert.match(bridge, /runCommand<boolean>\("get_voice_lab_selected_version_match", \{ versionId \}\)/);
+  const polling = build.slice(build.indexOf("fn current_status()"), build.indexOf("fn result("));
+  assert.doesNotMatch(polling, /get_voice_lab_selected_version_match|selected_personal_actor_matches_version/);
 });
