@@ -23,7 +23,10 @@ def save_json(path: Path, data: dict) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def fixture(root: Path, *, omit_discriminator: bool = False) -> str:
+def fixture(
+    root: Path, *, omit_discriminator: bool = False,
+    paired: bool = False, incorrect_pair_sha: bool = False,
+) -> str:
     saved = root / "VoiceLab"
     audio = b"RIFF" + b"\0" * 100
     digest = hashlib.sha256(audio).hexdigest()
@@ -62,6 +65,24 @@ def fixture(root: Path, *, omit_discriminator: bool = False) -> str:
     ]
     if not omit_discriminator:
         archive_parts.append(("sovits-D-0.pth", "D_233333333333.pth", b"discriminator state"))
+    if paired:
+        g_bytes, d_bytes = b"G" * 8192, b"D" * 8192
+        archive_parts = [
+            (name, "G_120.pth", g_bytes) if name == "sovits-G-0.pth"
+            else (name, "D_120.pth", d_bytes) if name == "sovits-D-0.pth"
+            else (name, original, content)
+            for name, original, content in archive_parts
+        ]
+        pair_receipt = {
+            "format": 1, "epoch": 2, "global_step": 120,
+            "generator": {"name": "G_120.pth", "bytes": len(g_bytes),
+                          "sha256": hashlib.sha256(g_bytes).hexdigest()},
+            "discriminator": {"name": "D_120.pth", "bytes": len(d_bytes),
+                              "sha256": ("0" * 64 if incorrect_pair_sha
+                                         else hashlib.sha256(d_bytes).hexdigest())},
+        }
+        pair_raw = json.dumps(pair_receipt, separators=(",", ":"), sort_keys=True).encode()
+        archive_parts.append(("sovits-pair-0.json", "pair_120.json", pair_raw))
     archive_parts.sort(key=lambda part: part[0])
     parts = [
         {
@@ -102,6 +123,22 @@ class RecoveryAuditContractTests(unittest.TestCase):
             self.assertIn("trainer_resume_load_acknowledgment_not_implemented", report["blockers"])
             self.assertFalse(report["tensor_structure_inspected"])
 
+    def test_new_paired_archive_is_auditable_but_still_not_resumable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = Path(tmp) / "VoiceLab"
+            name = fixture(Path(tmp), paired=True)
+            report = audit_archive(saved, name)
+            self.assertTrue(report["integrity_verified"])
+            self.assertFalse(report["resume_available"])
+            self.assertNotIn("sovits_paired_checkpoint_receipt_absent_legacy", report["blockers"])
+
+    def test_inconsistent_pair_digest_is_rejected_not_resumed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            saved = Path(tmp) / "VoiceLab"
+            name = fixture(Path(tmp), paired=True, incorrect_pair_sha=True)
+            with self.assertRaisesRegex(ResumeAuditError, "sovits_pair_receipt_hash_mismatch"):
+                audit_archive(saved, name)
+
     def test_mutated_checkpoint_fails_without_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             saved = Path(tmp) / "VoiceLab"
@@ -139,9 +176,9 @@ class RecoveryAuditContractTests(unittest.TestCase):
         d = {"model": {"net": object()}, "iteration": 4,
              "learning_rate": 0.0001, "optimizer": optimizer}
         cfg = ({"train": {"epochs": GPT_EPOCHS, "precision": "16-mixed",
-                          "if_save_latest": True}},
+                          "if_save_latest": False}},
                {"train": {"epochs": SOVITS_EPOCHS, "fp16_run": True,
-                          "if_save_latest": True},
+                          "if_save_latest": False},
                 "model": {"version": "v2ProPlus"}})
         issues = _training_state_blockers(gpt, g, d, cfg)
         self.assertIn("sovits_generator_discriminator_epoch_mismatch", issues)
@@ -150,6 +187,20 @@ class RecoveryAuditContractTests(unittest.TestCase):
         d["iteration"] = 3
         cfg[1]["train"]["fp16_run"] = False
         self.assertEqual(_training_state_blockers(gpt, g, d, cfg), [])
+
+    def test_legacy_checkpoint_config_is_recognized_but_not_resume_proven(self) -> None:
+        gpt = {"state_dict": {"x": 1}, "epoch": 3, "global_step": 4,
+               "optimizer_states": [{"state": {1: "x"}, "param_groups": [{"lr": 0.01}]}],
+               "lr_schedulers": [{"step": 2}]}
+        sov = {"model": {"x": 1}, "iteration": 2,
+               "optimizer": {"state": {1: "x"}, "param_groups": [{"lr": 0.01}]}}
+        config = ({"train": {"epochs": GPT_EPOCHS, "precision": "32",
+                             "if_save_latest": True}},
+                  {"train": {"epochs": SOVITS_EPOCHS, "fp16_run": False,
+                             "if_save_latest": True},
+                   "model": {"version": "v2ProPlus"}})
+        self.assertNotIn("training_configuration_mismatch",
+                         _training_state_blockers(gpt, sov, sov, config))
 
     def test_missing_optimizer_state_is_not_obscured(self) -> None:
         cfg = ({"train": {"epochs": GPT_EPOCHS, "precision": "32",
