@@ -32,6 +32,43 @@ pub(super) fn identity_file(paths: &VoiceLabStoragePaths) -> std::path::PathBuf 
     paths.cache_root.join("Build").join("run_identity.json")
 }
 
+pub(super) fn manual_stop_file(paths: &VoiceLabStoragePaths) -> std::path::PathBuf {
+    paths.cache_root.join("Build").join("manual_stop.json")
+}
+
+pub(super) fn request_manual_stop(
+    paths: &VoiceLabStoragePaths, generation: u64,
+) -> Result<(), String> {
+    let identity = read_identity(paths).ok_or("my_voice:manual_stop_run_identity_unavailable")?;
+    if identity.generation != generation {
+        return Err("my_voice:manual_stop_generation_mismatch".into());
+    }
+    let payload = serde_json::json!({
+        "run_token": identity.token,
+        "run_generation": identity.generation,
+        "kind": "manual_cooperative_stop",
+    });
+    let data = serde_json::to_vec(&payload)
+        .map_err(|_| "my_voice:manual_stop_signal_encode_failed")?;
+    let file = manual_stop_file(paths);
+    match write_new_synced(&file, &data) {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            // The same run may have requested Stop already. Only exactly
+            // matching bytes are accepted, not a stale or malformed file.
+            let old = fs::symlink_metadata(&file)
+                .map_err(|_| "my_voice:manual_stop_signal_write_failed")?;
+            if old.is_file() && !old.file_type().is_symlink() && old.len() <= MAX_JSON
+                && fs::read(file).ok().as_deref() == Some(data.as_slice())
+            {
+                Ok(())
+            } else {
+                Err("my_voice:manual_stop_signal_conflict".into())
+            }
+        }
+    }
+}
+
 pub(super) fn completion_file(paths: &VoiceLabStoragePaths) -> std::path::PathBuf {
     paths.cache_root.join("Build").join("completion.json")
 }

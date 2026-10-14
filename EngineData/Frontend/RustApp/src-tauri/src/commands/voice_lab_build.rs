@@ -42,7 +42,7 @@ mod receipts;
 mod process_owner;
 #[cfg(windows)]
 use process_owner::OwnedBuildJob;
-use receipts::{completion_file, completion_matches, commit_completion, create_identity, identity_file, read_identity};
+use receipts::{completion_file, completion_matches, commit_completion, create_identity, identity_file, read_identity, manual_stop_file, request_manual_stop};
 
 pub use evaluation::VoiceLabEvaluationSample;
 use phase::reconcile_phase;
@@ -56,7 +56,8 @@ const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
 // Distinct from the 600-prompt library; pinned speaker-consistency processing
 // currently accepts at most 128 recordings in a single training build.
 const MAX_TRAINING_TAKES: usize = 128;
-const CANCEL_WAIT: Duration = Duration::from_secs(10);
+const CANCEL_MAX_WAIT: Duration = Duration::from_secs(300);
+const BUILD_EXIT_POLL: Duration = Duration::from_secs(1);
 
 // Guard select/approve on the shared worker actor path. No parallel promotion.
 static VOICE_SELECTION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -318,6 +319,7 @@ struct BuildProcessState {
     #[cfg(windows)]
     owned_job: Option<Arc<OwnedBuildJob>>,
     terminal_message: String,
+    cancel_requested_at: Option<Instant>,
 }
 
 static BUILD_PROCESS: OnceLock<(Mutex<BuildProcessState>, Condvar)> = OnceLock::new();
@@ -359,6 +361,7 @@ fn remove_dir_if_present(path: &Path, label: &str) -> Result<(), String> {
 }
 
 fn clear_previous_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), String> {
+    remove_file_if_present(&manual_stop_file(paths), "manual_stop")?;
     remove_file_if_present(&completion_file(paths), "completion_receipt")?;
     remove_file_if_present(&identity_file(paths), "run_identity")?;
     remove_file_if_present(&status_path(paths), "status")?;
@@ -387,6 +390,7 @@ fn cleanup_approved_build_workspace(paths: &VoiceLabStoragePaths) -> Result<(), 
         remove_dir_if_present(&paths.build_dataset_dir, "build_dataset"),
         remove_file_if_present(&status_path(paths), "status"),
         remove_file_if_present(&completion_file(paths), "completion_receipt"),
+        remove_file_if_present(&manual_stop_file(paths), "manual_stop"),
         remove_file_if_present(&identity_file(paths), "run_identity"),
         remove_file_if_present(&log_path(paths), "build_log"),
     ] {
@@ -523,6 +527,8 @@ fn current_status() -> VoiceLabBuildStatus {
         "Stopping Quick Preview safely.".to_string()
     } else if preview_active {
         "Creating Quick Preview locally.".to_string()
+    } else if snapshot.active && snapshot.phase == "cancelling" {
+        "Stopping training safely. Waiting for a checkpoint boundary when possible; the current Meeting voice is unchanged.".to_string()
     } else if snapshot.active {
         child.as_ref().map(|status| status.message.clone()).unwrap_or_else(|| {
             match snapshot.phase.as_str() {
@@ -868,6 +874,7 @@ fn start_voice_lab_build_selected(
         // Restrict all child CUDA ordinals to one verified physical GPU.
         .env("CUDA_VISIBLE_DEVICES", &gpu_uuid)
         .env("TRANSLATEIT_MYVOICE_GPU_UUID", &gpu_uuid)
+        .env("TRANSLATEIT_MYVOICE_MANUAL_STOP_PATH", manual_stop_file(&paths))
         .env("TRANSLATEIT_MYVOICE_CACHE_ROOT", &paths.cache_root)
         .env("TRANSLATEIT_MYVOICE_SAVED_ROOT", &paths.saved_root)
         .current_dir(worker_root())
@@ -914,6 +921,7 @@ fn start_voice_lab_build_selected(
             #[cfg(windows)]
             { process.owned_job = Some(Arc::clone(&owned_job)); }
             process.terminal_message.clear();
+            process.cancel_requested_at = None;
         }
         Err(_) => {
             #[cfg(windows)]
@@ -935,10 +943,44 @@ fn start_voice_lab_build_selected(
     std::thread::spawn(move || {
         #[cfg(windows)]
         let _job_lifetime = worker_job;
-        let exit = child.wait();
+        // The existing completion owner also enforces the user Stop deadline.
+        // No second watchdog thread, additional worker or UI poller.
+        let exit = loop {
+            match child.try_wait() {
+                Ok(Some(done)) => break Ok(done),
+                Ok(None) => {
+                    let expired = process_store().0.lock().ok().is_some_and(|process| {
+                        process.generation == Some(generation)
+                        && process.cancel_requested_at.is_some_and(|since|
+                            since.elapsed() >= CANCEL_MAX_WAIT)
+                    });
+                    if expired {
+                        #[cfg(windows)]
+                        let _ = _job_lifetime.terminate();
+                        #[cfg(not(windows))]
+                        let _ = terminate_process_tree(child.id());
+                        break child.wait();
+                    }
+                    std::thread::sleep(BUILD_EXIT_POLL);
+                }
+                Err(error) => {
+                    #[cfg(windows)]
+                    let _ = _job_lifetime.terminate();
+                    #[cfg(not(windows))]
+                    let _ = terminate_process_tree(child.id());
+                    break child.wait().or(Err(error));
+                }
+            }
+        };
+        // Reap owned descendants before checkpoint preservation; a dead root
+        // cannot imply its stage subprocesses also ended cleanly.
+        #[cfg(windows)]
+        let _ = _job_lifetime.terminate();
         let paths = storage();
         reconcile_phase(&paths);
-        let candidate = if exit.as_ref().map(|status| status.success()).unwrap_or(false)
+        let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
+        let candidate = if !cancelling
+            && exit.as_ref().map(|status| status.success()).unwrap_or(false)
             && child_status(&paths)
                 .map(|status| status.phase == "ready_for_review")
                 .unwrap_or(false)
@@ -958,7 +1000,6 @@ fn start_voice_lab_build_selected(
         } else {
             preserve_training_checkpoints(&paths)
         };
-        let cancelling = current_voice_lab_build_snapshot().phase == "cancelling";
         let stopped_at_checkpoint_boundary = child_status(&paths).is_some_and(|status| {
             status.phase == "failed"
                 && status.message.contains("cooperative_safe_stop_checkpoint_candidate")
@@ -996,6 +1037,7 @@ fn start_voice_lab_build_selected(
                 #[cfg(windows)]
                 { process.owned_job = None; }
                 process.terminal_message = message;
+                process.cancel_requested_at = None;
             }
             signal.notify_all();
         }
@@ -1008,42 +1050,50 @@ fn start_voice_lab_build_selected(
 pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
     let snapshot = current_voice_lab_build_snapshot();
     let Some(generation) = snapshot.generation else {
-        return result(true, "idle", "There is no active VoiceLab build to stop.");
+        return result(true, "idle", "There is no active My Voice training to stop.");
     };
     if !snapshot.active {
-        return result(true, "idle", "There is no active VoiceLab build to stop.");
+        return result(true, "idle", "There is no active My Voice training to stop.");
     }
-    if let Err(error) = request_voice_lab_build_cancel(generation) {
-        return result(false, "cancel_failed", error);
+    if snapshot.phase != "cancelling" {
+        if let Err(error) = request_voice_lab_build_cancel(generation) {
+            return result(false, "cancel_failed", error);
+        }
     }
-    let (lock, signal) = process_store();
-    let process = match lock.lock() {
+
+    let (lock, _) = process_store();
+    let mut process = match lock.lock() {
         Ok(process) => process,
-        Err(_) => return result(false, "cancel_pending", "My Voice cannot verify which training process to stop."),
+        Err(_) => return result(false, "cancel_pending",
+            "My Voice cannot safely identify its running training process yet."),
     };
-    let pid = process.pid;
+    if process.generation != Some(generation) || process.pid.is_none() {
+        return result(false, "cancel_pending",
+            "Stop requested; waiting for the active training process to be identified.");
+    }
     #[cfg(windows)]
-    let owned_job = process.owned_job.clone();
-    drop(process);
-    let Some(pid) = pid else {
-        return result(false, "cancel_pending", "VoiceLab is stopping, but the build process could not be addressed yet.");
-    };
-    #[cfg(windows)]
-    let stopped = owned_job.as_ref().is_some_and(|job| job.terminate());
+    let job = process.owned_job.clone();
     #[cfg(not(windows))]
-    let stopped = terminate_process_tree(pid);
-    if !stopped {
-        return result(false, "cancel_pending", "My Voice could not confirm the owned training process stopped.");
+    let pid = process.pid;
+    let signal_result = request_manual_stop(&storage(), generation);
+    if let Err(error) = signal_result {
+        // No valid signal can be delivered: use owned-process hard stop, not
+        // an unlimited wait or a claim that the user request succeeded.
+        #[cfg(windows)]
+        let _ = job.as_ref().is_some_and(|item| item.terminate());
+        #[cfg(not(windows))]
+        if let Some(pid) = pid { let _ = terminate_process_tree(pid); }
+        process.cancel_requested_at = Some(Instant::now());
+        return result(false, "cancel_pending", format!(
+            "Training stop needs forced cleanup because the safe-stop signal failed: {error}"
+        ));
     }
-    let guard = match lock.lock() {
-        Ok(guard) => guard,
-        Err(_) => return result(false, "cancel_pending", "VoiceLab is stopping, but process state is temporarily unavailable."),
-    };
-    let _ = signal.wait_timeout_while(guard, CANCEL_WAIT, |state| state.pid == Some(pid));
-    if current_voice_lab_build_snapshot().active {
-        return result(false, "cancel_pending", "VoiceLab is still finishing build cleanup.");
+    if process.cancel_requested_at.is_none() {
+        process.cancel_requested_at = Some(Instant::now());
     }
-    result(true, "cancelled", "VoiceLab creation stopped. Your accepted recordings were kept.")
+    drop(process);
+    result(false, "cancel_pending",
+        "Stop requested. Waiting for the next safe checkpoint boundary, with a bounded emergency fallback. Saved recordings and the current Meeting voice remain unchanged.")
 }
 
 #[tauri::command]

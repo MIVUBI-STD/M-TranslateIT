@@ -187,7 +187,7 @@
       case "meeting_active":
         return "Stop Meeting translation before selecting My Voice.";
       case "cancel_pending":
-        return "My Voice is still stopping. Keep My Voice open and try again shortly.";
+        return result.message || "Stop requested. Training is waiting for a safe boundary.";
       case "evaluation_required":
       case "evaluation_listening_required":
         return "Listen to every voice preview before approving My Voice.";
