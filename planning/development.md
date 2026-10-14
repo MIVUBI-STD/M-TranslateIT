@@ -86,6 +86,11 @@ All source declarations above require later Windows/runtime confirmation. A hash
 - SoVITS pair verification now scans only small JSON receipts for the epoch requested by Stop; it streams G/D hashes **only for the unique matching epoch** rather than rehashing every earlier checkpoint. File identity metadata is checked before and after each streaming hash to catch concurrent modification. Existing Rust archive copy/hash checks remain independent.
 - This avoids repeated gigabyte reads while preserving fail-closed pair integrity. New regression fixtures are authored but not executed.
 
+## Strict per-stage stop control (source-only)
+
+- A nonexistent cooperative request remains an ordinary continue. However, an existing request with invalid JSON, symlink, wrong PID, wrong run token, wrong stage or wrong nonce now throws an explicit control error instead of being ignored. This prevents missing a stop because a control file was ambiguous, while still requiring the existing parent supervisor to reconcile nonzero exits and preserve checkpoint evidence.
+- The parent similarly refuses non-dictionary or wrong-identity checkpoint-boundary acknowledgment metadata. These conditions do not promote a candidate, do not enable resume and do not add polling. Source-only fixtures authored, not executed.
+
 ## Single next step (source-only)
 
 Perform one bounded review of **checkpoint pair race handling**, **worker-origin progress identity**, and **Lightning 2.6.5 plugin/source API compatibility**. Prioritize removal of concrete source defects without adding workers, polling or speculative resume. Continue using the user device's verified physical GPU UUID and measured epoch cadence. Do not run tests, CI, Windows builds, CUDA training or fault injection until explicitly authorized; `main` stays untouched.

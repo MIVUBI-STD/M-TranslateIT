@@ -47,26 +47,34 @@ def manual_stop_requested(environment: Mapping[str, str] | None = None) -> bool:
     return True
 
 def requested(stage: str) -> bool:
+    """Fail closed when an existing trainer stop request is unreadable/foreign."""
     token = os.environ.get(TOKEN_ENV, "")
-    if len(token) != 64 or any(c not in "0123456789abcdef" for c in token):
-        return False
     name = os.environ.get(REQUEST_ENV, "")
-    if not name or os.environ.get(STAGE_ENV) != stage:
+    if not name:
         return False
+    if len(token) != 64 or any(c not in "0123456789abcdef" for c in token):
+        raise RuntimeError("my_voice:cooperative_request_identity_missing")
+    if os.environ.get(STAGE_ENV) != stage:
+        raise RuntimeError("my_voice:cooperative_request_stage_mismatch")
     path = Path(name)
     try:
-        if path.is_symlink() or not path.is_file() or path.stat().st_size > 4096:
+        if not path.exists() and not path.is_symlink():
             return False
+        if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= 4096:
+            raise RuntimeError("my_voice:cooperative_request_untrusted")
         message = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
-    return (isinstance(message, dict)
-            and message.get("run_token") == token
-            and message.get("stage") == stage
-            and type(message.get("writer_pid")) is int
-            and message.get("writer_pid") == os.getpid()
-            and message.get("stage_nonce") == os.environ.get(STAGE_NONCE_ENV)
-            and bool(os.environ.get(STAGE_NONCE_ENV)))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("my_voice:cooperative_request_unreadable") from exc
+    if (not isinstance(message, dict)
+        or message.get("run_token") != token
+        or message.get("stage") != stage
+        or type(message.get("writer_pid")) is not int
+        or message.get("writer_pid") != os.getpid()
+        or not os.environ.get(STAGE_NONCE_ENV)
+        or message.get("stage_nonce") != os.environ.get(STAGE_NONCE_ENV)):
+        raise RuntimeError("my_voice:cooperative_request_identity_mismatch")
+    return True
+
 
 def checkpoint_candidate_present(directory: Path, pattern: str) -> bool:
     if directory.is_symlink() or not directory.is_dir():

@@ -58,10 +58,12 @@ def test_gpt_boundary_only_after_checkpoint_candidate(tmp_path, monkeypatch):
     assert progress["stage"] == "gpt"
     assert progress["epoch"] == 5
 
-def test_mismatched_run_token_ignored(tmp_path, monkeypatch):
+def test_mismatched_run_token_rejected_not_silently_ignored(tmp_path, monkeypatch):
+    import pytest
     configure(monkeypatch, tmp_path, "sovits")
     monkeypatch.setenv(TOKEN_ENV, "b" * 64)
-    assert not requested("sovits")
+    with pytest.raises(RuntimeError, match="cooperative_request_identity_mismatch"):
+        requested("sovits")
 
 
 def test_manual_cancel_is_run_and_generation_bound(tmp_path, monkeypatch):
@@ -93,3 +95,16 @@ def test_manual_stop_rejects_malformed_signal(tmp_path, monkeypatch):
     signal.write_text("not json", encoding="utf-8")
     with pytest.raises(RuntimeError, match="manual_stop_signal_unavailable"):
         manual_stop_requested()
+
+
+def test_corrupt_cooperative_request_is_a_failure_not_no_request(tmp_path, monkeypatch):
+    import pytest
+    configure(monkeypatch, tmp_path, "sovits")
+    (tmp_path / "request.json").write_text("{truncated")
+    with pytest.raises(RuntimeError, match="cooperative_request_unreadable"):
+        requested("sovits")
+
+def test_no_request_exists_means_continue(tmp_path, monkeypatch):
+    configure(monkeypatch, tmp_path, "sovits")
+    (tmp_path / "request.json").unlink()
+    assert requested("sovits") is False

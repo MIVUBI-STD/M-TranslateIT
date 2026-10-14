@@ -255,7 +255,8 @@ def _acknowledged(
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise StageGuardError("my_voice:cooperative_ack_unreadable") from exc
-    if (value.get("run_token") != token
+    if (not isinstance(value, dict)
+        or value.get("run_token") != token
         or value.get("stage") != stage
         or type(value.get("writer_pid")) is not int
         or value.get("writer_pid") != writer_pid
