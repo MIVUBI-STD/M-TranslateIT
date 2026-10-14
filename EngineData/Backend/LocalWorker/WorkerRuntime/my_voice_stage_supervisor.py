@@ -242,6 +242,23 @@ class OwnedStageTree:
             except PermissionError as exc:
                 raise StageGuardError("my_voice:posix_process_group_termination_denied") from exc
 
+    def confirm_posix_group_cleanup(self) -> None:
+        """Bounded confirmation after reaping the signalled POSIX stage root.
+
+        A root wait alone cannot prove that its same-group descendants exited.
+        This observes only the isolated start_new_session process group; a
+        descendant that deliberately detaches is outside this source contract.
+        """
+        if os.name == "nt" or self.process is None:
+            raise StageGuardError("my_voice:posix_group_cleanup_unavailable")
+        if self.process.returncode is None:
+            raise StageGuardError("my_voice:posix_root_not_reaped")
+        deadline = time.monotonic() + 8
+        while self.remaining() != 0:
+            if time.monotonic() >= deadline:
+                raise StageGuardError("my_voice:posix_group_cleanup_not_confirmed")
+            time.sleep(0.05)
+
     def close(self) -> None:
         if os.name == "nt" and self.handle:
             kernel.CloseHandle(self.handle)
@@ -273,6 +290,8 @@ class OwnedStageTree:
                         raise StageGuardError(
                             "my_voice:stage_cleanup_not_confirmed"
                         ) from exc
+                    if os.name != "nt":
+                        self.confirm_posix_group_cleanup()
         finally:
             self.close()
 

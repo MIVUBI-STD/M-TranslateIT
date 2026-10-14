@@ -105,8 +105,28 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 - Previously authored Node source assertions referenced an earlier Rust expression (`!cancelling && exit...` and `let recovery = if ready`) that no longer matches the hardened lifecycle. Contracts now check the actual `owned_tree_quiescent`, `cancelling_before_review` and `recovery_failed` gates.
 - This removes known future false-negative source failures without weakening the actual safety conditions. Tests were authored only, not executed, in accordance with the user's source-only boundary.
 
+## POSIX subprocess group cleanup audit — source-only (2026-10-14)
+
+- The Python stage supervisor already checks for surviving same-process-group children
+  when the root exits and rejects stage success when they remain. A second issue
+  existed during exceptional termination: after sending SIGKILL to the isolated
+  process group, the cleanup path waited only for the root process.
+- Cleanup now performs a bounded, post-root-wait group-existence check. If the
+  original stage process group does not disappear, it raises an explicit
+  `posix_group_cleanup_not_confirmed` failure instead of inferring cleanup
+  from the root's return code. Regression cases use mocked process ownership;
+  no process spawn, real signal, Python test suite, or native execution was run.
+- POSIX process-group ownership does **not** track descendants that deliberately
+  move to a separate session/group. It is not a general process-tree guarantee.
+  This does not enable Linux/macOS My Voice training, change GPU admission,
+  alter checkpoint publication, or imply Windows Job behavior was tested.
+
 ## Single next source-only step
 
-Review whether a Python stage subprocess can leave a live descendant after its root exits in **non-Windows** packaging, and audit all source return-code/exception paths for fail-closed behavior. Do not alter `main`, change the selected GPU policy, or enable optimizer resume.
+Audit the **Rust top-level My Voice process owner** on non-Windows paths for
+false-success cleanup or return-code assumptions, while retaining current
+Windows-only training admission. Do not add cross-platform runtime support or
+change GPU/optimizer-resume policy. After source-level proof is exhausted,
+keep native Windows checks NOT EXECUTED until the integrated acceptance phase.
 
 **STOP boundary:** Do not run tests, Python/Node execution, cargo, Windows/CUDA probes, fault injection or training until the user explicitly authorizes validation.
