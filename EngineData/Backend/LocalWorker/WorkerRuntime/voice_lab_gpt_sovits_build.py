@@ -275,10 +275,15 @@ def run_stage(
 
     def heartbeat(state: str) -> None:
         if status_writer is not None:
-            stage_name = "SoVITS" if script.name == "s2_train.py" else (
-                "GPT" if script.name == "s1_train.py" else script.name
+            stage_name = (
+                "SoVITS training stage" if script.name == "s2_train.py"
+                else "GPT training stage" if script.name == "s1_train.py"
+                else script.name
             )
-            status_writer("training", f"{stage_name} stage running; resource safety: {state}.")
+            # This heartbeat proves the supervisor loop is responsive,
+            # not that an epoch advanced or the model is converging.
+            status_writer("training",
+                f"{stage_name}: safety supervisor responsive ({state}); model progress not verified.")
 
     try:
         run_supervised_stage(
