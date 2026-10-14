@@ -56,6 +56,9 @@
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
   let statusCheckUnavailable = $state(false);
+  // Read-order fence for polling, explicit refresh, and mutation results.
+  // It is local to this view; Rust remains the only owner of build truth.
+  let statusReadVersion = 0;
   let audio: HTMLAudioElement | null = null;
   let audioUrl: string | null = null;
   let reviewedLineIds = $state<number[]>([]);
@@ -93,6 +96,12 @@
     timer = null;
     if (disposed || !build.active) return;
     timer = setTimeout(() => void refresh(), 1400);
+  }
+
+  function invalidatePendingStatusReads(): void {
+    statusReadVersion += 1;
+    if (timer) clearTimeout(timer);
+    timer = null;
   }
 
   function applyStatus(next: MyVoiceBuildStatus): void {
@@ -207,6 +216,7 @@
   // until a new authoritative build snapshot replaces stale local state.
   async function reconcileUncertainBuildAction(message: string): Promise<void> {
     if (disposed) return;
+    invalidatePendingStatusReads();
     statusCheckUnavailable = true;
     onBuildStatusUnavailable?.();
     onNotice(message);
@@ -215,6 +225,8 @@
 
   async function applyResult(result: MyVoiceBuildActionResult): Promise<void> {
     if (disposed) return;
+    // A confirmed mutation snapshot supersedes every older polling read.
+    invalidatePendingStatusReads();
     if (result.build.phase === "unavailable") {
       await reconcileUncertainBuildAction(
         "Couldn't verify this My Voice action. Checking the current build status.",
@@ -241,9 +253,10 @@
   }
 
   async function refresh(): Promise<void> {
+    const requestVersion = ++statusReadVersion;
     try {
       const next = await myVoiceBuildApi.getStatus();
-      if (disposed) return;
+      if (disposed || requestVersion !== statusReadVersion) return;
       if (next.phase === "unavailable") {
         statusCheckUnavailable = true;
         onBuildStatusUnavailable?.();
@@ -253,7 +266,7 @@
       statusCheckUnavailable = false;
       applyStatus(next);
     } catch {
-      if (disposed) return;
+      if (disposed || requestVersion !== statusReadVersion) return;
       if (!statusCheckUnavailable) onNotice("Couldn't check My Voice progress. Select Retry status.");
       statusCheckUnavailable = true;
       onBuildStatusUnavailable?.();
@@ -263,6 +276,7 @@
 
   async function generateQuickPreview(): Promise<void> {
     if (busy || statusCheckUnavailable || quickPreviewBusy || build.active || !previewAuthorized || build.accepted_take_count === 0) return;
+    invalidatePendingStatusReads();
     stopAudio();
     quickPreviewReady = false;
     quickPreviewBusy = true;
@@ -280,6 +294,7 @@
 
   async function cancelQuickPreview(): Promise<void> {
     if (!quickPreviewBusy && !build.preview_active) return;
+    invalidatePendingStatusReads();
     try {
       const result = await myVoiceBuildApi.cancelQuickPreview();
       if (!disposed) onNotice(result.message);
@@ -324,6 +339,7 @@
 
   async function startBuild(): Promise<void> {
     if (busy || statusCheckUnavailable || voiceChangesLocked || quickPreviewBusy || !build.can_build || !authorized) return;
+    invalidatePendingStatusReads();
     quickPreviewReady = false;
     stopAudio();
     reviewedLineIds = [];
@@ -341,6 +357,7 @@
 
   async function cancelBuild(): Promise<void> {
     if (busy || statusCheckUnavailable || quickPreviewBusy || !build.active) return;
+    invalidatePendingStatusReads();
     busy = true;
     try {
       await applyResult(await myVoiceBuildApi.cancel());
@@ -355,6 +372,7 @@
 
   async function approve(): Promise<void> {
     if (busy || statusCheckUnavailable || voiceChangesLocked || build.active || !build.evaluation_ready || !build.evaluation_review_id || !evaluationReviewComplete || !qualityConfirmed) return;
+    invalidatePendingStatusReads();
     stopAudio();
     busy = true;
     try {
@@ -432,6 +450,7 @@
       disposed = true;
       if (timer) clearTimeout(timer);
       timer = null;
+      statusReadVersion += 1;
       stopAudio();
     };
   });

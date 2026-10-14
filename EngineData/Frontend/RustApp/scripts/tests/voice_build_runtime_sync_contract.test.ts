@@ -146,3 +146,34 @@ test("uncertain Create, Cancel and Approve reconcile before enabling further voi
   assert.match(meeting, /onMeetingVoiceChanged\(/);
   assert.doesNotMatch(meeting, /myVoiceBuildApi\.approve|selectBuiltin|selectActorVersion/);
 });
+
+test("My Voice ignores stale polling success and failure after a newer status request or mutation", () => {
+  const ui = readFileSync(new URL("../../src/components/my-voice/MyVoiceBuild.svelte", import.meta.url), "utf8");
+  const functionBody = (name: string): string => {
+    const start = ui.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, `Missing build status function: ${name}`);
+    const next = ui.indexOf("\n  }", start);
+    assert.ok(next > start, `Missing build status function boundary: ${name}`);
+    return ui.slice(start, next);
+  };
+
+  const refresh = functionBody("refresh");
+  assert.match(ui, /let statusReadVersion = 0;/);
+  assert.match(refresh, /const requestVersion = \+\+statusReadVersion;/);
+  assert.equal((refresh.match(/disposed \|\| requestVersion !== statusReadVersion/g) ?? []).length, 2,
+    "both late success and late rejection must be discarded");
+  assert.ok(refresh.indexOf("requestVersion !== statusReadVersion") < refresh.indexOf("applyStatus(next)"),
+    "a stale response cannot reset review identity, listening evidence or phase");
+  const invalidate = functionBody("invalidatePendingStatusReads");
+  assert.match(invalidate, /statusReadVersion \+= 1;/);
+  assert.match(invalidate, /if \(timer\) clearTimeout\(timer\)/);
+  for (const action of ["startBuild", "cancelBuild", "approve", "generateQuickPreview", "cancelQuickPreview"]) {
+    const body = functionBody(action);
+    assert.match(body, /invalidatePendingStatusReads\(\)/, action);
+  }
+  const apply = functionBody("applyResult");
+  assert.ok(apply.indexOf("invalidatePendingStatusReads()") < apply.indexOf("applyStatus(result.build)"),
+    "verified mutation must fence any earlier polling response");
+  assert.match(functionBody("reconcileUncertainBuildAction"), /invalidatePendingStatusReads\(\)/);
+  assert.match(ui, /disposed = true;\s*if \(timer\) clearTimeout\(timer\);\s*timer = null;\s*statusReadVersion \+= 1;/);
+});
