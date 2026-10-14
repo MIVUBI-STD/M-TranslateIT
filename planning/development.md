@@ -82,6 +82,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 **No speculative retry, auto-resume, GPU scaling or background monitors.** The existing active-process owner and canonical status remain the only runtime authorities.
 
+## Windows suspended process admission cleanup — source-only
+
+- A suspended child not yet admitted to a Job **cannot** be killed by terminating that empty Job. Both the Python stage supervisor and Rust top-level owner now attempt to terminate the **exact created process handle** on Job assignment failure and use a bounded reaping period. No PID enumeration, unrelated task kill, or extra worker is used.
+- On the rare failure to prove that the suspended Rust process stopped, the native lifecycle stays in cancelling/attention state and prevents launching another training generation rather than claiming a clean failure. These exceptional paths cannot guarantee orphan prevention when Windows itself refuses termination; explicit diagnostics remain required.
+- This is unexecuted source; do not claim fault containment is validated.
+
 ## Single next source-only step
 
 Review whether a Python stage subprocess can leave a live descendant after its root exits in **non-Windows** packaging, and audit all source return-code/exception paths for fail-closed behavior. Do not alter `main`, change the selected GPU policy, or enable optimizer resume.

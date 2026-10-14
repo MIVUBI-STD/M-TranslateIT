@@ -969,15 +969,39 @@ fn start_voice_lab_build_selected(
     };
     let pid = child.id();
     #[cfg(windows)]
-    if let Err(error) = owned_job.assign(&child)
-        .and_then(|_| owned_job.resume_suspended(pid))
     {
-        // Job kills suspended descendants on failure. Never attempt to
-        // continue without an owned and explicitly resumed child.
-        let _ = owned_job.terminate();
-        let _ = child.wait();
-        let _ = fail_voice_lab_build(generation);
-        return result(false, "build_process_guard_failed", error);
+        if let Err(error) = owned_job.assign(&child) {
+            // CREATE_SUSPENDED means no user code or descendants have run.
+            // This process is NOT in the Job if assignment failed, so an
+            // owned Job kill is insufficient. Kill this exact Child handle.
+            let _ = child.kill();
+            let reaped = bounded_reap_after_forced_stop(&mut child);
+            if reaped.is_err() {
+                // Keep native lifecycle active; unsafe work must never be
+                // cleared/restarted while this unassigned process may live.
+                let _ = request_voice_lab_build_cancel(generation);
+                return result(false, "build_process_guard_attention", format!(
+                    "Suspended Python worker could not be reaped after Job assignment failed: {error}. Do not start another training run."
+                ));
+            }
+            let _ = fail_voice_lab_build(generation);
+            return result(false, "build_process_guard_failed", error);
+        }
+        if let Err(error) = owned_job.resume_suspended(pid) {
+            // Here the process HAS been assigned; terminate the owned Job,
+            // with an exact-root fallback if Windows job termination failed.
+            let _ = owned_job.terminate();
+            let _ = child.kill();
+            let reaped = bounded_reap_after_forced_stop(&mut child);
+            if reaped.is_err() {
+                let _ = request_voice_lab_build_cancel(generation);
+                return result(false, "build_process_guard_attention", format!(
+                    "Suspended Python worker exit could not be confirmed after Job resume failure: {error}. Do not start another training run."
+                ));
+            }
+            let _ = fail_voice_lab_build(generation);
+            return result(false, "build_process_guard_failed", error);
+        }
     }
     match process_store().lock() {
         Ok(mut process) => {

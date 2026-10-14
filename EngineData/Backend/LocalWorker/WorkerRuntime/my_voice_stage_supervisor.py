@@ -170,7 +170,17 @@ class OwnedStageTree:
         if os.name == "nt":
             handle = getattr(proc, "_handle", None)
             if not handle or not self.handle or not kernel.AssignProcessToJobObject(self.handle, int(handle)):
-                self.terminate()
+                # This suspended process was NEVER assigned to our Job.
+                # TerminateJobObject cannot kill an unassigned root. Use only
+                # the exact freshly-created Popen handle; no PID-wide scan.
+                try:
+                    if proc.poll() is None:
+                        proc.kill()
+                    proc.wait(timeout=8)
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    raise StageGuardError(
+                        "my_voice:unowned_suspended_stage_cleanup_unconfirmed"
+                    ) from exc
                 raise StageGuardError("my_voice:job_assign_failed")
 
     def release_reaped_root_handle(self) -> None:
@@ -226,11 +236,21 @@ class OwnedStageTree:
     def __exit__(self, _kind: Any, _exc: Any, _tb: Any) -> None:
         try:
             if self.process is not None and self.process.poll() is None:
+                # If assignment never succeeded, Job termination alone does
+                # not cover this suspended child. The attach() failure path
+                # uses Popen.kill(); here we also attempt exact-root cleanup.
+                if os.name == "nt":
+                    try:
+                        self.process.kill()
+                    except OSError:
+                        pass
                 self.terminate()
                 try:
                     self.process.wait(timeout=8)
-                except subprocess.TimeoutExpired:
-                    pass
+                except subprocess.TimeoutExpired as exc:
+                    raise StageGuardError(
+                        "my_voice:stage_cleanup_not_confirmed"
+                    ) from exc
         finally:
             self.close()
 

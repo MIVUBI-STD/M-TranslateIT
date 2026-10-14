@@ -125,6 +125,10 @@ test("manual Stop reuses the existing process owners and cannot claim success af
   assert.doesNotMatch(exitLoop, /break child\.wait\(\)/);
   assert.doesNotMatch(exitLoop, /let _ = child\.wait\(\)/);
   assert.match(native, /my_voice:forced_stop_after_deadline/);
+  assert.match(native, /owned_job\.assign\(&child\)/);
+  assert.match(native, /let _ = child\.kill\(\);/);
+  assert.match(native, /unassigned process may live/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py"), /unowned_suspended_stage_cleanup_unconfirmed/);
   assert.match(native, /if owned_tree_quiescent\.is_ok\(\) \{/);
   assert.match(native, /process\.terminal_message =/);
   assert.match(native, /CANCEL_MAX_WAIT/);
