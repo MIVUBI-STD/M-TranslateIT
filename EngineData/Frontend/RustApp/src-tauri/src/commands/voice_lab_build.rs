@@ -1068,6 +1068,7 @@ pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
             "My Voice cannot safely identify its running training process yet."),
     };
     if process.generation != Some(generation) || process.pid.is_none() {
+        drop(process);
         return result(false, "cancel_pending",
             "Stop requested; waiting for the active training process to be identified.");
     }
@@ -1084,6 +1085,7 @@ pub fn cancel_voice_lab_build() -> VoiceLabBuildActionResult {
         #[cfg(not(windows))]
         if let Some(pid) = pid { let _ = terminate_process_tree(pid); }
         process.cancel_requested_at = Some(Instant::now());
+        drop(process);
         return result(false, "cancel_pending", format!(
             "Training stop needs forced cleanup because the safe-stop signal failed: {error}"
         ));
