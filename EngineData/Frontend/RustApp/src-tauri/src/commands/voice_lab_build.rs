@@ -825,6 +825,14 @@ fn start_voice_lab_build_selected(
         );
     }
 
+    // Stop may arrive while freezing accepted WAVs (before a process PID
+    // exists). Never launch a worker after native cancellation was requested.
+    if current_voice_lab_build_snapshot().phase == "cancelling" {
+        let _ = finish_voice_lab_build(generation);
+        return result(false, "cancelled",
+            "My Voice creation stopped before launching training; all saved recordings remain unchanged.");
+    }
+
     let run_identity = match create_identity(&paths, generation) {
         Ok(identity) => identity,
         Err(error) => {
@@ -881,6 +889,11 @@ fn start_voice_lab_build_selected(
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(stderr));
+    if current_voice_lab_build_snapshot().phase == "cancelling" {
+        let _ = finish_voice_lab_build(generation);
+        return result(false, "cancelled",
+            "Training was stopped before the Python worker started.");
+    }
     #[cfg(windows)]
     {
         // Start suspended and admit to the kill-on-close Job before Python
@@ -986,7 +999,9 @@ fn start_voice_lab_build_selected(
                 .unwrap_or(false)
         { reviewable_evaluation(&paths) } else { None };
         let ready = candidate.as_ref().is_some_and(|evaluation| {
-            commit_completion(&paths, &run_identity, &evaluation.review_id).is_ok()
+            current_voice_lab_build_snapshot().phase != "cancelling"
+                && commit_completion(&paths, &run_identity, &evaluation.review_id).is_ok()
+                && current_voice_lab_build_snapshot().phase != "cancelling"
         });
         if !ready {
             // Never carry a ready status from an interrupted/failed attempt.
