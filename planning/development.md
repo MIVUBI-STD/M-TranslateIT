@@ -68,6 +68,18 @@
 - Both historical (`if_save_latest=True`) and new loss-resistant (`if_save_latest=False`) configuration receipts may be audited, with a blocker for legacy archives lacking a pair receipt. **The auditor never sets `resume_available=True`**. Its protected structural inspection and stricter runtime-worker acknowledgment contracts remain developer-only.
 - The old release source-contract expectation for latest-saving has been updated; fixture examples are authored but unexecuted. No GPU, Rust, Python or Node validation performed.
 
+## Safety evidence contract — current source ceiling
+
+| Evidence | Authoritative source | Meaning | MUST NOT imply |
+| --- | --- | --- | --- |
+| Supervisor heartbeat | Existing run-token-bound Python status, emitted sparsely | Process supervisor can read device telemetry and run its loop | GPU batches/epochs advanced |
+| Epoch activity | SoVITS and GPT pinned trainer epoch boundary, scoped tiny JSON | An epoch has completed | Full checkpoint exists |
+| Checkpoint receipt | SoVITS G/D hash-bound pair or GPT saved-epoch file, scoped tiny JSON | Checkpoint file publication occurred | Tensor payload is loadable or optimizer will resume |
+| Immutable recovery archive | Rust saved TrainingRecovery manifest + streamed hashes | Identical bytes/dataset provenance were preserved | Full AMP, scheduler, RNG continuity |
+| Explicit developer resume audit | Developer-only `voice_lab_resume_validation.py` plus strict acknowledgment protocol | Highlights missing source/state proof and blocks invalid files | Permission to expose Resume or run training |
+
+All source declarations above require later Windows/runtime confirmation. A hash-valid G/D receipt is not one atomic cross-file transaction. The pinned SoVITS checkpoint writer saves model and optimizer but omits full AMP GradScaler continuity and independent RNG provenance. A source-level resume pass therefore remains unavailable, including for GPUs with larger VRAM. The opt-in resume diagnostic remains developer-only and cannot be used as a production training entrypoint.
+
 ## Single next step (source-only)
 
-Review the final Rust/Python source contracts, stage heartbeat provenance and checkpoint stop semantics; then close any source-provable gaps without adding workers or changing training quality **without starting training or tests**. Keep all changes on `Local`; preserve the selected Meeting voice and immutable audio/archive lineage. Only move to the canonical `docs/knowledge/operations/target-windows-performance.md` integrated acceptance when the user explicitly authorizes validation.
+Perform one bounded review of **checkpoint pair race handling**, **worker-origin progress identity**, and **Lightning 2.6.5 plugin/source API compatibility**. Prioritize removal of concrete source defects without adding workers, polling or speculative resume. Continue using the user device's verified physical GPU UUID and measured epoch cadence. Do not run tests, CI, Windows builds, CUDA training or fault injection until explicitly authorized; `main` stays untouched.
