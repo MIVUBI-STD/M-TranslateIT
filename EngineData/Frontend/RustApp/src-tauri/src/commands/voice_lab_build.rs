@@ -7,6 +7,8 @@ use std::sync::{Condvar, Mutex, OnceLock};
 #[cfg(windows)]
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_events::emit_voice_build_runtime_event;
@@ -828,6 +830,12 @@ fn start_voice_lab_build_selected(
         .stdout(Stdio::from(log))
         .stderr(Stdio::from(stderr));
     #[cfg(windows)]
+    {
+        // Start suspended and admit to the kill-on-close Job before Python
+        // executes any user code. Resume explicitly after Job assignment.
+        command.creation_flags(0x0000_0004);
+    }
+    #[cfg(windows)]
     let owned_job = match OwnedBuildJob::new() {
         Ok(job) => Arc::new(job),
         Err(error) => {
@@ -844,8 +852,12 @@ fn start_voice_lab_build_selected(
     };
     let pid = child.id();
     #[cfg(windows)]
-    if let Err(error) = owned_job.assign(&child) {
-        let _ = terminate_process_tree(pid);
+    if let Err(error) = owned_job.assign(&child)
+        .and_then(|_| owned_job.resume_suspended(pid))
+    {
+        // Job kills suspended descendants on failure. Never attempt to
+        // continue without an owned and explicitly resumed child.
+        let _ = owned_job.terminate();
         let _ = child.wait();
         let _ = fail_voice_lab_build(generation);
         return result(false, "build_process_guard_failed", error);

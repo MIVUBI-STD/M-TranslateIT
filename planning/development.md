@@ -92,6 +92,12 @@
 - Windows Job APIs are invoked through a scoped internal Rust module, no new Cargo dependency/lock edits. Assignment occurs just after `Command::spawn` (initial race remains). Existing trusted checkpoint preservation runs after subprocess exit.
 - No cargo build, Windows runtime, native process lifecycle or validation was executed. Product safety remains unverified.
 
+## Suspended Windows process admission — 2026-10-14
+
+- Both top-level My Voice Python build and upstream stage children now request Windows `CREATE_SUSPENDED`, obtain the initial thread via Toolhelp32, assign the suspended child to a kill-on-close Job Object and resume only after successful admission. A failure or ambiguous thread enumeration terminates only the owned job.
+- These wrappers use the existing Windows APIs rather than a new dependency; no tests or native verification executed. Open question: process handles, nested job eligibility, service restrictions and driver-exception behavior remain unverified until explicitly authorized. This closes the intended user-code-before-job-assignment gap in source, not an audited Windows guarantee.
+- Next focus: RAM/disk pressure and preventing checkpoint copies without adequate real free space.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

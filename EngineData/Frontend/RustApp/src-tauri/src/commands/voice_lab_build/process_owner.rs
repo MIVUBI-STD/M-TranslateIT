@@ -48,8 +48,25 @@ unsafe extern "system" {
     fn CreateJobObjectW(security: *mut c_void, name: *const u16) -> *mut c_void;
     fn SetInformationJobObject(job: *mut c_void, kind: i32, info: *const c_void, length: u32) -> i32;
     fn AssignProcessToJobObject(job: *mut c_void, process: *mut c_void) -> i32;
+    fn CreateToolhelp32Snapshot(flags: u32, process_id: u32) -> *mut c_void;
+    fn Thread32First(snapshot: *mut c_void, entry: *mut ThreadEntry32) -> i32;
+    fn Thread32Next(snapshot: *mut c_void, entry: *mut ThreadEntry32) -> i32;
+    fn OpenThread(access: u32, inherit: i32, thread_id: u32) -> *mut c_void;
+    fn ResumeThread(thread: *mut c_void) -> u32;
     fn TerminateJobObject(job: *mut c_void, exit_code: u32) -> i32;
     fn CloseHandle(handle: *mut c_void) -> i32;
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct ThreadEntry32 {
+    size: u32,
+    usage: u32,
+    thread_id: u32,
+    owner_pid: u32,
+    base_priority: i32,
+    delta_priority: i32,
+    flags: u32,
 }
 
 #[cfg(windows)]
@@ -97,6 +114,43 @@ impl OwnedBuildJob {
         } else {
             Ok(())
         }
+    }
+
+    pub(super) fn resume_suspended(&self, pid: u32) -> Result<(), String> {
+        // CREATE_SUSPENDED ensures user code cannot run before assignment.
+        // Thread handles are not exposed by std::process::Child, so find the
+        // one initial thread of this newly suspended owned process.
+        let snapshot = unsafe { CreateToolhelp32Snapshot(0x0000_0004, 0) };
+        if snapshot.is_null() || snapshot as isize == -1 {
+            return Err("my_voice:build_thread_snapshot_failed".into());
+        }
+        let mut entry = ThreadEntry32 {
+            size: std::mem::size_of::<ThreadEntry32>() as u32,
+            usage: 0, thread_id: 0, owner_pid: 0, base_priority: 0,
+            delta_priority: 0, flags: 0,
+        };
+        let mut matched: Vec<u32> = Vec::new();
+        let mut has_entry = unsafe { Thread32First(snapshot, &mut entry) } != 0;
+        while has_entry {
+            if entry.owner_pid == pid {
+                matched.push(entry.thread_id);
+            }
+            has_entry = unsafe { Thread32Next(snapshot, &mut entry) } != 0;
+        }
+        unsafe { CloseHandle(snapshot); }
+        if matched.len() != 1 {
+            return Err("my_voice:build_suspended_thread_ambiguous".into());
+        }
+        let thread = unsafe { OpenThread(0x0002, 0, matched[0]) };
+        if thread.is_null() {
+            return Err("my_voice:build_thread_open_failed".into());
+        }
+        let prior = unsafe { ResumeThread(thread) };
+        unsafe { CloseHandle(thread); }
+        if prior != 1 {
+            return Err("my_voice:build_thread_resume_failed".into());
+        }
+        Ok(())
     }
 
     pub(super) fn terminate(&self) -> bool {

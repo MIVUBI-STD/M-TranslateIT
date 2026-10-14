@@ -1,7 +1,8 @@
 """Conservative per-stage process-tree supervisor, not a GPU safety guarantee.
 
 Windows Job Object KILL_ON_JOB_CLOSE covers descendants after assignment.
-The short spawn-to-assignment race remains: this is not suspended launch.
+Windows children start CREATE_SUSPENDED and only resume after Job admission.
+A native worker/driver crash can still happen after resume.
 GPU pressure observations use optional installed nvidia-smi and fail closed.
 """
 from __future__ import annotations
@@ -72,6 +73,16 @@ if os.name == "nt":
     kernel.SetInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
     kernel.SetInformationJobObject.restype = wintypes.BOOL
     kernel.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    kernel.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    kernel.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+    kernel.Thread32First.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    kernel.Thread32First.restype = wintypes.BOOL
+    kernel.Thread32Next.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    kernel.Thread32Next.restype = wintypes.BOOL
+    kernel.OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenThread.restype = ctypes.c_void_p
+    kernel.ResumeThread.argtypes = [ctypes.c_void_p]
+    kernel.ResumeThread.restype = wintypes.DWORD
     kernel.AssignProcessToJobObject.restype = wintypes.BOOL
     kernel.QueryInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p]
     kernel.QueryInformationJobObject.restype = wintypes.BOOL
@@ -79,6 +90,46 @@ if os.name == "nt":
     kernel.TerminateJobObject.restype = wintypes.BOOL
     kernel.CloseHandle.argtypes = [ctypes.c_void_p]
     kernel.CloseHandle.restype = wintypes.BOOL
+
+    class _ThreadEntry32(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD),
+            ("cntUsage", wintypes.DWORD),
+            ("th32ThreadID", wintypes.DWORD),
+            ("th32OwnerProcessID", wintypes.DWORD),
+            ("tpBasePri", wintypes.LONG),
+            ("tpDeltaPri", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD),
+        ]
+
+    def _resume_owned_suspended_process(pid: int) -> None:
+        # Popen closes its original main-thread handle, so locate exactly
+        # one suspended initial thread through the Windows Toolhelp API.
+        snap = kernel.CreateToolhelp32Snapshot(0x00000004, 0)
+        if not snap or snap == ctypes.c_void_p(-1).value:
+            raise StageGuardError("my_voice:suspended_snapshot_unavailable")
+        matches: list[int] = []
+        entry = _ThreadEntry32()
+        entry.dwSize = ctypes.sizeof(_ThreadEntry32)
+        try:
+            success = kernel.Thread32First(snap, ctypes.byref(entry))
+            while success:
+                if entry.th32OwnerProcessID == pid:
+                    matches.append(int(entry.th32ThreadID))
+                success = kernel.Thread32Next(snap, ctypes.byref(entry))
+        finally:
+            kernel.CloseHandle(snap)
+        if len(matches) != 1:
+            raise StageGuardError("my_voice:suspended_thread_ambiguous")
+        thread = kernel.OpenThread(0x0002, False, matches[0])
+        if not thread:
+            raise StageGuardError("my_voice:suspended_thread_unavailable")
+        try:
+            prior = kernel.ResumeThread(thread)
+        finally:
+            kernel.CloseHandle(thread)
+        if prior != 1:
+            raise StageGuardError("my_voice:suspended_thread_resume_failed")
 
 class OwnedStageTree:
     def __init__(self) -> None:
@@ -179,12 +230,14 @@ def run_supervised_stage(
         try:
             proc = subprocess.Popen(
                 argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                creationflags=(subprocess.CREATE_NO_WINDOW | 0x00000004) if os.name == "nt" else 0,
                 start_new_session=os.name != "nt",
             )
         except OSError as exc:
             raise StageGuardError("my_voice:stage_spawn_failed") from exc
         tree.attach(proc)
+        if os.name == "nt":
+            _resume_owned_suspended_process(proc.pid)
         consecutive_bad = 0
         while proc.poll() is None:
             if sensor:
