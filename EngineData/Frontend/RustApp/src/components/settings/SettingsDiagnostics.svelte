@@ -96,6 +96,19 @@
       </div>
     </div>
     <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">Processing mode: {workerDiagnostics.executionDisplay}. This information is only needed for troubleshooting.</p>
+    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div class="ti-state-card">
+        <span class="ti-field-label">PyTorch CUDA allocator</span>
+        <strong class="mt-2 block break-words text-[12px] leading-5">{workerDiagnostics.torchMemoryDisplay}</strong>
+      </div>
+      <div class="ti-state-card">
+        <span class="ti-field-label">CUDA device memory</span>
+        <strong class="mt-2 block break-words text-[12px] leading-5">{workerDiagnostics.deviceMemoryDisplay}</strong>
+      </div>
+    </div>
+    <p class="mb-0 mt-3 text-[11.5px] leading-5 text-[var(--ti-text-soft)]">
+      Read-only snapshot from Check Again. PyTorch values are current allocator usage and lifetime peaks; device free/total is not attributable to a model. Neither value measures CTranslate2-only memory, transient whole-device peaks, or Meeting stability.
+    </p>
   </article>
 
   <RuntimeReliabilityDiagnostics {refreshRevision} />

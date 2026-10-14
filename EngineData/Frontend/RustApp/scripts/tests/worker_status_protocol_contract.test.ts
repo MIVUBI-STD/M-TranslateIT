@@ -59,3 +59,27 @@ test("frontend diagnostic loaded-state fields exist in Python status payload", (
     assert.match(python, new RegExp(`"${key}"\\s*:`), `Python loaded status missing ${key}`);
   }
 });
+
+const common = readFileSync(
+  new URL("../../../../Backend/LocalWorker/WorkerRuntime/worker_runtime_common.py", import.meta.url),
+  "utf8",
+);
+const diagnosticsView = readFileSync(
+  new URL("../../src/components/settings/SettingsDiagnostics.svelte", import.meta.url),
+  "utf8",
+);
+
+test("GPU diagnostics use existing worker status and do not alter readiness", () => {
+  assert.match(python, /"torch_allocator": common\.torch_allocator_snapshot\(\)/);
+  assert.match(frontend, /gpu\["torch_allocator"\]/);
+  assert.match(frontend, /payload\["stage"\] === "local_realtime_worker_preflight"/);
+  assert.match(frontend, /Number\.isSafeInteger/);
+  assert.match(frontend, /allocated > reserved/);
+  assert.match(frontend, /peakAllocated < allocated/);
+  assert.match(frontend, /free > total/);
+  assert.match(common, /if not cuda\.is_initialized\(\):/);
+  assert.match(diagnosticsView, /workerDiagnostics\.torchMemoryDisplay/);
+  assert.match(diagnosticsView, /workerDiagnostics\.deviceMemoryDisplay/);
+  assert.match(diagnosticsView, /Read-only snapshot from Check Again/);
+  assert.doesNotMatch(diagnosticsView, /setInterval|setTimeout/);
+});

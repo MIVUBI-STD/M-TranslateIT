@@ -77,4 +77,6 @@ export type WorkerCapabilitySnapshot = {
   translationDisplay: string;
   voiceDisplay: string;
   executionDisplay: string;
+  torchMemoryDisplay: string;
+  deviceMemoryDisplay: string;
 };
