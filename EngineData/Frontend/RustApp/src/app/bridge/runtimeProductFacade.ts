@@ -152,7 +152,7 @@ async function mapApplicationSnapshotToProduct(
     || previous.voiceBuildActive !== application.summaries.voice.build_active
     || !VOICE_REUSE_SAFE_REASONS.has(reason ?? "");
 
-  const [approvedVoiceReady, workerStatus] = await Promise.all([
+  const [approvedVoiceReady, observedWorkerStatus] = await Promise.all([
     refreshVoice
       ? loadApprovedVoiceReady()
       : Promise.resolve(previous.readiness.approvedVoiceReady),
@@ -160,6 +160,15 @@ async function mapApplicationSnapshotToProduct(
       ? (helper.state === "ready" ? runtimeApi.helperBridgeWorkerStatus() : Promise.resolve(null))
       : Promise.resolve(previous.workerStatus),
   ]);
+  // The native application snapshot and the worker response are separate reads.
+  // A helper restart between them must not combine an old/new worker capability
+  // or GPU memory observation with the other generation's application state.
+  // Retained snapshots are allowed only while the owning generation still matches.
+  const workerStatus = observedWorkerStatus?.task === "status"
+    && helper.state === "ready"
+    && observedWorkerStatus.generation_token === helper.generation_token
+    ? observedWorkerStatus
+    : null;
   const meetingSession = application.meeting;
   const inputStatus = application.input;
   const meeting = mapProductMeetingState(meetingSession);
