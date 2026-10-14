@@ -130,6 +130,12 @@
 - Additional authored policy examples cover declining RAM and recovery to NORMAL. These are source fixtures only, not test execution or performance proof.
 - Explicit user Stop Creating remains an immediate cancellation path; the pressure-triggered cooperative yield is not a general-purpose Pause/Resume feature. Do not advertise automatic continuation.
 
+## Lightweight safety status and acknowledged-stop contract — 2026-10-14
+
+- A single short-lived stage supervisor reports safety state transitions to the existing Python `status_writer` only when WATCH/PRESSURE/CRITICAL/NORMAL changes, preserving Rust's one canonical build-status owner. No per-sample UI writes, duplicate poller, percentage or ETA.
+- If a resource-pressure stop request is not acknowledged by a checkpoint boundary, the stage does **not** silently advance to the next stage even when the child exits successfully. The run remains incomplete, with any existing checkpoints handled under the normal recovery gate.
+- Acknowledgment is accepted only after a clean child exit, and does not grant an optimizer resume contract. All source-level contracts remain unexecuted.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

@@ -222,7 +222,10 @@ def stage_gpu_budget() -> int:
         raise VoiceLabProviderError("gpu_headroom_insufficient_or_unknown") from exc
 
 
-def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) -> None:
+def run_stage(
+    source_root: Path, script: Path, env: dict[str, str], *args: str,
+    status_writer: Callable[[str, str], None] | None = None,
+) -> None:
     child_env = os.environ.copy()
     child_env.update(env)
     # The English text step does not need CUDA; every remaining stage does.
@@ -235,6 +238,24 @@ def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) 
     require_file(runner, "headless_stage_runner")
     from my_voice_stage_supervisor import StageGuardError, run_supervised_stage
 
+    def safety_change(state: str, reason: str) -> None:
+        if status_writer is None:
+            return
+        stage = (
+            "SoVITS training stage" if script.name == "s2_train.py"
+            else "GPT training stage" if script.name == "s1_train.py"
+            else script.name
+        )
+        if state == "watch":
+            message = f"{stage}: resource use is high but stable; continuing under observation."
+        elif state == "pressure":
+            message = f"{stage}: resources are declining; requesting a checkpoint-boundary stop."
+        elif state in ("critical", "unknown"):
+            message = f"{stage}: critical or unknown resources; emergency protection active."
+        else:
+            message = f"{stage}: resource pressure has returned to normal."
+        status_writer("training", message)
+
     try:
         run_supervised_stage(
             [sys.executable, "-s", str(runner), str(source_root), str(script), *args],
@@ -244,6 +265,7 @@ def run_stage(source_root: Path, script: Path, env: dict[str, str], *args: str) 
                 "sovits" if script.name == "s2_train.py"
                 else "gpt" if script.name == "s1_train.py" else None
             ),
+            on_safety_change=safety_change if status_writer is not None else None,
         )
     except StageGuardError as exc:
         raise VoiceLabProviderError(f"upstream_stage_guard:{script.name}:{exc}") from exc
@@ -464,9 +486,11 @@ def train(
     # The headless runner applies the pinned single-GPU adapter. No upstream
     # source files are edited and source-hash drift blocks training.
     status_writer("training", "Learning voice characteristics (SoVITS training stage).")
-    run_stage(source_root, assets["sovits_train"], env, "--config", str(s2))
+    run_stage(source_root, assets["sovits_train"], env, "--config", str(s2),
+              status_writer=status_writer)
     status_writer("training", "Learning speech generation (GPT training stage).")
-    run_stage(source_root, assets["gpt_train"], env, "--config_file", str(s1))
+    run_stage(source_root, assets["gpt_train"], env, "--config_file", str(s1),
+              status_writer=status_writer)
     return select_training_candidates(sovits_dir, gpt_dir)
 
 

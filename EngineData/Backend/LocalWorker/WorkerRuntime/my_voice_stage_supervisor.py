@@ -15,6 +15,7 @@ import signal
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Callable
 from my_voice_adaptive_safety import PressureObserver, SafetySample
 from my_voice_resource_guard import snapshot as resource_snapshot
 
@@ -261,6 +262,7 @@ def _acknowledged(directory: Path, token: str, stage: str) -> bool:
 def run_supervised_stage(
     argv: list[str], *, cwd: str, env: dict[str, str], gpu_stage: bool,
     cooperative_stage: str | None = None,
+    on_safety_change: Callable[[str, str], None] | None = None,
 ) -> None:
     """One supervised stage, no throttling fiction and no automatic resume.
 
@@ -307,6 +309,7 @@ def run_supervised_stage(
             if os.name == "nt":
                 _resume_owned_suspended_process(proc.pid)
             observer = PressureObserver(require_gpu=gpu_stage)
+            previous_state: str | None = None
             emergency_readings = 0
             request_sent = False
             while proc.poll() is None:
@@ -318,6 +321,10 @@ def run_supervised_stage(
                     result = observer.observe(SafetySample(free_gpu, ram, cache, saved))
                 except (ResourceGuardError, StageGuardError):
                     result = observer.observe(SafetySample(None, -1, -1, -1))
+                if result.state != previous_state:
+                    previous_state = result.state
+                    if on_safety_change is not None:
+                        on_safety_change(result.state, result.reason)
                 if result.state in ("critical", "unknown"):
                     emergency_readings += 1
                 else:
@@ -350,6 +357,10 @@ def run_supervised_stage(
                 # This is a completed stage-process exit at a checkpoint
                 # boundary, NOT completion of the full training run.
                 raise StageGuardError("my_voice:cooperative_safe_stop_checkpoint_candidate")
+            if request_sent:
+                # Some trainers might exit naturally before their next eligible
+                # checkpoint. Do not silently continue after a stop was requested.
+                raise StageGuardError("my_voice:cooperative_stop_not_acknowledged")
     finally:
         if temporary:
             shutil.rmtree(temporary, ignore_errors=True)
