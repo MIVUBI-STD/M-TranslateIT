@@ -149,6 +149,31 @@ def _snapshot(saved_root: Path, snapshot_id: str) -> None:
             raise ResumeAuditError("source_audio_hash_mismatch")
 
 
+def _checkpoint_progress(original_filename: str, kind: str) -> tuple[int, int]:
+    """Sort by source epoch/global_step, NEVER lexicographic archive labels.
+
+    No tensor read, file stat or training involved. Unrecognized legacy
+    checkpoint names are not evidence of latest state.
+    """
+    if kind == "gpt":
+        match = re.fullmatch(r"epoch=([0-9]+)-step=([0-9]+)\.ckpt", original_filename)
+        if match is None:
+            raise ResumeAuditError("gpt_checkpoint_progress_unverifiable")
+        epoch, step = int(match.group(1)), int(match.group(2))
+        if epoch < 0 or step < 1:
+            raise ResumeAuditError("gpt_checkpoint_progress_invalid")
+        return epoch, step
+    if kind in ("G", "D"):
+        match = re.fullmatch(rf"{kind}_([0-9]+)\.pth", original_filename)
+        if match is None:
+            raise ResumeAuditError("sovits_checkpoint_progress_unverifiable")
+        step = int(match.group(1))
+        if step <= 0:
+            raise ResumeAuditError("sovits_checkpoint_progress_invalid")
+        return 0, step
+    raise ResumeAuditError("checkpoint_role_unknown")
+
+
 def audit_archive(
     saved_root: Path,
     recovery_id: str,
@@ -211,9 +236,17 @@ def audit_archive(
 
     blockers: list[str] = []
     tensor_inspected = False
-    gpts = sorted(p for p in labels if re.fullmatch(r"gpt-(?:[0-9]|1[01])\.ckpt", p))
-    gens = sorted(p for p in labels if re.fullmatch(r"sovits-G-(?:[0-9]|1[01])\.pth", p))
-    discs = sorted(p for p in labels if re.fullmatch(r"sovits-D-(?:[0-9]|1[01])\.pth", p))
+    gpts = [p for p in labels if re.fullmatch(r"gpt-(?:[0-9]|1[01])\.ckpt", p)]
+    gens = [p for p in labels if re.fullmatch(r"sovits-G-(?:[0-9]|1[01])\.pth", p)]
+    discs = [p for p in labels if re.fullmatch(r"sovits-D-(?:[0-9]|1[01])\.pth", p)]
+    # "gpt-10" sorts before "gpt-9" lexicographically. For optional
+    # tensor inspection, choose the actual latest source epoch/step and G/D
+    # global step; unreadable progress metadata blocks inspection.
+    for family, group in (("gpt", gpts), ("G", gens), ("D", discs)):
+        try:
+            group.sort(key=lambda label: _checkpoint_progress(originals[label], family))
+        except ResumeAuditError as exc:
+            blockers.append(str(exc))
     pairs = sorted(p for p in labels if re.fullmatch(r"sovits-pair-(?:[0-9]|1[01])\.json", p))
     if any(len(group) > MAX_GROUP for group in (gpts, gens, discs, pairs)):
         raise ResumeAuditError("recovery_checkpoint_group_count_exceeded")

@@ -12,6 +12,7 @@ from voice_lab_gpt_sovits import ENGINE_REVISION, GPT_EPOCHS, SOVITS_EPOCHS
 from voice_lab_resume_validation import (
     ResumeAuditError,
     _training_state_blockers,
+    _checkpoint_progress,
     audit_archive,
 )
 
@@ -112,6 +113,23 @@ def fixture(
 
 
 class RecoveryAuditContractTests(unittest.TestCase):
+    def test_progress_order_uses_original_epoch_and_step(self) -> None:
+        names = [
+            "epoch=9-step=200.ckpt",
+            "epoch=10-step=150.ckpt",
+            "epoch=10-step=300.ckpt",
+        ]
+        self.assertEqual(
+            sorted(names, key=lambda name: _checkpoint_progress(name, "gpt"))[-1],
+            "epoch=10-step=300.ckpt",
+        )
+        self.assertGreater(
+            _checkpoint_progress("G_1200.pth", "G"),
+            _checkpoint_progress("G_900.pth", "G"),
+        )
+        with self.assertRaisesRegex(ResumeAuditError, "gpt_checkpoint_progress_unverifiable"):
+            _checkpoint_progress("last.ckpt", "gpt")
+
     def test_hash_valid_archive_still_does_not_enable_resume(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             saved = Path(tmp) / "VoiceLab"

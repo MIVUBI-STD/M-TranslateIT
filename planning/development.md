@@ -40,6 +40,12 @@
 - Windows supports nested Job trees on current supported versions, but nested assignment/runtime compatibility is still unverified. No new process, background monitor, polling, or arbitrary external process termination was added.
 - Changes are source-only; Windows compilation and Job API fault-injection remain disallowed until authorized.
 
+## Latest optimizer candidate selection (source-only) — 2026-10-14
+
+- Developer-only recovery audit previously used lexicographic labels (e.g. `gpt-10.ckpt` before `gpt-9.ckpt`) to select the last checkpoint for explicit tensor inspection. The latest candidate is now selected from the **original saved epoch and global step**, and from the original SoVITS G/D global step, not archive label order.
+- Unrecognized historical checkpoint names (for example `last.ckpt` without trustworthy source epoch) block optional tensor inspection instead of silently selecting an arbitrary file. All byte/hash verification remains intact and `resume_available` remains **false**.
+- Regression fixtures are authored but unexecuted, with no torch import or checkpoint tensor reads performed during this change.
+
 ## Next focused source-only work
 
 **P0:** Review any remaining cancellation race between Rust completion, checkpoint preservation, and a late manual Stop without adding locks or workers.
