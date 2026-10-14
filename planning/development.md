@@ -94,6 +94,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 - Uncertain group ownership, permissions, and leftover descendants continue to fail closed. This **does not** enable My Voice training on Linux/macOS: the current native admission is Windows-only, and no cross-platform training claims are made. The main Rust non-Windows process owner needs separate hardening before any future non-Windows backend is supported.
 - No new stage, process, watcher or polling channel was introduced. Source fixtures authored but not executed.
 
+## Accurate attention status after unconfirmed cleanup — 2026-10-14
+
+- When Rust cannot prove owned process cleanup, it retains the active cancellation gate and an explicit checkpoint/work preservation message. Both native My Voice status and the existing Svelte UI now **display this attention message**, rather than indefinitely claiming “Stopping safely”.
+- The runtime event is emitted as a failed build when recovery/quiescence needs attention, even if Stop had been requested. This changes diagnostics only; it never claims Review or resume completed.
+- No additional state owner, worker, polling or I/O channel. Source-only; not runtime tested.
+
 ## Single next source-only step
 
 Review whether a Python stage subprocess can leave a live descendant after its root exits in **non-Windows** packaging, and audit all source return-code/exception paths for fail-closed behavior. Do not alter `main`, change the selected GPU policy, or enable optimizer resume.

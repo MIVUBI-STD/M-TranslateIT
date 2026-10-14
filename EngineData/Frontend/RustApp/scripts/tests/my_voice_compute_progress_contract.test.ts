@@ -127,6 +127,9 @@ test("manual Stop reuses the existing process owners and cannot claim success af
   assert.doesNotMatch(exitLoop, /break child\.wait\(\)/);
   assert.doesNotMatch(exitLoop, /let _ = child\.wait\(\)/);
   assert.match(native, /my_voice:forced_stop_after_deadline/);
+  assert.match(native, /let recovery_failed = recovery\.is_err\(\)/);
+  assert.match(native, /let event_reason = if recovery_failed \{/);
+  assert.match(native, /else if snapshot\.active && snapshot\.phase == "cancelling"/);
   assert.match(native, /owned_job\.assign\(&child\)/);
   assert.match(native, /let _ = child\.kill\(\);/);
   assert.match(native, /unassigned process may live/);

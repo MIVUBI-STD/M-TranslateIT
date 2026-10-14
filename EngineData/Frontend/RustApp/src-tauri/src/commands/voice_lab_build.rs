@@ -569,7 +569,14 @@ fn current_status() -> VoiceLabBuildStatus {
     } else if preview_active {
         "Creating Quick Preview locally.".to_string()
     } else if snapshot.active && snapshot.phase == "cancelling" {
-        "Stopping training safely. Waiting for a checkpoint boundary when possible; the current Meeting voice is unchanged.".to_string()
+        if terminal_message.is_empty() {
+            "Stopping training safely. Waiting for a checkpoint boundary when possible; the current Meeting voice is unchanged.".to_string()
+        } else {
+            // A cleanup failure leaves the native lifecycle in Cancelling.
+            // Do not conceal the resulting attention state with a generic
+            // "Stopping safely" message that could persist indefinitely.
+            terminal_message.clone()
+        }
     } else if !snapshot.active && process_cleanup_pending {
         if terminal_message.is_empty() {
             "Finalizing the previous My Voice process and checking its saved files before Review.".to_string()
@@ -1143,7 +1150,8 @@ fn start_voice_lab_build_selected(
             status.phase == "failed"
                 && status.message.contains("cooperative_safe_stop_checkpoint_candidate")
         });
-        if recovery.is_err() {
+        let recovery_failed = recovery.is_err();
+        if recovery_failed {
             let _ = fail_voice_lab_build(generation);
         } else if cancelling {
             let _ = finish_voice_lab_build(generation);
@@ -1161,7 +1169,9 @@ fn start_voice_lab_build_selected(
         } else {
             "VoiceLab could not create a reviewable Voice Actor. Check Diagnostics and try again.".to_string()
         };
-        let event_reason = if ready {
+        let event_reason = if recovery_failed {
+            "voice_build_failed"
+        } else if ready {
             "voice_build_completed"
         } else if cancelling {
             "voice_build_cancelled"

@@ -234,7 +234,9 @@
     if (build.phase === "preparing") return "Getting your accepted recordings ready.";
     if (build.phase === "training") return "Creating your English meeting voice from your accepted recordings.";
     if (build.phase === "evaluating") return "Preparing new sentences so you can listen before approving My Voice.";
-    if (build.phase === "cancelling") return "Finishing the current stop safely.";
+    if (build.phase === "cancelling") return build.message.trim()
+      ? build.message.replace(/\bVoiceLab\b/g, "My Voice")
+      : "Finishing the current stop safely.";
     return "My Voice is being created.";
   }
 
