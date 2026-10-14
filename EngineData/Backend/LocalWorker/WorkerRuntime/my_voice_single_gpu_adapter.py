@@ -27,7 +27,7 @@ def _verified_upstream_source(path: Path, relative: str) -> str:
         raise RuntimeError("my_voice:single_gpu_source_unsupported")
     raw = path.read_bytes()
     # Git blob identity, not a plain-file SHA-1: includes blob type and size.
-    header = f"blob {len(raw)}\\0".encode("ascii").replace(b"\\0", b"\\x00")
+    header = b"blob " + str(len(raw)).encode("ascii") + bytes([0])
     actual_blob = hashlib.sha1(header + raw).hexdigest()
     if actual_blob != expected_blob:
         raise RuntimeError(f"my_voice:single_gpu_source_revision_mismatch:{relative}")
