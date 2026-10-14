@@ -133,6 +133,8 @@ pub struct MyVoiceComputeStatus {
     pub cpu_name: String,
     pub gpu_name: Option<String>,
     pub gpu_uuid: Option<String>,
+    pub compute_capability: Option<String>,
+    pub precision_profile: Option<String>,
     pub cuda_index: Option<u32>,
     pub visible_cuda_devices: u32,
     pub vram_mib: Option<u64>,
@@ -151,6 +153,8 @@ impl MyVoiceComputeStatus {
             cpu_name: "CPU name unavailable".into(),
             gpu_name: None,
             gpu_uuid: None,
+            compute_capability: None,
+            precision_profile: None,
             cuda_index: None,
             visible_cuda_devices: 0,
             vram_mib: None,
@@ -219,10 +223,14 @@ fn probe_my_voice_compute_status() -> MyVoiceComputeStatus {
                     return MyVoiceComputeStatus::unavailable("Hardware checker output is unreadable.");
                 };
                 if !matches!(report.state.as_str(), "cuda_detected" | "cpu_only" | "unavailable")
-                    || !matches!(report.admission_state.as_str(), "admitted" | "blocked_gpu_headroom" | "unknown")
+                    || !matches!(report.admission_state.as_str(), "admitted" | "blocked_gpu_headroom" | "blocked_unsupported_precision" | "unknown")
                     || report.profile != "SAFE_CUDA_V1"
                     || report.visible_cuda_devices > 8
                     || report.gpu_uuid.as_ref().is_some_and(|uuid| !valid_nvidia_gpu_uuid(uuid))
+                    || report.compute_capability.as_ref().is_some_and(|cc|
+                        cc.len() > 7 || !cc.bytes().all(|b| b.is_ascii_digit() || b == b'.'))
+                    || report.precision_profile.as_ref().is_some_and(|p|
+                        !matches!(p.as_str(), "mixed_fp16" | "unsupported_pinned_precision"))
                     || report.cuda_index.is_some_and(|index| index >= report.visible_cuda_devices)
                     || report.cpu_name.len() > 200 || report.detail.len() > 500
                     || report.gpu_name.as_ref().is_some_and(|name| name.len() > 200)
@@ -232,15 +240,18 @@ fn probe_my_voice_compute_status() -> MyVoiceComputeStatus {
                     || report.reserve_mib.is_some_and(|mib| mib > 1_048_576)
                     || (report.state != "cuda_detected"
                         && (report.gpu_name.is_some() || report.gpu_uuid.is_some()
+                            || report.compute_capability.is_some() || report.precision_profile.is_some()
                             || report.cuda_index.is_some() || report.vram_mib.is_some()
                             || report.free_vram_mib.is_some() || report.safe_budget_mib.is_some()))
                     || (report.state == "cuda_detected"
                         && (report.gpu_name.is_none() || report.gpu_uuid.is_none()
+                            || report.compute_capability.is_none() || report.precision_profile.is_none()
                             || report.cuda_index.is_none() || report.vram_mib.is_none()
                             || report.free_vram_mib.is_none() || report.safe_budget_mib.is_none()
                             || report.reserve_mib.is_none()))
                     || (report.admission_state == "admitted"
-                        && (report.safe_budget_mib.unwrap_or(0) < 3072
+                        && (report.precision_profile.as_deref() != Some("mixed_fp16")
+                            || report.safe_budget_mib.unwrap_or(0) < 3072
                             || report.safe_budget_mib > report.free_vram_mib))
                 {
                     return MyVoiceComputeStatus::unavailable("Hardware checker returned inconsistent data.");

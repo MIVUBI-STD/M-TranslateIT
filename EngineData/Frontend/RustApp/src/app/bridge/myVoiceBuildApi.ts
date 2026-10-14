@@ -35,13 +35,15 @@ export type MyVoiceComputeStatus = {
   cpu_name: string;
   gpu_name: string | null;
   gpu_uuid: string | null;
+  compute_capability: string | null;
+  precision_profile: "mixed_fp16" | "unsupported_pinned_precision" | null;
   cuda_index: number | null;
   visible_cuda_devices: number;
   vram_mib: number | null;
   free_vram_mib: number | null;
   reserve_mib: number | null;
   safe_budget_mib: number | null;
-  admission_state: "admitted" | "blocked_gpu_headroom" | "unknown";
+  admission_state: "admitted" | "blocked_gpu_headroom" | "blocked_unsupported_precision" | "unknown";
   profile: string;
   detail: string;
 };

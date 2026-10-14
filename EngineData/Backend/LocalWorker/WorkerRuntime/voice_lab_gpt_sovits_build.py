@@ -346,6 +346,10 @@ def batch_and_half() -> tuple[int, bool]:
 
     if not torch.cuda.is_available():
         raise VoiceLabProviderError("safe_cuda_requires_supported_gpu")
+    from my_voice_precision_policy import device_precision_policy
+    _cc, precision = device_precision_policy(torch.cuda, 0)
+    if precision != "mixed_fp16":
+        raise VoiceLabProviderError("safe_cuda_pinned_mixed_precision_unsupported")
     # A physical batch of one prevents the previous 8 GB -> batch 4 heuristic.
     # This is a conservative attempt, NOT verified OOM-free training.
     return 1, True

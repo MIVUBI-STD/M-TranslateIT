@@ -17,6 +17,7 @@ from my_voice_gpu_identity import (
     normalize_uuid, sensor_inventory_mib,
 )
 from my_voice_gpu_policy import PROFILE, assess_memory
+from my_voice_precision_policy import device_precision_policy
 
 MIB = 1024 * 1024
 
@@ -27,6 +28,8 @@ def empty_report(cpu_name: str) -> dict[str, Any]:
         "cpu_name": cpu_name[:200] or "CPU name unavailable",
         "gpu_name": None,
         "gpu_uuid": None,
+        "compute_capability": None,
+        "precision_profile": None,
         "cuda_index": None,
         "visible_cuda_devices": 0,
         "vram_mib": None,
@@ -89,13 +92,18 @@ def detect_compute(
                 # the device identity; use lower free reading conservatively.
                 free = min(cuda_free, smi_free_mib * MIB)
                 policy = assess_memory(total, free)
+                capability, precision = device_precision_policy(cuda, index)
                 candidates.append({
                     "name": name[:200], "uuid": uuid, "index": index,
+                    "compute_capability": capability, "precision_profile": precision,
                     "vram_mib": total // MIB,
                     "free_vram_mib": free // MIB,
                     "reserve_mib": policy["reserve_mib"],
                     "safe_budget_mib": policy["safe_budget_mib"],
-                    "admission_state": policy["state"],
+                    "admission_state": (
+                        policy["state"] if precision == "mixed_fp16"
+                        else "blocked_unsupported_precision"
+                    ),
                 })
             except DeviceIdentityError as exc:
                 if str(exc) == "duplicate_cuda_uuid" or target is not None:
@@ -122,6 +130,8 @@ def detect_compute(
             "state": "cuda_detected",
             "gpu_name": best["name"],
             "gpu_uuid": best["uuid"],
+            "compute_capability": best["compute_capability"],
+            "precision_profile": best["precision_profile"],
             "cuda_index": best["index"],
             "vram_mib": best["vram_mib"],
             "free_vram_mib": best["free_vram_mib"],
@@ -132,8 +142,11 @@ def detect_compute(
                 "Physical CUDA GPU selected by verified NVIDIA UUID. "
                 "Budget is provisional; successful training is unverified."
                 if best["admission_state"] == "admitted" else
-                "CUDA GPU detected but the current free memory is below "
-                "the safe training admission budget."
+                ("GPU identified, but this CUDA architecture is outside the "
+                 "reviewed mixed-FP16 policy for the pinned training engine."
+                 if best["admission_state"] == "blocked_unsupported_precision"
+                 else "CUDA GPU detected but current free memory is below "
+                 "the safe training admission budget.")
             ),
         })
     except Exception:
@@ -141,6 +154,8 @@ def detect_compute(
         result["admission_state"] = "unknown"
         result["gpu_name"] = None
         result["gpu_uuid"] = None
+        result["compute_capability"] = None
+        result["precision_profile"] = None
         result["cuda_index"] = None
         result["vram_mib"] = None
         result["free_vram_mib"] = None

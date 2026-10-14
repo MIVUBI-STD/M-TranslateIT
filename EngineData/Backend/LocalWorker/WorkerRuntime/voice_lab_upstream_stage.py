@@ -213,6 +213,10 @@ def install_preflight_allocator_budget(relative_script: Path) -> None:
         raise RuntimeError("my_voice:gpu_stage_visible_device_changed")
     if torch.cuda.device_count() != 1 or cuda_device_uuid(torch.cuda, 0) != expected_uuid:
         raise RuntimeError("my_voice:gpu_stage_wrong_physical_device")
+    from my_voice_precision_policy import device_precision_policy
+    _capability, precision = device_precision_policy(torch.cuda, 0)
+    if precision != "mixed_fp16":
+        raise RuntimeError("my_voice:pinned_cuda_precision_not_supported")
     total_mib = int(torch.cuda.get_device_properties(0).total_memory // (1024 * 1024))
     budget_mib = int(budget_raw)
     if budget_mib < 3072 or total_mib < budget_mib:

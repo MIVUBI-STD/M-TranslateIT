@@ -15,6 +15,7 @@ def fake_torch(items):
             uuid=items[i][0],
         ),
         get_device_name=lambda i: f"GPU Device {i}",
+        get_device_capability=lambda i: (8, 6),
         mem_get_info=lambda i: (
             items[i][2] * 1024**2, items[i][1] * 1024**2
         ),
@@ -58,6 +59,14 @@ def test_missing_cuda_uuid_fails_closed():
         get_device_properties=lambda _: SimpleNamespace(total_memory=8192*1024**2),
     )
     assert detect_compute(SimpleNamespace(cuda=cuda), "CPU")["state"] == "unavailable"
+
+def test_known_but_unreviewed_cuda_architecture_is_blocked():
+    model = fake_torch([(UUID_A, 8192, 7000)])
+    model.cuda.get_device_capability = lambda _: (6, 1)
+    info = detect_compute(model, "CPU", sensor_reader=sensor_read)
+    assert info["state"] == "cuda_detected"
+    assert info["compute_capability"] == "6.1"
+    assert info["admission_state"] == "blocked_unsupported_precision"
 
 def test_cpu_only_is_not_implicitly_admitted():
     report = detect_compute(fake_torch([]), "CPU")
