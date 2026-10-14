@@ -385,6 +385,48 @@ pub(crate) fn training_recovery_status(
 mod tests {
     use super::*;
     #[test]
+    fn pair_verification_reuses_already_hashed_archive_parts() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "translateit-pair-recovery-{}-{stamp}", std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let pair_file = root.join("pair_120.json");
+        let parts = vec![
+            RecoveryPart {
+                label: "sovits-G-0.pth".into(),
+                original_filename: "G_120.pth".into(),
+                sha256: "a".repeat(64),
+                bytes: 8192,
+            },
+            RecoveryPart {
+                label: "sovits-D-0.pth".into(),
+                original_filename: "D_120.pth".into(),
+                sha256: "b".repeat(64),
+                bytes: 8192,
+            },
+        ];
+        // Pair validation must NOT require checkpoint files to be reread;
+        // file hashes are already available from the archive part pass.
+        let payload = serde_json::json!({
+            "format": 1, "global_step": 120, "epoch": 2,
+            "generator": {
+                "name": "G_120.pth", "bytes": 8192, "sha256": "a".repeat(64)
+            },
+            "discriminator": {
+                "name": "D_120.pth", "bytes": 8192, "sha256": "b".repeat(64)
+            }
+        });
+        fs::write(&pair_file, serde_json::to_vec(&payload).unwrap()).unwrap();
+        assert!(verify_source_pair(&pair_file, &parts).is_ok());
+        let mut changed = parts.clone();
+        changed[1].sha256 = "c".repeat(64);
+        assert!(verify_source_pair(&pair_file, &changed).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn incomplete_training_checkpoint_set_is_preserved_for_investigation_not_resumed() {
         let stamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
