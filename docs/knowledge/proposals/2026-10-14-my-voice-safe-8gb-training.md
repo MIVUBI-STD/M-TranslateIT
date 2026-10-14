@@ -161,6 +161,14 @@ When the user later authorizes validation, require traceable end-to-end evidence
 - A revision-locked in-memory adapter is now staged: SoVITS has a single-device in-process entrypoint and no DDP wrapper; GPT Lightning selects one GPU with automatic non-DDP strategy. Original upstream bytes remain intact; unexpected pinned Git blob identity fails closed.
 - **Critical remaining gaps:** the adapter has not been compiled or executed against the actual Windows trainer, and data-loader subprocesses/non-PyTorch allocations are not globally capped. No safe-memory or native-crash certification is established; next priority is process-tree ownership, stage memory telemetry, receipt integrity and native validation when authorized. A 12 GB GPU is not a requirement.
 
+## SAFE_8GB source additions since design baseline (2026-10-14)
+
+Implemented in `Local` as unvalidated code: free-VRAM admission, batch=1, per-stage budget and single-GPU pinned adapter; Windows suspended child-to-Job admission and Job kill-on-close, including main Python build; conservative `nvidia-smi` pressure watchdog; RAM/disk preflight and supervised runtime guard; checkpoint archive capacity calculated from actual checkpoint bytes; one-run identity and success receipt; supervised per-candidate evaluation and held-out WAV SHA-256 binding.
+
+**Proof boundary:** no local Rust/Node/Python test suite, Windows compilation, training, inference, QA listening or recovery scenario has been executed or authorized. GPU allocator caps are not system-wide VRAM limits; hardware/driver OOM remains possible, and arbitrary native failures cannot be ruled out. Partial checkpoints are archived as unverified recovery evidence, not resumed. Reserve thresholds are provisional.
+
+**Remaining engineering:** synchronize physical GPU identity across CUDA and nvidia-smi sensors, stronger phase/heartbeat provenance, compare actual protected disk requirements during every prolonged save, and native Windows acceptance later only when the user requests it.
+
 ## 11. External documentation used for rationale
 
 - NVIDIA RTX 3070: https://www.nvidia.com/id-id/geforce/graphics-cards/30-series/rtx-3070-3070ti/

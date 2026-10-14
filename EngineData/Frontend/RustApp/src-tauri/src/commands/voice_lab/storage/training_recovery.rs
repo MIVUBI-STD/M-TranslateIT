@@ -199,13 +199,15 @@ pub(crate) fn preserve_training_checkpoints(
         return Ok(Some(id));
     }
     let pending = root.join(format!(".pending-{id}"));
-    // A complete immutable checkpoint archive may require substantial disk
-    // capacity. If insufficient, preserve source bytes and block cleanup.
-    crate::commands::my_voice_resources::ensure_archive_capacity(&root, total)?;
     if fs::symlink_metadata(&pending).is_ok() {
+        // A previous verified pending archive needs only its final rename,
+        // not another full checkpoint copy or a second free-space reserve.
         verify_package(&pending, &receipt, &id)
             .map_err(|_| "voice_lab:recovery_partial_archive_needs_attention")?;
     } else {
+        // A *new* immutable checkpoint archive may be large. If insufficient,
+        // preserve all original checkpoint bytes and block unsafe cleanup.
+        crate::commands::my_voice_resources::ensure_archive_capacity(&root, total)?;
         fs::create_dir(&pending).map_err(|_| "voice_lab:recovery_stage_create_failed")?;
         let dest = pending.join("files");
         checked_directory(&dest)?;

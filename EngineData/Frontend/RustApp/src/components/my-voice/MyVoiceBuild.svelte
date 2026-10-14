@@ -172,6 +172,18 @@
         return "Stop Meeting translation before creating My Voice, then try again.";
       case "gpu_admission_blocked":
         return result.message;
+      case "resource_admission_blocked":
+        if (result.message.includes("insufficient_system_ram"))
+          return "Not enough free system memory to create My Voice. Close unnecessary apps and recheck hardware.";
+        if (result.message.includes("insufficient_temporary_disk_space"))
+          return "Temporary training storage has insufficient free space. Free space without deleting saved My Voice recordings.";
+        if (result.message.includes("insufficient_saved_disk_space"))
+          return "Saved My Voice storage has insufficient free space to protect your models and recordings.";
+        return "RAM or storage could not be verified. Training has not started.";
+      case "build_process_guard_failed":
+        return "Windows could not securely contain the training process. Training was blocked without using an unprotected fallback.";
+      case "build_identity_failed":
+        return "Couldn't safely register this training attempt. The existing voice was not replaced.";
       case "meeting_active":
         return "Stop Meeting translation before selecting My Voice.";
       case "cancel_pending":

@@ -1,6 +1,6 @@
 # Active development — My Voice source stabilization (2026-10-14)
 
-**State:** SOURCE_CANDIDATE — UI_UX_SOURCE_REFINEMENT / EXECUTION_NOT_RUN. The previously frozen backend source scope stays unchanged while the user-approved My Voice frontend layout receives a bounded UX pass; no UI, native, sound-quality or installed-product acceptance has been executed.
+**State:** SAFE_8GB_SOURCE_CANDIDATE / EXECUTION_NOT_RUN. Since the approved My Voice UI refinement, the user requested staged CUDA/RAM/disk safety and crash-containment code for an RTX 3070 8 GB. These additions have not been compiled, tested or run on Windows, and must not be described as proven safe.
 
 **Authority:** `MIVUBI-STD/M-TranslateIT`, branch `Local`. Pin the actual `Local` HEAD for each read/write and all future executable acceptance. The 2026-10-12 partial developer checks on `230ca94faae178659a7738fa82399485c267c991` do not certify newer My Voice revisions.
 
@@ -109,6 +109,12 @@
 - All upstream stage children now require additional read-only RAM/cache/saved-store checks using `my_voice_resource_guard.py` before launch and during execution. Two consecutive critical or unavailable readings trigger owned-process termination instead of risking silent checkpoint truncation.
 - Provisional thresholds: 3 GiB available RAM, 12 GiB cache free and 8 GiB saved free before each stage; runtime critical RAM <1 GiB and either disk free <2 GiB. These are not certified requirements for RTX 3070 or any computer.
 - No automatic user-data cleanup, CPU fallback, or unsafe retry. Python monitor uses user roots provided by the Rust build owner. Tests authored but not run.
+
+## Source follow-up: failure messages and pending checkpoint admission — 2026-10-14
+
+- New CPU/RAM/disk/process guard errors are displayed with actionable My Voice wording, not a generic retry message. UI-only advice never overrides the native Rust guard.
+- Only a *new* checkpoint archive copy requires aggregate free-space admission. An existing fully verified `.pending` archive can be committed without demanding a second full-copy budget; a partial/unverified pending archive remains blocked and original checkpoint bytes remain intact.
+- Source regression expectations are authored but unexecuted, with no claim of native behavior or RTX 3070 safety.
 
 ## Verification boundary
 

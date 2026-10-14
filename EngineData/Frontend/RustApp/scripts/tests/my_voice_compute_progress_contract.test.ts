@@ -59,6 +59,29 @@ test("worker completion and Review are bound to one generation identity", () => 
   assert.match(receipts, /create_new\(true\)/);
 });
 
+test("SAFE_8GB resource and process controls fail closed at native boundaries", () => {
+  const owner = read("src-tauri/src/commands/voice_lab_build.rs");
+  const nativeGuard = read("src-tauri/src/commands/my_voice_resources.rs");
+  const treeGuard = read("src-tauri/src/commands/voice_lab_build/process_owner.rs");
+  const supervisor = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py");
+  const systemGuard = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_resource_guard.py");
+  const recovery = read("src-tauri/src/commands/voice_lab/storage/training_recovery.rs");
+  const ui = read("src/components/my-voice/MyVoiceBuild.svelte");
+  assert.match(owner, /my_voice_resources::preflight/);
+  assert.match(owner, /creation_flags\(0x0000_0004\)/);
+  assert.match(owner, /owned_job\.resume_suspended\(pid\)/);
+  assert.match(nativeGuard, /GlobalMemoryStatusEx/);
+  assert.match(nativeGuard, /GetDiskFreeSpaceExW/);
+  assert.match(nativeGuard, /checkpoint_archive_space_insufficient/);
+  assert.match(treeGuard, /ResumeThread/);
+  assert.match(supervisor, /_resume_owned_suspended_process\(proc\.pid\)/);
+  assert.match(supervisor, /critical_resources\(\)/);
+  assert.match(systemGuard, /START_CACHE_MIB = 12 \* 1024/);
+  assert.match(recovery, /ensure_archive_capacity\(&root, total\)/);
+  assert.match(ui, /case "resource_admission_blocked":/);
+  assert.match(ui, /case "build_process_guard_failed":/);
+});
+
 test("explicit compute checker remains in the release small-resource closure", () => {
   const config = JSON.parse(read("src-tauri/tauri.release.conf.json"));
   const key = "../../../Backend/LocalWorker/WorkerRuntime/my_voice_compute_probe.py";
