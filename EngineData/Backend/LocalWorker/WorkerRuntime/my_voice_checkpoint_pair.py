@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -20,21 +21,48 @@ MAX_PAIR_FILES = 8
 
 
 def file_identity(path: Path) -> dict[str, Any]:
-    if path.is_symlink() or not path.is_file():
+    """Hash each checkpoint once and require stable file identity across I/O.
+
+    The worker is the sole checkpoint writer and files have unique step names,
+    but this guard also catches unexpected external modification or a path
+    swap while reading. The Rust archive independently verifies copied bytes.
+    """
+    before = path.stat(follow_symlinks=False)
+    if not stat.S_ISREG(before.st_mode) or not 4096 < before.st_size <= MAX_FULL_BYTES:
         raise RuntimeError("my_voice:pair_file_untrusted")
-    length = 0
     digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        while True:
-            block = stream.read(1024 * 1024)
-            if not block:
-                break
-            length += len(block)
-            if length > MAX_FULL_BYTES:
-                raise RuntimeError("my_voice:pair_file_too_large")
-            digest.update(block)
-    if length <= 4096:
-        raise RuntimeError("my_voice:pair_file_incomplete")
+    length = 0
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        handle = os.open(path, flags)
+        with os.fdopen(handle, "rb") as stream:
+            opened = os.fstat(stream.fileno())
+            if (opened.st_dev, opened.st_ino, opened.st_size) != (
+                before.st_dev, before.st_ino, before.st_size
+            ):
+                raise RuntimeError("my_voice:pair_file_changed_during_read")
+            while True:
+                block = stream.read(1024 * 1024)
+                if not block:
+                    break
+                length += len(block)
+                if length > MAX_FULL_BYTES:
+                    raise RuntimeError("my_voice:pair_file_too_large")
+                digest.update(block)
+            closed = os.fstat(stream.fileno())
+    except OSError as exc:
+        raise RuntimeError("my_voice:pair_file_unavailable") from exc
+    after = path.stat(follow_symlinks=False)
+    def identity(meta: Any) -> tuple[int, int, int, int, int]:
+        return (meta.st_dev, meta.st_ino, meta.st_size, meta.st_mtime_ns, meta.st_ctime_ns)
+    if (
+        not stat.S_ISREG(after.st_mode)
+        or identity(before) != identity(after)
+        or identity(before) != identity(opened)
+        or identity(before) != identity(closed)
+        or length != before.st_size
+    ):
+        raise RuntimeError("my_voice:pair_file_changed_during_read")
     return {"name": path.name, "bytes": length, "sha256": digest.hexdigest()}
 
 
@@ -82,26 +110,36 @@ def publish_pair(directory: Path, step: int, epoch: int) -> None:
 
 
 def verified_pair_for_epoch(directory: Path, epoch: int) -> bool:
+    """Hash only the *requested epoch* pair, never earlier full checkpoints."""
     if directory.is_symlink() or not directory.is_dir() or type(epoch) is not int or epoch < 1:
         return False
     try:
         entries = list(directory.glob("pair_*.json"))
         if not entries or len(entries) > MAX_PAIR_FILES:
             return False
+        matching: list[tuple[int, dict[str, Any]]] = []
         for path in entries:
-            if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_RECEIPT_BYTES:
+            if (path.is_symlink() or not path.is_file()
+                or not 0 < path.stat().st_size <= MAX_RECEIPT_BYTES):
                 return False
             match = re.fullmatch(r"pair_([0-9]+)\.json", path.name)
             if not match:
                 return False
-            receipt = json.loads(path.read_text(encoding="utf-8"))
+            value = json.loads(path.read_text(encoding="utf-8"))
             step = int(match.group(1))
-            if (type(receipt) is not dict or receipt.get("format") != 1
-                or receipt.get("global_step") != step):
+            if (
+                type(value) is not dict or value.get("format") != 1
+                or type(value.get("global_step")) is not int
+                or value["global_step"] != step
+                or type(value.get("epoch")) is not int
+            ):
                 return False
-            if receipt == pair_receipt(directory, step, receipt.get("epoch")):
-                if receipt["epoch"] == epoch:
-                    return True
+            if value["epoch"] == epoch:
+                matching.append((step, value))
+        # More than one receipt for the same epoch is ambiguous, not success.
+        if len(matching) != 1:
+            return False
+        step, receipt = matching[0]
+        return receipt == pair_receipt(directory, step, epoch)
     except (OSError, ValueError, TypeError, RuntimeError):
         return False
-    return False

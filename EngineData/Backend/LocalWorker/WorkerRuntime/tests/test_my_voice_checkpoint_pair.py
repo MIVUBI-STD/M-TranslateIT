@@ -38,3 +38,24 @@ def test_missing_discriminator_never_publishes_pair(tmp_path: Path):
     with pytest.raises(RuntimeError):
         publish_pair(tmp_path, 120, 2)
     assert not (tmp_path / "pair_120.json").exists()
+
+
+def test_pair_lookup_hashes_only_the_target_epoch(tmp_path, monkeypatch):
+    from unittest.mock import patch
+    import my_voice_checkpoint_pair as pair
+    checkpoints(tmp_path, 120)
+    publish_pair(tmp_path, 120, 2)
+    checkpoints(tmp_path, 250)
+    publish_pair(tmp_path, 250, 4)
+    with patch.object(pair, "pair_receipt", wraps=pair.pair_receipt) as receipt:
+        assert verified_pair_for_epoch(tmp_path, 4)
+        assert receipt.call_count == 1
+        assert receipt.call_args.args[1:] == (250, 4)
+
+
+def test_modified_checkpoint_rejected_without_loading_tensor(tmp_path):
+    import os
+    checkpoints(tmp_path, 120)
+    publish_pair(tmp_path, 120, 2)
+    (tmp_path / "D_120.pth").write_bytes(b"z" * 8192)
+    assert not verified_pair_for_epoch(tmp_path, 2)

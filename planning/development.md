@@ -80,6 +80,12 @@
 
 All source declarations above require later Windows/runtime confirmation. A hash-valid G/D receipt is not one atomic cross-file transaction. The pinned SoVITS checkpoint writer saves model and optimizer but omits full AMP GradScaler continuity and independent RNG provenance. A source-level resume pass therefore remains unavailable, including for GPUs with larger VRAM. The opt-in resume diagnostic remains developer-only and cannot be used as a production training entrypoint.
 
+## Bounded checkpoint-pair read and worker provenance
+
+- Fresh random stage nonce and owned process PID are required in every epoch, checkpoint and cooperative-stop acknowledgment in addition to the existing run token, generation and stage. A prior run's metadata or a different process cannot be accepted by accident; nonce/PID are correlation checks, not a security proof against local adversarial processes.
+- SoVITS pair verification now scans only small JSON receipts for the epoch requested by Stop; it streams G/D hashes **only for the unique matching epoch** rather than rehashing every earlier checkpoint. File identity metadata is checked before and after each streaming hash to catch concurrent modification. Existing Rust archive copy/hash checks remain independent.
+- This avoids repeated gigabyte reads while preserving fail-closed pair integrity. New regression fixtures are authored but not executed.
+
 ## Single next step (source-only)
 
 Perform one bounded review of **checkpoint pair race handling**, **worker-origin progress identity**, and **Lightning 2.6.5 plugin/source API compatibility**. Prioritize removal of concrete source defects without adding workers, polling or speculative resume. Continue using the user device's verified physical GPU UUID and measured epoch cadence. Do not run tests, CI, Windows builds, CUDA training or fault injection until explicitly authorized; `main` stays untouched.
