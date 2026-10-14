@@ -30,9 +30,9 @@ MAX_GROUP = 12
 SUPPORTED_STATUS = "checkpoint_preserved_not_verified_for_resume"
 HEX64 = re.compile(r"[a-f0-9]{64}\Z")
 PART_LABEL = re.compile(
-    r"(?:gpt-(?:[0-9]|1[01])\\.ckpt"
-    r"|sovits-[GD]-(?:[0-9]|1[01])\\.pth"
-    r"|sovits-pair-(?:[0-9]|1[01])\\.json)\\Z"
+    r"(?:gpt-(?:[0-9]|1[01])\.ckpt"
+    r"|sovits-[GD]-(?:[0-9]|1[01])\.pth"
+    r"|sovits-pair-(?:[0-9]|1[01])\.json)\Z"
 )
 SOURCE_BLOBS = {
     "GPT_SoVITS/s1_train.py": "1176f0bcef869d2f66574d47d9a55d0cc7e1ac0c",
