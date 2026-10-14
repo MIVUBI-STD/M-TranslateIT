@@ -936,6 +936,23 @@ fn start_voice_lab_build_selected(
             { process.owned_job = Some(Arc::clone(&owned_job)); }
             process.terminal_message.clear();
             process.cancel_requested_at = None;
+            // Cancellation can be requested after the last pre-spawn check
+            // but before the Python PID becomes visible. Reconcile under the
+            // same process-store mutex used by cancel_voice_lab_build().
+            // Either this path observes the cancellation, or the cancelling
+            // caller obtains the lock next and writes the signal itself.
+            let snapshot = current_voice_lab_build_snapshot();
+            if snapshot.generation == Some(generation) && snapshot.phase == "cancelling" {
+                process.cancel_requested_at = Some(Instant::now());
+                if request_manual_stop(&paths, generation).is_err() {
+                    // A signal that cannot be delivered must not start a GPU
+                    // training run. Terminate only the owned build process.
+                    #[cfg(windows)]
+                    let _ = owned_job.terminate();
+                    #[cfg(not(windows))]
+                    let _ = terminate_process_tree(pid);
+                }
+            }
         }
         Err(_) => {
             #[cfg(windows)]
@@ -1059,6 +1076,10 @@ fn start_voice_lab_build_selected(
         emit_voice_build_runtime_event(event_reason, generation);
     });
 
+    if current_voice_lab_build_snapshot().phase == "cancelling" {
+        return result(false, "cancel_pending",
+            "Stop was requested while training started. The owned process is shutting down.");
+    }
     result(true, "building", "VoiceLab started creating My Voice. You can leave this page open while it works.")
 }
 
