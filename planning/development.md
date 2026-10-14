@@ -104,6 +104,12 @@
 - Training children receive exact native user cache/saved roots for ongoing monitoring. Interrupted checkpoint preservation additionally checks actual aggregate source checkpoint bytes **plus 2 GiB free margin before any archive copy**; if insufficient, leave original evidence untouched and block unsafe cleanup.
 - These provisional cutoffs are neither recommended PC minimums nor measured GPT-SoVITS resource peaks. No source tests, Windows build, training or hardware validation run.
 
+## Continuous RAM/disk source watchdog — 2026-10-14
+
+- All upstream stage children now require additional read-only RAM/cache/saved-store checks using `my_voice_resource_guard.py` before launch and during execution. Two consecutive critical or unavailable readings trigger owned-process termination instead of risking silent checkpoint truncation.
+- Provisional thresholds: 3 GiB available RAM, 12 GiB cache free and 8 GiB saved free before each stage; runtime critical RAM <1 GiB and either disk free <2 GiB. These are not certified requirements for RTX 3070 or any computer.
+- No automatic user-data cleanup, CPU fallback, or unsafe retry. Python monitor uses user roots provided by the Rust build owner. Tests authored but not run.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

@@ -13,6 +13,10 @@ import shutil
 import signal
 import subprocess
 from pathlib import Path
+
+from my_voice_resource_guard import (
+    ResourceGuardError, check_start as check_system_resources, critical as critical_resources,
+)
 from typing import Any
 
 SENSOR_INTERVAL_SECONDS = 5
@@ -223,6 +227,10 @@ def gpu_free_mib(sensor: str) -> int:
 def run_supervised_stage(
     argv: list[str], *, cwd: str, env: dict[str, str], gpu_stage: bool
 ) -> None:
+    try:
+        check_system_resources()
+    except ResourceGuardError as exc:
+        raise StageGuardError(str(exc)) from exc
     sensor = locate_sensor() if gpu_stage else None
     if sensor and gpu_free_mib(sensor) < CRITICAL_FREE_MIB:
         raise StageGuardError("my_voice:gpu_pressure_before_stage")
@@ -239,7 +247,18 @@ def run_supervised_stage(
         if os.name == "nt":
             _resume_owned_suspended_process(proc.pid)
         consecutive_bad = 0
+        system_bad = 0
         while proc.poll() is None:
+            try:
+                issue = critical_resources()
+                system_bad = system_bad + 1 if issue is not None else 0
+            except ResourceGuardError:
+                issue = "my_voice:system_resource_telemetry_lost"
+                system_bad += 1
+            if system_bad >= MAX_BAD_SAMPLES:
+                tree.terminate()
+                proc.wait(timeout=8)
+                raise StageGuardError(issue or "my_voice:critical_system_resources")
             if sensor:
                 try:
                     free = gpu_free_mib(sensor)

@@ -67,6 +67,7 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_compute_probe\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_gpu_policy\.py/);
   assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_single_gpu_adapter\.py/);
+  assert.match(read("scripts/validate_release_payload.mjs"), /my_voice_resource_guard\.py/);
   const adapter = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py");
   const runner = read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_upstream_stage.py");
   assert.match(adapter, /single_gpu_source_revision_mismatch/);
