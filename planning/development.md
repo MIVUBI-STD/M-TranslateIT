@@ -17,6 +17,7 @@
 - Source contract audit repaired two stale Quick Preview assertions: the displayed prompt total follows the 600-line catalog dynamically while the build cap stays at 128; held-out `Listened` proof follows the current audio instance/generation/review ID rather than the previous callback shape. The assertions were inspected, not executed.
 - Exact selected-version identity uses an **explicit, read-only** Rust verifier: it streams SHA-256 over the actual selected actor package and compares its content-addressed receipt digest to the requested version ID. No heavyweight hash enters frequent status polling. Ambiguous restores stay locked when identity is **unknown**, but an explicitly verified mismatch (`false`) releases the lock without claiming the requested version was restored. This distinguishes match/mismatch/unavailable and avoids permanent lockout when the earlier Meeting voice is intact. Native execution remains pending.
 - The explicit exact-version hash command now runs on Tauri's blocking worker instead of the UI thread, and rechecks Meeting/recording/build/Quick Preview ownership after acquiring the existing voice-selection guard. No heavy hashing is added to status polling. Node regression coverage is authored but unexecuted.
+- Backup integrity now also binds the original immutable `DatasetSnapshots/<sha>.json` and `TrainingLineage/<sha>.json` path IDs to the SHA-256 of their actual content. This closes a gap where the backup's own index could be updated to match forged archive metadata, while the immutable history store would later reject the imported object. Added negative Rust fixtures; execution remains untested.
 - Developer-only GPT/SoVITS checkpoint probes remain isolated. User Resume remains **DISABLED** because SoVITS scaler/scheduler continuity, cross-worker provenance and actual Windows GPU restoration are not established. Avoid expanding this experiment while the primary flow lacks native acceptance.
 - `docs/knowledge/current-validation.md` owns evidence interpretation. No exact-`Local`-HEAD Svelte/Node/Cargo/Python build/test, real personal-voice training, Windows backup recovery, perceptual voice comparison or Meeting receiver proof is available for this source batch.
 
@@ -26,7 +27,7 @@ This phase is `REMOTE_GITHUB` only: review exact source and write bounded regres
 
 ## Single next step
 
-**Check remaining My Voice Create/Review/Backup source invariants and the off-thread verifier's Rust/TypeScript contract before candidate freeze. If no further source-provable blocker remains, use the existing single Windows acceptance runbook at the pinned Local SHA; do not call tests PASS until actually executed.** No hosted CI or optimizer Resume activation.
+**Review Create/Review/Approve transition and remaining Backup/Restore semantic-reference validation against the same exact Local source, correct only source-provable blockers, then prepare one pinned-SHA integrated Windows acceptance run.** No test PASS without execution, hosted CI, alternate voice engines or optimizer Resume activation.
 
 ## Deferred prior work
 

@@ -322,6 +322,15 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
             }
         }
         if rel.starts_with("DatasetSnapshots/") && rel.ends_with(".json") {
+            // Immutable dataset snapshots are addressed by the SHA-256 of
+            // their exact manifest bytes. A self-consistent backup index is
+            // not sufficient if the original immutable ID was forged.
+            let id = rel.strip_prefix("DatasetSnapshots/")
+                .and_then(|path| path.strip_suffix(".json"))
+                .ok_or("voice_backup:dataset_snapshot_id_invalid")?;
+            if !valid_hex(id) || entry.sha256 != id {
+                return Err("voice_backup:dataset_snapshot_identity_invalid".into());
+            }
             let data = read_regular_bounded(&root.join(rel), 512 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:dataset_snapshot_invalid")?;
@@ -387,6 +396,12 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
             }
         }
         if rel.starts_with("TrainingLineage/") && rel.ends_with(".json") {
+            let id = rel.strip_prefix("TrainingLineage/")
+                .and_then(|path| path.strip_suffix(".json"))
+                .ok_or("voice_backup:training_lineage_id_invalid")?;
+            if !valid_hex(id) || entry.sha256 != id {
+                return Err("voice_backup:training_lineage_identity_invalid".into());
+            }
             let data = read_regular_bounded(&root.join(rel), 512 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:training_lineage_invalid")?;
@@ -627,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn immutable_archive_receipt_id_must_match_file_digest() {
+    fn immutable_archive_receipt_and_manifest_ids_must_match_file_digest() {
         let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
         let root = std::env::temp_dir().join(format!(
             "translateit-backup-identity-{}-{stamp}", std::process::id()
@@ -638,6 +653,10 @@ mod tests {
                 "voice_backup:take_receipt_identity_invalid"),
             (format!("VoiceVersions/aa/{id}/version.json"),
                 "voice_backup:version_receipt_identity_invalid"),
+            (format!("DatasetSnapshots/{id}.json"),
+                "voice_backup:dataset_snapshot_identity_invalid"),
+            (format!("TrainingLineage/{id}.json"),
+                "voice_backup:training_lineage_identity_invalid"),
         ] {
             let file = root.join(&path);
             fs::create_dir_all(file.parent().unwrap()).unwrap();
