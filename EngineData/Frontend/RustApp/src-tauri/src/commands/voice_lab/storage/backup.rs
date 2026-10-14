@@ -13,7 +13,9 @@ use std::sync::{Mutex, OnceLock};
 
 use super::immutable_store::{checked_directory, hash_regular_file, read_regular_bounded};
 use super::VoiceLabStoragePaths;
-use crate::commands::voice_lab::VOICE_ACTOR_ENGINE_REVISION;
+use crate::commands::voice_lab::{
+    GuidedDatasetManifest, VOICE_ACTOR_ENGINE_REVISION, VOICE_LAB_SCHEMA_VERSION,
+};
 
 const FORMAT: u32 = 1;
 const MANIFEST: &str = "my-voice-backup.json";
@@ -334,15 +336,47 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
             let data = read_regular_bounded(&root.join(rel), 512 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:dataset_snapshot_invalid")?;
+            // Backup linkage must agree with the same frozen manifest and
+            // receipt contract used by dataset_history::verify_snapshot.
+            let source: GuidedDatasetManifest = serde_json::from_value(
+                json.get("source_manifest").cloned()
+                    .ok_or("voice_backup:dataset_manifest_missing")?
+            ).map_err(|_| "voice_backup:dataset_manifest_invalid")?;
+            if json.get("schema_version").and_then(|v| v.as_u64()) != Some(1)
+                || json.get("engine_revision").and_then(|v| v.as_str())
+                    != Some(VOICE_ACTOR_ENGINE_REVISION)
+                || source.schema_version != VOICE_LAB_SCHEMA_VERSION
+                || source.takes.len() > 128
+                || super::validate_guided_dataset_manifest(&source).is_err()
+            {
+                return Err("voice_backup:dataset_contract_invalid".into());
+            }
             let takes = json.get("audio").and_then(|v| v.as_array())
                 .ok_or("voice_backup:dataset_audio_links_missing")?;
-            for take in takes {
+            if takes.len() != source.takes.len() {
+                return Err("voice_backup:dataset_audio_count_mismatch".into());
+            }
+            for (take, expected) in takes.iter().zip(&source.takes) {
+                if take.get("line_id").and_then(|v| v.as_u64()) != Some(u64::from(expected.line_id))
+                    || take.get("wav_file").and_then(|v| v.as_str()) != Some(expected.wav_file.as_str())
+                {
+                    return Err("voice_backup:dataset_take_binding_mismatch".into());
+                }
                 let id = take.get("archive_id").and_then(|v| v.as_str())
                     .ok_or("voice_backup:dataset_take_id_missing")?;
                 if !valid_hex(id) { return Err("voice_backup:dataset_take_id_invalid".into()); }
                 let wanted = format!("Recordings/{}/{id}/take.json", &id[..2]);
                 if !map.contains_key(wanted.as_str()) {
                     return Err("voice_backup:dataset_source_recording_missing".into());
+                }
+                let saved = read_regular_bounded(&root.join(&wanted), 16 * 1024)?;
+                let receipt: serde_json::Value = serde_json::from_slice(&saved)
+                    .map_err(|_| "voice_backup:dataset_take_receipt_invalid")?;
+                if receipt.get("schema_version").and_then(|v| v.as_u64()) != Some(1)
+                    || receipt.get("line_id").and_then(|v| v.as_u64()) != Some(u64::from(expected.line_id))
+                    || receipt.get("exact_text").and_then(|v| v.as_str()) != Some(expected.exact_text.as_str())
+                {
+                    return Err("voice_backup:dataset_archive_prompt_mismatch".into());
                 }
             }
         }
@@ -405,6 +439,12 @@ fn check_references(root: &Path, entries: &[BackupEntry]) -> Result<(), String> 
             let data = read_regular_bounded(&root.join(rel), 512 * 1024)?;
             let json: serde_json::Value = serde_json::from_slice(&data)
                 .map_err(|_| "voice_backup:training_lineage_invalid")?;
+            if json.get("schema_version").and_then(|v| v.as_u64()) != Some(1)
+                || json.get("engine_revision").and_then(|v| v.as_str())
+                    != Some(VOICE_ACTOR_ENGINE_REVISION)
+            {
+                return Err("voice_backup:training_lineage_contract_invalid".into());
+            }
             let dataset = json.get("dataset_snapshot_id").and_then(|v| v.as_str())
                 .ok_or("voice_backup:lineage_dataset_missing")?;
             let voice = json.get("actor_version_id").and_then(|v| v.as_str())
@@ -665,6 +705,91 @@ mod tests {
             assert_ne!(sha256, id);
             let entry = BackupEntry { path, bytes, sha256 };
             assert_eq!(check_references(&root, &[entry]).unwrap_err(), error);
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_rejects_snapshot_prompt_mismatch_even_with_valid_archive_hashes() {
+        use super::super::immutable_store::hash_bytes;
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "translateit-backup-snapshot-binding-{}-{stamp}", std::process::id()
+        ));
+        let put = |relative: &str, data: &[u8]| -> BackupEntry {
+            let file = root.join(relative);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, data).unwrap();
+            let (sha256, bytes) = hash_regular_file(&file, MAX_FILE_BYTES).unwrap();
+            BackupEntry { path: relative.into(), bytes, sha256 }
+        };
+        let canonical = b"canonical-wav-fixture";
+        let canonical_sha = hash_bytes(canonical);
+        let receipt = format!(
+            "{{\"schema_version\":1,\"line_id\":1,\"exact_text\":\"Hello world.\",\"canonical_sha256\":\"{canonical_sha}\",\"native_rate_sha256\":null}}"
+        );
+        let take_id = hash_bytes(receipt.as_bytes());
+        let prefix = format!("Recordings/{}/{take_id}/", &take_id[..2]);
+        let canonical_entry = put(&format!("{prefix}canonical.wav"), canonical);
+        let receipt_entry = put(&format!("{prefix}take.json"), receipt.as_bytes());
+        let snapshot = |text: &str, line: u32| serde_json::json!({
+            "schema_version": 1,
+            "engine_revision": VOICE_ACTOR_ENGINE_REVISION,
+            "source_manifest": {
+                "schema_version": VOICE_LAB_SCHEMA_VERSION,
+                "authorized_voice_confirmed": true,
+                "takes": [{ "line_id": 1, "exact_text": text, "wav_file": "take_0001.wav" }],
+                "held_out_lines": [{ "line_id": 1001, "exact_text": "Different review sentence." }]
+            },
+            "audio": [{ "line_id": line, "wav_file": "take_0001.wav", "archive_id": take_id }],
+            "from_saved_archive": false
+        });
+        let good = serde_json::to_vec(&snapshot("Hello world.", 1)).unwrap();
+        let good_entry = put(&format!("DatasetSnapshots/{}.json", hash_bytes(&good)), &good);
+        assert!(check_references(&root, &[
+            canonical_entry.clone(), receipt_entry.clone(), good_entry,
+        ]).is_ok());
+        let bad_text = serde_json::to_vec(&snapshot("Different prompt.", 1)).unwrap();
+        let bad_text_entry = put(&format!("DatasetSnapshots/{}.json", hash_bytes(&bad_text)), &bad_text);
+        assert_eq!(check_references(&root, &[
+            canonical_entry.clone(), receipt_entry.clone(), bad_text_entry,
+        ]).unwrap_err(), "voice_backup:dataset_archive_prompt_mismatch");
+        let bad_line = serde_json::to_vec(&snapshot("Hello world.", 2)).unwrap();
+        let bad_line_entry = put(&format!("DatasetSnapshots/{}.json", hash_bytes(&bad_line)), &bad_line);
+        assert_eq!(check_references(&root, &[
+            canonical_entry, receipt_entry, bad_line_entry,
+        ]).unwrap_err(), "voice_backup:dataset_take_binding_mismatch");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn backup_rejects_unsupported_training_lineage_even_with_valid_content_id() {
+        use super::super::immutable_store::hash_bytes;
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "translateit-backup-lineage-contract-{}-{stamp}", std::process::id()
+        ));
+        for (schema, revision) in [
+            (9_u64, VOICE_ACTOR_ENGINE_REVISION),
+            (1_u64, "unsupported-engine"),
+        ] {
+            let bytes = serde_json::to_vec(&serde_json::json!({
+                "schema_version": schema,
+                "engine_revision": revision,
+                "dataset_snapshot_id": "a".repeat(64),
+                "actor_version_id": "b".repeat(64),
+            })).unwrap();
+            let id = hash_bytes(&bytes);
+            let relative = format!("TrainingLineage/{id}.json");
+            let path = root.join(&relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, &bytes).unwrap();
+            let (sha256, size) = hash_regular_file(&path, MAX_FILE_BYTES).unwrap();
+            let entry = BackupEntry { path: relative, bytes: size, sha256 };
+            assert_eq!(
+                check_references(&root, &[entry]).unwrap_err(),
+                "voice_backup:training_lineage_contract_invalid"
+            );
         }
         fs::remove_dir_all(root).unwrap();
     }
