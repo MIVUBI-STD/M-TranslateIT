@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 MAX_FULL_GPT_CHECKPOINT_BYTES = 8 * 1024 * 1024 * 1024
+PINNED_LIGHTNING_VERSION = "2.6.5"
 
 
 def validate_gpt_full_destination(path: str | Path) -> Path:
@@ -30,6 +31,15 @@ def validate_gpt_full_destination(path: str | Path) -> Path:
 
 
 def create_atomic_lightning_checkpoint_io() -> Any:
+    # Enforce the version already locked in WorkerRuntime/uv.lock; future
+    # Lightning checkpoint API changes need an explicit adapter revision.
+    from importlib.metadata import version
+    try:
+        installed = version("pytorch-lightning")
+    except Exception as exc:
+        raise RuntimeError("my_voice:lightning_version_unavailable") from exc
+    if installed != PINNED_LIGHTNING_VERSION:
+        raise RuntimeError("my_voice:lightning_checkpoint_api_revision_mismatch")
     # Heavy Lightning import occurs only inside the dedicated GPT stage child.
     from pytorch_lightning.plugins.io import TorchCheckpointIO
 
@@ -61,8 +71,11 @@ def create_atomic_lightning_checkpoint_io() -> Any:
             os.replace(staged, target)
 
         def remove_checkpoint(self, path: str | Path) -> None:
-            # This release uses save_top_k=-1. No optimizer checkpoint
-            # deletion or pruning is authorized inside training.
-            raise RuntimeError("my_voice:gpt_checkpoint_pruning_blocked")
+            # Lightning may request pruning even with save_top_k=-1, notably
+            # when rotating its last checkpoint. Preserve the previous valid
+            # full checkpoint instead of crashing or deleting user progress.
+            # Storage headroom remains governed by the existing watchdog.
+            validate_gpt_full_destination(path)
+            return None
 
     return AtomicLocalGPTCheckpointIO()
