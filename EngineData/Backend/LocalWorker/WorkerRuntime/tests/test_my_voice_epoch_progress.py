@@ -44,7 +44,9 @@ def test_completed_epoch_not_checkpoint(tmp_path, monkeypatch):
     publish_epoch_activity("sovits", 1)
     assert read_epoch_activity(tmp_path, "a"*64, 3, "sovits", 0, os.getpid(), "b"*32) == 1
     assert read_progress(tmp_path, "a"*64, 3, "sovits", 0, os.getpid(), "b"*32) is None
-    assert read_epoch_activity(tmp_path, "a"*64, 3, "sovits", 1) is None
+    assert read_epoch_activity(
+        tmp_path, "a"*64, 3, "sovits", 1, os.getpid(), "b"*32
+    ) is None
 
 
 def test_wrong_generation_never_counted_as_epoch(tmp_path, monkeypatch):

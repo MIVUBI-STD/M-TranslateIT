@@ -10,6 +10,7 @@ def set_checkpoint_progress_identity(monkeypatch, tmp_path: Path):
     monkeypatch.setenv(TOKEN_ENV, "a" * 64)
     monkeypatch.setenv(GENERATION_ENV, "3")
     monkeypatch.setenv(STAGE_ENV, "sovits")
+    monkeypatch.setenv("TRANSLATEIT_MYVOICE_STAGE_NONCE", "b" * 32)
     monkeypatch.setenv(
         "TRANSLATEIT_MYVOICE_EPOCH_PROGRESS_PATH",
         str(tmp_path / "epoch_progress.json"),
