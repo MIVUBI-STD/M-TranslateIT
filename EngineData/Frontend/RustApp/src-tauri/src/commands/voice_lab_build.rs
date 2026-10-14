@@ -56,7 +56,9 @@ const MIN_TRAINING_SPEECH_MS: u64 = 60_000;
 // Distinct from the 600-prompt library; pinned speaker-consistency processing
 // currently accepts at most 128 recordings in a single training build.
 const MAX_TRAINING_TAKES: usize = 128;
-const CANCEL_MAX_WAIT: Duration = Duration::from_secs(300);
+// Slightly longer than the Python 300-second stage timeout, allowing
+// cooperative child teardown before the final Rust-owned hard fallback.
+const CANCEL_MAX_WAIT: Duration = Duration::from_secs(330);
 const BUILD_EXIT_POLL: Duration = Duration::from_secs(1);
 
 // Guard select/approve on the shared worker actor path. No parallel promotion.
