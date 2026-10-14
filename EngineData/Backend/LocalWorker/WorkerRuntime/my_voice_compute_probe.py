@@ -1,90 +1,155 @@
-"""Read-only, bounded My Voice compute advisory for an explicit UI check.
+"""Read-only My Voice device discovery for the selected local PyTorch runtime.
 
-A detected CUDA device is not proof of successful training, free VRAM,
-model compatibility, or realtime inference. Never change torch global state.
+Enumerates the CUDA devices *visible to the user's environment*, matches
+each physical GPU UUID to nvidia-smi, and chooses a device with safe headroom.
+Model names and NVIDIA index 0 are never used as proof of device identity.
+All threshold decisions are provisional; no hardware training is certified.
 """
 from __future__ import annotations
 
 import json
+import os
 import platform
-from typing import Any
+from typing import Any, Callable
 
+from my_voice_gpu_identity import (
+    MAX_VISIBLE_CUDA_DEVICES, DeviceIdentityError, cuda_device_uuid,
+    normalize_uuid, sensor_memory_mib,
+)
 from my_voice_gpu_policy import PROFILE, assess_memory
 
+MIB = 1024 * 1024
 
-def detect_compute(torch_module: Any, cpu_name: str) -> dict[str, Any]:
-    result: dict[str, Any] = {
+
+def empty_report(cpu_name: str) -> dict[str, Any]:
+    return {
         "state": "unavailable",
         "cpu_name": cpu_name[:200] or "CPU name unavailable",
         "gpu_name": None,
+        "gpu_uuid": None,
+        "cuda_index": None,
+        "visible_cuda_devices": 0,
         "vram_mib": None,
         "free_vram_mib": None,
         "reserve_mib": None,
         "safe_budget_mib": None,
         "admission_state": "unknown",
         "profile": PROFILE,
-        "detail": "Compute status could not be verified.",
+        "detail": "GPU hardware has not been verified.",
     }
+
+
+def detect_compute(
+    torch_module: Any, cpu_name: str, *,
+    required_uuid: str | None = None,
+    sensor_reader: Callable[[str], tuple[int, int]] = sensor_memory_mib,
+) -> dict[str, Any]:
+    result = empty_report(cpu_name)
     try:
-        if not bool(torch_module.cuda.is_available()):
+        cuda = torch_module.cuda
+        if not bool(cuda.is_available()):
             result["state"] = "cpu_only"
             result["detail"] = (
-                "CUDA is not available in this Python runtime. CPU-only "
-                "My Voice training is unverified and may be slow or fail."
+                "No supported CUDA device is available in this Python runtime. "
+                "My Voice CPU training is not an automatic fallback."
             )
             return result
-        properties = torch_module.cuda.get_device_properties(0)
-        name = str(torch_module.cuda.get_device_name(0)).strip()
-        vram_bytes = int(properties.total_memory)
-        if not name or vram_bytes <= 0:
-            raise ValueError("invalid_cuda_device_details")
-        free_bytes, reported_total = torch_module.cuda.mem_get_info(0)
-        if not isinstance(free_bytes, int) or not isinstance(reported_total, int):
-            raise ValueError("invalid_cuda_free_memory")
-        # PyTorch device total and CUDA mem_get_info total may differ slightly.
-        if abs(reported_total - vram_bytes) > 256 * 1024 * 1024:
-            raise ValueError("cuda_total_memory_mismatch")
-        admission = assess_memory(vram_bytes, free_bytes)
-        result["state"] = "cuda_detected"
-        result["gpu_name"] = name[:200]
-        result["vram_mib"] = vram_bytes // (1024 * 1024)
-        result["free_vram_mib"] = free_bytes // (1024 * 1024)
-        result.update(admission)
-        result["admission_state"] = result.pop("state")
-        result["state"] = "cuda_detected"
-        result["detail"] = (
-            "Safe headroom is an initial unverified policy, not a memory "
-            "reservation or proof that GPT-SoVITS will fit."
-            if result["admission_state"] == "admitted"
-            else "Insufficient free VRAM for the conservative training profile."
-        )
+        count = int(cuda.device_count())
+        result["visible_cuda_devices"] = count
+        if not 0 < count <= MAX_VISIBLE_CUDA_DEVICES:
+            raise DeviceIdentityError("unsupported_cuda_device_count")
+        target = normalize_uuid(required_uuid) if required_uuid else None
+        candidates: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index in range(count):
+            props = cuda.get_device_properties(index)
+            uuid = cuda_device_uuid(cuda, index)
+            if uuid in seen:
+                raise DeviceIdentityError("duplicate_cuda_uuid")
+            seen.add(uuid)
+            if target is not None and uuid != target:
+                continue
+            name = str(cuda.get_device_name(index)).strip()
+            total = int(props.total_memory)
+            cuda_free, cuda_total = cuda.mem_get_info(index)
+            smi_total_mib, smi_free_mib = sensor_reader(uuid)
+            if (
+                not name or total <= 0
+                or type(cuda_free) is not int or type(cuda_total) is not int
+                or abs(cuda_total - total) > 256 * MIB
+                or abs(smi_total_mib * MIB - total) > 256 * MIB
+            ):
+                raise DeviceIdentityError("cuda_nvidia_memory_identity_mismatch")
+            # Both independent readings must agree on the same UUID.
+            # Do not treat available memory as an exclusive reservation.
+            free = min(cuda_free, smi_free_mib * MIB)
+            policy = assess_memory(total, free)
+            candidates.append({
+                "name": name[:200], "uuid": uuid, "index": index,
+                "vram_mib": total // MIB,
+                "free_vram_mib": free // MIB,
+                "reserve_mib": policy["reserve_mib"],
+                "safe_budget_mib": policy["safe_budget_mib"],
+                "admission_state": policy["state"],
+            })
+        if not candidates:
+            raise DeviceIdentityError("requested_cuda_uuid_missing")
+        # Prefer a device that passes admission, then the most usable budget.
+        # UUID provides a stable tie-break instead of CUDA/NVIDIA ordinal.
+        best = sorted(
+            candidates,
+            key=lambda x: (
+                0 if x["admission_state"] == "admitted" else 1,
+                -int(x["safe_budget_mib"] or 0), -int(x["vram_mib"]), x["uuid"],
+            ),
+        )[0]
+        result.update({
+            "state": "cuda_detected",
+            "gpu_name": best["name"],
+            "gpu_uuid": best["uuid"],
+            "cuda_index": best["index"],
+            "vram_mib": best["vram_mib"],
+            "free_vram_mib": best["free_vram_mib"],
+            "reserve_mib": best["reserve_mib"],
+            "safe_budget_mib": best["safe_budget_mib"],
+            "admission_state": best["admission_state"],
+            "detail": (
+                "Physical CUDA GPU selected by verified NVIDIA UUID. "
+                "Budget is provisional; successful training is unverified."
+                if best["admission_state"] == "admitted" else
+                "CUDA GPU detected but the current free memory is below "
+                "the safe training admission budget."
+            ),
+        })
     except Exception:
+        result["state"] = "unavailable"
+        result["admission_state"] = "unknown"
+        result["gpu_name"] = None
+        result["gpu_uuid"] = None
+        result["cuda_index"] = None
+        result["vram_mib"] = None
+        result["free_vram_mib"] = None
+        result["reserve_mib"] = None
+        result["safe_budget_mib"] = None
         result["detail"] = (
-            "CUDA device inspection failed. Repair or verify the GPU driver "
-            "and packaged Python runtime before starting training."
+            "Cannot independently verify CUDA GPU identity and memory against "
+            "the NVIDIA sensor. Training is blocked; check the GPU driver and "
+            "installed Python runtime."
         )
     return result
 
 
 def main() -> None:
-    cpu_name = platform.processor() or platform.machine() or "CPU name unavailable"
+    cpu = platform.processor() or platform.machine() or "CPU name unavailable"
     try:
         import torch
     except Exception:
-        result = {
-            "state": "unavailable",
-            "cpu_name": cpu_name[:200],
-            "gpu_name": None,
-            "vram_mib": None,
-            "free_vram_mib": None,
-            "reserve_mib": None,
-            "safe_budget_mib": None,
-            "admission_state": "unknown",
-            "profile": PROFILE,
-            "detail": "PyTorch could not be loaded from the selected local Python runtime.",
-        }
+        result = empty_report(cpu)
+        result["detail"] = "PyTorch could not load from the local runtime."
     else:
-        result = detect_compute(torch, cpu_name)
+        result = detect_compute(
+            torch, cpu, required_uuid=os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID"),
+        )
     print(json.dumps(result, separators=(",", ":"), ensure_ascii=True))
 
 

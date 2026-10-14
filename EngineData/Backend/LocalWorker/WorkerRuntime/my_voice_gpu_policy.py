@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 MIB = 1024 * 1024
-PROFILE = "SAFE_8GB_V1"
+PROFILE = "SAFE_CUDA_V1"
 MIN_RESERVE_MIB = 1536
 MIN_STAGE_BUDGET_MIB = 3072
 MAX_TOTAL_FRACTION_PERMILLE = 700
@@ -38,13 +38,17 @@ def assess_memory(total_bytes: int, free_bytes: int) -> dict[str, Any]:
     }
 
 
-def check_stage_budget(status: dict[str, Any], originally_admitted_mib: int) -> int:
+def check_stage_budget(
+    status: dict[str, Any], originally_admitted_mib: int, expected_gpu_uuid: str,
+) -> int:
     """Fail closed if free memory changed; never increase the original budget."""
     if (
         type(originally_admitted_mib) is not int
         or originally_admitted_mib < MIN_STAGE_BUDGET_MIB
         or status.get("state") != "cuda_detected"
         or status.get("admission_state") != "admitted"
+        or status.get("gpu_uuid") != expected_gpu_uuid
+        or status.get("profile") != PROFILE
     ):
         raise RuntimeError("my_voice:gpu_admission_invalid")
     latest = status.get("safe_budget_mib")
