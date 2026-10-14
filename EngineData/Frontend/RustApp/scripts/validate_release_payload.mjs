@@ -161,6 +161,7 @@ for (const file of [
   "my_voice_gpu_policy.py",
   "my_voice_single_gpu_adapter.py",
   "my_voice_stage_supervisor.py",
+  "my_voice_evaluation_child.py",
   "voice_lab_gpt_sovits_build.py",
   "voice_lab_gpt_sovits.py",
   "voice_lab_quick_preview.py",

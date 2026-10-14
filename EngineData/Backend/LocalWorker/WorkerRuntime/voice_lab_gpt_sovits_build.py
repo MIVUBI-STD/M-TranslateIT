@@ -819,21 +819,76 @@ def build_candidate(
     )
     candidate_evaluation_root = work_dir / "candidate_evaluation"
     candidate_evaluation_root.mkdir(parents=True, exist_ok=True)
-    asr_model = create_evaluation_asr_runtime(asr_model_root)
-    evidence = [
-        evaluate_candidate(
-            source_root,
-            assets,
-            candidate,
-            candidate_evaluation_root,
-            manifest,
-            reference,
-            asr_model,
+    from my_voice_stage_supervisor import StageGuardError, run_supervised_stage
+
+    evidence: list[dict[str, Any]] = []
+    evaluator = Path(__file__).resolve().with_name("my_voice_evaluation_child.py")
+    require_file(evaluator, "evaluation_child")
+    for index, candidate in enumerate(candidates, start=1):
+        status_writer(
+            "evaluating",
+            f"Evaluating candidate {index} of {len(candidates)} in an isolated GPU process.",
         )
-        for candidate in candidates
-    ]
-    del asr_model
-    gc.collect()
+        # A previous model's CUDA allocations are released when its child exits.
+        # Never retry the same candidate automatically after a VRAM or native failure.
+        safe_id = str(candidate["candidate_id"])
+        candidate_data = {key: str(value) if isinstance(value, Path) else value
+                          for key, value in candidate.items()}
+        child_request = {
+            "source_root": str(source_root),
+            "asr_model_root": str(asr_model_root),
+            "evaluation_root": str(candidate_evaluation_root),
+            "candidate": candidate_data,
+            "manifest": manifest,
+            "reference": {k: str(v) if isinstance(v, Path) else v for k, v in reference.items()},
+        }
+        request_path = candidate_evaluation_root / f"{safe_id}.request.json"
+        report_path = candidate_evaluation_root / f"{safe_id}.evidence.json"
+        if request_path.exists() or report_path.exists():
+            raise VoiceLabProviderError("evaluation_child_input_collision")
+        request_path.write_text(
+            json.dumps(child_request, ensure_ascii=True, separators=(",", ":")),
+            encoding="utf-8", newline="\n",
+        )
+        budget = stage_gpu_budget()
+        env = os.environ.copy()
+        env["TRANSLATEIT_MYVOICE_STAGE_GPU_BUDGET_MIB"] = str(budget)
+        try:
+            run_supervised_stage(
+                [sys.executable, "-s", str(evaluator),
+                 "--request", str(request_path), "--result", str(report_path)],
+                cwd=str(Path(__file__).resolve().parent), env=env, gpu_stage=True,
+            )
+        except StageGuardError as exc:
+            raise VoiceLabProviderError(f"evaluation_child_guard:{safe_id}:{exc}") from exc
+        if report_path.is_symlink() or not report_path.is_file() or report_path.stat().st_size > 96 * 1024:
+            raise VoiceLabProviderError("evaluation_evidence_missing")
+        try:
+            item = json.loads(report_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise VoiceLabProviderError("evaluation_evidence_invalid") from exc
+        if not isinstance(item, dict) or item.get("candidate_id") != safe_id:
+            raise VoiceLabProviderError("evaluation_candidate_identity_mismatch")
+        if Path(str(item.get("gpt_path", ""))) != Path(candidate["gpt_path"]) or (
+            Path(str(item.get("sovits_path", ""))) != Path(candidate["sovits_path"])
+        ):
+            raise VoiceLabProviderError("evaluation_candidate_weight_mismatch")
+        samples = item.get("samples")
+        held_out = manifest["held_out_lines"]
+        if not isinstance(samples, list) or len(samples) != len(held_out):
+            raise VoiceLabProviderError("evaluation_samples_incomplete")
+        for sample, expected in zip(samples, held_out):
+            line_id = int(expected["line_id"])
+            wav = candidate_evaluation_root / safe_id / f"held_out_{line_id}.wav"
+            if (not isinstance(sample, dict) or sample.get("line_id") != line_id
+                or sample.get("exact_text") != expected["exact_text"]
+                or sample.get("sha256") != sha256_file(wav)
+                or wav.is_symlink()):
+                raise VoiceLabProviderError("evaluation_sample_identity_invalid")
+            sample["_wav_path"] = wav
+        item["gpt_path"] = Path(candidate["gpt_path"])
+        item["sovits_path"] = Path(candidate["sovits_path"])
+        evidence.append(item)
     selected = select_best_candidate(evidence)
     selected_samples = promote_selected_candidate(
         selected,

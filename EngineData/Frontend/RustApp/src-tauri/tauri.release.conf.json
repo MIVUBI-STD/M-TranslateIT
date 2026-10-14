@@ -13,6 +13,7 @@
       "../../../Backend/LocalWorker/WorkerRuntime/my_voice_gpu_policy.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_gpu_policy.py",
       "../../../Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_single_gpu_adapter.py",
       "../../../Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_stage_supervisor.py",
+      "../../../Backend/LocalWorker/WorkerRuntime/my_voice_evaluation_child.py": "EngineData/Backend/LocalWorker/WorkerRuntime/my_voice_evaluation_child.py",
       "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py",
       "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_quick_preview.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_quick_preview.py",
       "../../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py": "EngineData/Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits.py",

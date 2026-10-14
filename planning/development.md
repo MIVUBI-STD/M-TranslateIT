@@ -80,6 +80,12 @@
 - `ready_for_review` is no longer trusted alone. Only successful child exit, actual evaluation manifest/recording checks, and a new create-only Rust `completion.json` enable a reviewable candidate. Failed/interrupted runs remove completion evidence and preserve existing training recovery checks.
 - Existing approved personal actor and saved take archives remain unchanged; this is a source-only change, no compilation or runtime proof.
 
+## Isolated per-candidate GPU evaluation source — 2026-10-14
+
+- Held-out candidate evaluation now uses one GPU child process per checkpoint candidate, each under the owned stage supervisor and fresh prelaunch budget check. The parent validates the candidate identity, expected checkpoint paths, exact eight held-out lines and SHA-256 of generated WAVs before ranking or promotion.
+- The evaluator applies a per-process CUDA allocator fraction before TTS model loading; GPU memory is released by child exit rather than relying only on `empty_cache()`. No automatic retry or fallback is introduced.
+- This is source-authored work. No test, GPU inference, human voice quality listening, native build or Windows Job execution has occurred. Further source review needed for load/driver failure and restart behavior.
+
 ## Verification boundary
 
 This phase is `REMOTE_GITHUB` only: review exact source and write bounded regression tests; do not dispatch hosted CI, claim test execution, request incremental PC testing or touch `main`. Once the integrated source candidate is coherent, the existing `docs/knowledge/operations/target-windows-performance.md` will govern a single later local build/package/Windows acceptance phase.

@@ -73,5 +73,7 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(adapter, /run\(0, 1, hps\)/);
   assert.match(adapter, /strategy="auto"/);
   assert.match(runner, /single_gpu_source\(script, relative_script\.as_posix\(\)\)/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"), /evaluation_child_guard/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/voice_lab_gpt_sovits_build.py"), /evaluation_sample_identity_invalid/);
   assert.match(read("src-tauri/src/commands/registry.rs"), /get_my_voice_compute_status/);
 });
