@@ -30,7 +30,7 @@
 ## Generation handoff remains busy until owned process release — 2026-10-14
 
 - Fixed a post-completion race: the small Review receipt is atomically published while the previous Python process may still be owned by the completion thread. Start/Approve/Meeting-change now treat that existing process ownership as busy until its PID/Job and generation are released.
-- The canonical My Voice status defers `evaluation_ready` and `can_build` during this short finalization window, exposing the existing `evaluating` phase so the UI continues its ordinary status flow. No new state field, worker, mutex, or polling loop is introduced.
+- The canonical My Voice status defers `evaluation_ready` and `can_build` during this short finalization window, exposing a presentation-only `finalizing` status that disables repeated Stop requests while retaining the existing status polling. The underlying lifecycle remains unchanged. No new state field, worker, mutex, or polling loop is introduced.
 - Source only. The window and UI behavior must be confirmed during eventual Windows acceptance.
 
 ## Next focused source-only work

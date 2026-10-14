@@ -61,6 +61,9 @@ test("worker completion and Review are bound to one generation identity", () => 
   assert.match(rust, /commit_voice_lab_review_if_active\(generation/);
   assert.match(rust, /fn build_process_cleanup_pending\(\) -> bool/);
   assert.match(rust, /active: snapshot\.active \|\| process_cleanup_pending/);
+  assert.match(rust, /"finalizing"\.to_string\(\)/);
+  const ui = read("src/components/my-voice/MyVoiceBuild.svelte");
+  assert.match(ui, /build\.phase === "finalizing"/);
   assert.match(rust, /current_voice_lab_build_snapshot\(\)\.active \|\| build_process_cleanup_pending\(\)/);
   assert.match(read("src-tauri/src/commands/voice_lab.rs"), /super::voice_lab_build::build_process_cleanup_pending\(\)/);
   assert.match(read("src-tauri/src/commands/voice_lab.rs"), /pub fn commit_voice_lab_review_if_active/);

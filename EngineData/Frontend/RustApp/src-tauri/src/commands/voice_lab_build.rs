@@ -600,7 +600,7 @@ fn current_status() -> VoiceLabBuildStatus {
         preview_active,
         generation: snapshot.generation,
         phase: if !snapshot.active && process_cleanup_pending {
-            "evaluating".to_string()
+            "finalizing".to_string()
         } else {
             snapshot.phase
         },

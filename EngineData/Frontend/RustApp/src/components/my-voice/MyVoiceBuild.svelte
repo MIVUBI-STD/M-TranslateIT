@@ -222,6 +222,7 @@
     if (build.active && build.phase === "training" && build.message.includes("SoVITS training stage")) return "Training voice characteristics";
     if (build.active && build.phase === "training" && build.message.includes("GPT training stage")) return "Training speech generation";
     if (build.phase === "evaluating") return "Preparing voice previews";
+    if (build.phase === "finalizing") return "Finalizing My Voice";
     if (build.phase === "cancelling") return "Stopping My Voice creation";
     return "Creating My Voice";
   }
@@ -463,7 +464,7 @@
   }
 
   async function cancelBuild(): Promise<void> {
-    if (busy || statusCheckUnavailable || quickPreviewBusy || !build.active || build.phase === "cancelling") return;
+    if (busy || statusCheckUnavailable || quickPreviewBusy || !build.active || build.phase === "cancelling" || build.phase === "finalizing") return;
     invalidatePendingStatusReads();
     busy = true;
     try {
@@ -659,8 +660,8 @@
       <strong class="text-sm font-semibold">{activeTitle()}</strong>
       <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">{activeDetail()}</p>
     </div>
-    <button type="button" class="ti-button ti-button-secondary mt-5" disabled={busy || statusCheckUnavailable || build.phase === "cancelling"} onclick={() => void cancelBuild()}>
-      <Square size={14} /><span>{build.phase === "cancelling" ? "Stopping safely..." : busy ? "Stopping..." : "Stop Creating"}</span>
+    <button type="button" class="ti-button ti-button-secondary mt-5" disabled={busy || statusCheckUnavailable || build.phase === "cancelling" || build.phase === "finalizing"} onclick={() => void cancelBuild()}>
+      <Square size={14} /><span>{build.phase === "finalizing" ? "Finalizing..." : build.phase === "cancelling" ? "Stopping safely..." : busy ? "Stopping..." : "Stop Creating"}</span>
     </button>
   {:else if build.evaluation_ready}
     <div class="mt-5">
