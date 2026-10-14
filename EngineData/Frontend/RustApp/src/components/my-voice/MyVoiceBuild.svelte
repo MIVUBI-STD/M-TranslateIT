@@ -14,6 +14,7 @@
     onMeetingVoiceChanged,
     onBuildStatus,
     onBuildStatusUnavailable,
+    onTrainingComputeEligibility,
     refreshRevision = 0,
     voiceChangesLocked = false,
   }: {
@@ -21,6 +22,7 @@
     onMeetingVoiceChanged: (message?: string) => void | Promise<void>;
     onBuildStatus?: (status: MyVoiceBuildStatus) => void;
     onBuildStatusUnavailable?: () => void;
+    onTrainingComputeEligibility?: (allowed: boolean) => void;
     refreshRevision?: number;
     voiceChangesLocked?: boolean;
   } = $props();
@@ -68,6 +70,11 @@
     (computeStatus?.state === "cuda_detected" ||
       (computeStatus?.state === "cpu_only" && cpuTrainingAcknowledged)),
   );
+
+  // One hardware eligibility view, reused by Create and archive-backed Improve.
+  $effect(() => {
+    onTrainingComputeEligibility?.(computeCanStart);
+  });
   // Read-order fence for polling, explicit refresh, and mutation results.
   // It is local to this view; Rust remains the only owner of build truth.
   let statusReadVersion = 0;
@@ -527,10 +534,10 @@
     void checkCompute();
     return () => {
       disposed = true;
-      computeReadVersion += 1;
       if (timer) clearTimeout(timer);
       timer = null;
       statusReadVersion += 1;
+      computeReadVersion += 1;
       stopAudio();
     };
   });

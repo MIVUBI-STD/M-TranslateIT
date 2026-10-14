@@ -60,6 +60,7 @@
   let improvementTakes = $state<Record<number, string>>({});
   let improvementAuthorized = $state(false);
   let improvementStarting = $state(false);
+  let trainingComputeAllowed = $state(false);
   const improvementIds = $derived(Object.values(improvementTakes));
   let microphoneCheckMessage = $state("");
   // Presentation-only copy of the build owner's VERIFIED snapshot. No second polling loop.
@@ -166,7 +167,7 @@
   }
 
   async function startImprovement(): Promise<void> {
-    if (improvementStarting || busy || !improvementAuthorized || !savedLibraryOpen ||
+    if (improvementStarting || busy || !improvementAuthorized || !trainingComputeAllowed || !savedLibraryOpen ||
         improvementIds.length < 2 || improvementIds.length > 128 ||
         recordingStatusUnknown || isRecording || pendingLineId !== null ||
         buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active ||
@@ -799,7 +800,7 @@
       <ChevronRight size={14} class="text-[var(--ti-text-soft)]" aria-hidden="true" />
       <button type="button" aria-current={activeStage === "create" ? "step" : undefined}
         class={activeStage === "create" ? "rounded-full border border-[var(--ti-border-strong)] bg-[var(--ti-surface-raised)] px-3 py-2 text-[var(--ti-text)]" : "rounded-full px-3 py-2 text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"}
-        disabled={busy || recordingStatusUnknown || buildStatusUnavailable || isRecording || pendingLineId !== null || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || !buildSnapshot?.can_build}
+        disabled={busy || recordingStatusUnknown || buildStatusUnavailable || isRecording || pendingLineId !== null || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true}
         onclick={() => { selectedPane = "create"; }}>2. Create</button>
       <ChevronRight size={14} class="text-[var(--ti-text-soft)]" aria-hidden="true" />
       <button type="button" aria-current={activeStage === "review" ? "step" : undefined}
@@ -1032,6 +1033,7 @@
         }}
         onBuildStatus={(status) => { buildSnapshot = status; buildStatusUnavailable = false; }}
         onBuildStatusUnavailable={() => { buildStatusUnavailable = true; }}
+        onTrainingComputeEligibility={(allowed) => { trainingComputeAllowed = allowed; }}
         refreshRevision={buildRefreshRevision} />
     </div>
   </section>
@@ -1097,6 +1099,9 @@
               Your current Meeting voice and all saved takes will be kept.
             </p>
             <p class="mt-2 text-sm font-medium">{improvementIds.length} recordings chosen · maximum 128 per build</p>
+            {#if !trainingComputeAllowed}
+              <p class="mb-0 mt-2 text-xs leading-5 text-[var(--ti-text-muted)]" role="status">Before improving, open step 2 (Create) to check local training hardware. CPU-only use requires acknowledging the warning there.</p>
+            {/if}
             <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
               The training check requires at least one minute of speech, a short reference recording and varied sentence categories. You don't need to finish every line.
             </p>
@@ -1106,7 +1111,7 @@
               <span class="text-sm text-[var(--ti-text-muted)]">I own these recordings or have permission to create this personal voice.</span>
             </label>
             <button type="button" class="ti-button mt-3"
-              disabled={improvementStarting || busy || !improvementAuthorized || improvementIds.length < 2 || improvementIds.length > 128 || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || activeStage === "review"}
+              disabled={improvementStarting || busy || !improvementAuthorized || !trainingComputeAllowed || improvementIds.length < 2 || improvementIds.length > 128 || voiceChangesLocked || recordingStatusUnknown || isRecording || pendingLineId !== null || buildStatusUnavailable || buildSnapshot?.active === true || buildSnapshot?.preview_active === true || buildSnapshot?.evaluation_ready === true || activeStage === "review"}
               onclick={() => void startImprovement()}>
               {improvementStarting ? "Starting..." : "Create improved version"}
             </button>

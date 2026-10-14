@@ -21,6 +21,10 @@ test("My Voice explicit hardware check is bounded, truthful, and not build-statu
   assert.match(ui, /computeReadVersion \+= 1/);
   assert.match(ui, /cpuTrainingAcknowledged/);
   assert.match(ui, /!computeCanStart/);
+  assert.match(ui, /onTrainingComputeEligibility\?\.\(computeCanStart\)/);
+  const parent = read("src/pages/MyVoice.svelte");
+  assert.match(parent, /!trainingComputeAllowed/);
+  assert.match(parent, /onTrainingComputeEligibility=\{\(allowed\)/);
   assert.doesNotMatch(bridge.match(/async getStatus\(\)[\s\S]*?\n  \},/)?.[0] ?? "", /getComputeStatus/);
 });
 
