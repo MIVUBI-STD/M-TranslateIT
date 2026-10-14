@@ -73,7 +73,9 @@ fn collect_checkpoint_files(dir: &Path, group: &str) -> Result<Vec<Input>, Strin
         // A crashing same-directory atomic writer can leave a pending
         // partial. Preserve the existing work directory for investigation;
         // never clear it as if no incomplete checkpoint had existed.
-        if name.starts_with(".pending-G_") || name.starts_with(".pending-D_") {
+        if name.starts_with(".pending-G_") || name.starts_with(".pending-D_")
+            || name.starts_with(".pending-gpt-full-")
+            || name.starts_with(".pending-gpt-weights-") {
             return Err("voice_lab:recovery_partial_checkpoint_needs_attention".into());
         }
         let valid = match group {

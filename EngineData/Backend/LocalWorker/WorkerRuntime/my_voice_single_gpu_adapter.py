@@ -128,6 +128,12 @@ hps = utils.get_hparams(stage=2)""",
     elif relative == "GPT_SoVITS/s1_train.py":
         source = _replace_one(
             source,
+            'from process_ckpt import my_save',
+            'from my_voice_checkpoint_atomic import atomic_gpt_inference_save as my_save',
+            "gpt_atomic_inference_weights",
+        )
+        source = _replace_one(
+            source,
             '        devices=-1 if torch.cuda.is_available() else 1,',
             '        devices=1,',
             "gpt_device_count",
@@ -145,6 +151,7 @@ hps = utils.get_hparams(stage=2)""",
             '''    trainer: Trainer = Trainer(''',
             '''    from pytorch_lightning.callbacks import Callback
     from my_voice_cooperative import gpt_epoch_boundary
+    from my_voice_checkpoint_io import create_atomic_lightning_checkpoint_io
 
     class MyVoiceSafeStopOnCheckpoint(Callback):
         def on_train_epoch_end(self, trainer, pl_module):
@@ -158,6 +165,13 @@ hps = utils.get_hparams(stage=2)""",
             "        callbacks=[ckpt_callback],",
             "        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],",
             "gpt_cooperative_callback_order",
+        )
+        source = _replace_one(
+            source,
+            '        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],',
+            '''        callbacks=[ckpt_callback, MyVoiceSafeStopOnCheckpoint()],
+        plugins=[create_atomic_lightning_checkpoint_io()],''',
+            "gpt_full_optimizer_atomic_plugin",
         )
     else:
         raise RuntimeError("my_voice:single_gpu_source_unsupported")

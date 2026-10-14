@@ -15,6 +15,35 @@ from typing import Any
 MAX_CHECKPOINT_BYTES = 8 * 1024 * 1024 * 1024
 
 
+def atomic_gpt_inference_save(payload: Any, path: str) -> None:
+    """Keep the upstream torch.save serialization, with atomic local publish."""
+    import torch
+
+    target = Path(path)
+    if (
+        target.suffix != ".ckpt" or not target.parent.is_dir()
+        or target.parent.is_symlink() or target.exists() or target.is_symlink()
+    ):
+        raise RuntimeError("my_voice:gpt_inference_checkpoint_unsafe")
+    fd, staged_name = tempfile.mkstemp(
+        prefix=".pending-gpt-weights-", suffix=".partial",
+        dir=str(target.parent),
+    )
+    os.close(fd)
+    staged = Path(staged_name)
+    # Leave a truncated file as explicit attention evidence for the per-run
+    # cleanup path; it cannot be mistaken for a finished .ckpt.
+    torch.save(payload, str(staged))
+    if not 4096 < staged.stat().st_size <= MAX_CHECKPOINT_BYTES:
+        raise RuntimeError("my_voice:gpt_inference_checkpoint_size_invalid")
+    with staged.open("rb") as stream:
+        os.fsync(stream.fileno())
+    if target.exists() or target.is_symlink():
+        raise RuntimeError("my_voice:gpt_inference_checkpoint_collision")
+    os.replace(staged, target)
+
+
+
 def atomic_sovits_save(payload: Any, path: str, torch_module: Any) -> None:
     target = Path(path)
     if (
