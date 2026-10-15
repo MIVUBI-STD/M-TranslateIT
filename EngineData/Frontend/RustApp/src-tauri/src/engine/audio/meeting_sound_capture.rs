@@ -672,7 +672,20 @@ fn current_unix_ms() -> u128 {
 
 #[cfg(test)]
 mod isolation_tests {
-    use super::incoming_output_conflicts_with_virtual_tts;
+    use super::{capture_finished_within, incoming_output_conflicts_with_virtual_tts};
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn loopback_thread_exit_stays_unconfirmed_at_timeout() {
+        let (release, blocked) = mpsc::channel::<()>();
+        let thread = thread::spawn(move || { let _ = blocked.recv(); });
+        assert!(!capture_finished_within(&thread, Duration::ZERO));
+        release.send(()).expect("release loopback fixture");
+        assert!(capture_finished_within(&thread, Duration::from_secs(2)));
+        thread.join().expect("loopback fixture joined");
+    }
 
     #[test]
     fn stopped_activation_does_not_take_new_session_capture() {

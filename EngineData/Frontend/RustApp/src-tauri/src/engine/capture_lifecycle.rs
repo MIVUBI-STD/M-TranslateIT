@@ -30,6 +30,8 @@ pub fn start_capture() -> CommandResult {
     }
 
     let generation = snapshot.generation;
+    // Retain identity before moving the session into the capture starter.
+    let session_id = snapshot.session_id.clone();
     let capture = start_live_capture_runtime(session);
     if capture.ok {
         CommandResult::ok(
@@ -39,7 +41,7 @@ pub fn start_capture() -> CommandResult {
     } else {
         if capture.status.blocker == "live_capture:cleanup_pending"
             && capture.status.owner_id.as_deref() == Some(MIC_TEST_OWNER_ID)
-            && capture.status.session_id.as_deref() == Some(snapshot.session_id.as_str())
+            && capture.status.session_id.as_deref() == Some(session_id.as_str())
         {
             let _ = revoke_runtime_session_authority(
                 generation,
