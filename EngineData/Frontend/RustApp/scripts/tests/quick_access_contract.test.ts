@@ -73,3 +73,11 @@ test("Native popup doesn't misreport a Windows foreground-focus denial as Show f
   assert.match(native, /TOGGLE_LOCK/);
   assert.match(native, /quick_access:window_show_failed/);
 });
+
+
+test("Tray callback and popup owner share one generic Tauri runtime identity", () => {
+  assert.match(native, /fn popup_window<R: tauri::Runtime>/);
+  assert.match(native, /fn position_popup<R: tauri::Runtime>/);
+  assert.match(native, /pub fn toggle_window<R: tauri::Runtime>/);
+  assert.match(native, /pub fn install_tray<R: tauri::Runtime>/);
+});

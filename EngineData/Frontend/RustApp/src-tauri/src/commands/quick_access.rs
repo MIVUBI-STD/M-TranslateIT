@@ -6,12 +6,12 @@ static TOGGLE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 const QUICK_ACCESS_LABEL: &str = "quick-access";
 
-fn popup_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
+fn popup_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::WebviewWindow<R>, String> {
     app.get_webview_window(QUICK_ACCESS_LABEL)
         .ok_or_else(|| "quick_access:window_unavailable".to_string())
 }
 
-fn position_popup(window: &tauri::WebviewWindow) -> Result<(), String> {
+fn position_popup<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) -> Result<(), String> {
     // Put controls near the top-right of the monitor currently being used,
     // away from the floating caption's default bottom-center location.
     let cursor = window.cursor_position().ok();
@@ -34,7 +34,7 @@ fn position_popup(window: &tauri::WebviewWindow) -> Result<(), String> {
     )).map_err(|_| "quick_access:window_position_failed".to_string())
 }
 
-pub fn toggle_window(app: &AppHandle) -> Result<bool, String> {
+pub fn toggle_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
     let _guard = TOGGLE_LOCK.get_or_init(|| Mutex::new(())).lock()
         .map_err(|_| "quick_access:toggle_state_unavailable".to_string())?;
     let window = popup_window(app)?;
