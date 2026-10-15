@@ -21,6 +21,7 @@
   let settingsSaving = $state(false);
   let resultState = $state<TextResultState>("idle");
   let resultMessage = $state("Type or paste text to translate.");
+  let reviewHints = $state<string[]>([]);
   let lastTranslatedSource = $state<string | null>(null);
   let lastTranslatedSettingsKey = $state<string | null>(null);
   let targetRevision = 0;
@@ -38,6 +39,7 @@
   $effect(() => {
     if (lastTranslatedSource !== null && lastTranslatedSettingsKey !== currentTextSettingsKey && !translating) {
       resultState = "stale";
+      reviewHints = [];
       resultMessage = "Language direction changed. Translate again.";
     }
   });
@@ -47,6 +49,7 @@
     if (lastTranslatedSource !== null && (sourceText.trim() !== lastTranslatedSource
       || lastTranslatedSettingsKey !== currentTextSettingsKey)) {
       resultState = "stale";
+      reviewHints = [];
       resultMessage = "Text changed. Translate again.";
     }
   }
@@ -54,6 +57,7 @@
   function targetChanged(): void {
     targetRevision += 1;
     copied = false;
+    reviewHints = [];
     resultState = lastTranslatedSource !== null && sourceText.trim() === lastTranslatedSource
       && lastTranslatedSettingsKey === currentTextSettingsKey ? "edited" : "stale";
   }
@@ -61,15 +65,36 @@
   function clearWorkspace(): void {
     if (translating || settingsSaving) return;
     sourceText = ""; targetText = ""; copied = false;
+    reviewHints = [];
     lastTranslatedSource = null; lastTranslatedSettingsKey = null;
     targetRevision += 1; resultState = "idle";
     resultMessage = "Type or paste text to translate.";
+  }
+
+  function applyTranslationResult(
+    translated: string,
+    needsReview: boolean,
+    hints: string[],
+    source: string,
+    settingsKey: string,
+  ): void {
+    targetText = translated;
+    lastTranslatedSource = source;
+    lastTranslatedSettingsKey = settingsKey;
+    targetRevision += 1;
+    copied = false;
+    reviewHints = needsReview ? [...hints] : [];
+    resultState = needsReview ? "review" : "success";
+    resultMessage = needsReview
+      ? "Translation ready. Check the review notes before using it."
+      : "Translation ready.";
   }
 
   async function submitText(): Promise<void> {
     const requestSource = sourceText.trim();
     if (!requestSource || translating || settingsSaving) return;
     if (Array.from(requestSource).length > MAX_LENGTH) {
+      reviewHints = [];
       resultState = "error"; resultMessage = "Text is too long."; return;
     }
     const key = textTranslationCacheKey(requestSource, settings);
@@ -78,12 +103,11 @@
     const cached = getCachedTextTranslation(key);
     if (cached) {
       if (sourceText.trim() !== requestSource || currentTextSettingsKey !== currentKey) return;
-      targetText = cached.translated;
-      lastTranslatedSource = requestSource; lastTranslatedSettingsKey = currentKey;
-      targetRevision += 1; copied = false;
-      resultState = "success"; resultMessage = "Translation ready."; return;
+      applyTranslationResult(cached.translated, cached.needsReview, cached.reviewHints, requestSource, currentKey);
+      return;
     }
     translating = true; copied = false;
+    reviewHints = [];
     resultState = "translating"; resultMessage = "Translating...";
     try {
       const result = await runtimeProductFacade.runProductTranslation(requestSource);
@@ -96,9 +120,7 @@
       if (targetRevision !== revision) {
         resultState = "stale"; resultMessage = "Your newer edit was kept."; return;
       }
-      targetText = result.translated;
-      lastTranslatedSource = requestSource; lastTranslatedSettingsKey = currentKey;
-      targetRevision += 1; resultState = "success"; resultMessage = "Translation ready.";
+      applyTranslationResult(result.translated, result.needsReview, result.reviewHints, requestSource, currentKey);
       putCachedTextTranslation({
         key, translated: result.translated,
         reviewHints: result.reviewHints, needsReview: result.needsReview,
@@ -139,6 +161,7 @@
       const saved = (await runtimeApi.loadSettings()) ?? candidate;
       await onSettingsChange(saved);
       sourceText = nextInput; targetText = nextTarget;
+      reviewHints = [];
       lastTranslatedSource = null; lastTranslatedSettingsKey = null;
       targetRevision += 1; copied = false; resultState = "idle";
       resultMessage = "Type or paste text to translate.";
@@ -191,6 +214,19 @@
           bind:value={targetText} oninput={targetChanged} aria-label="Translated text"></textarea>
       </div>
     </div>
+    {#if resultState === "review" && currentResultUsable}
+      <section class="border-t border-[var(--ti-warning-border)] px-5 py-3 text-sm text-[var(--ti-warning)]"
+        role="status" aria-live="polite" aria-label="Translation review notes">
+        <strong class="font-semibold">Review this translation before using it.</strong>
+        {#if reviewHints.length > 0}
+          <ul class="mb-0 mt-2 list-disc space-y-1 pl-5">
+            {#each reviewHints as hint, index (index)}
+              <li>{hint}</li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/if}
     <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ti-border)] px-5 py-4">
       <p class="m-0 text-[12px] text-[var(--ti-text-muted)]" aria-live="polite">{resultMessage}</p>
       <div class="ti-action-row ml-auto">

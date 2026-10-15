@@ -2,9 +2,9 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current bounded delivery:** Capture, consumer and playback cleanup retain thread ownership after bounded waits. Live Meeting now displays canonical overflow and eviction counts, freshly read from the existing runtime status. Counters aggregate microphone and incoming lanes; the UI does not invent speaker attribution or delivery success. Source-contract fixture authored, NOT EXECUTED; compiler and Windows audio/UI evidence remain unknown.
+**Current bounded delivery:** Meeting's existing speech-loss counts are visible in the Live activity view without speaker attribution or new polling. Text Translation now preserves Rust review metadata for both freshly translated text and cache hits, displays actual hints, and clears stale review guidance after source/direction/translation edits. No translation inference, voice engine, or runtime quality policy changed. Frontend regression contracts authored; tests, compiler and Windows validation NOT EXECUTED.
 
-**Next:** Restore Text Translation review warnings on fresh and cached results using existing Rust-owned hints and state policy.
+**Next:** Reconcile the remaining source audit findings (translation context documentation, responsive window constraints, and transcript export crash-safe write), prioritizing one owner per bounded change before the integrated test-ready candidate gate.
 
 ## Retained My Voice source candidate (paused)
 
@@ -213,11 +213,11 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Restore Text result review warnings and cache-hit parity using existing Rust
-review hints and Text result policy. Preserve editable translations, Copy
-and direction-based stale-result rejection. My Voice GPU/training acceptance
-remains deferred to one integrated Windows phase; compilation/native proof
-remains `UNKNOWN / NOT EXECUTED`.
+Reconcile the stale Python worker context description with the canonical
+current-utterance-only Meeting contract (no historical translation pairs).
+Then review remaining source-proven issues without expanding the model or
+runtime architecture. Preserve the single integrated Windows acceptance
+phase; compiler and native results remain `UNKNOWN / NOT EXECUTED`.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.

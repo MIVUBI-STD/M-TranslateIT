@@ -49,6 +49,20 @@ test("idle, pending, outdated and failed results cannot enter downstream actions
 
 const ui = readFileSync(new URL("../../src/pages/Text.svelte", import.meta.url), "utf8");
 
+test("Text maps fresh and cached review metadata into one visible review state", () => {
+  assert.match(ui, /function applyTranslationResult\(/);
+  assert.match(ui, /resultState = needsReview \? "review" : "success"/);
+  assert.match(ui, /reviewHints = needsReview \? \[\.\.\.hints\] : \[\]/);
+  assert.match(ui, /applyTranslationResult\(cached\.translated, cached\.needsReview, cached\.reviewHints, requestSource, currentKey\)/);
+  assert.match(ui, /applyTranslationResult\(result\.translated, result\.needsReview, result\.reviewHints, requestSource, currentKey\)/);
+  assert.match(ui, /resultState === "review" && currentResultUsable/);
+  assert.match(ui, /aria-label="Translation review notes"/);
+  assert.match(ui, /\{#each reviewHints as hint/);
+  assert.match(ui, /function sourceChanged\(\): void \{[\s\S]*?reviewHints = \[\]/);
+  assert.match(ui, /function targetChanged\(\): void \{[\s\S]*?reviewHints = \[\]/);
+  assert.match(ui, /sourceText = nextInput; targetText = nextTarget;[\s\S]*?reviewHints = \[\]/);
+});
+
 test("minimal Text guards Copy and preserves source during Swap", () => {
   assert.match(ui, /const currentResultUsable = \$derived\(canUseCurrentTextResult\(/);
   assert.match(ui, /async function copyTranslation\(\)/);

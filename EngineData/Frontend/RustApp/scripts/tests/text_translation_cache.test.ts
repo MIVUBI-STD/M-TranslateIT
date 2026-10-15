@@ -14,6 +14,19 @@ test("Text cache depends on source and direction, not retired style or terminolo
   assert.notEqual(natural, textTranslationCacheKey("halo", { ...base, source_language: "en", target_language: "id" }));
 });
 
+test("Text cache returns review metadata unchanged without sharing the hints array", () => {
+  const key = textTranslationCacheKey("butuh review khusus", defaultSettings());
+  putCachedTextTranslation({
+    key, translated: "Needs a specific review", needsReview: true,
+    reviewHints: ["Check negation.", "Check names."],
+  });
+  const first = getCachedTextTranslation(key);
+  assert.equal(first?.needsReview, true);
+  assert.deepEqual(first?.reviewHints, ["Check negation.", "Check names."]);
+  first?.reviewHints.push("local edit");
+  assert.deepEqual(getCachedTextTranslation(key)?.reviewHints, ["Check negation.", "Check names."]);
+});
+
 test("Text cache remains bounded to 32 in-memory LRU entries", () => {
   const settings = defaultSettings();
   const keys = Array.from({ length: 33 }, (_, index) => textTranslationCacheKey(`cache-${index}`, settings));
