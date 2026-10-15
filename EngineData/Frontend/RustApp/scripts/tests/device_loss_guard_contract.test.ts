@@ -20,3 +20,17 @@ test("explicit device selection requires exact continued presence while Windows 
   assert.match(guard, /settings\.audio\.output_device_id\.is_some\(\)/);
   assert.match(guard, /selected_device_present/);
 });
+
+test("Original virtual output native failures enter existing device-loss diagnostics", () => {
+  const original = readFileSync(
+    new URL("../../src-tauri/src/engine/audio/meeting_output_runtime/original.rs", import.meta.url),
+    "utf8",
+  );
+  assert.match(original, /callback_failed: Arc<AtomicBool>/);
+  assert.match(original, /failure_state\.store\(true, Ordering::Release\)/);
+  assert.match(original, /fn original_voice_output_healthy\(generation: u64\)/);
+  assert.match(guard, /meeting\.audio_source == "original"/);
+  assert.match(guard, /device_loss:original_output_callback_failed/);
+  assert.match(guard, /device_loss:original_output_unverified/);
+  assert.doesNotMatch(guard, /start_original_voice_output|start_helper_bridge/);
+});

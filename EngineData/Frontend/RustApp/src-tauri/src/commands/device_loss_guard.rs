@@ -3,6 +3,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::audio::live_capture::live_capture_status;
+use crate::engine::audio::meeting_output::original_voice_output_healthy;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 use crate::engine::runtime_settings::load_settings;
 use crate::engine::runtime_state::APPLICATION_MEETING_OWNER_ID;
@@ -252,6 +253,23 @@ pub fn get_device_loss_guard_status() -> DeviceLossGuardStatus {
             "device_loss:virtual_microphone_route_missing",
             "The bound TranslateIT virtual microphone route is no longer available. Required outbound voice delivery must not silently move to another endpoint.",
         ));
+    }
+    // Windows may retain a listed virtual endpoint even after CPAL output
+    // callbacks fail. Original voice must not be reported healthy in that case.
+    if meeting.audio_source == "original" {
+        match meeting.generation.and_then(original_voice_output_healthy) {
+            Some(true) => {}
+            Some(false) => return record_if_needed(status(
+                "required_device_lost", false, true, true, false,
+                "virtual_microphone", "device_loss:original_output_callback_failed",
+                "Original Microphone output reported a native stream failure. Stop Microphone to recover; no alternate audio source was selected.",
+            )),
+            None => return record_if_needed(status(
+                "unverified", false, true, true, false,
+                "virtual_microphone", "device_loss:original_output_unverified",
+                "Original Microphone output cannot be verified. Stop Microphone before attempting recovery.",
+            )),
+        }
     }
 
     let explicit_meeting_sound_missing = settings.audio.output_device_id.is_some()

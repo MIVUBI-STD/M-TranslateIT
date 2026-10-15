@@ -79,6 +79,12 @@ The feedback example assumes compatible f32 stream configurations; TranslateIT m
 - If native Original output stop/start or translated output cancellation cannot be confirmed, source switching revokes audio authority and marks the same Meeting for canonical Stop cleanup. No automatic source fallback is allowed after uncertain native teardown.
 - Evidence remains **REMOTE_GITHUB source inspection only**; Rust/TypeScript tests, Windows callback behavior and application meeting reception were not executed.
 
+## Native Original output callback failure visibility — 2026-10-15
+
+- Source audit found that CPAL Original output's error callback was only meaningful during startup; failures after the first callback could leave UI/device-health status appearing healthy while the virtual output was silent.
+- The existing stream owner now stores a generation-scoped native callback-failure flag, suppresses further output after a reported failure, and exposes read-only health to the existing Device Loss Guard. No second background monitor or recovery runtime is introduced.
+- The native stream status remains **source-only and unexecuted**; this does not prove that real Windows errors are reported at the expected moment or that a meeting receiver hears output.
+
 ## Next code delivery
 
 The source selector, epoch-gated TTS, and Original PCM output now exist on Local. Next, address any source-level compile or contract findings, then perform the one authorized integrated local build/package and TARGET_WINDOWS microphone-receiver acceptance. Original-only startup without AI readiness and device naming in Windows remain separate, unapplied product scope. Do not claim audio reception or validation before executed evidence.
