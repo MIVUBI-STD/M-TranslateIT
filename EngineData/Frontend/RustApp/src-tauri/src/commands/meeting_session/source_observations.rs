@@ -6,6 +6,7 @@
 use crate::engine::audio::finalized_utterance::FinalizedMeetingUtterance;
 use crate::engine::audio::evidence::AudioEvidenceReport;
 use crate::engine::audio::vad::runtime_vad_profile;
+use serde_json::Value;
 
 const ASR_RATE_HZ: u32 = 16_000;
 const MAX_OBSERVATION_BYTES: usize = 8 * 1024;
@@ -249,6 +250,7 @@ pub(super) enum ObservationError {
     NoSafeSegmentBoundary,
     InvalidQuietEvidence,
     UnavailableFinalizedSource,
+    InvalidWorkerAlignment,
 }
 
 pub(super) struct SourceStabilizer {
@@ -327,6 +329,43 @@ impl SourceStabilizer {
             return Err(ObservationError::UnmatchedWordTiming);
         }
         Ok(mapped)
+    }
+
+    /// Test-only adapter for the EXISTING worker_io_runtime.py alignment_probe
+    /// response. It consumes the exact opt-in worker envelope and the same
+    /// finalized utterance's audio provenance; no fake timestamp source,
+    /// inference call, Meeting commit, or TTS output is introduced.
+    ///
+    /// Worker word timing is only an estimate. Even if every structural
+    /// check succeeds, this yields an advisory PCM-backed range proposal,
+    /// never proof of a complete thought or authority to cut live audio.
+    pub fn propose_from_worker_alignment_response(
+        &self,
+        utterance: &FinalizedMeetingUtterance,
+        revision: u64,
+        response: &Value,
+    ) -> Result<Vec<LongSpeechSegmentProposal>, ObservationError> {
+        let (scope, window, _) = finalized_capture_clock(utterance)
+            .ok_or(ObservationError::UnavailableFinalizedSource)?;
+        let expected_language = match scope.lane {
+            SourceLane::You => "id",
+            SourceLane::Incoming => "en",
+        };
+        let (transcript, words) = parse_worker_alignment(
+            response, expected_language, window.end_sample,
+        )?;
+        // Reject a perfectly shaped but unrelated/stale worker response.
+        // Text from a changed ASR hypothesis cannot inherit this source clock.
+        let observed = self.latest.as_ref()
+            .ok_or(ObservationError::UnmatchedWordTiming)?;
+        if observed.scope != scope
+            || observed.revision != revision
+            || observed.window != window
+            || observed.transcript.trim() != transcript.as_str()
+        {
+            return Err(ObservationError::UnmatchedWordTiming);
+        }
+        self.propose_from_finalized_pcm(utterance, revision, &words)
     }
 
     /// Test-only bridge from an actual finalized producer frame to the
@@ -556,6 +595,86 @@ impl SourceStabilizer {
     }
 }
 
+
+// Exact, bounded bridge for WorkerRuntime's opt-in "asr_alignment" JSON.
+// Reject caller-created claims of verified semantics, absent metadata,
+// wrong audio frame count, mismatched transcript and invalid word offsets.
+// The Rust side never infers true audio silence from these timestamps.
+fn parse_worker_alignment(
+    response: &Value,
+    expected_language: &str,
+    expected_frames: u64,
+) -> Result<(String, Vec<ModelEstimatedWord>), ObservationError> {
+    let bad = ObservationError::InvalidWorkerAlignment;
+    if response.get("ok").and_then(Value::as_bool) != Some(true)
+        || response.get("stage").and_then(Value::as_str) != Some("transcribe")
+        || response.get("language").and_then(Value::as_str) != Some(expected_language)
+        || response.get("blocker").and_then(Value::as_str) != Some("")
+        || expected_frames == 0
+        || expected_frames > MAX_WINDOW_SAMPLES_16K
+    {
+        return Err(bad);
+    }
+    let transcript = response.get("transcript_text")
+        .and_then(Value::as_str).ok_or(bad)?;
+    if transcript.trim().is_empty()
+        || transcript.len() > MAX_OBSERVATION_BYTES
+        || transcript.contains('\0')
+    {
+        return Err(bad);
+    }
+    let alignment = response.get("asr_alignment").ok_or(bad)?;
+    if alignment.get("evidence").and_then(Value::as_str)
+        != Some("FASTER_WHISPER_ESTIMATED_WORD_TIMES")
+        || alignment.get("verified_semantic_boundary").and_then(Value::as_bool)
+            != Some(false)
+        || alignment.get("timebase").and_then(Value::as_str)
+            != Some("untrimmed_pcm16_mono_16000hz_wav")
+        || alignment.get("sample_rate_hz").and_then(Value::as_u64)
+            != Some(u64::from(ASR_RATE_HZ))
+        || alignment.get("asr_frame_count").and_then(Value::as_u64)
+            != Some(expected_frames)
+    {
+        return Err(bad);
+    }
+    let raw_words = alignment.get("words")
+        .and_then(Value::as_array).ok_or(bad)?;
+    if raw_words.is_empty() || raw_words.len() > MAX_TIMING_PROBE_WORDS {
+        return Err(bad);
+    }
+    let mut result = Vec::with_capacity(raw_words.len());
+    let mut text_bytes = 0_usize;
+    let mut previous_end = 0_u64;
+    let mut joined = String::new();
+    for raw in raw_words {
+        let text = raw.get("text").and_then(Value::as_str).ok_or(bad)?;
+        let start_sample = raw.get("start_sample")
+            .and_then(Value::as_u64).ok_or(bad)?;
+        let end_sample = raw.get("end_sample")
+            .and_then(Value::as_u64).ok_or(bad)?;
+        text_bytes = text_bytes.checked_add(text.len()).ok_or(bad)?;
+        if text.trim().is_empty()
+            || text.len() > 256
+            || text.contains('\0')
+            || text_bytes > MAX_TIMING_PROBE_BYTES
+            || start_sample < previous_end
+            || end_sample <= start_sample
+            || end_sample > expected_frames
+        {
+            return Err(bad);
+        }
+        joined.push_str(text);
+        result.push(ModelEstimatedWord {
+            text: text.to_string(), start_sample, end_sample,
+        });
+        previous_end = end_sample;
+    }
+    let normal = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if normal(&joined) != normal(transcript) {
+        return Err(bad);
+    }
+    Ok((transcript.to_string(), result))
+}
 
  // PCM-derived quiet is a *proposal* signal, not speech-recognition or a
  // semantic boundary. A 20-ms frame must be plainly below BOTH canonical
@@ -1088,6 +1207,106 @@ mod tests {
                 part.asr_window.end_sample / u64::from(ASR_RATE_HZ)))
             .collect();
         assert_eq!(spans, vec![(0, 15), (15, 30), (30, 45), (45, 51)]);
+
+        // Faithful representation of worker_io_runtime.handle_transcribe's
+        // opt-in JSON result, NOT a claim of executed Faster Whisper inference.
+        let worker_words: Vec<serde_json::Value> = words.iter().map(|w|
+            serde_json::json!({
+                "text": w.text.as_str(),
+                "start_sample": w.start_sample,
+                "end_sample": w.end_sample,
+            })
+        ).collect();
+        let worker_reply = serde_json::json!({
+            "ok": true,
+            "stage": "transcribe",
+            "blocker": "",
+            "language": "id",
+            "transcript_text": "Start now. Again go. Later done. Finish okay.",
+            "asr_alignment": {
+                "evidence": "FASTER_WHISPER_ESTIMATED_WORD_TIMES",
+                "verified_semantic_boundary": false,
+                "timebase": "untrimmed_pcm16_mono_16000hz_wav",
+                "sample_rate_hz": 16_000,
+                "asr_frame_count": window.end_sample,
+                "words": worker_words,
+            },
+        });
+        let worker_proposal = tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &worker_reply,
+        ).expect("canonical worker envelope plus matched PCM yields source-only proposal");
+        assert_eq!(worker_proposal, proposal);
+
+        // No default-ASR response, wrong language/direction, stale revision,
+        // invented semantic-proof flag or foreign model text can be admitted.
+        let mut malformed = worker_reply.clone();
+        malformed.as_object_mut().unwrap().remove("asr_alignment");
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["language"] = serde_json::json!("en");
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["asr_alignment"]["verified_semantic_boundary"] =
+            serde_json::json!(true);
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["asr_alignment"]["asr_frame_count"] =
+            serde_json::json!(window.end_sample - 1);
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["asr_alignment"]["words"][2]["text"] =
+            serde_json::json!(" not!");
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["asr_alignment"]["words"][2]["start_sample"] =
+            serde_json::json!(-1);
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["asr_alignment"]["words"][2]["end_sample"] =
+            serde_json::json!(window.end_sample + 1);
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["transcript_text"] =
+            serde_json::json!("Start now. Again go. Later no. Finish okay.");
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::InvalidWorkerAlignment));
+
+        let mut malformed = worker_reply.clone();
+        malformed["transcript_text"] = serde_json::json!("I have not agreed.");
+        malformed["asr_alignment"]["words"] = serde_json::json!([
+            {"text": "I have not agreed.", "start_sample": 0,
+             "end_sample": window.end_sample}
+        ]);
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 1, &malformed,
+        ), Err(ObservationError::UnmatchedWordTiming));
+
+        assert_eq!(tracker.propose_from_worker_alignment_response(
+            &utterance, 2, &worker_reply,
+        ), Err(ObservationError::UnmatchedWordTiming));
+
         assert_eq!(proposal[0].capture_bounds.start_lower_sample, 12_000);
         assert_eq!(proposal[3].capture_bounds.end_upper_sample, 12_000 + 51 * 48_000);
         assert!(proposal.windows(2).all(|pair|

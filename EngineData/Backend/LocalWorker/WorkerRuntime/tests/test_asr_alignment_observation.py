@@ -80,12 +80,26 @@ def test_probe_returns_bounded_model_estimates_not_verified_alignment(tmp_path, 
     assert result["ok"] is True
     assert observed["word_timestamps"] is True
     assert observed["vad_filter"] is False
+    # Keep the exact opt-in response envelope that the test-only Rust
+    # PCM/ASR adapter accepts. This is fake-model schema proof, not ASR quality.
+    assert result["stage"] == "transcribe"
+    assert result["blocker"] == ""
+    assert result["language"] == "id"
+    assert result["transcript_text"] == "Saya tidak setuju."
     evidence = result["asr_alignment"]
     assert evidence["evidence"] == "FASTER_WHISPER_ESTIMATED_WORD_TIMES"
     assert evidence["verified_semantic_boundary"] is False
+    assert evidence["timebase"] == "untrimmed_pcm16_mono_16000hz_wav"
     assert evidence["sample_rate_hz"] == 16_000
     assert evidence["asr_frame_count"] == 16_000
     assert len(evidence["words"]) == 3
+    assert all(
+        isinstance(word["text"], str)
+        and type(word["start_sample"]) is int
+        and type(word["end_sample"]) is int
+        and 0 <= word["start_sample"] < word["end_sample"] <= 16_000
+        for word in evidence["words"]
+    )
     assert 1590 <= evidence["words"][0]["start_sample"] <= 1610
     assert evidence["words"][-1]["end_sample"] <= evidence["asr_frame_count"]
 
