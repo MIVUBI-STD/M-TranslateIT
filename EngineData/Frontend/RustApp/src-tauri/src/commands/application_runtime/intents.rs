@@ -15,6 +15,10 @@ pub fn dispatch(intent: &str) -> IntentOutcome {
             let result = runtime::start_meeting_translation();
             outcome(result.ok, result.state, result.message)
         }
+        "start_original_meeting" => {
+            let result = runtime::start_meeting_original();
+            outcome(result.ok, result.state, result.message)
+        }
         "stop_meeting" => {
             let result = meeting_session::stop_meeting_translation();
             outcome(result.ok, result.state, result.message)

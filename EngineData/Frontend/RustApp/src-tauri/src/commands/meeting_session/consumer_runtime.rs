@@ -65,6 +65,19 @@ fn incoming_consumer_store() -> &'static Mutex<Option<MeetingIncomingConsumerRun
     MEETING_INCOMING_CONSUMER.get_or_init(|| Mutex::new(None))
 }
 
+pub(super) fn ensure_meeting_outbound_consumer(generation: u64, session_id: &str) -> Result<(), String> {
+    {
+        let store = outbound_consumer_store()
+            .lock().map_err(|_| "meeting_outbound:consumer_state_lock_failed".to_string())?;
+        if let Some(active) = store.as_ref() {
+            return if active.generation == generation && active.session_id == session_id {
+                Ok(())
+            } else { Err("meeting_outbound:another_runtime_active".to_string()) };
+        }
+    }
+    start_meeting_outbound_consumer(generation, session_id)
+}
+
 pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str) -> Result<(), String> {
     let store = outbound_consumer_store();
     let mut guard = store

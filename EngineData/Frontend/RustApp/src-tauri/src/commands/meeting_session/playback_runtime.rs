@@ -297,6 +297,19 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
     );
 }
 
+pub(super) fn ensure_meeting_playback_runtime(generation: u64, session_id: &str) -> Result<(), String> {
+    {
+        let store = playback_runtime_store()
+            .lock().map_err(|_| "meeting_playback:runtime_state_lock_failed".to_string())?;
+        if let Some(active) = store.as_ref() {
+            return if active.generation == generation && active.session_id == session_id {
+                Ok(())
+            } else { Err("meeting_playback:another_runtime_active".to_string()) };
+        }
+    }
+    start_meeting_playback_runtime(generation, session_id)
+}
+
 pub(super) fn start_meeting_playback_runtime(
     generation: u64,
     session_id: &str,

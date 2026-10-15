@@ -208,7 +208,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     route = "my-voice";
   }
 
-  async function handleMeetingAction(): Promise<void> {
+  async function handleMeetingAction(source: "original" | "translateit" = "translateit"): Promise<void> {
     if (meetingActionBusy || !snapshot) return;
     const control = meetingControlState(
       snapshot.meeting,
@@ -216,16 +216,23 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
       snapshot.settings.meeting_setup_state,
       meetingActionBusy,
     );
-    if (!control.enabled || !control.action) {
+    const startOriginal = source === "original"
+      && !snapshot.meeting.hasSession && snapshot.meeting.lifecycle === "idle"
+      && snapshot.readiness.microphoneReady === true
+      && snapshot.readiness.meetingRouteReady === true;
+    if ((!control.enabled || !control.action) && !startOriginal) {
       setNotice(snapshot.meeting.canStop ? snapshot.meeting.message : snapshot.readiness.nextAction ?? snapshot.meeting.message);
       return;
     }
-    const action = control.action;
+    const action = startOriginal ? "start" : control.action;
+    if (!action) return;
 
     meetingActionBusy = true;
-    setNotice(action === "start" ? "Starting translation..." : "Stopping translation...");
+    setNotice(action === "start"
+      ? source === "original" ? "Starting original microphone..." : "Starting translation..."
+      : "Stopping microphone...");
     try {
-      const result = await runtimeProductFacade.runProductMeetingAction(action);
+      const result = await runtimeProductFacade.runProductMeetingAction(action, source);
       const resultNotice = result.meeting.lifecycle === "cleanup_incomplete" || result.state === "cleanup_incomplete"
         ? "Translation output stopped, but cleanup needs attention. Retry Stop."
         : result.meeting.lifecycle === "unavailable" || result.state === "frontend_bridge_error"

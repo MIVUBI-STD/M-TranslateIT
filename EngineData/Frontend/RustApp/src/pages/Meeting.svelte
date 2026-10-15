@@ -12,7 +12,7 @@
     meetingStatus: MeetingSessionStatus | null;
     meetingTurns: MeetingCommittedTurnsSnapshot | null;
     actionBusy?: boolean;
-    onMeetingAction: () => void | Promise<void>;
+    onMeetingAction: (source?: "original" | "translateit") => void | Promise<void>;
     onRefresh: (preferredNotice?: string) => void | Promise<void>;
     onNavigate: (route: AppRoute) => void;
   } = $props();
@@ -21,7 +21,10 @@
   let sourceChanging = $state(false);
   let currentSource = $state<"original" | "translateit">("translateit");
   $effect(() => {
-    if (!sourceChanging) currentSource = meetingStatus?.audio_source === "original" ? "original" : "translateit";
+    // Preserve the user's selection before Start; native state owns it only once Live.
+    if (meeting.live && !sourceChanging) {
+      currentSource = meetingStatus?.audio_source === "original" ? "original" : "translateit";
+    }
   });
   async function selectSource(source: "original" | "translateit"): Promise<void> {
     if (sourceChanging || !meeting.live || currentSource === source) return;
@@ -65,21 +68,33 @@
 
   function handlePrimary(): void {
     if (!actionEnabled) return;
+    if (currentSource === "original" && !meeting.hasSession && !meeting.canStop) {
+      void onMeetingAction("original");
+      return;
+    }
     if (needsSetup) { void continueSetup(); return; }
     if (needsVoice) { onNavigate("my-voice"); return; }
     if (needsSettings) { onNavigate("settings"); return; }
-    void onMeetingAction();
+    void onMeetingAction(currentSource);
   }
   const primaryControl = $derived(meetingControlState(
     meeting, snapshot.readiness.approvedVoiceReady, snapshot.settings.meeting_setup_state, actionBusy,
   ));
   const needsSettings = $derived(!needsSetup && !needsVoice && !meeting.hasSession && !meeting.canStop
     && !primaryControl.enabled && !meeting.busy && !actionBusy);
-  const actionEnabled = $derived(!resumeBusy && !meeting.busy && !actionBusy
-    && (primaryControl.enabled || needsSetup || needsVoice || needsSettings));
+  const originalAvailable = $derived(
+    currentSource === "original" && !meeting.hasSession && meeting.lifecycle === "idle"
+    && snapshot.readiness.microphoneReady === true
+    && snapshot.readiness.meetingRouteReady === true
+  );
+  const actionEnabled = $derived(!resumeBusy && !sourceChanging && !meeting.busy && !actionBusy
+    && (primaryControl.enabled || originalAvailable || needsSetup || needsVoice || needsSettings));
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.live));
   const primaryLabel = $derived(
-    primaryControl.action === "stop" ? primaryControl.label
+    primaryControl.action === "stop" ? "Stop Microphone"
+      : currentSource === "original" && originalAvailable ? "Start Original Microphone"
+      : currentSource === "original" && !meeting.hasSession ? "Check Audio Setup"
+      : primaryControl.action === "stop" ? primaryControl.label
       : meeting.busy || actionBusy ? primaryControl.label
       : resumeBusy ? "Opening setup..."
       : needsSetup ? "Finish Setup"
@@ -88,7 +103,13 @@
       : "Start Translation"
   );
   const statusMessage = $derived(
-    meeting.canStop || meeting.hasSession ? meeting.message
+    meeting.canStop || meeting.hasSession
+      ? meeting.live && meetingStatus?.audio_source === "original"
+        ? "Original microphone is live. Audio bypasses translation and AI."
+        : meeting.message
+    : currentSource === "original"
+      ? "Original microphone sends your own voice directly to the meeting."
+
     : snapshot.settings.meeting_setup_state === "deferred" || snapshot.settings.meeting_setup_state === "new"
       ? "Finish initial setup before starting."
     : snapshot.readiness.level === "unavailable"
@@ -126,7 +147,7 @@
       </div>
       <StatusBadge label={meeting.live ? "Live" : meeting.label} tone={statusTone} />
     </div>
-    {#if activityVisible && meetingStatus}
+    {#if !meeting.busy && (!meeting.hasSession || activityVisible) && meetingStatus}
       <div class="border-t border-[var(--ti-border)] px-6 py-4">
         <label for="meeting-audio-source" class="ti-field-label">Microphone output</label>
         <select id="meeting-audio-source" class="ti-field mt-2 min-h-11 px-3"
@@ -140,6 +161,8 @@
           Both options use the same virtual microphone selected in your calling app.
         </p>
       </div>
+    {/if}
+    {#if activityVisible && meetingStatus && meetingStatus.audio_source !== "original"}
       <div class="border-t border-[var(--ti-border)] px-6 py-5">
         <MeetingActivity status={meetingStatus} turns={meetingTurns} />
       </div>

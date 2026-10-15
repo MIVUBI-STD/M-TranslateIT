@@ -145,6 +145,33 @@ pub fn start_meeting_translation() -> MeetingSessionActionResult {
     result
 }
 
+/// Original and TranslateIT use the same provider and Meeting ownership.
+pub fn start_meeting_original() -> MeetingSessionActionResult {
+    if my_voice_build_blocks_meeting() {
+        return MeetingSessionActionResult {
+            ok: false,
+            state: "voice_lab_build_active".to_string(),
+            message: "Finish My Voice creation before using the microphone.".to_string(),
+            status: meeting_session::get_meeting_session_status(),
+        };
+    }
+    if latest_runtime_session_state().has_active_session {
+        return meeting_session::start_meeting_original();
+    }
+    clear_prepared_virtual_mic_route_selection();
+    if let Err(blocker) = prepare_current_virtual_mic_route_for_meeting() {
+        return MeetingSessionActionResult {
+            ok: false,
+            state: "meeting_route_pair_prepare_failed".to_string(),
+            message: format!("Original Microphone needs its virtual audio route: {blocker}"),
+            status: meeting_session::get_meeting_session_status(),
+        };
+    }
+    let result = meeting_session::start_meeting_original();
+    if !result.ok { clear_prepared_virtual_mic_route_selection(); }
+    result
+}
+
 #[tauri::command]
 pub fn verify_models() -> ModelInventoryReport {
     runtime_inventory::verify_models()

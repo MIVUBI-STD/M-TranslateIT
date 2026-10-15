@@ -6,7 +6,12 @@ use crate::engine::audio::meeting_output::{
 };
 use crate::engine::audio::original_voice_pcm;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
-use super::super::helper_bridge::{get_helper_bridge_status, required_outbound_voice_actor_token};
+use super::super::helper_bridge::{
+    get_helper_bridge_status, prepare_required_outbound_ai_runtime,
+    required_outbound_voice_actor_token, start_helper_bridge,
+};
+use super::consumer_runtime::ensure_meeting_outbound_consumer;
+use super::playback_runtime::ensure_meeting_playback_runtime;
 use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
 static SOURCE_CHANGE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 #[derive(Debug, Clone, Serialize)]
@@ -45,12 +50,34 @@ pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
         return response(true, Some(generation), "Microphone source is already selected.");
     }
     if requested == "translateit" {
-        let helper = get_helper_bridge_status();
-        if helper.state != "ready" || !helper.provider_ready || !helper.functional_outbound_ready
-            || required_outbound_voice_actor_token(generation).is_none()
+        let mut helper = get_helper_bridge_status();
+        if matches!(helper.state.as_str(), "stopped" | "not_started") {
+            let started = start_helper_bridge();
+            if !started.ok {
+                return response(false, Some(generation),
+                    "Translation runtime could not start. Original Microphone stays active.");
+            }
+            helper = get_helper_bridge_status();
+        }
+        if helper.state != "ready" || !helper.provider_ready {
+            return response(false, Some(generation),
+                "Translation runtime is unavailable. Original Microphone stays active.");
+        }
+        if required_outbound_voice_actor_token(generation).is_none()
+            && prepare_required_outbound_ai_runtime(generation).is_err()
         {
             return response(false, Some(generation),
-                "Translation is not ready. Original Microphone remains selected.");
+                "AI translation validation failed. Original Microphone stays active.");
+        }
+        if required_outbound_voice_actor_token(generation).is_none() {
+            return response(false, Some(generation),
+                "A usable translation voice is not ready. Original Microphone stays active.");
+        }
+        if ensure_meeting_playback_runtime(generation, &session_id).is_err()
+            || ensure_meeting_outbound_consumer(generation, &session_id).is_err()
+        {
+            return response(false, Some(generation),
+                "Translation output could not initialize. Original Microphone stays active.");
         }
         if reset_finalized_outbound_speech_boundary(&session_id, generation).is_none() {
             return response(false, Some(generation), "Could not reset the speech boundary.");

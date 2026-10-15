@@ -373,6 +373,9 @@ pub fn export_meeting_transcript(format: String) -> MeetingTranscriptExportResul
 pub fn start_meeting_translation() -> MeetingSessionActionResult {
     lifecycle::start_meeting_translation_impl()
 }
+pub fn start_meeting_original() -> MeetingSessionActionResult {
+    lifecycle::start_meeting_original_impl()
+}
 
 pub fn stop_meeting_translation() -> MeetingSessionActionResult {
     lifecycle::stop_meeting_translation_impl()

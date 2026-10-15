@@ -9,7 +9,7 @@ use crate::engine::audio::live_segment_writer::cleanup_finalized_meeting_session
 use crate::engine::audio::original_voice_pcm;
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
 use crate::engine::audio::meeting_output::{
-    cancel_meeting_output_for_generation, stop_original_voice_output, clear_prepared_meeting_output_device,
+    cancel_meeting_output_for_generation, stop_original_voice_output, start_original_voice_output, clear_prepared_meeting_output_device,
     prepare_meeting_output_device, probe_prepared_meeting_output_device_functionally,
 };
 use crate::engine::audio::meeting_sound_capture::stop_meeting_sound_capture_runtime;
@@ -222,6 +222,16 @@ fn recover_helper_after_meeting_stop_if_needed() -> Result<(), String> {
 }
 
 pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
+    start_meeting_impl(false)
+}
+
+/// The Original mode bypasses helper/ASR/translation/TTS initialization.
+/// It shares the exact same Meeting generation and Stop cleanup as translation.
+pub(super) fn start_meeting_original_impl() -> MeetingSessionActionResult {
+    start_meeting_impl(true)
+}
+
+fn start_meeting_impl(original_requested: bool) -> MeetingSessionActionResult {
     let current = latest_runtime_session_state();
     if current.has_active_session && current.snapshot.is_none() {
         return MeetingSessionActionResult {
@@ -262,6 +272,7 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     clear_all_start_preflight();
     clear_prepared_meeting_output_device();
 
+    if !original_requested {
     if let Err(message) = recover_helper_after_meeting_stop_if_needed() {
         return blocked_result(
             "helper_recovery_failed",
@@ -276,8 +287,11 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
     // into worker I/O or model loading. Functional MyVoice proof still occurs only
     // after the Meeting generation owns Starting authority.
     let _ = send_helper_worker_task("status", json!({ "meeting_start_prepare": true }));
+    }
     let preflight = build_preflight();
-    if !preflight.start_eligible {
+    let original_eligible = preflight.microphone_ready && preflight.meeting_route_ready
+        && !transient_stop_cleanup_pending();
+    if !(if original_requested { original_eligible } else { preflight.start_eligible }) {
         return MeetingSessionActionResult {
             ok: false,
             state: "blocked".to_string(),
@@ -353,6 +367,16 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
         return blocked_result(rollback_completion_state(),
             format!("Meeting audio source initialization failed: {blocker}"));
     }
+    if original_requested {
+        // Source epoch 2 starts raw passthrough immediately; no outgoing VAD
+        // finalization is allowed while Original is selected.
+        if let Err(blocker) = original_voice_pcm::begin(generation, 2) {
+            let _ = revoke_runtime_session_authority(generation, "Original audio initialization failed.");
+            let _ = rollback_starting_meeting_resources(generation, &session_id);
+            return blocked_result(rollback_completion_state(),
+                format!("Original microphone could not initialize: {blocker}"));
+        }
+    }
     reset_finalized_drop_counters();
     reset_deferred_incoming_drop_counters();
     reset_committed_turns(&session_id);
@@ -374,6 +398,43 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
                 capture.message
             ),
         );
+    }
+
+    if original_requested {
+        // The source selector has only physical capture and native virtual output
+        // prerequisites. No helper process, model probe or outgoing TTS consumer.
+        if !generation_is_starting(generation) {
+            let _ = revoke_runtime_session_authority(generation, "Original Meeting start lost authority.");
+            let _ = rollback_starting_meeting_resources(generation, &session_id);
+            return blocked_result(rollback_completion_state(),
+                "Original Meeting start lost session authority before output.".to_string());
+        }
+        if let Err(blocker) = start_original_voice_output(output_device, generation, 2) {
+            let _ = revoke_runtime_session_authority(generation, "Original Meeting output failed.");
+            let _ = rollback_starting_meeting_resources(generation, &session_id);
+            return blocked_result(rollback_completion_state(),
+                format!("Original Microphone could not start: {blocker}"));
+        }
+        let committed = commit_application_meeting_session_live(
+            generation, true,
+            "Original microphone capture and native virtual output are active. AI was not required.",
+        );
+        if !committed.blocker.is_empty() {
+            let _ = revoke_runtime_session_authority(generation, "Original Meeting Live commit failed.");
+            let _ = rollback_starting_meeting_resources(generation, &session_id);
+            return blocked_result(rollback_completion_state(),
+                "Original Microphone could not enter Live mode.".to_string());
+        }
+        update_outbound_status(
+            generation, &session_id, "listening", 0, false, true, "",
+            "Original Microphone is passing audio directly to the virtual input without AI.",
+        );
+        return MeetingSessionActionResult {
+            ok: true,
+            state: "live".to_string(),
+            message: "Original Microphone is live. Translation models were not started.".to_string(),
+            status: status_from_report(committed, build_preflight()),
+        };
     }
 
     // A6 proves the real required AI path only after this generation owns Starting

@@ -102,6 +102,7 @@ const WORKER_REUSE_SAFE_REASONS = new Set([
 
 const VOICE_REUSE_SAFE_REASONS = new Set([
   "start_meeting",
+  "start_original_meeting",
   "stop_meeting",
   "start_mic_test",
   "stop_mic_test",
@@ -222,9 +223,11 @@ export async function loadProductRuntimeSnapshotFromApplication(
 
 export async function runProductMeetingAction(
   action: ProductMeetingAction,
+  source: "original" | "translateit" = "translateit",
 ): Promise<ProductMeetingActionResult> {
   const result = await applicationRuntimeApi.dispatchIntent(
-    action === "start" ? "start_meeting" : "stop_meeting",
+    action === "stop" ? "stop_meeting"
+      : source === "original" ? "start_original_meeting" : "start_meeting",
   );
   const status = result.snapshot.meeting;
   const fallbackMessage = action === "start"
