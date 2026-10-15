@@ -45,6 +45,7 @@
     : needsStop ? "Recovery required"
     : stopping ? "Meeting is changing state"
     : foreignOwner ? "Microphone in use"
+    : meeting?.lifecycle === "unavailable" ? "Status unavailable"
     : live ? "Microphone Live"
     : "Microphone stopped"
   );
@@ -54,6 +55,9 @@
     // A delayed poll or event cannot overwrite a newer confirmed source state.
     if (snapshot && next.revision < snapshot.revision) return;
     snapshot = next;
+    if (!next.meeting.has_session && next.meeting.lifecycle !== "cleanup_incomplete") {
+      confirmingStop = false;
+    }
     if (next.meeting.lifecycle === "live"
       && next.meeting.owner_id === APPLICATION_MEETING_OWNER_ID) {
       choice = next.meeting.audio_source === "original" ? "original" : "translateit";
@@ -108,7 +112,7 @@
         closeAfterSuccess();
       }
     } catch {
-      errorMessage = "Audio source could not be verified. It was not changed in this popup.";
+      errorMessage = "Audio source could not be verified. Check the current Meeting status.";
       resultMessage = "";
     } finally { busy = false; }
   }
@@ -127,10 +131,11 @@
         stop ? "stop_meeting" : choice === "original" ? "start_original_meeting" : "start_meeting",
       );
       if (!disposed) syncFromNative(result.snapshot);
+      const actual = snapshot?.meeting ?? result.snapshot.meeting;
       if (!result.ok
-        || (stop && (result.snapshot.meeting.has_session || result.snapshot.meeting.lifecycle !== "idle"))
-        || (!stop && (result.snapshot.meeting.lifecycle !== "live"
-          || result.snapshot.meeting.audio_source !== choice))) {
+        || (stop && (actual.has_session || actual.lifecycle !== "idle"))
+        || (!stop && (actual.lifecycle !== "live"
+          || actual.audio_source !== choice))) {
         errorMessage = result.message || "Meeting state was not confirmed. Try again.";
         resultMessage = "";
       } else {
@@ -188,12 +193,14 @@
     const onFocus = () => {
       cancelAutoClose();
       confirmingStop = false;
-      errorMessage = "";
+      // Preserve an unacknowledged error across close/reopen. New actions
+      // explicitly clear it, so the user never loses a failed-switch reason.
       void refresh();
     };
     const onBlur = () => {
-      // Failure stays visible while focused; losing focus merely hides the UI.
-      if (!busy) void hide();
+      // Never hold a floating panel on top of a call while AI is preparing.
+      // Hiding does not cancel or alter the authoritative Meeting action.
+      void hide();
     };
     const onKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); void hide(); }
@@ -282,7 +289,7 @@
       </button>
     </div>
 
-    <div class="min-h-0 flex-1 px-4 py-2" aria-live="polite">
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 py-2" aria-live="polite">
       {#if errorMessage}
         <p class="qa-feedback qa-error" role="alert">{errorMessage}</p>
       {:else if resultMessage}

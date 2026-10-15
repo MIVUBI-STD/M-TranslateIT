@@ -81,3 +81,12 @@ test("Tray callback and popup owner share one generic Tauri runtime identity", (
   assert.match(native, /pub fn toggle_window<R: tauri::Runtime>/);
   assert.match(native, /pub fn install_tray<R: tauri::Runtime>/);
 });
+
+
+test("Quick Access never pins itself over an unfocused call during a slow switch", () => {
+  assert.match(popup, /const onBlur = \(\) => \{/);
+  assert.match(popup, /Hiding does not cancel or alter the authoritative Meeting action/);
+  assert.match(popup, /const actual = snapshot\?\.meeting \?\? result\.snapshot\.meeting/);
+  assert.match(popup, /Preserve an unacknowledged error across close\/reopen/);
+  assert.match(popup, /overflow-y-auto px-4 py-2/);
+});
