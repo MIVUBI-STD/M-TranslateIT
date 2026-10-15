@@ -77,6 +77,9 @@
   }
 
   function closeAfterSuccess(): void {
+    // A background action can finish after the user moved back to the call.
+    // Never arm an old timer capable of closing a later popup invocation.
+    if (!document.hasFocus()) return;
     const token = ++actionRevision;
     if (closeTask !== null) clearTimeout(closeTask);
     closeTask = setTimeout(() => {
@@ -193,6 +196,7 @@
     const onFocus = () => {
       cancelAutoClose();
       confirmingStop = false;
+      if (!busy) resultMessage = "";
       // Preserve an unacknowledged error across close/reopen. New actions
       // explicitly clear it, so the user never loses a failed-switch reason.
       void refresh();

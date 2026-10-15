@@ -90,3 +90,10 @@ test("Quick Access never pins itself over an unfocused call during a slow switch
   assert.match(popup, /Preserve an unacknowledged error across close\/reopen/);
   assert.match(popup, /overflow-y-auto px-4 py-2/);
 });
+
+
+test("Popup success from a hidden operation cannot dismiss a later invocation", () => {
+  assert.match(popup, /if \(!document\.hasFocus\(\)\) return/);
+  assert.match(popup, /const token = \+\+actionRevision/);
+  assert.match(popup, /if \(!busy\) resultMessage = ""/);
+});
