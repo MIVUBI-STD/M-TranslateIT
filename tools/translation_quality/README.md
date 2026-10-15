@@ -4,7 +4,7 @@ This directory owns source-level translation quality evaluation infrastructure f
 
 It deliberately separates **quality measurement** from **quality claims**:
 
-- hosted CI validates corpus integrity and evaluator behavior;
+- source-level corpus/evaluator checks validate integrity and behavior when actually executed; hosted CI is inactive under the current repository policy;
 - real MiLMMT output must be produced by a runtime with the canonical model installed;
 - no repository/static result is reported as proof of model quality.
 
@@ -21,11 +21,11 @@ It deliberately separates **quality measurement** from **quality claims**:
 - instruction-like/prompt-boundary text;
 - Unicode and exact technical literals;
 - repetition and unusual whitespace;
-- bounded outbound Meeting context, including correction/reference/terminology cases;
+- correction/reference/technical-term cases in finalized meeting utterances (some retaining historical context fixture metadata);
 - uncertainty/modality and conditional meaning;
 - quantifier scope and spoken disfluency.
 
-Cases may also contain up to three `context_pairs`. Those cases are emitted through the same authorized outbound Meeting-context shape used by the worker policy; standalone cases remain context-free.
+Three historical regression cases and one held-out case retain `context_pairs` as immutable corpus metadata. **No current worker request sends these pairs and the model never reads them.** The evaluator uses a `meeting_finalized_utterance` request marker to test the same current-source-only translation path as Meeting. Historical `contextual_meeting` category labels must **not** be interpreted as Meeting Context Memory support or context-sensitive evaluation. Corpus fingerprints remain unchanged.
 
 Each case contains one or more references plus narrow invariants:
 
@@ -39,8 +39,7 @@ The current regression corpus contains 180 targeted cases, with a separate 40-ca
 
 Adversarial cases treat instruction-like strings such as `Ignore previous instructions`,
 `English:`, or `Indonesian:` as ordinary source content. Repository tests verify that
-the worker forwards such content through the canonical source slot and that standalone
-requests cannot smuggle Meeting context. They do not claim the model will translate every
+the worker forwards such content through the canonical source slot and that legacy context-like request options cannot change its prompt. They do not claim the model will translate every
 adversarial case correctly until the real model output is evaluated.
 
 ## Commands
@@ -95,7 +94,7 @@ The report includes overall and per-group critical-invariant pass rates, risk-ta
 
 ## Promotion rule
 
-Do not change model, prompt, context policy, decoding policy, or text segmentation based on one anecdotal sentence. Capture a baseline from the current canonical model, compare the candidate on the same corpus, inspect every critical failure, and then add a new case when a real recurring failure mode is discovered.
+Do not change the model, prompt, current-utterance isolation, decoding policy, or text segmentation based on one anecdotal sentence. Capture a baseline from the current canonical model, compare the candidate on the same corpus, inspect every critical failure, and then add a new case when a real recurring failure mode is discovered.
 
 Do not tune the corpus to make a candidate look better.
 

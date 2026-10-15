@@ -73,7 +73,7 @@ def _install_fake_worker(monkeypatch):
     return worker, prompts
 
 
-def test_meeting_context_cannot_modify_translation_prompt(monkeypatch) -> None:
+def test_legacy_meeting_options_never_change_translation_prompt(monkeypatch) -> None:
     worker, prompts = _install_fake_worker(monkeypatch)
     request = {
         "text": "Coba lagi",
@@ -96,9 +96,8 @@ def test_meeting_context_cannot_modify_translation_prompt(monkeypatch) -> None:
         "OLD_ALTERNATIVE", "formal, professional", "Preferred terminology",
     ]:
         assert forbidden not in prompt
-    assert result["context_pairs_used"] == 0
-    assert result["terminology_entries_used"] == 0
-    assert result["translation_style"] == "natural"
+    for retired in ("context_pairs_used", "terminology_entries_used", "translation_style"):
+        assert retired not in result
 
 
 def test_stored_preferences_are_inert_in_both_directions(monkeypatch) -> None:
@@ -123,7 +122,7 @@ def test_stored_preferences_are_inert_in_both_directions(monkeypatch) -> None:
         assert "BAR" not in prompt
 
 
-def test_single_prompt_does_not_include_stored_examples(monkeypatch) -> None:
+def test_incoming_prompt_uses_only_the_current_utterance(monkeypatch) -> None:
     worker, prompts = _install_fake_worker(monkeypatch)
     for i in range(25):
         response = worker.handle_translate({

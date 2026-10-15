@@ -59,7 +59,7 @@ def install_fake_standalone_runtime(worker, monkeypatch, input_token_limit: int 
 def set_original_translate(worker, monkeypatch, callback) -> None:
     monkeypatch.setattr(
         worker.runtime,
-        worker._CONTEXT_POLICY_ORIGINAL,
+        worker._TRANSLATION_CONTRACT_ORIGINAL,
         callback,
     )
 

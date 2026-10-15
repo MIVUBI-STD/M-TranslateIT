@@ -85,9 +85,10 @@ def load_corpus(path: Path) -> dict:
         ):
             raise ValueError(f"{case_id}: risk_tags must contain one to eight non-empty strings")
         context_pairs = case.get("context_pairs")
+        # Historic pairs are preserved for corpus identity only; they never reach MiLMMT.
         if context_pairs is not None:
             if case["direction"] != "id-en":
-                raise ValueError(f"{case_id}: contextual evaluation is outbound id-en only")
+                raise ValueError(f"{case_id}: legacy context fixture must be outbound id-en")
             if (
                 not isinstance(context_pairs, list)
                 or not context_pairs
@@ -180,19 +181,19 @@ def corpus_stats(corpus: dict) -> dict:
     directions: dict[str, int] = defaultdict(int)
     categories: dict[str, int] = defaultdict(int)
     risk_tags: dict[str, int] = defaultdict(int)
-    contextual_cases = 0
+    legacy_context_fixtures = 0
     for case in corpus["cases"]:
         directions[case["direction"]] += 1
         categories[case["category"]] += 1
         for tag in case.get("risk_tags", []):
             risk_tags[tag] += 1
         if case.get("context_pairs"):
-            contextual_cases += 1
+            legacy_context_fixtures += 1
     return {
         "schema": "translateit.translation_quality.stats.v1",
         "corpus_fingerprint": corpus_fingerprint(corpus),
         "case_count": len(corpus["cases"]),
-        "contextual_case_count": contextual_cases,
+        "legacy_context_fixture_count": legacy_context_fixtures,
         "directions": dict(sorted(directions.items())),
         "categories": dict(sorted(categories.items())),
         "risk_tags": dict(sorted(risk_tags.items())),
@@ -430,12 +431,12 @@ def emit_requests(corpus: dict) -> dict:
             "source_language": source_language,
             "target_language": target_language,
         }
-        context_pairs = case.get("context_pairs")
-        if context_pairs:
+        # Historic cases use direct Meeting-equivalent final-utterance translation.
+        # The original context pairs stay in the corpus, never in requests.
+        if case.get("context_pairs"):
             request.update(
                 {
-                    "request_kind": "meeting_context_quality",
-                    "context_pairs": context_pairs,
+                    "request_kind": "meeting_finalized_utterance",
                     "meeting_lane": "you",
                     "meeting_session_id": "translation-quality-eval",
                     "meeting_generation": 1,

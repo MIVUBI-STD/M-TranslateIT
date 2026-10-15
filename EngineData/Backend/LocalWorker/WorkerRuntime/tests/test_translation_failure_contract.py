@@ -19,7 +19,7 @@ def load_worker_module():
 def set_original_translate(worker, monkeypatch, callback) -> None:
     monkeypatch.setattr(
         worker.runtime,
-        worker._CONTEXT_POLICY_ORIGINAL,
+        worker._TRANSLATION_CONTRACT_ORIGINAL,
         callback,
     )
 

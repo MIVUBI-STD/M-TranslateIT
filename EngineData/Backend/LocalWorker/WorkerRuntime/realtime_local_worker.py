@@ -9,8 +9,8 @@ import milmmt_translation_provider
 import realtime_local_worker_base as runtime
 
 _PROVIDER_SENTINEL = "_translateit_milmmt_provider_installed"
-_CONTEXT_POLICY_SENTINEL = "_translateit_translation_context_policy_installed"
-_CONTEXT_POLICY_ORIGINAL = "_translateit_translation_context_policy_original_handle_translate"
+_TRANSLATION_CONTRACT_SENTINEL = "_translateit_translation_contract_installed"
+_TRANSLATION_CONTRACT_ORIGINAL = "_translateit_translation_contract_original_handle_translate"
 _PRELOAD_POLICY_SENTINEL = "_translateit_translation_preload_policy_installed"
 _PRELOAD_POLICY_ORIGINAL = (
     "_translateit_translation_preload_policy_original_handle_translation_preload"
@@ -163,43 +163,17 @@ def _translation_contract_result(result):
     return result
 
 
-def _translation_context_authorized(payload: dict) -> bool:
-    lane = str(payload.get("meeting_lane", "")).strip().lower()
-    source = runtime.normalize_language(payload.get("source_language", "id"), "id")
-    target = runtime.normalize_language(payload.get("target_language", "en"), "en")
-    session_id = str(payload.get("meeting_session_id", "")).strip()
-    generation = payload.get("meeting_generation")
-    if isinstance(generation, bool):
-        return False
-    try:
-        generation = int(generation)
-    except (TypeError, ValueError):
-        return False
-    return (
-        lane == "you" and source == "id" and target == "en" and bool(session_id) and generation > 0
-    )
+# Only the output/failure contract is applied here. The canonical MiLMMT
+# provider builds its prompt from the current source utterance alone.
+def _contract_guarded_runtime_translate(payload):
+    original = getattr(runtime, _TRANSLATION_CONTRACT_ORIGINAL)
+    return _translation_contract_result(original(payload))
 
 
-def _translation_payload_with_context_policy(payload):
-    if not isinstance(payload, dict) or "context_pairs" not in payload:
-        return payload
-    if _translation_context_authorized(payload):
-        return payload
-    sanitized = dict(payload)
-    sanitized.pop("context_pairs", None)
-    return sanitized
-
-
-def _context_guarded_runtime_translate(payload):
-    original = getattr(runtime, _CONTEXT_POLICY_ORIGINAL)
-    result = original(_translation_payload_with_context_policy(payload))
-    return _translation_contract_result(result)
-
-
-if not getattr(runtime, _CONTEXT_POLICY_SENTINEL, False):
-    setattr(runtime, _CONTEXT_POLICY_ORIGINAL, runtime.handle_translate)
-    runtime.handle_translate = _context_guarded_runtime_translate
-    setattr(runtime, _CONTEXT_POLICY_SENTINEL, True)
+if not getattr(runtime, _TRANSLATION_CONTRACT_SENTINEL, False):
+    setattr(runtime, _TRANSLATION_CONTRACT_ORIGINAL, runtime.handle_translate)
+    runtime.handle_translate = _contract_guarded_runtime_translate
+    setattr(runtime, _TRANSLATION_CONTRACT_SENTINEL, True)
 
 
 def _contract_guarded_runtime_preload(payload):

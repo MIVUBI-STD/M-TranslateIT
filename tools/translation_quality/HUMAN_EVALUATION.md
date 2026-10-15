@@ -4,7 +4,7 @@ This protocol is the release-quality linguistic review for TranslateIT Indonesia
 
 ## Purpose
 
-Use human evaluation when changing the translation model, prompt, context policy, terminology behavior, decoding behavior, or segmentation in a way that could change linguistic output.
+Use human evaluation when changing the translation model, current-utterance prompt, technical-term handling, decoding behavior, or segmentation in a way that could change linguistic output.
 
 ## Evaluation set
 
@@ -18,8 +18,8 @@ Use a held-out bilingual set that is not used to tune the candidate. Include bot
 - technical language and Indonesian/English code-switching;
 - negation, modality, conditionals and quantifier scope;
 - spoken disfluency and self-correction;
-- contextual outbound Meeting turns;
-- terminology-controlled cases.
+- finalized Meeting utterances with corrections and references in the source text;
+- technical terminology present in the source text.
 
 The 180-case regression corpus may seed risk discovery, and the 40-case held-out benchmark protects release comparison, but the final human review set should still contain unseen wording. Do not tune prompts or model selection against the held-out benchmark.
 
@@ -36,7 +36,7 @@ Score each output from 1–5 on four dimensions:
 1. **Meaning fidelity** — preserves the intended proposition, negation, modality, references and conditions.
 2. **Fact/literal fidelity** — preserves names, numbers, dates, units, URLs, versions and required technical literals.
 3. **Naturalness** — sounds natural and understandable in the target language without changing meaning.
-4. **Terminology consistency** — respects applicable preferred terminology without awkward blind replacement.
+4. **Terminology fidelity** — preserves technical terms from the source without inventing or replacing them.
 
 A factual reversal, lost negation, changed number/date/unit, invented claim, materially wrong antecedent/reference, or materially incomplete translation is a **critical error** regardless of average score.
 
@@ -62,9 +62,9 @@ Do not promote a candidate solely because its mean score is higher. Promotion re
 
 ## Meeting-specific review
 
-For contextual outbound cases, judge the current utterance with only the bounded context the product is authorized to provide. Do not give reviewers extra conversation history that the runtime would not have.
+For Meeting cases, judge **only the current finalized source utterance**. Do not supply previous conversation turns, generated translations, user glossary entries, or historical `context_pairs` to reviewers: the current product sends none of them to MiLMMT. The benchmark still contains historical labels for continuity, not working context memory.
 
-Incoming EN→ID and standalone Text remain context-free unless product policy changes.
+Incoming EN→ID and standalone Text likewise use only their current source text.
 
 ## Recording evidence
 

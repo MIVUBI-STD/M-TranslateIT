@@ -129,7 +129,7 @@ def main() -> int:
     assert stats["case_count"] == validation["case_count"]
     assert stats["directions"]["id-en"] == 100
     assert stats["directions"]["en-id"] == 80
-    assert stats["contextual_case_count"] == 3
+    assert stats["legacy_context_fixture_count"] == 3
     assert stats["risk_tags"]["meaning"] >= 100
 
     requests = evaluator.emit_requests(corpus)
@@ -138,7 +138,7 @@ def main() -> int:
     contextual = [
         item
         for item in requests["requests"]
-        if item["request"]["request_kind"] == "meeting_context_quality"
+        if item["request"]["request_kind"] == "meeting_finalized_utterance"
     ]
     standalone = [
         item
@@ -149,7 +149,12 @@ def main() -> int:
     assert standalone
     assert all(item["request"]["meeting_lane"] == "you" for item in contextual)
     assert all(item["request"]["meeting_generation"] == 1 for item in contextual)
-    assert all(item["request"]["context_pairs"] for item in contextual)
+    assert all(
+        "context_pairs" not in item["request"]
+        and "terminology" not in item["request"]
+        and "translation_style" not in item["request"]
+        for item in requests["requests"]
+    )
     print(json.dumps({
         "ok": True,
         "regression_case_count": validation["case_count"],
