@@ -63,7 +63,6 @@ pub struct MeetingOutputDeliveryReport {
 #[derive(Clone)]
 struct MeetingOutputCancelControl {
     generation: u64,
-    source_epoch: Option<u64>,
     cancel_requested: Arc<AtomicBool>,
 }
 
@@ -163,6 +162,7 @@ struct PlaybackCursor {
     first_playback_tx: mpsc::SyncSender<Instant>,
     cancel_requested: Arc<AtomicBool>,
     generation: u64,
+    source_epoch: Option<u64>,
     sample_rate_hz: u32,
     channels: u16,
 }
