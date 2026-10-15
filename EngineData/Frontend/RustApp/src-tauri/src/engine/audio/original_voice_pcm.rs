@@ -8,7 +8,9 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock, TryLockError};
 
-const MAX_MONO_FRAMES: usize = 384_000; // <= 2 seconds at supported 192 kHz input
+// Keep passthrough latency bounded even when the producer briefly outruns output.
+const MAX_QUEUE_MS: usize = 250;
+const MAX_MONO_FRAMES: usize = 48_000; // 250 ms at the supported 192 kHz upper bound
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 static SOURCE_EPOCH: AtomicU64 = AtomicU64::new(0);
@@ -45,13 +47,15 @@ impl DirectPcm {
             self.clear(); // Never splice samples from incompatible device formats.
             self.sample_rate_hz = sample_rate_hz;
         }
-        let values = if values.len() > MAX_MONO_FRAMES {
-            self.dropped_frames = self.dropped_frames.saturating_add((values.len() - MAX_MONO_FRAMES) as u64);
-            &values[values.len() - MAX_MONO_FRAMES..]
+        let limit = ((sample_rate_hz as usize * MAX_QUEUE_MS) / 1000)
+            .min(MAX_MONO_FRAMES).max(1);
+        let values = if values.len() > limit {
+            self.dropped_frames = self.dropped_frames.saturating_add((values.len() - limit) as u64);
+            &values[values.len() - limit..]
         } else {
             values
         };
-        let overflow = self.samples.len().saturating_add(values.len()).saturating_sub(MAX_MONO_FRAMES);
+        let overflow = self.samples.len().saturating_add(values.len()).saturating_sub(limit);
         for _ in 0..overflow {
             self.samples.pop_front();
         }
@@ -213,7 +217,7 @@ pub fn try_render_native<T: Copy>(
 
 #[cfg(test)]
 mod tests {
-    use super::{DirectPcm, MAX_MONO_FRAMES};
+    use super::{DirectPcm, MAX_MONO_FRAMES, MAX_QUEUE_MS};
     #[test]
     fn silent_underrun_never_replays_old_samples() {
         let mut pcm = DirectPcm::new();
@@ -244,13 +248,23 @@ mod tests {
     #[test]
     fn overflow_and_format_change_do_not_mix_old_pcm() {
         let mut pcm = DirectPcm::new();
+        let limit_48k = 48_000 * MAX_QUEUE_MS / 1000;
         pcm.push(&vec![0.25; MAX_MONO_FRAMES], 48_000);
         pcm.push(&[0.8, 0.9], 48_000);
-        assert_eq!(pcm.samples.len(), MAX_MONO_FRAMES);
-        assert_eq!(pcm.dropped_frames, 2);
+        assert_eq!(pcm.samples.len(), limit_48k);
+        assert_eq!(pcm.dropped_frames, (MAX_MONO_FRAMES - limit_48k + 2) as u64);
         pcm.push(&[0.1, 0.2], 44_100);
         assert_eq!(pcm.samples.len(), 2);
         assert_eq!(pcm.sample_rate_hz, 44_100);
+    }
+    #[test]
+    fn backlog_is_bounded_by_input_rate_not_one_fixed_sample_count() {
+        let mut pcm = DirectPcm::new();
+        pcm.push(&vec![0.5; 48_000], 192_000);
+        assert_eq!(pcm.samples.len(), 48_000);
+        pcm.push(&vec![0.25; 48_000], 8_000);
+        assert_eq!(pcm.samples.len(), 8_000 * MAX_QUEUE_MS / 1000);
+        assert!(pcm.dropped_frames > 0);
     }
     #[test]
     fn source_epoch_blocks_stale_tts_across_mode_round_trip() {
