@@ -90,9 +90,10 @@ fn rollback_starting_meeting_resources(
     generation: u64,
     session_id: &str,
 ) -> (String, String) {
+    // Silence the raw PCM callback before any potentially slow native teardown.
+    original_voice_pcm::stop(generation);
     let tts_cancelled = cancel_meeting_output_for_generation(generation);
     let original_stopped = stop_original_voice_output(generation);
-    original_voice_pcm::stop(generation);
     let output_cancelled = tts_cancelled && original_stopped;
     let microphone = stop_live_capture_runtime();
     let sound = stop_meeting_sound_capture_runtime();
@@ -621,9 +622,10 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
 
     interrupt_committed_turns_for_generation(&session_id, generation);
     let transcript_retained_for_export = retain_committed_turns_for_export(&session_id);
+    // Silence the raw PCM callback before any potentially slow native teardown.
+    original_voice_pcm::stop(generation);
     let tts_cancelled = cancel_meeting_output_for_generation(generation);
     let original_stopped = stop_original_voice_output(generation);
-    original_voice_pcm::stop(generation);
     let output_cancelled = tts_cancelled && original_stopped;
     clear_prepared_meeting_output_device();
     let capture_stop = stop_live_capture_runtime();
