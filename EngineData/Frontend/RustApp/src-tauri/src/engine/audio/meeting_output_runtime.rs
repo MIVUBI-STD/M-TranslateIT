@@ -393,10 +393,17 @@ fn install_cancel_control(generation: u64) -> Result<Arc<AtomicBool>, String> {
     let mut guard = cancel_control()
         .lock()
         .map_err(|_| "meeting_output:cancel_state_lock_failed".to_string())?;
-    if let Some(existing) = guard.as_ref() {
-        if !existing.cancel_requested.load(Ordering::Acquire) {
-            return Err("meeting_output:delivery_already_active".to_string());
-        }
+    // Recheck authority at the final admission point. Stop may have revoked
+    // this generation while the WAV was decoding or being resampled, before
+    // there was an output control for Stop to cancel.
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_output:generation_not_authoritative".to_string());
+    }
+    // A cancelled stream still owns its control until its native stream is
+    // dropped. Replacing it would let the old stream clear the new control
+    // (both carry the same generation) and hide new output from Stop.
+    if guard.is_some() {
+        return Err("meeting_output:delivery_already_active".to_string());
     }
     let cancel_requested = Arc::new(AtomicBool::new(false));
     *guard = Some(MeetingOutputCancelControl {
@@ -538,6 +545,14 @@ pub fn deliver_meeting_output_wav(
             return blocked(&blocker, false)
         }
     };
+    // If Stop raced with admission, do not create a new CPAL stream for a
+    // generation whose output authority has already been revoked.
+    if cancel_requested.load(Ordering::Acquire)
+        || !runtime_generation_is_authoritative(generation)
+    {
+        clear_cancel_control(generation);
+        return blocked("meeting_output:cancelled", false);
+    }
     let (completion_tx, completion_rx) = mpsc::sync_channel(1);
     let (first_playback_tx, first_playback_rx) = mpsc::sync_channel(1);
     let callback_errors = Arc::new(Mutex::new(None));
@@ -560,6 +575,14 @@ pub fn deliver_meeting_output_wav(
         }
     };
     let stream_build_ms = stream_build_started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+    // Stop may also arrive while build_output_stream is opening the device.
+    if cancel_requested.load(Ordering::Acquire)
+        || !runtime_generation_is_authoritative(generation)
+    {
+        drop(stream);
+        clear_cancel_control(generation);
+        return blocked("meeting_output:cancelled", false);
+    }
     let stream_started_at = Instant::now();
     if stream.play().is_err() {
         clear_cancel_control(generation);
@@ -653,10 +676,60 @@ mod tests {
     use super::{
         decode_wav_bytes, delivery_deadline_ms, prepare_output_samples, projected_unix_ms,
         stream_start_to_first_audio_ms, wait_for_output_completion, wait_for_output_tail,
+        install_cancel_control, clear_cancel_control, cancel_meeting_output_for_generation,
     };
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc;
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn revoked_generation_cannot_admit_late_audio_control() {
+        use crate::engine::runtime_state::{
+            begin_application_meeting_session, clear_runtime_session_state,
+            revoke_runtime_session_authority,
+        };
+        let _serial = crate::engine::runtime_state::runtime_test_guard();
+        let _ = clear_runtime_session_state();
+        let started = begin_application_meeting_session();
+        let generation = started.snapshot.expect("Meeting generation").generation;
+
+        // Reproduce Stop winning the race before the TTS WAV is prepared.
+        let revoked = revoke_runtime_session_authority(generation, "audio admission test");
+        assert!(revoked.snapshot.is_some());
+        assert!(cancel_meeting_output_for_generation(generation));
+        assert_eq!(
+            install_cancel_control(generation).unwrap_err(),
+            "meeting_output:generation_not_authoritative",
+        );
+        let _ = clear_runtime_session_state();
+    }
+
+    #[test]
+    fn cancelled_stream_keeps_its_control_until_explicit_release() {
+        use crate::engine::runtime_state::{
+            begin_application_meeting_session, clear_runtime_session_state,
+        };
+        let _serial = crate::engine::runtime_state::runtime_test_guard();
+        let _ = clear_runtime_session_state();
+        let started = begin_application_meeting_session();
+        let generation = started.snapshot.expect("Meeting generation").generation;
+
+        let old = install_cancel_control(generation).expect("first delivery owns control");
+        assert!(cancel_meeting_output_for_generation(generation));
+        assert!(old.load(Ordering::Acquire));
+        assert_eq!(
+            install_cancel_control(generation).unwrap_err(),
+            "meeting_output:delivery_already_active",
+            "cancelled output must not allow a newer stream to overwrite its control",
+        );
+        clear_cancel_control(generation);
+        assert!(
+            install_cancel_control(generation).is_ok(),
+            "released control permits another authorized delivery",
+        );
+        clear_cancel_control(generation);
+        let _ = clear_runtime_session_state();
+    }
 
     #[test]
     fn cancelled_output_wait_does_not_require_native_callback_to_wake() {
