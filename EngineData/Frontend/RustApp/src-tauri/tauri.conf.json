@@ -38,6 +38,24 @@
         "skipTaskbar": true,
         "visible": false,
         "fullscreen": false
+      },
+      {
+        "label": "quick-access",
+        "title": "TranslateIT Quick Access",
+        "url": "index.html?view=quick-access",
+        "width": 392,
+        "height": 432,
+        "minWidth": 392,
+        "minHeight": 432,
+        "maxWidth": 392,
+        "maxHeight": 432,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "fullscreen": false
       }
     ],
     "security": {

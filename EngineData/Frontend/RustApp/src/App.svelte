@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { toggleQuickAccess } from "./app/runtime/quickAccessRuntime";
   import { appUpdateApi } from "./app/update/appUpdateApi";
   import { runtimeApi, type MeetingSessionStatus } from "./app/bridge/runtimeApi";
   import {
@@ -354,6 +355,13 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
 
   onMount(() => {
     void appUpdateApi.checkAtStartupOnce().catch(() => null);
+    const onQuickAccessShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        void toggleQuickAccess().catch(() => setNotice("Quick Access couldn't be opened."));
+      }
+    };
+    window.addEventListener("keydown", onQuickAccessShortcut);
 
     let disposed = false;
     let unlistenClose: (() => void) | null = null;
@@ -417,6 +425,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
 
     return () => {
       disposed = true;
+      window.removeEventListener("keydown", onQuickAccessShortcut);
       unlistenClose?.();
       unlistenApplicationRuntime?.();
       unlistenOverlayReady?.();

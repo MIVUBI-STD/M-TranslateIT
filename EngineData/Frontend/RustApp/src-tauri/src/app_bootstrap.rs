@@ -241,6 +241,13 @@ pub fn configure_main_window<R: Runtime>(
     let paths = configure_runtime_paths(app)?;
     crate::commands::startup_recovery::begin_startup_recovery(&paths)?;
 
+    // A tray failure may reduce Quick Access reachability but must never block
+    // launching the translator. The header remains an independent trigger.
+    #[cfg(target_os = "windows")]
+    if let Err(error) = crate::commands::quick_access::install_tray(app) {
+        eprintln!("Quick Access tray was unavailable: {error}");
+    }
+
     if let Some(window) = app.get_webview_window("main") {
         #[cfg(target_os = "windows")]
         windows_power_lifecycle::install(&window)?;

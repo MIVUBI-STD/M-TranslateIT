@@ -3,7 +3,9 @@
   import type { AppRoute } from "../../app/shared/types";
   import type { UtilityDestination } from "../../app/runtime/productCommandRegistry";
   import { meetingControlState } from "../../app/bridge/productMeetingState";
-  import ProductivityActions from "../runtime/ProductivityActions.svelte";
+  import { Zap } from "@lucide/svelte";
+  import UpdateAction from "../runtime/UpdateAction.svelte";
+  import { toggleQuickAccess } from "../../app/runtime/quickAccessRuntime";
 
   let {
     snapshot,
@@ -56,16 +58,22 @@
 
   <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite">{notice}</p>
 
-  <ProductivityActions
-    {snapshot}
-    {meetingControl}
+  <button
+    type="button"
+    class="ti-button ti-button-secondary min-h-9 shrink-0 px-3 text-[12px]"
+    aria-label="Open Quick Access"
+    title="Quick Access (Ctrl+K)"
+    onclick={() => void toggleQuickAccess().catch(() => onNotice("Quick Access couldn't be opened."))}
+  >
+    <Zap size={15} />
+    Quick Access
+    <span class="ml-1 rounded bg-[var(--ti-surface-soft)] px-1.5 py-0.5 text-[10px] text-[var(--ti-text-muted)]" aria-hidden="true">Ctrl K</span>
+  </button>
+  <UpdateAction
     audioLocked={snapshot.resources.audio_locked}
     audioOwnerKind={snapshot.resources.owner_kind}
     voiceBuildActive={snapshot.voiceBuildActive}
     {myVoiceRecording}
-    {onNavigate}
-    {onOpenUtility}
-    {onToggleMeeting}
     {onNotice}
   />
 

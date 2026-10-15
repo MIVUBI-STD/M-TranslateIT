@@ -4,6 +4,7 @@ import { myVoiceApi } from "../bridge/myVoiceApi";
 import { runtimeProductFacade } from "../bridge/runtimeProductFacade";
 import { resolveClosePolicy, type CloseDialogAction, type CloseVerdict } from "./closePolicy";
 import { destroyTranslationOverlay } from "./translationOverlayRuntime";
+import { destroyQuickAccessWindow } from "./quickAccessRuntime";
 
 function dialog(title: string, message: string, action: CloseDialogAction): CloseVerdict {
   return { kind: "dialog", title, message, action };
@@ -19,6 +20,9 @@ export async function installNativeCloseGuard(
 }
 
 export async function destroyTranslateItWindows(): Promise<void> {
+  // The Quick Access popup is one owned window, not a daemon that may keep a
+  // supposedly closed TranslateIT process alive after the main window exits.
+  await destroyQuickAccessWindow();
   await destroyTranslationOverlay();
   await getCurrentWindow().destroy();
 }

@@ -10,6 +10,7 @@ import type { MeetingSessionStatus } from "./runtimeApi";
 
 export type ProductIntent =
   | "start_meeting"
+  | "start_original_meeting"
   | "stop_meeting"
   | "start_mic_test"
   | "stop_mic_test"

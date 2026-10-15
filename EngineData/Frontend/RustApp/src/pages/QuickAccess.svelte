@@ -1,0 +1,314 @@
+<script lang="ts">
+  import "../styles/quick-access.css";
+  import { onMount } from "svelte";
+  import { AudioLines, Captions, ExternalLink, Languages, Mic, Play, Square, X } from "@lucide/svelte";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { applicationRuntimeApi, type ApplicationSnapshot } from "../app/bridge/applicationRuntimeApi";
+  import { runtimeApi } from "../app/bridge/runtimeApi";
+  import { readOverlayPreferences, updateOverlayPreferences } from "../app/runtime/translationOverlayState";
+  import {
+    hideTranslationOverlay, notifyOverlayPreferencesChanged, showTranslationOverlay,
+  } from "../app/runtime/translationOverlayRuntime";
+  import { hideQuickAccess, openTranslateIt } from "../app/runtime/quickAccessRuntime";
+  import { APPLICATION_MEETING_OWNER_ID } from "../app/shared/types";
+
+  type Source = "original" | "translateit";
+  let snapshot = $state<ApplicationSnapshot | null>(null);
+  let choice = $state<Source>("original");
+  let captionsVisible = $state(false);
+  let busy = $state(false);
+  let confirmingStop = $state(false);
+  let errorMessage = $state("");
+  let resultMessage = $state("");
+  let disposed = false;
+  let actionRevision = 0;
+  let closeTask: ReturnType<typeof setTimeout> | null = null;
+
+  const meeting = $derived(snapshot?.meeting ?? null);
+  const owned = $derived(meeting?.owner_id === APPLICATION_MEETING_OWNER_ID);
+  const live = $derived(Boolean(owned && meeting?.authority_active && meeting?.lifecycle === "live"));
+  const stopping = $derived(meeting?.lifecycle === "starting" || meeting?.lifecycle === "stopping");
+  const needsStop = $derived(meeting?.lifecycle === "cleanup_incomplete");
+  const foreignOwner = $derived(Boolean(meeting?.has_session && !owned));
+  const canStart = $derived(Boolean(snapshot && snapshot.revision > 0
+    && meeting && !meeting.has_session && meeting.lifecycle === "idle"
+    && !snapshot.resources.audio_locked
+    && meeting.preflight.microphone_ready && meeting.preflight.meeting_route_ready
+    && (choice === "original" ||
+      (meeting.preflight.start_eligible && snapshot.capabilities.meeting_translation))));
+  const canStop = $derived(Boolean(meeting && !stopping
+    && ((meeting.has_session && owned) || needsStop)));
+  const sourceLabel = $derived(live
+    ? meeting?.audio_source === "original" ? "Original Voice" : "TranslateIT Voice"
+    : "No active source");
+  const statusLabel = $derived(
+    !snapshot || snapshot.revision <= 0 ? "Checking microphone..."
+    : needsStop ? "Recovery required"
+    : stopping ? "Meeting is changing state"
+    : foreignOwner ? "Microphone in use"
+    : live ? "Microphone Live"
+    : "Microphone stopped"
+  );
+
+  function syncFromNative(next: ApplicationSnapshot): void {
+    snapshot = next;
+    if (next.meeting.lifecycle === "live"
+      && next.meeting.owner_id === APPLICATION_MEETING_OWNER_ID) {
+      choice = next.meeting.audio_source === "original" ? "original" : "translateit";
+    }
+    const preferences = readOverlayPreferences();
+    captionsVisible = preferences.visibility !== "hidden" && preferences.meetingEnabled;
+  }
+
+  async function refresh(): Promise<void> {
+    const current = await applicationRuntimeApi.getSnapshot();
+    if (!disposed && !busy) syncFromNative(current);
+  }
+
+  function cancelAutoClose(): void {
+    actionRevision += 1;
+    if (closeTask !== null) { clearTimeout(closeTask); closeTask = null; }
+  }
+
+  function closeAfterSuccess(): void {
+    const token = ++actionRevision;
+    if (closeTask !== null) clearTimeout(closeTask);
+    closeTask = setTimeout(() => {
+      closeTask = null;
+      if (!disposed && token === actionRevision && !busy) void hideQuickAccess();
+    }, 850);
+  }
+
+  async function hide(): Promise<void> {
+    cancelAutoClose();
+    confirmingStop = false;
+    await hideQuickAccess();
+  }
+
+  async function selectSource(requested: Source): Promise<void> {
+    if (busy || stopping || needsStop || foreignOwner || !meeting || choice === requested) return;
+    cancelAutoClose();
+    if (!live) { choice = requested; errorMessage = ""; return; }
+    busy = true;
+    errorMessage = "";
+    resultMessage = "Switching audio source...";
+    try {
+      const result = await runtimeApi.selectMeetingAudioSource(requested);
+      const native = await applicationRuntimeApi.getSnapshot();
+      if (!disposed) syncFromNative(native);
+      if (!result?.ok || native.meeting.audio_source !== requested
+        || native.meeting.lifecycle !== "live") {
+        errorMessage = result?.message ?? "Could not confirm the audio source. Check Meeting status.";
+        resultMessage = "";
+      } else {
+        resultMessage = requested === "original" ? "Original Voice selected." : "TranslateIT Voice selected.";
+        closeAfterSuccess();
+      }
+    } catch {
+      errorMessage = "Audio source could not be verified. It was not changed in this popup.";
+      resultMessage = "";
+    } finally { busy = false; }
+  }
+
+  async function meetingAction(): Promise<void> {
+    if (busy || stopping || foreignOwner || (!canStart && !canStop) || !meeting) return;
+    const stop = canStop;
+    if (stop && !confirmingStop) { confirmingStop = true; return; }
+    confirmingStop = false;
+    cancelAutoClose();
+    busy = true;
+    errorMessage = "";
+    resultMessage = stop ? "Stopping microphone..." : "Starting microphone...";
+    try {
+      const result = await applicationRuntimeApi.dispatchIntent(
+        stop ? "stop_meeting" : choice === "original" ? "start_original_meeting" : "start_meeting",
+      );
+      if (!disposed) syncFromNative(result.snapshot);
+      if (!result.ok
+        || (stop && (result.snapshot.meeting.has_session || result.snapshot.meeting.lifecycle !== "idle"))
+        || (!stop && (result.snapshot.meeting.lifecycle !== "live"
+          || result.snapshot.meeting.audio_source !== choice))) {
+        errorMessage = result.message || "Meeting state was not confirmed. Try again.";
+        resultMessage = "";
+      } else {
+        resultMessage = stop ? "Microphone stopped." : "Microphone is live.";
+        closeAfterSuccess();
+      }
+    } catch {
+      errorMessage = "The Meeting action could not be confirmed. Check its status before retrying.";
+      resultMessage = "";
+    } finally { busy = false; }
+  }
+
+  async function toggleCaptions(): Promise<void> {
+    if (busy) return;
+    cancelAutoClose();
+    busy = true;
+    errorMessage = "";
+    const desired = !captionsVisible;
+    try {
+      if (desired) {
+        const preferences = updateOverlayPreferences({ meetingEnabled: true });
+        await notifyOverlayPreferencesChanged(preferences);
+        if (!await showTranslationOverlay()) throw new Error("Caption window did not open.");
+      } else {
+        await hideTranslationOverlay();
+      }
+      const actual = readOverlayPreferences();
+      captionsVisible = actual.visibility !== "hidden" && actual.meetingEnabled;
+      if (captionsVisible !== desired) throw new Error("Caption state not confirmed.");
+      resultMessage = captionsVisible ? "Floating Captions shown." : "Floating Captions hidden.";
+      closeAfterSuccess();
+    } catch {
+      errorMessage = "Floating Captions could not be updated. Check caption settings.";
+    } finally { busy = false; }
+  }
+
+  async function openMain(): Promise<void> {
+    try { await openTranslateIt(); }
+    catch { errorMessage = "TranslateIT window could not be opened."; }
+  }
+
+  onMount(() => {
+    disposed = false;
+    const currentWindow = getCurrentWindow();
+    let unlistenRuntime: (() => void) | null = null;
+    const connect = async () => {
+      try {
+        const unlisten = await applicationRuntimeApi.subscribe((event) => {
+          if (!disposed && !busy && event.snapshot.revision > 0) syncFromNative(event.snapshot);
+        });
+        if (disposed) unlisten();
+        else unlistenRuntime = unlisten;
+      } catch { /* Focus refresh remains authoritative. */ }
+    };
+    const onFocus = () => {
+      cancelAutoClose();
+      confirmingStop = false;
+      errorMessage = "";
+      void refresh();
+    };
+    const onBlur = () => {
+      // Failure stays visible while focused; losing focus merely hides the UI.
+      if (!busy) void hide();
+    };
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); void hide(); }
+    };
+    void currentWindow.onCloseRequested((event) => {
+      event.preventDefault();
+      void hide();
+    }).then((unlisten) => {
+      if (disposed) unlisten();
+      else closeUnlisten = unlisten;
+    }).catch(() => {});
+    let closeUnlisten: (() => void) | null = null;
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("keydown", onKeydown);
+    const polling = window.setInterval(() => {
+      if (!disposed && !busy && document.hasFocus()) void refresh();
+    }, 5000);
+    void connect();
+    void refresh();
+    return () => {
+      disposed = true;
+      cancelAutoClose();
+      window.clearInterval(polling);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("keydown", onKeydown);
+      unlistenRuntime?.();
+      closeUnlisten?.();
+    };
+  });
+</script>
+
+<div class="qa-shell">
+  <section class="qa-panel" aria-label="TranslateIT Quick Access">
+    <header class="flex shrink-0 items-center justify-between gap-3 px-4 py-3" data-tauri-drag-region>
+      <div class="flex items-center gap-2" data-tauri-drag-region>
+        <AudioLines size={18} aria-hidden="true" />
+        <strong class="text-[13px] font-semibold">Quick Access</strong>
+      </div>
+      <button type="button" class="grid size-8 place-items-center rounded-lg text-[var(--ti-text-muted)] hover:bg-[var(--ti-surface-soft)]"
+        aria-label="Hide Quick Access" title="Close (Esc)" onclick={() => void hide()}><X size={16}/></button>
+    </header>
+
+    <div class="qa-section">
+      <div class="flex items-center gap-2">
+        <span class:qa-busy={busy} class="size-2 rounded-full bg-[var(--ti-text-soft)]" class:bg-[var(--ti-success)]={live && !busy} class:bg-[var(--ti-warning)]={needsStop} aria-hidden="true"></span>
+        <div class="min-w-0 flex-1">
+          <p class="m-0 text-[13px] font-semibold" role="status" aria-live="polite">{statusLabel}</p>
+          <p class="m-0 mt-1 text-[11px] text-[var(--ti-text-muted)]">{sourceLabel} · Virtual Meeting Microphone</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-section">
+      <p class="m-0 mb-3 text-[10px] font-semibold tracking-wide text-[var(--ti-text-muted)]">VOICE SOURCE</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" class="qa-choice" aria-pressed={choice === "original"}
+          disabled={busy || stopping || needsStop || foreignOwner || !snapshot || snapshot.revision <= 0}
+          onclick={() => void selectSource("original")}>
+          <Mic size={18} aria-hidden="true" />
+          <span>Original Voice</span>
+        </button>
+        <button type="button" class="qa-choice" aria-pressed={choice === "translateit"}
+          disabled={busy || stopping || needsStop || foreignOwner || !snapshot || snapshot.revision <= 0}
+          onclick={() => void selectSource("translateit")}>
+          <Languages size={18} aria-hidden="true" />
+          <span>TranslateIT Voice</span>
+        </button>
+      </div>
+      <p class="qa-feedback mt-2">{choice === "original" ? "Direct microphone · No AI" : "English translation · AI required"}</p>
+    </div>
+
+    <div class="qa-section flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <Captions size={17} aria-hidden="true" />
+        <div>
+          <p class="m-0 text-[12px] font-semibold">Floating Captions</p>
+          <p class="qa-feedback">{captionsVisible ? "Visible" : "Hidden"}</p>
+        </div>
+      </div>
+      <button type="button" class="qa-caption-toggle" role="switch" aria-checked={captionsVisible}
+        aria-label="Show Floating Captions" disabled={busy}
+        onclick={() => void toggleCaptions()}>
+        {captionsVisible ? "Hide" : "Show"}
+      </button>
+    </div>
+
+    <div class="min-h-0 flex-1 px-4 py-2" aria-live="polite">
+      {#if errorMessage}
+        <p class="qa-feedback qa-error" role="alert">{errorMessage}</p>
+      {:else if resultMessage}
+        <p class="qa-feedback">{resultMessage}</p>
+      {:else if needsStop}
+        <p class="qa-feedback qa-error">Audio needs cleanup. Use Stop to recover.</p>
+      {:else if !live && !canStart && !foreignOwner && snapshot?.revision}
+        <p class="qa-feedback">Check your microphone, virtual route, or selected translation voice.</p>
+      {/if}
+    </div>
+
+    <footer class="flex shrink-0 items-center justify-between gap-2 border-t border-[var(--ti-border)] px-4 py-3">
+      <button type="button" class="inline-flex items-center gap-1 text-[11px] text-[var(--ti-text-muted)] hover:text-[var(--ti-text)]"
+        onclick={() => void openMain()}><ExternalLink size={13} aria-hidden="true" /> Open TranslateIT</button>
+      {#if confirmingStop}
+        <div class="flex items-center gap-2">
+          <button type="button" class="ti-button ti-button-secondary min-h-9 px-2 text-xs"
+            onclick={() => { confirmingStop = false; }}>Cancel</button>
+          <button type="button" class="ti-button ti-button-danger min-h-9 px-2 text-xs"
+            disabled={busy} onclick={() => void meetingAction()}>Confirm Stop</button>
+        </div>
+      {:else}
+        <button type="button" class={"ti-button min-h-9 px-3 text-xs " + (canStop ? "ti-button-danger" : "")}
+          disabled={busy || (!canStart && !canStop)}
+          onclick={() => void meetingAction()}>
+          {#if canStop}<Square size={13} aria-hidden="true" /> Stop
+          {:else}<Play size={13} aria-hidden="true" /> Start{/if}
+        </button>
+      {/if}
+    </footer>
+  </section>
+</div>

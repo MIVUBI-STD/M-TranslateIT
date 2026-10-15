@@ -14,6 +14,7 @@ pub mod meeting_session;
 pub(crate) mod my_voice_resources;
 pub mod registry;
 pub mod reliability_snapshot;
+pub mod quick_access;
 pub mod runtime_inventory;
 pub mod runtime_watchdog;
 pub mod mic_test;
