@@ -5,6 +5,7 @@ use crate::engine::runtime_events::emit_meeting_runtime_event;
 use crate::engine::runtime_state::latest_runtime_session_state;
 
 use super::super::helper_bridge_runtime::unix_ms;
+use super::transcript_archive;
 use super::{
     MeetingCommittedTurn, MeetingCommittedTurnsSnapshot, MeetingOutboundTiming,
     APPLICATION_MEETING_OWNER_ID,
@@ -400,6 +401,11 @@ pub(super) fn reset_committed_turns(session_id: &str) {
 }
 
 pub(super) fn clear_committed_turns_for_session(session_id: &str) -> bool {
+    // Flush the bounded background disk writer before releasing in-memory
+    // transcript ownership; failures stay recoverable through Retry Stop.
+    if !transcript_archive::finish_session(session_id) {
+        return false;
+    }
     let Ok(mut guard) = committed_turn_store().lock() else {
         return false;
     };
@@ -514,6 +520,11 @@ pub(super) fn commit_meeting_turn(
         outbound_timing,
         unix_ms(),
     );
+    if committed {
+        if let Some(turn) = store.turns.iter().find(|turn| turn.sequence == sequence) {
+            transcript_archive::queue_turn(turn);
+        }
+    }
     drop(guard);
     if committed {
         emit_meeting_runtime_event("turn_committed", Some(session_id), Some(sequence));
@@ -548,6 +559,11 @@ pub(super) fn finish_meeting_turn_translation(
     let updated = store.finish_translation_at(
         session_id, sequence, generation, utterance_id, lane, translated, unix_ms(),
     );
+    if updated {
+        if let Some(turn) = store.turns.iter().find(|turn| turn.sequence == sequence) {
+            transcript_archive::queue_turn(turn);
+        }
+    }
     drop(guard);
     if updated {
         emit_meeting_runtime_event("translation_state_changed", Some(session_id), Some(sequence));

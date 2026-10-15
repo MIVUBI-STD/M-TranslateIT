@@ -98,6 +98,8 @@ Domain algorithms remain in their domain modules; ApplicationRuntime coordinates
 | Outbound/incoming pipelines | `meeting_session/outbound_pipeline.rs`, `incoming_pipeline.rs`, `incoming_deferred.rs` |
 | Meeting consumer ownership | `meeting_session/consumer_runtime.rs` |
 | Committed turns / last-session review | `meeting_session/committed_turns.rs` |
+| Persistent saved Meeting entries / manual deletion | `meeting_session/transcript_archive.rs` (storage adapter; committed_turns remains transcript authority) |
+| Self-contained HTML transcript output / shell file actions | `meeting_session/transcript_export.rs` |
 | Physical capture / VAD | `engine/audio/` |
 | Optional Meeting Sound capture | `engine/audio/meeting_sound_capture.rs` |
 | Meeting output delivery | `engine/audio/meeting_output*.rs` |

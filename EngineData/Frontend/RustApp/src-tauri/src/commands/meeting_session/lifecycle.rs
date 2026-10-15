@@ -390,6 +390,17 @@ fn start_meeting_impl(original_requested: bool) -> MeetingSessionActionResult {
     reset_finalized_drop_counters();
     reset_deferred_incoming_drop_counters();
     reset_committed_turns(&session_id);
+    if let Err(error) = super::transcript_archive::start_session(&session_id) {
+        let _ = revoke_runtime_session_authority(
+            generation,
+            "Required local transcript archive could not be opened.",
+        );
+        let _ = rollback_starting_meeting_resources(generation, &session_id);
+        return blocked_result(
+            rollback_completion_state(),
+            format!("Meeting could not create its retained transcript: {error}"),
+        );
+    }
     reset_finalized_meeting_sequence(&session_id);
     let _ = reset_self_output_suppression(&session_id);
     clear_incoming_status();

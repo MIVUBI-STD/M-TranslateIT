@@ -149,7 +149,7 @@
     {:else}
       {#if turns.truncated || turns.dropped_turn_count > 0}
         <p class="m-0 border-b border-[var(--ti-warning-border)] py-3 text-sm leading-5 text-[var(--ti-warning)]">
-          Earlier phrases may no longer be available in this session ({turns.dropped_turn_count} dropped).
+          {turns.dropped_turn_count} earlier phrases are no longer in the Live memory buffer. Saved Transcripts may still contain them if local storage succeeded.
         </p>
       {/if}
       {#if orderedTurns.length === 0}

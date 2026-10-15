@@ -2,9 +2,11 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current bounded delivery:** Live Meeting now exposes native speech-loss counters and Text displays fresh/cached review warnings, both through their existing source owners. The Python worker README was corrected to match the actual current-utterance-only MiLMMT contract; no model prompt or runtime inference code changed. All claims remain `STATIC_SOURCE`, with compiler/tests/Windows acceptance NOT EXECUTED.
+**Current source delivery:** Persistent per-session transcript archives and offline HTML export are the active implementation candidate. Saved records are kept across Stop, restart and HTML export until explicit user deletion. Existing bounded Live/review memory remains; a single bounded writer accepts per-turn authorized updates, stores them locally by session/sequence, and reports storage uncertainty instead of silently promising completeness. New HTML uses the TranslateIT dark visual language with Bilingual / Bahasa Indonesia / English reading controls, static CSS and print styling. Read/Export/Delete are exposed in Saved Transcripts. Summarization/Meeting Overview is explicitly out of scope.
 
-**Next:** Make manual Meeting transcript export crash-safe using the existing Rust export owner, preserving privacy, session scoping and honest status messages. Responsive display dimensions need a rendered layout test before guessing a new minimum.
+**Proof:** `STATIC_SOURCE` candidate only. No Rust compile, Svelte typecheck, frontend tests, disk fault injection, rendered HTML/browser printing, target Windows audio or runtime acceptance has executed. Do not present source inspection as successful installation or proven reliability.
+
+**Next:** Reconcile static contract/source alignment and prepare one integrated local acceptance covering restart, large sessions, disk full, write interruption, HTML escaping, CSS print and explicit Delete. Do not assert unlimited storage or successful HTML rendering without execution.
 
 ## Retained My Voice source candidate (paused)
 
@@ -213,12 +215,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Harden manual Meeting transcript export in its existing Rust owner so an
-interrupted write cannot publish a partial final TXT/Markdown file. Keep
-exports explicit and session-scoped, and record any remaining durability
-limitations. Do not lower the Windows minimum window size without rendered
-DPI/layout evidence. Compiler and native status remain
-`UNKNOWN / NOT EXECUTED`.
+Source review the persistent transcript archive, UI and HTML export contract
+at the new exact Local HEAD. Correct source-proven defects first, then keep
+Rust/frontend compilation, local disk fault tests, browser print and Windows
+audio integration as `UNKNOWN / NOT EXECUTED` until the agreed integrated
+acceptance phase. Saved archives remain until explicit Delete; no summary
+model/Meeting Overview is part of the product scope.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.

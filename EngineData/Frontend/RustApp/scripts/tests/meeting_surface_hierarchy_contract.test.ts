@@ -88,8 +88,9 @@ test("Last-session transcript is private-by-default and export remains explicit"
   assert.match(review, /<details bind:open=\{reviewOpen\}/);
   assert.match(review, /reviewOpen = false/);
   assert.match(review, /getRecentMeetingTranscript\(\)/);
-  assert.match(review, /Only this meeting is available until the next meeting or app exit/);
-  assert.match(review, /<MeetingTranscriptExport hasSession=\{false\}/);
+  assert.match(review, /Saved Transcripts below keeps recorded sessions until you delete them/);
+  assert.doesNotMatch(review, /<MeetingTranscriptExport/);
+  assert.match(meeting, /<MeetingTranscriptExport hasSession=\{meeting\.hasSession\}/);
   assert.doesNotMatch(review, /\$effect\([\s\S]{0,250}exportMeetingTranscript\(/);
 });
 

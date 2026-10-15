@@ -5,6 +5,7 @@
   import { meetingControlState } from "../app/bridge/productMeetingState";
   import MeetingActivity from "../components/meeting/MeetingActivity.svelte";
   import MeetingSessionReview from "../components/meeting/MeetingSessionReview.svelte";
+  import MeetingTranscriptExport from "../components/meeting/MeetingTranscriptExport.svelte";
   import StatusBadge from "../components/ui/StatusBadge.svelte";
 
   let { snapshot, meetingStatus, meetingTurns, actionBusy = false, onMeetingAction, onRefresh, onNavigate }: {
@@ -180,4 +181,5 @@
     {/if}
   </article>
   <MeetingSessionReview sessionActive={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
+  <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
 </section>

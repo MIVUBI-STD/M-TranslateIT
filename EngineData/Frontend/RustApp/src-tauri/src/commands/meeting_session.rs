@@ -32,6 +32,7 @@ mod session_state;
 mod source_observations;
 mod suppression;
 mod transcript_export;
+mod transcript_archive;
 
 use committed_turns::{current_committed_turn_snapshot, exportable_committed_turn_snapshot};
 
@@ -39,10 +40,6 @@ use committed_turns::{current_committed_turn_snapshot, exportable_committed_turn
 pub(super) fn current_outbound_latency_distribution() -> Option<(usize, u64, u64)> {
     committed_turns::current_outbound_latency_distribution()
 }
-use transcript_export::{
-    export_transcript, transcript_export_status, MeetingTranscriptExportResult,
-    MeetingTranscriptExportStatus,
-};
 use outbound_pipeline::process_outbound_wav;
 use preflight::current_status;
 use session_state::{incoming_lane_enabled, OutboundTimingContext};
@@ -64,7 +61,7 @@ pub struct MeetingSessionPreflightStatus {
     pub runtime_claim: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct MeetingOutboundTiming {
     pub finalized_unix_ms: u128,
     pub first_playback_unix_ms: Option<u128>,
@@ -166,7 +163,7 @@ pub struct MeetingOutboundProcessResult {
     pub runtime_claim: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct MeetingCommittedTurn {
     pub session_id: String,
     pub sequence: u64,
@@ -392,14 +389,33 @@ pub fn get_recent_meeting_transcript() -> MeetingCommittedTurnsSnapshot {
     }
 }
 
+// Persistent Meeting archives are separate from temporary Live/last-session
+// buffers. Users explicitly delete a saved archive; export never deletes it.
 #[tauri::command]
-pub fn get_meeting_transcript_export_status() -> MeetingTranscriptExportStatus {
-    transcript_export_status()
+pub fn list_saved_meeting_transcripts() -> transcript_archive::SavedMeetingSessions {
+    transcript_archive::list_saved_sessions()
 }
 
 #[tauri::command]
-pub fn export_meeting_transcript(format: String) -> MeetingTranscriptExportResult {
-    export_transcript(&format)
+pub fn get_saved_meeting_transcript_preview(session_id: String) -> MeetingCommittedTurnsSnapshot {
+    transcript_archive::saved_session_preview(session_id)
+}
+
+#[tauri::command]
+pub fn delete_saved_meeting_transcript(session_id: String) -> transcript_archive::ArchiveActionResult {
+    transcript_archive::delete_saved_session(session_id)
+}
+
+#[tauri::command]
+pub fn export_saved_meeting_transcript_html(session_id: String) -> transcript_export::HtmlTranscriptResult {
+    transcript_export::export_saved_html(session_id)
+}
+
+#[tauri::command]
+pub fn open_saved_meeting_html(session_id: String, file_name: String, show_folder: bool)
+    -> transcript_archive::ArchiveActionResult
+{
+    transcript_export::open_saved_html(session_id, file_name, show_folder)
 }
 
 pub fn start_meeting_translation() -> MeetingSessionActionResult {

@@ -193,25 +193,26 @@ export type MeetingCommittedTurn = {
   updated_unix_ms: number;
 };
 
-export type MeetingTranscriptExportStatus = {
-  available: boolean;
-  session_id: string | null;
-  turn_count: number;
-  truncated: boolean;
-  dropped_turn_count: number;
-  note: string;
+export type SavedMeetingSession = {
+  session_id: string;
+  entry_count: number;
+  complete: boolean;
+  storage_warning: boolean;
 };
-
-export type MeetingTranscriptExportResult = {
+export type SavedMeetingSessions = {
   ok: boolean;
-  format: string;
+  sessions: SavedMeetingSession[];
+  message: string;
+  active_write_errors: number;
+};
+export type SavedMeetingActionResult = { ok: boolean; message: string };
+export type SavedMeetingHtmlResult = {
+  ok: boolean;
   file_path: string | null;
   turn_count: number;
-  truncated: boolean;
+  incomplete: boolean;
   message: string;
-  blocker: string;
 };
-
 export type MeetingCommittedTurnsSnapshot = {
   ok: boolean;
   has_session: boolean;
@@ -352,29 +353,6 @@ function virtualMicRouteFallback(): VirtualMicRouteContractStatus {
   };
 }
 
-function transcriptExportStatusFallback(): MeetingTranscriptExportStatus {
-  return {
-    available: false,
-    session_id: null,
-    turn_count: 0,
-    truncated: false,
-    dropped_turn_count: 0,
-    note: "Transcript export status is unavailable right now.",
-  };
-}
-
-function transcriptExportFallback(format: string): MeetingTranscriptExportResult {
-  return {
-    ok: false,
-    format,
-    file_path: null,
-    turn_count: 0,
-    truncated: false,
-    message: "Transcript export is unavailable right now.",
-    blocker: "frontend_bridge_unavailable",
-  };
-}
-
 function meetingCommittedTurnsFallback(message: string): MeetingCommittedTurnsSnapshot {
   return {
     ok: false,
@@ -427,19 +405,38 @@ export const runtimeApi = {
     );
   },
 
-  async getMeetingTranscriptExportStatus(): Promise<MeetingTranscriptExportStatus> {
-    return invokeOr<MeetingTranscriptExportStatus>(
-      "get_meeting_transcript_export_status",
-      undefined,
-      transcriptExportStatusFallback(),
+  async listSavedMeetingTranscripts(): Promise<SavedMeetingSessions> {
+    return invokeOr<SavedMeetingSessions>(
+      "list_saved_meeting_transcripts", undefined,
+      { ok: false, sessions: [], message: "Saved Meeting transcripts are temporarily unavailable.", active_write_errors: 0 },
     );
   },
 
-  async exportMeetingTranscript(format: "md" | "txt"): Promise<MeetingTranscriptExportResult> {
-    return invokeOr<MeetingTranscriptExportResult>(
-      "export_meeting_transcript",
-      { format },
-      transcriptExportFallback(format),
+  async getSavedMeetingTranscriptPreview(sessionId: string): Promise<MeetingCommittedTurnsSnapshot> {
+    return invokeOr<MeetingCommittedTurnsSnapshot>(
+      "get_saved_meeting_transcript_preview", { sessionId },
+      meetingCommittedTurnsFallback("Saved Meeting preview could not be loaded."),
+    );
+  },
+
+  async deleteSavedMeetingTranscript(sessionId: string): Promise<SavedMeetingActionResult> {
+    return invokeOr<SavedMeetingActionResult>(
+      "delete_saved_meeting_transcript", { sessionId },
+      { ok: false, message: "Saved transcript could not be deleted." },
+    );
+  },
+
+  async exportSavedMeetingTranscriptHtml(sessionId: string): Promise<SavedMeetingHtmlResult> {
+    return invokeOr<SavedMeetingHtmlResult>(
+      "export_saved_meeting_transcript_html", { sessionId },
+      { ok: false, file_path: null, turn_count: 0, incomplete: true, message: "HTML export is unavailable." },
+    );
+  },
+
+  async openSavedMeetingHtml(sessionId: string, fileName: string, showFolder: boolean): Promise<SavedMeetingActionResult> {
+    return invokeOr<SavedMeetingActionResult>(
+      "open_saved_meeting_html", { sessionId, fileName, showFolder },
+      { ok: false, message: "Saved HTML could not be opened." },
     );
   },
 

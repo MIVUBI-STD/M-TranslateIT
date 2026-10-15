@@ -2,7 +2,6 @@
   import { Check, Copy, Search } from "@lucide/svelte";
   import { runtimeApi, type MeetingCommittedTurn, type MeetingCommittedTurnsSnapshot } from "../../app/bridge/runtimeApi";
   import { languageName } from "../../app/shared/state";
-  import MeetingTranscriptExport from "./MeetingTranscriptExport.svelte";
   import MeetingTurnBubble from "./MeetingTurnBubble.svelte";
   import { meetingFirstRecordedTime, meetingSessionTitle, meetingSpeakerLabel, meetingTime, meetingTranslationDisplay } from "../../app/runtime/meetingTranscriptPresentation";
 
@@ -68,14 +67,13 @@
     <summary class="cursor-pointer px-5 py-4 hover:bg-[var(--ti-surface-soft)]">
       <strong class="block text-[15px] font-semibold">{sessionLabel} · Last session</strong>
       <span class="mt-1 block text-sm text-[var(--ti-text-muted)]">Showing {snapshot.turns.length} recent phrase{snapshot.turns.length === 1 ? "" : "s"} · Meeting audio combines incoming sound; individual speakers are not identified.</span>
-      <span class="mt-1 block text-xs text-[var(--ti-warning)]">Only this meeting is available until the next meeting or app exit. Export manually to keep the full retained session.</span>
+      <span class="mt-1 block text-xs text-[var(--ti-warning)]">This is a quick view of the last Meeting. Saved Transcripts below keeps recorded sessions until you delete them.</span>
     </summary>
     <div class="border-t border-[var(--ti-border)]">
       <div class="flex flex-wrap items-center justify-end gap-2 px-5 py-3">
         <button type="button" class="ti-button ti-button-secondary min-h-9" onclick={() => void copyAll()}>
           {#if copied}<Check size={14} />{:else}<Copy size={14} />{/if}{copied ? "Copied" : "Copy all"}
         </button>
-        <MeetingTranscriptExport hasSession={false} {onNotice} />
       </div>
       <div class="border-t border-[var(--ti-border)] px-5 py-3">
         <label class="relative block">

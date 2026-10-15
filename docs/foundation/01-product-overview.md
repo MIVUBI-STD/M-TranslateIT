@@ -179,7 +179,7 @@ UserData/LogData               minimal/redacted diagnostics
 UserData/SavedProject/VoiceLab approved persistent My Voice actor
 ```
 
-Raw mic/Meeting Sound/generated Meeting TTS/live transcript bodies are temporary by default. My Voice recordings/build intermediates remain temporary until explicit actor approval. Rebuild must not destroy the previous approved actor before the new one is approved.
+Raw mic/Meeting Sound/generated Meeting TTS remain temporary by default. Recognized Meeting transcript entries are retained locally in an explicit per-session saved archive until the user deletes that saved transcript; HTML export does not delete its source archive. Archival is not raw audio recording, and retention does not guarantee all spoken audio was recognized. My Voice recordings/build intermediates remain temporary until explicit actor approval. Rebuild must not destroy the previous approved actor before the new one is approved.
 
 ## UI direction
 
