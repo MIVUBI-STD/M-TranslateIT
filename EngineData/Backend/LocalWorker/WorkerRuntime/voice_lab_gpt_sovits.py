@@ -111,13 +111,27 @@ def wav_signal_metrics_pcm16(path: Path) -> dict[str, float]:
         raise VoiceLabProviderError(f"empty_take:{path.name}")
 
     samples = struct.unpack(f"<{frame_count}h", payload)
-    silent = sum(1 for sample in samples if abs(sample) <= 128)
-    clipped = sum(1 for sample in samples if abs(sample) >= 32_760)
-    active = [sample for sample in samples if abs(sample) > 128]
-    active_rms = (
-        math.sqrt(sum(sample * sample for sample in active) / len(active)) if active else 0.0
-    )
-    dc_offset = abs(sum(samples) / frame_count)
+    # Read every decoded sample once. The former separate silence, clipping,
+    # active-RMS and DC passes also allocated a redundant list of active samples
+    # on every actor/preview validation. Preserve the same integer sums,
+    # thresholds and final floating-point operations.
+    silent = 0
+    clipped = 0
+    active_count = 0
+    active_square_sum = 0
+    sample_sum = 0
+    for sample in samples:
+        magnitude = abs(sample)
+        sample_sum += sample
+        if magnitude <= 128:
+            silent += 1
+        else:
+            active_count += 1
+            active_square_sum += sample * sample
+        if magnitude >= 32_760:
+            clipped += 1
+    active_rms = math.sqrt(active_square_sum / active_count) if active_count else 0.0
+    dc_offset = abs(sample_sum / frame_count)
     return {
         "duration_ms": frame_count * 1_000 / 32_000,
         "active_rms": active_rms,

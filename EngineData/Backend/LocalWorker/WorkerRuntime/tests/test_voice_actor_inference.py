@@ -59,6 +59,51 @@ def test_actor_package_validation_matches_approved_contract(tmp_path: Path) -> N
         provider.validate_actor_package(actor)
 
 
+def test_reference_wav_metrics_preserve_original_sample_math(tmp_path: Path) -> None:
+    import math
+    import struct
+
+    provider = load_provider_module()
+    samples = (-32_768, -32_760, -32_759, -129, -128, -1, 0, 1, 128, 129, 32_759, 32_760, 32_767) * 100
+    path = tmp_path / "mixed-reference.wav"
+    with wave.open(str(path), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(32_000)
+        writer.writeframes(struct.pack(f"<{len(samples)}h", *samples))
+
+    # Reference equations are the pre-optimization behavior. In particular,
+    # the silence/active boundary and clipping boundary must remain exact.
+    active = [sample for sample in samples if abs(sample) > 128]
+    expected = {
+        "duration_ms": len(samples) * 1_000 / 32_000,
+        "active_rms": math.sqrt(sum(sample * sample for sample in active) / len(active)),
+        "dc_offset": abs(sum(samples) / len(samples)),
+        "silence_fraction": sum(abs(sample) <= 128 for sample in samples) / len(samples),
+        "clipping_fraction": sum(abs(sample) >= 32_760 for sample in samples) / len(samples),
+    }
+    assert provider.wav_signal_metrics_pcm16(path) == expected
+
+
+def test_reference_wav_metrics_preserve_silent_reference_behavior(tmp_path: Path) -> None:
+    import struct
+
+    provider = load_provider_module()
+    path = tmp_path / "silent-reference.wav"
+    samples = (0, -128, 128) * 100
+    with wave.open(str(path), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(32_000)
+        writer.writeframes(struct.pack(f"<{len(samples)}h", *samples))
+
+    metrics = provider.wav_signal_metrics_pcm16(path)
+    assert metrics["active_rms"] == 0.0
+    assert metrics["silence_fraction"] == 1.0
+    assert metrics["clipping_fraction"] == 0.0
+    assert metrics["dc_offset"] == 0.0
+
+
 def test_source_working_directory_is_restored(tmp_path: Path) -> None:
     provider = load_provider_module()
     original = Path.cwd()
