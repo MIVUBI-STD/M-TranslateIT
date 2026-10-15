@@ -13,6 +13,7 @@ use super::helper_bridge::HelperBridgeWorkerResponse;
 // Worker ASR requests outside the finalized Meeting lanes retain their own VAD policy.
 const FINALIZED_MEETING_ASR_WORKER_VAD: bool = false;
 
+mod audio_source;
 mod committed_turns;
 mod consumer_runtime;
 mod incoming_activation;
@@ -134,6 +135,7 @@ pub struct MeetingSessionStatus {
     pub started_unix_ms: Option<u128>,
     pub active_age_ms: Option<u128>,
     pub capture_active: bool,
+    pub audio_source: String,
     pub owner_id: Option<String>,
     pub blocker: String,
     pub note: String,
@@ -311,6 +313,10 @@ fn process_authoritative_finalized_outbound_wav(
 #[tauri::command]
 pub fn get_meeting_session_status() -> MeetingSessionStatus {
     current_status()
+}
+#[tauri::command]
+pub fn set_meeting_audio_source(source: String) -> audio_source::MeetingAudioSourceActionResult {
+    audio_source::set_source(&source)
 }
 
 pub(crate) fn deferred_incoming_health_counts() -> (usize, u64, u64) {

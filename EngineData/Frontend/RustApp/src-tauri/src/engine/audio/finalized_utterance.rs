@@ -238,10 +238,8 @@ pub fn clear_finalized_incoming_utterance_producer_for_session(session_id: &str)
     })
 }
 
-// Offline replay hook only. Production may adopt this exact owner reset
-// after the bounded PCM handoff has passed native callback/deadline tests.
-#[cfg(test)]
-pub(super) fn reset_finalized_outbound_speech_boundary(
+// Reset the same producer on each outbound source change.
+pub fn reset_finalized_outbound_speech_boundary(
     session_id: &str,
     generation: u64,
 ) -> Option<u64> {
@@ -260,6 +258,9 @@ pub(super) fn reset_finalized_outbound_speech_boundary(
     state.capture_epoch = state.capture_epoch.saturating_add(1);
     state.input_sample_cursor = 0;
     reset_current_utterance(state);
+    state.pre_roll.clear();
+    state.pending.clear();
+    sync.ready.notify_all();
     Some(state.capture_epoch)
 }
 

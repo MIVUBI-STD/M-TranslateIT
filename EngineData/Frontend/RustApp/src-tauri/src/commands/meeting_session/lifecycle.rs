@@ -6,9 +6,10 @@ use crate::engine::audio::finalized_utterance::{
     reset_finalized_drop_counters, reset_finalized_meeting_sequence,
 };
 use crate::engine::audio::live_segment_writer::cleanup_finalized_meeting_session_wavs;
+use crate::engine::audio::original_voice_pcm;
 use crate::engine::audio::live_capture::{start_live_capture_runtime, stop_live_capture_runtime};
 use crate::engine::audio::meeting_output::{
-    cancel_meeting_output_for_generation, clear_prepared_meeting_output_device,
+    cancel_meeting_output_for_generation, stop_original_voice_output, clear_prepared_meeting_output_device,
     prepare_meeting_output_device, probe_prepared_meeting_output_device_functionally,
 };
 use crate::engine::audio::meeting_sound_capture::stop_meeting_sound_capture_runtime;
@@ -89,7 +90,10 @@ fn rollback_starting_meeting_resources(
     generation: u64,
     session_id: &str,
 ) -> (String, String) {
-    let output_cancelled = cancel_meeting_output_for_generation(generation);
+    let tts_cancelled = cancel_meeting_output_for_generation(generation);
+    let original_stopped = stop_original_voice_output(generation);
+    original_voice_pcm::stop(generation);
+    let output_cancelled = tts_cancelled && original_stopped;
     let microphone = stop_live_capture_runtime();
     let sound = stop_meeting_sound_capture_runtime();
     let helper = cancel_helper_bridge_meeting_session(session_id);
@@ -341,6 +345,12 @@ pub(super) fn start_meeting_translation_impl() -> MeetingSessionActionResult {
                 "Start Translation couldn't bind the prepared Meeting microphone route to this session: {blocker}"
             ),
         );
+    }
+    if let Err(blocker) = original_voice_pcm::register_translated(generation) {
+        let _ = revoke_runtime_session_authority(generation, "Audio source initialization failed.");
+        let _ = rollback_starting_meeting_resources(generation, &session_id);
+        return blocked_result(rollback_completion_state(),
+            format!("Meeting audio source initialization failed: {blocker}"));
     }
     reset_finalized_drop_counters();
     reset_deferred_incoming_drop_counters();
@@ -611,7 +621,10 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
 
     interrupt_committed_turns_for_generation(&session_id, generation);
     let transcript_retained_for_export = retain_committed_turns_for_export(&session_id);
-    let output_cancelled = cancel_meeting_output_for_generation(generation);
+    let tts_cancelled = cancel_meeting_output_for_generation(generation);
+    let original_stopped = stop_original_voice_output(generation);
+    original_voice_pcm::stop(generation);
+    let output_cancelled = tts_cancelled && original_stopped;
     clear_prepared_meeting_output_device();
     let capture_stop = stop_live_capture_runtime();
     let incoming_capture_stop = stop_meeting_sound_capture_runtime();

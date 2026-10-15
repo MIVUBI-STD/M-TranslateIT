@@ -149,6 +149,7 @@ export type MeetingSessionStatus = {
   started_unix_ms: number | null;
   active_age_ms: number | null;
   capture_active: boolean;
+  audio_source: "original" | "translateit";
   owner_id: string | null;
   blocker: string;
   note: string;
@@ -156,6 +157,11 @@ export type MeetingSessionStatus = {
   outbound: MeetingOutboundRuntimeStatus;
   incoming: MeetingIncomingRuntimeStatus;
   runtime_claim: string;
+};
+export type MeetingAudioSourceActionResult = {
+  ok: boolean;
+  source: "original" | "translateit";
+  message: string;
 };
 export type MeetingSessionActionResult = {
   ok: boolean;
@@ -393,6 +399,10 @@ async function loadRuntimeSettings(): Promise<RuntimeSettings | null> {
 export const runtimeApi = {
   getCommandErrors(): RuntimeCommandError[] {
     return getRuntimeCommandErrors().slice(0, MAX_COMMAND_ERRORS);
+  },
+
+  async selectMeetingAudioSource(source: "original" | "translateit"): Promise<MeetingAudioSourceActionResult | null> {
+    return invokeNullable<MeetingAudioSourceActionResult>("set_meeting_audio_source", { source });
   },
 
   async getMeetingSessionStatus(): Promise<MeetingSessionStatus> {

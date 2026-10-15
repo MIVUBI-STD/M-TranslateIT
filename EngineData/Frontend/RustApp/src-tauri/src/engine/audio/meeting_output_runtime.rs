@@ -7,6 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::engine::audio::device_selection::resolve_unique_named_device;
+use crate::engine::audio::original_voice_pcm;
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
 #[path = "meeting_output_runtime/audio_format.rs"]
@@ -62,6 +63,7 @@ pub struct MeetingOutputDeliveryReport {
 #[derive(Clone)]
 struct MeetingOutputCancelControl {
     generation: u64,
+    source_epoch: Option<u64>,
     cancel_requested: Arc<AtomicBool>,
 }
 
@@ -173,7 +175,9 @@ impl PlaybackCursor {
         convert: impl Fn(f32) -> T,
     ) {
         let cancelled = self.cancel_requested.load(Ordering::Acquire)
-            || !runtime_generation_is_authoritative(self.generation);
+            || !runtime_generation_is_authoritative(self.generation)
+            || self.source_epoch.is_some_and(|epoch|
+                !original_voice_pcm::translated_epoch_matches(self.generation, epoch));
         if cancelled {
             self.cancel_requested.store(true, Ordering::Release);
             data.fill(convert(0.0));
@@ -236,6 +240,7 @@ fn build_output_stream(
     samples: Arc<Vec<f32>>,
     cancel_requested: Arc<AtomicBool>,
     generation: u64,
+    source_epoch: Option<u64>,
     completion_tx: mpsc::SyncSender<Duration>,
     first_playback_tx: mpsc::SyncSender<Instant>,
     callback_errors: Arc<Mutex<Option<String>>>,
@@ -249,6 +254,7 @@ fn build_output_stream(
         first_playback_tx: first_playback_tx.clone(),
         cancel_requested: Arc::clone(&cancel_requested),
         generation,
+        source_epoch,
         sample_rate_hz: config.sample_rate.0,
         channels: config.channels,
     };
@@ -358,6 +364,7 @@ pub fn probe_prepared_meeting_output_device_functionally(
         samples,
         cancel_requested,
         generation,
+        None,
         completion_tx,
         first_playback_tx,
         Arc::clone(&callback_errors),
@@ -504,13 +511,24 @@ fn blocked(blocker: &str, execution_attempted: bool) -> MeetingOutputDeliveryRep
     }
 }
 
+pub fn deliver_meeting_output_wav_for_source(
+    source_audio_path: &str, selected_output_device: Option<&str>, generation: u64, source_epoch: u64,
+) -> MeetingOutputDeliveryReport {
+    deliver_meeting_output_wav_inner(source_audio_path, selected_output_device, generation, Some(source_epoch))
+}
 pub fn deliver_meeting_output_wav(
-    source_audio_path: &str,
-    selected_output_device: Option<&str>,
-    generation: u64,
+    source_audio_path: &str, selected_output_device: Option<&str>, generation: u64,
+) -> MeetingOutputDeliveryReport {
+    deliver_meeting_output_wav_inner(source_audio_path, selected_output_device, generation, None)
+}
+fn deliver_meeting_output_wav_inner(
+    source_audio_path: &str, selected_output_device: Option<&str>, generation: u64, source_epoch: Option<u64>,
 ) -> MeetingOutputDeliveryReport {
     if !runtime_generation_is_authoritative(generation) {
         return blocked("meeting_output:generation_not_authoritative", false);
+    }
+    if source_epoch.is_some_and(|epoch| !original_voice_pcm::translated_epoch_matches(generation, epoch)) {
+        return blocked("meeting_output:source_switched", false);
     }
     let Some(output_name) = selected_output_device
         .map(str::trim)
@@ -547,6 +565,9 @@ pub fn deliver_meeting_output_wav(
         return blocked("meeting_output:prepared_audio_empty", false);
     }
 
+    if source_epoch.is_some_and(|epoch| !original_voice_pcm::translated_epoch_matches(generation, epoch)) {
+        return blocked("meeting_output:source_switched", false);
+    }
     let delivery_started_at = Instant::now();
     let delivery_started_unix_ms = current_unix_ms();
     let cancel_requested = match install_cancel_control(generation) {
@@ -574,6 +595,7 @@ pub fn deliver_meeting_output_wav(
         Arc::clone(&samples),
         Arc::clone(&cancel_requested),
         generation,
+        source_epoch,
         completion_tx,
         first_playback_tx,
         Arc::clone(&callback_errors),

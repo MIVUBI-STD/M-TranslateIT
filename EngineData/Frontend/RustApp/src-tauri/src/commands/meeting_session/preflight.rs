@@ -3,6 +3,7 @@ use crate::engine::runtime_state::{
 };
 
 use super::super::audio::get_input_status;
+use crate::engine::audio::original_voice_pcm;
 use super::super::helper_bridge::get_helper_bridge_status;
 use super::super::virtual_mic_route::get_virtual_mic_route_selection;
 use super::session_state::{
@@ -130,6 +131,13 @@ pub(super) fn status_from_report(
         generation: snapshot.map(|value| value.generation),
         started_unix_ms: snapshot.map(|value| value.started_unix_ms),
         active_age_ms: report.active_age_ms,
+        audio_source: snapshot
+            .map(|current| if original_voice_pcm::is_original_active(current.generation) {
+                "original".to_string()
+            } else {
+                "translateit".to_string()
+            })
+            .unwrap_or_else(|| "translateit".to_string()),
         capture_active: snapshot
             .map(|value| value.live_capture_stream_active)
             .unwrap_or(false),

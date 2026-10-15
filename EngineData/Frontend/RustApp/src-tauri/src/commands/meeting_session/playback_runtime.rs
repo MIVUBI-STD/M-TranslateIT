@@ -3,7 +3,8 @@ use std::sync::{Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use crate::engine::audio::meeting_output::{deliver_meeting_output_wav, MAX_DELIVERY_DEADLINE_MS};
+use crate::engine::audio::meeting_output::{deliver_meeting_output_wav_for_source, MAX_DELIVERY_DEADLINE_MS};
+use crate::engine::audio::original_voice_pcm;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 
 use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
@@ -26,6 +27,7 @@ const ENQUEUE_RETRY_DELAY: Duration = Duration::from_millis(10);
 
 pub(super) struct PreparedPlaybackJob {
     pub(super) generation: u64,
+    pub(super) source_epoch: u64,
     pub(super) session_id: String,
     pub(super) event_sequence: u64,
     pub(super) utterance_id: u64,
@@ -91,7 +93,9 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         );
         return;
     }
-    if !generation_is_live(job.generation) {
+    if !generation_is_live(job.generation)
+        || !original_voice_pcm::translated_epoch_matches(job.generation, job.source_epoch)
+    {
         cleanup_job(&job);
         mark_interrupted(&job);
         return;
@@ -139,7 +143,9 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         }
     };
 
-    if !generation_is_live(job.generation) {
+    if !generation_is_live(job.generation)
+        || !original_voice_pcm::translated_epoch_matches(job.generation, job.source_epoch)
+    {
         cleanup_job(&job);
         mark_interrupted(&job);
         return;
@@ -194,11 +200,19 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
         true,
     );
 
+    if !original_voice_pcm::translated_epoch_matches(job.generation, job.source_epoch) {
+        cleanup_job(&job);
+        mark_interrupted(&job);
+        set_outbound_playback_activity(job.generation, &job.session_id, job.event_sequence, false);
+        drop(suppression_guard);
+        return;
+    }
     let delivery_started_at = Instant::now();
-    let route = deliver_meeting_output_wav(
+    let route = deliver_meeting_output_wav_for_source(
         &job.actual_tts_path,
         Some(bound_output_device.as_str()),
         job.generation,
+        job.source_epoch,
     );
     record_first_playback_timing(
         &mut timing,
@@ -244,9 +258,10 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
 
     cleanup_job(&job);
 
-    if !generation_is_live(job.generation) {
-        mark_interrupted(&job);
-        return;
+    if !generation_is_live(job.generation)
+        || !original_voice_pcm::translated_epoch_matches(job.generation, job.source_epoch)
+    {
+        mark_interrupted(&job);        return;
     }
 
     if !route.ok || !route.execution_attempted {

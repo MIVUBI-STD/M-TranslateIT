@@ -15,6 +15,7 @@ use crate::engine::audio::live_segment_writer::{
     write_finalized_outbound_utterance_wav_with_noise_suppression,
 };
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
+use crate::engine::audio::original_voice_pcm;
 use crate::engine;
 
 use super::incoming_deferred::clear_deferred_incoming_queue_for_session;
@@ -86,6 +87,7 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
                     || utterance.lane != "you"
                     || utterance.session_id != thread_session_id
                     || !generation_is_live(generation)
+                    || original_voice_pcm::is_original_active(generation)
                 {
                     continue;
                 }

@@ -333,6 +333,7 @@ fn build_stream_for_format(
     callback_errors: Arc<Mutex<Vec<String>>>,
     callback_error_epoch: Arc<AtomicU64>,
     finalized_outbound_enabled: bool,
+    generation: u64,
 ) -> Result<cpal::Stream, String> {
     let channels = config.channels;
     let sample_rate_hz = config.sample_rate.0;
@@ -354,7 +355,7 @@ fn build_stream_for_format(
                             publish_runtime_native_f32_mono(
                                 data,
                                 sample_rate_hz,
-                                finalized_outbound_enabled,
+                                finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
                             );
                         } else {
                             downmix_f32_into(data, channels, &mut mono_scratch);
@@ -363,7 +364,7 @@ fn build_stream_for_format(
                                 &mono_scratch,
                                 sample_rate_hz,
                                 channels,
-                                finalized_outbound_enabled,
+                                finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
                             );
                         }
                         // The guided recorder is normally inactive during Meeting;
@@ -398,7 +399,7 @@ fn build_stream_for_format(
                             &mono_scratch,
                             sample_rate_hz,
                             channels,
-                            finalized_outbound_enabled,
+                            finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
                         );
                         append_guided_f32(&mono_scratch, sample_rate_hz, 1);
                     },
@@ -426,7 +427,7 @@ fn build_stream_for_format(
                             &mono_scratch,
                             sample_rate_hz,
                             channels,
-                            finalized_outbound_enabled,
+                            finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
                         );
                         append_guided_f32(&mono_scratch, sample_rate_hz, 1);
                     },
@@ -510,6 +511,7 @@ fn run_capture_thread(
         callback_errors,
         callback_error_epoch,
         finalized_outbound_enabled,
+        generation,
     ) {
         Ok(stream) => stream,
         Err(error) => {

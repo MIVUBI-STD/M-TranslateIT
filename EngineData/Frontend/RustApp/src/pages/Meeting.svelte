@@ -18,6 +18,26 @@
   } = $props();
 
   let resumeBusy = $state(false);
+  let sourceChanging = $state(false);
+  let currentSource = $state<"original" | "translateit">("translateit");
+  $effect(() => {
+    if (!sourceChanging) currentSource = meetingStatus?.audio_source === "original" ? "original" : "translateit";
+  });
+  async function selectSource(source: "original" | "translateit"): Promise<void> {
+    if (sourceChanging || !meeting.live || currentSource === source) return;
+    sourceChanging = true;
+    try {
+      const result = await runtimeApi.selectMeetingAudioSource(source);
+      if (result?.ok) {
+        currentSource = result.source;
+        await onRefresh(result.message);
+      } else {
+        await onRefresh(result?.message ?? "Could not change microphone source. Check Meeting status.");
+      }
+    } catch {
+      await onRefresh("Could not change microphone source. Your previous selection was kept.");
+    } finally { sourceChanging = false; }
+  }
   const meeting = $derived(snapshot.meeting);
   const needsSetup = $derived(!meeting.hasSession && !meeting.canStop
     && ["new", "deferred"].includes(snapshot.settings.meeting_setup_state));
@@ -107,6 +127,19 @@
       <StatusBadge label={meeting.live ? "Live" : meeting.label} tone={statusTone} />
     </div>
     {#if activityVisible && meetingStatus}
+      <div class="border-t border-[var(--ti-border)] px-6 py-4">
+        <label for="meeting-audio-source" class="ti-field-label">Microphone output</label>
+        <select id="meeting-audio-source" class="ti-field mt-2 min-h-11 px-3"
+          value={currentSource} disabled={sourceChanging || actionBusy}
+          onchange={(event) => void selectSource(event.currentTarget.value === "original" ? "original" : "translateit")}
+        >
+          <option value="translateit">TranslateIT Audio</option>
+          <option value="original">Original Microphone</option>
+        </select>
+        <p class="mb-0 mt-2 text-xs text-[var(--ti-text-muted)]">
+          Both options use the same virtual microphone selected in your calling app.
+        </p>
+      </div>
       <div class="border-t border-[var(--ti-border)] px-6 py-5">
         <MeetingActivity status={meetingStatus} turns={meetingTurns} />
       </div>

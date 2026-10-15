@@ -103,6 +103,32 @@ fn buffer() -> &'static Mutex<DirectPcm> {
     BUFFER.get_or_init(|| Mutex::new(DirectPcm::new()))
 }
 
+/// One source epoch per authoritative Meeting generation.
+pub fn register_translated(generation: u64) -> Result<(), &'static str> {
+    if generation == 0 { return Err("original_voice:invalid_generation"); }
+    ACTIVE.store(false, Ordering::Release);
+    let mut pcm = buffer().lock().map_err(|_| "original_voice:buffer_poisoned")?;
+    pcm.clear();
+    GENERATION.store(generation, Ordering::Release);
+    SOURCE_EPOCH.store(1, Ordering::Release);
+    Ok(())
+}
+pub fn is_original_active(generation: u64) -> bool {
+    ACTIVE.load(Ordering::Acquire) && GENERATION.load(Ordering::Acquire) == generation
+}
+pub fn translated_epoch(generation: u64) -> Option<u64> {
+    if GENERATION.load(Ordering::Acquire) != generation || ACTIVE.load(Ordering::Acquire) { return None; }
+    let epoch = SOURCE_EPOCH.load(Ordering::Acquire);
+    (epoch > 0).then_some(epoch)
+}
+pub fn translated_epoch_matches(generation: u64, epoch: u64) -> bool {
+    translated_epoch(generation) == Some(epoch)
+}
+pub fn next_original_epoch(generation: u64) -> Result<u64, &'static str> {
+    translated_epoch(generation).ok_or("original_voice:source_not_translated")?
+        .checked_add(1).ok_or("original_voice:source_epoch_exhausted")
+}
+
 /// Called only by the native Meeting output owner, never by an audio callback.
 /// Rebinding clears previous session PCM before opening the original-voice stream.
 pub fn begin(generation: u64, source_epoch: u64) -> Result<(), &'static str> {
@@ -123,7 +149,9 @@ pub fn stop(generation: u64) {
     if GENERATION.load(Ordering::Acquire) != generation {
         return;
     }
-    ACTIVE.store(false, Ordering::Release);
+    if ACTIVE.swap(false, Ordering::AcqRel) {
+        let _ = SOURCE_EPOCH.fetch_update(Ordering::AcqRel, Ordering::Acquire, |epoch| epoch.checked_add(1));
+    }
     if let Some(queue) = BUFFER.get() {
         if let Ok(mut state) = queue.lock() {
             state.clear();

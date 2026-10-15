@@ -23,6 +23,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::diagnostic_support::export_diagnostic_support_bundle,
         crate::commands::helper_bridge::helper_bridge_worker_status,
         crate::commands::meeting_session::get_meeting_session_status,
+        crate::commands::meeting_session::set_meeting_audio_source,
         crate::commands::meeting_session::get_meeting_committed_turns,
         crate::commands::meeting_session::get_recent_meeting_transcript,
         crate::commands::meeting_session::get_meeting_transcript_export_status,

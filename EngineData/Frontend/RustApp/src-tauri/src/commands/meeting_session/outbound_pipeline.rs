@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::engine::paths::ProjectPaths;
+use crate::engine::audio::original_voice_pcm;
 
 use super::committed_turns::{
     commit_meeting_turn, finish_meeting_turn_translation,
@@ -159,7 +160,10 @@ pub(super) fn process_outbound_wav(
     audio_path: String,
     mut timing: OutboundTimingContext,
 ) -> MeetingOutboundProcessResult {
-    if !generation_is_live(generation) {
+    let Some(source_epoch) = original_voice_pcm::translated_epoch(generation) else {
+        return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
+    };
+    if !generation_is_live(generation) || !original_voice_pcm::translated_epoch_matches(generation, source_epoch) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
 
@@ -193,7 +197,7 @@ pub(super) fn process_outbound_wav(
     timing.metrics.asr_ms = Some(elapsed_millis(asr_started_at, Instant::now()));
     timing.metrics.asr_scheduler_wait_ms = super::worker_scheduler_wait_ms(&asr);
     set_outbound_timing(generation, session_id, event_sequence, &timing.metrics);
-    if !generation_is_live(generation) {
+    if !generation_is_live(generation) || !original_voice_pcm::translated_epoch_matches(generation, source_epoch) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
     let transcript = worker_text(&asr, "transcript_text");
@@ -301,7 +305,7 @@ pub(super) fn process_outbound_wav(
     timing.metrics.translation_tokens_per_second =
         worker_number(&translation, "inference_tokens_per_second");
     set_outbound_timing(generation, session_id, event_sequence, &timing.metrics);
-    if !generation_is_live(generation) {
+    if !generation_is_live(generation) || !original_voice_pcm::translated_epoch_matches(generation, source_epoch) {
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
     let translated_text = validated_meeting_translation(&translation, "id", "en");
@@ -422,7 +426,7 @@ pub(super) fn process_outbound_wav(
         &timing.metrics,
     );
     let tts_path = worker_text(&tts, "output_path").unwrap_or_default();
-    if !generation_is_live(generation) {
+    if !generation_is_live(generation) || !original_voice_pcm::translated_epoch_matches(generation, source_epoch) {
         remove_temporary_tts_paths(&requested_tts_path, &tts_path);
         return stale_outbound_result(generation, session_id, event_sequence, utterance_id);
     }
@@ -485,6 +489,7 @@ pub(super) fn process_outbound_wav(
     };
     let playback_job = PreparedPlaybackJob {
         generation,
+        source_epoch,
         session_id: session_id.to_string(),
         event_sequence,
         utterance_id,

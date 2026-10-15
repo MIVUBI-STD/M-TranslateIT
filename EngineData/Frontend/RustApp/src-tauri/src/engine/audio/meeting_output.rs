@@ -63,6 +63,16 @@ fn blocked_before_execution(blocker: &str) -> MeetingOutputDeliveryReport {
     }
 }
 
+pub fn deliver_meeting_output_wav_for_source(
+    source_audio_path: &str, selected_output_device: Option<&str>, generation: u64, source_epoch: u64,
+) -> MeetingOutputDeliveryReport {
+    if let Some(blocker) = validate_source_riff_boundary(source_audio_path) {
+        return blocked_before_execution(blocker);
+    }
+    runtime::deliver_meeting_output_wav_for_source(
+        source_audio_path, selected_output_device, generation, source_epoch,
+    )
+}
 pub fn deliver_meeting_output_wav(
     source_audio_path: &str,
     selected_output_device: Option<&str>,
