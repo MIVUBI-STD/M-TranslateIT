@@ -10,6 +10,12 @@ const MAX_OBSERVATION_BYTES: usize = 8 * 1024;
 const MAX_WINDOW_SAMPLES_16K: u64 = 16_000 * 60;
 const MAX_TIMING_PROBE_WORDS: usize = 512;
 const MAX_TIMING_PROBE_BYTES: usize = 16 * 1024;
+// Strict limits for the test-only, non-producing long-speech *proposal*.
+// Word timestamps/punctuation are model estimates and cannot authorize
+// translation, an audio cut, or playback without separate quality acceptance.
+const PROPOSED_MAX_SEGMENT_SAMPLES: u64 = 16_000 * 20;
+const PROPOSED_MIN_SEGMENT_SAMPLES: u64 = 16_000 * 3;
+const PROPOSED_MIN_QUIET_SAMPLES: u64 = 16_000 * 160 / 1_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SourceLane {
@@ -54,6 +60,15 @@ pub(super) struct CaptureWindowBounds {
     pub start_lower_sample: u64,
     pub end_upper_sample: u64,
     pub sample_rate_hz: u32,
+}
+
+// Advisory only: no samples are copied or removed and no Meeting owner is
+// allowed to commit these ranges. Each exact ASR range maps to an approximate
+// source-clock interval; the full set covers the original window once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct LongSpeechSegmentProposal {
+    pub asr_window: AudioWindow,
+    pub capture_bounds: CaptureWindowBounds,
 }
 
 impl CaptureClockSegment {
@@ -228,6 +243,8 @@ pub(super) enum ObservationError {
     UnmappedWindow,
     UnmatchedWordTiming,
     InvalidWordTiming,
+    NoSafeSegmentBoundary,
+    InvalidQuietEvidence,
 }
 
 pub(super) struct SourceStabilizer {
@@ -306,6 +323,102 @@ impl SourceStabilizer {
             return Err(ObservationError::UnmatchedWordTiming);
         }
         Ok(mapped)
+    }
+
+    /// Experimental bounded segmentation proposal. Never transcribes, commits,
+    /// translates or plays. We require matching current-word evidence plus a
+    /// independently producer-observed quiet interval after a sentence-ending
+    /// word; the ASR model's timestamps alone are NEVER evidence of silence.
+    /// Even the paired signals are NOT semantic truth or output authorization.
+    /// A 60 s window with no safe candidate is rejected, never arbitrarily cut.
+    pub fn propose_long_speech_segments(
+        &self,
+        scope: &SourceScope,
+        revision: u64,
+        window: AudioWindow,
+        frame_count: u64,
+        words: &[ModelEstimatedWord],
+        capture_map: &CaptureClockSegment,
+        pcm_quiet_windows: &[AudioWindow],
+    ) -> Result<Vec<LongSpeechSegmentProposal>, ObservationError> {
+        // This already rejects foreign sessions/epochs, stale revisions,
+        // mismatched source text, gaps in the capture clock, and invalid word
+        // positions. Word estimates remain untrusted even after validation.
+        self.inspect_estimated_words(
+            scope, revision, window, frame_count, words, capture_map,
+        )?;
+        // These ranges must originate from a future authoritative PCM/VAD
+        // capture owner. This test-only function cannot verify their origin.
+        // Neither blank input nor untrusted ASR word gaps can substitute.
+        if pcm_quiet_windows.len() > MAX_TIMING_PROBE_WORDS
+            || pcm_quiet_windows.iter().any(|quiet| {
+                quiet.start_sample < window.start_sample
+                    || quiet.end_sample > window.end_sample
+                    || quiet.end_sample <= quiet.start_sample
+            })
+            || pcm_quiet_windows.windows(2).any(|pair| {
+                pair[0].end_sample > pair[1].start_sample
+            })
+        {
+            return Err(ObservationError::InvalidQuietEvidence);
+        }
+        let mut start = window.start_sample;
+        let mut segments = Vec::new();
+        while window.end_sample - start > PROPOSED_MAX_SEGMENT_SAMPLES {
+            let limit = start + PROPOSED_MAX_SEGMENT_SAMPLES;
+            let mut latest_candidate = None;
+            for pair in words.windows(2) {
+                let previous = &pair[0];
+                let next = &pair[1];
+                let proposed = window.start_sample
+                    .checked_add(next.start_sample)
+                    .ok_or(ObservationError::InvalidWordTiming)?;
+                if proposed <= start + PROPOSED_MIN_SEGMENT_SAMPLES
+                    || proposed > limit
+                    || window.end_sample - proposed < PROPOSED_MIN_SEGMENT_SAMPLES
+                    || next.start_sample.saturating_sub(previous.end_sample)
+                        < PROPOSED_MIN_QUIET_SAMPLES
+                {
+                    continue;
+                }
+                let previous_end = window.start_sample + previous.end_sample;
+                let next_start = proposed;
+                if !pcm_quiet_windows.iter().any(|quiet| {
+                    quiet.start_sample >= previous_end
+                        && quiet.end_sample <= next_start
+                        && quiet.end_sample - quiet.start_sample
+                            >= PROPOSED_MIN_QUIET_SAMPLES
+                }) {
+                    continue;
+                }
+                // Punctuation only proposes a boundary; even a period plus
+                // estimated silence cannot establish semantic independence.
+                if !previous.text.trim_end().chars().last()
+                    .is_some_and(|ch| matches!(ch, '.' | '?' | '!' | ';')) {
+                    continue;
+                }
+                latest_candidate = Some(proposed);
+            }
+            let end = latest_candidate.ok_or(ObservationError::NoSafeSegmentBoundary)?;
+            let asr_window = AudioWindow { start_sample: start, end_sample: end };
+            segments.push(LongSpeechSegmentProposal {
+                asr_window,
+                capture_bounds: capture_map.map_window(scope, asr_window)?,
+            });
+            start = end;
+        }
+        let final_window = AudioWindow {
+            start_sample: start,
+            end_sample: window.end_sample,
+        };
+        if final_window.end_sample - final_window.start_sample < PROPOSED_MIN_SEGMENT_SAMPLES {
+            return Err(ObservationError::NoSafeSegmentBoundary);
+        }
+        segments.push(LongSpeechSegmentProposal {
+            asr_window: final_window,
+            capture_bounds: capture_map.map_window(scope, final_window)?,
+        });
+        Ok(segments)
     }
 
     pub fn observe(&mut self, input: AsrObservation) -> Result<ObservationOutcome, ObservationError> {
@@ -748,6 +861,132 @@ mod tests {
         tracker.observe(observation(&id, 2, 0, 9_000, "Server aktif lagi", false)).unwrap();
         assert_eq!(tracker.inspect_estimated_words(&id, 1, window, 8_000, &words, &clock),
             Err(ObservationError::UnmatchedWordTiming));
+    }
+
+
+    // This is a source-only proposal fixture, not a production interpreter
+    // feature: it cannot authorize any ASR/TTS request or spoken playback.
+    #[test]
+    fn long_speech_proposal_preserves_one_nonoverlapping_audio_window() {
+        let id = scope(51);
+        let mut tracker = SourceStabilizer::new(id.clone()).unwrap();
+        let duration_samples = 51 * u64::from(ASR_RATE_HZ);
+        let window = AudioWindow { start_sample: 0, end_sample: duration_samples };
+        let clock = map(&id, 0, duration_samples, 0, duration_samples * 3, 48_000);
+        let w = |text: &str, begin_ms: u64, end_ms: u64| ModelEstimatedWord {
+            text: text.into(),
+            start_sample: begin_ms * u64::from(ASR_RATE_HZ) / 1_000,
+            end_sample: end_ms * u64::from(ASR_RATE_HZ) / 1_000,
+        };
+        let quiet = |begin_ms: u64, end_ms: u64| AudioWindow {
+            start_sample: begin_ms * u64::from(ASR_RATE_HZ) / 1_000,
+            end_sample: end_ms * u64::from(ASR_RATE_HZ) / 1_000,
+        };
+        // These exact ASR-clock quiet observations would have to come from
+        // the producer, not from Whisper word timestamps in a live implementation.
+        let quiet_windows = [
+            quiet(14_600, 14_900),
+            quiet(29_600, 29_900),
+            quiet(44_600, 44_900),
+        ];
+        let words = vec![
+            w("Start", 0, 1_000),
+            w(" now.", 1_000, 14_500),
+            w(" Again", 15_000, 16_000),
+            w(" go.", 16_000, 29_500),
+            w(" Later", 30_000, 31_000),
+            w(" done.", 31_000, 44_500),
+            w(" Finish", 45_000, 46_000),
+            w(" okay.", 46_000, 50_000),
+        ];
+        tracker.observe(observation(&id, 1, 0, duration_samples,
+            "Start now. Again go. Later done. Finish okay.", false)).unwrap();
+        // Whisper's estimated word gap alone never passes the candidate gate.
+        assert_eq!(tracker.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &words, &clock, &[],
+        ), Err(ObservationError::NoSafeSegmentBoundary));
+        let unsupported_quiet = [quiet(13_000, 13_400)];
+        assert_eq!(tracker.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &words, &clock, &unsupported_quiet,
+        ), Err(ObservationError::NoSafeSegmentBoundary));
+        let proposals = tracker.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &words, &clock, &quiet_windows,
+        ).expect("aligned words plus independent PCM quiet yield proposals");
+        let secs: Vec<(u64, u64)> = proposals.iter()
+            .map(|entry| (entry.asr_window.start_sample / u64::from(ASR_RATE_HZ),
+                entry.asr_window.end_sample / u64::from(ASR_RATE_HZ)))
+            .collect();
+        assert_eq!(secs, vec![(0, 15), (15, 30), (30, 45), (45, 51)]);
+        assert_eq!(proposals.first().unwrap().asr_window.start_sample, window.start_sample);
+        assert_eq!(proposals.last().unwrap().asr_window.end_sample, window.end_sample);
+        for pair in proposals.windows(2) {
+            assert_eq!(pair[0].asr_window.end_sample, pair[1].asr_window.start_sample);
+            assert_eq!(pair[0].capture_bounds.end_upper_sample,
+                pair[1].capture_bounds.start_lower_sample);
+        }
+        assert!(proposals.iter().all(|entry|
+            entry.asr_window.end_sample - entry.asr_window.start_sample
+                <= PROPOSED_MAX_SEGMENT_SAMPLES));
+    }
+
+    #[test]
+    fn long_speech_proposal_refuses_unknown_words_semantic_gaps_and_foreign_owners() {
+        let id = scope(52);
+        let mut tracker = SourceStabilizer::new(id.clone()).unwrap();
+        let duration_samples = 45 * u64::from(ASR_RATE_HZ);
+        let window = AudioWindow { start_sample: 0, end_sample: duration_samples };
+        let clock = map(&id, 0, duration_samples, 0, duration_samples * 3, 48_000);
+        tracker.observe(observation(
+            &id, 1, 0, duration_samples, "Saya tidak setuju", false,
+        )).unwrap();
+        let quiet_windows = [
+            AudioWindow { start_sample: 170_000, end_sample: 190_000 },
+            AudioWindow { start_sample: 325_000, end_sample: 340_000 },
+        ];
+        let words = [
+            ModelEstimatedWord { text: "Saya".into(), start_sample: 0, end_sample: 160_000 },
+            ModelEstimatedWord { text: " tidak".into(), start_sample: 240_000, end_sample: 320_000 },
+            ModelEstimatedWord { text: " setuju".into(), start_sample: 352_000, end_sample: 704_000 },
+        ];
+        assert_eq!(tracker.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &words, &clock, &quiet_windows,
+        ), Err(ObservationError::NoSafeSegmentBoundary));
+        let foreign = SourceScope { audio_epoch: 53, ..id.clone() };
+        assert_eq!(tracker.propose_long_speech_segments(
+            &foreign, 1, window, duration_samples, &words, &clock, &quiet_windows,
+        ), Err(ObservationError::UnmatchedWordTiming));
+        assert_eq!(tracker.propose_long_speech_segments(
+            &id, 2, window, duration_samples, &words, &clock, &quiet_windows,
+        ), Err(ObservationError::UnmatchedWordTiming));
+        let wrong_clock = map(&foreign, 0, duration_samples, 0, duration_samples * 3, 48_000);
+        assert_eq!(tracker.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &words, &wrong_clock, &quiet_windows,
+        ), Err(ObservationError::UnmatchedWordTiming));
+        // Estimated silence without an independent PCM observation is
+        // explicitly insufficient, even when the word timestamps agree.
+        let mut punctuated = words.to_vec();
+        punctuated[1].text = " tidak.".into();
+        let mut altered = SourceStabilizer::new(id.clone()).unwrap();
+        altered.observe(observation(
+            &id, 1, 0, duration_samples, "Saya tidak. setuju", false,
+        )).unwrap();
+        assert_eq!(altered.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &punctuated, &clock, &[],
+        ), Err(ObservationError::NoSafeSegmentBoundary));
+        let invalid_quiet = [AudioWindow {
+            start_sample: duration_samples + 1,
+            end_sample: duration_samples + 500,
+        }];
+        assert_eq!(altered.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &punctuated, &clock, &invalid_quiet,
+        ), Err(ObservationError::InvalidQuietEvidence));
+        // Estimated punctuation alone cannot create a valid gap in actual
+        // source-time evidence or become a production ASR boundary.
+        let mut guessed = words.to_vec();
+        guessed[1].text = " tidak.".into();
+        assert_eq!(tracker.propose_long_speech_segments(
+            &id, 1, window, duration_samples, &guessed, &clock, &quiet_windows,
+        ), Err(ObservationError::UnmatchedWordTiming));
     }
 
 
