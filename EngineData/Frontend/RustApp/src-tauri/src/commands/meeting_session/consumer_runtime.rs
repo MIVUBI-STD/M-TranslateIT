@@ -66,6 +66,9 @@ fn incoming_consumer_store() -> &'static Mutex<Option<MeetingIncomingConsumerRun
 }
 
 pub(super) fn ensure_meeting_outbound_consumer(generation: u64, session_id: &str) -> Result<(), String> {
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_outbound:generation_not_authoritative".to_string());
+    }
     {
         let store = outbound_consumer_store()
             .lock().map_err(|_| "meeting_outbound:consumer_state_lock_failed".to_string())?;
@@ -85,6 +88,9 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
         .map_err(|_| "meeting_outbound:consumer_state_lock_failed".to_string())?;
     if guard.is_some() {
         return Err("meeting_outbound:consumer_already_active".to_string());
+    }
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_outbound:generation_not_authoritative".to_string());
     }
 
     let thread_session_id = session_id.to_string();
@@ -180,6 +186,10 @@ pub(super) fn start_meeting_outbound_consumer(generation: u64, session_id: &str)
         session_id: thread_session_for_runtime,
         thread: Some(handle),
     });
+    // Revoked while spawning: retain ownership for canonical Stop teardown.
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_outbound:generation_not_authoritative".to_string());
+    }
     Ok(())
 }
 

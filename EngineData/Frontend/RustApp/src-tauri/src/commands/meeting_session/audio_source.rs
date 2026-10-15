@@ -5,7 +5,10 @@ use crate::engine::audio::meeting_output::{
     cancel_meeting_output_for_generation, start_original_voice_output, stop_original_voice_output,
 };
 use crate::engine::audio::original_voice_pcm;
-use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
+use crate::engine::runtime_state::{
+    latest_runtime_session_state, mark_runtime_session_cleanup_incomplete,
+    runtime_generation_is_authoritative, APPLICATION_MEETING_OWNER_ID,
+};
 use super::super::helper_bridge::{
     get_helper_bridge_status, prepare_required_outbound_ai_runtime,
     required_outbound_voice_actor_token, start_helper_bridge,
@@ -29,6 +32,27 @@ fn response(ok: bool, generation: Option<u64>, message: &str) -> MeetingAudioSou
         message: message.to_string(),
     }
 }
+// AI preparation may overlap Stop. Recheck the session before admitting native
+// output or worker consumers; source switching never owns a second Meeting.
+fn still_live(generation: u64, session_id: &str) -> bool {
+    runtime_generation_is_authoritative(generation)
+        && latest_runtime_session_state().snapshot.is_some_and(|session| {
+            session.generation == generation
+                && session.session_id == session_id
+                && session.owner_id == APPLICATION_MEETING_OWNER_ID
+                && session.authority_active && session.phase == "live"
+        })
+}
+
+// Uncertain native output teardown must never silently enable the other source.
+// Revoke authority and expose canonical Stop as the only recovery action.
+fn require_stop(generation: u64, reason: &str) -> MeetingAudioSourceActionResult {
+    original_voice_pcm::stop(generation);
+    let _ = mark_runtime_session_cleanup_incomplete(generation, true, reason);
+    response(false, Some(generation),
+        "Microphone switching could not safely finish. Audio is blocked; select Stop Microphone to recover.")
+}
+
 /// Switch exactly one source for the already-live Meeting generation.
 pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
     if !matches!(requested, "original" | "translateit") {
@@ -73,18 +97,26 @@ pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
             return response(false, Some(generation),
                 "A usable translation voice is not ready. Original Microphone stays active.");
         }
+        if !still_live(generation, &session_id) {
+            return response(false, Some(generation),
+                "Meeting stopped during translation preparation.");
+        }
         if ensure_meeting_playback_runtime(generation, &session_id).is_err()
             || ensure_meeting_outbound_consumer(generation, &session_id).is_err()
         {
             return response(false, Some(generation),
                 "Translation output could not initialize. Original Microphone stays active.");
         }
-        if reset_finalized_outbound_speech_boundary(&session_id, generation).is_none() {
+        if !still_live(generation, &session_id)
+            || reset_finalized_outbound_speech_boundary(&session_id, generation).is_none()
+        {
             return response(false, Some(generation), "Could not reset the speech boundary.");
         }
         if !stop_original_voice_output(generation) {
-            return response(false, Some(generation),
-                "Original output cleanup is incomplete. Stop Meeting to recover.");
+            return require_stop(generation, "Original output cleanup failed during source switching.");
+        }
+        if !still_live(generation, &session_id) {
+            return response(false, Some(generation), "Meeting stopped during source switching.");
         }
         return response(true, Some(generation), "TranslateIT Audio selected.");
     }
@@ -95,7 +127,9 @@ pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
         Ok(device) => device,
         Err(_) => return response(false, Some(generation), "Virtual microphone route is unavailable."),
     };
-    if reset_finalized_outbound_speech_boundary(&session_id, generation).is_none() {
+    if !still_live(generation, &session_id)
+        || reset_finalized_outbound_speech_boundary(&session_id, generation).is_none()
+    {
         return response(false, Some(generation), "Could not reset the speech boundary.");
     }
     // Epoch cutover invalidates old ASR/MT/TTS and playback callbacks.
@@ -103,15 +137,19 @@ pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
         return response(false, Some(generation), "Original microphone buffer is unavailable.");
     }
     if !cancel_meeting_output_for_generation(generation) {
+        return require_stop(generation, "Translated output cancellation was not confirmed.");
+    }
+    if !still_live(generation, &session_id) {
         original_voice_pcm::stop(generation);
-        return response(false, Some(generation), "Could not cancel previous translated output.");
+        return response(false, Some(generation), "Meeting stopped during source switching.");
     }
     match start_original_voice_output(&output_device, generation, epoch) {
-        Ok(()) => response(true, Some(generation), "Original Microphone selected."),
-        Err(_) => {
+        Ok(()) if still_live(generation, &session_id) =>
+            response(true, Some(generation), "Original Microphone selected."),
+        Ok(()) => {
             original_voice_pcm::stop(generation);
-            response(false, Some(generation),
-                "Original output could not start. Check virtual audio or stop the Meeting.")
+            response(false, Some(generation), "Meeting stopped during source switching.")
         }
+        Err(_) => require_stop(generation, "Original output could not start safely after switching."),
     }
 }

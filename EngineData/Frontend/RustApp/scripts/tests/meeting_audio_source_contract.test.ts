@@ -61,3 +61,21 @@ test("One session uses bounded cleanup, no silent raw speech fallback", () => {
   assert.match(output, /translated_epoch_matches/);
   assert.match(lifecycle, /original_voice_pcm::stop\(generation\)/);
 });
+
+test("unsafe output mode transitions require canonical Stop rather than fallback", () => {
+  const source = read("src-tauri/src/commands/meeting_session/audio_source.rs");
+  assert.match(source, /fn require_stop\(generation: u64, reason: &str\)/);
+  assert.match(source, /mark_runtime_session_cleanup_incomplete\(generation, true, reason\)/);
+  assert.match(source, /Translated output cancellation was not confirmed/);
+  assert.match(source, /Original output cleanup failed during source switching/);
+  assert.match(source, /fn still_live\(generation: u64, session_id: &str\)/);
+});
+
+test("late consumer or playback thread cannot bypass Meeting Stop ownership", () => {
+  const playback = read("src-tauri/src/commands/meeting_session/playback_runtime.rs");
+  const outbound = read("src-tauri/src/commands/meeting_session/consumer_runtime.rs");
+  assert.match(playback, /runtime_generation_is_authoritative\(generation\)/);
+  assert.match(outbound, /runtime_generation_is_authoritative\(generation\)/);
+  assert.match(playback, /canonical Stop cleanup can release and join it/);
+  assert.match(outbound, /retain ownership for canonical Stop teardown/);
+});

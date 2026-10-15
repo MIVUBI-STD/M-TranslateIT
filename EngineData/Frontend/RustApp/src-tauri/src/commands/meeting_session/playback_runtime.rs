@@ -4,6 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use crate::engine::audio::meeting_output::{deliver_meeting_output_wav_for_source, MAX_DELIVERY_DEADLINE_MS};
+use crate::engine::runtime_state::runtime_generation_is_authoritative;
 use crate::engine::audio::original_voice_pcm;
 use crate::engine::audio::meeting_sound_capture::meeting_sound_capture_status;
 
@@ -298,6 +299,9 @@ fn process_playback_job(job: PreparedPlaybackJob, last_sequence: &mut u64) {
 }
 
 pub(super) fn ensure_meeting_playback_runtime(generation: u64, session_id: &str) -> Result<(), String> {
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_playback:generation_not_authoritative".to_string());
+    }
     {
         let store = playback_runtime_store()
             .lock().map_err(|_| "meeting_playback:runtime_state_lock_failed".to_string())?;
@@ -320,6 +324,9 @@ pub(super) fn start_meeting_playback_runtime(
         .map_err(|_| "meeting_playback:runtime_state_lock_failed".to_string())?;
     if guard.is_some() {
         return Err("meeting_playback:runtime_already_active".to_string());
+    }
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_playback:generation_not_authoritative".to_string());
     }
 
     let (sender, receiver) =
@@ -347,6 +354,11 @@ pub(super) fn start_meeting_playback_runtime(
         sender,
         thread: Some(handle),
     });
+    // Stop takes this same owner lock. Keep any raced spawned thread visible
+    // so its canonical Stop cleanup can release and join it.
+    if !runtime_generation_is_authoritative(generation) {
+        return Err("meeting_playback:generation_not_authoritative".to_string());
+    }
     Ok(())
 }
 

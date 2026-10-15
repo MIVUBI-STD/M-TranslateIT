@@ -72,6 +72,13 @@ The feedback example assumes compatible f32 stream configurations; TranslateIT m
 - **Original-first startup added:** `start_original_meeting` uses the same Meeting session ownership and virtual route without starting AI models. Switching from Original to TranslateIT prepares the required worker, voice and translated playback consumer on demand. Windows device renaming and custom branded driver remain separate tasks and are NOT claimed.
 - Production-level validation remains UNKNOWN: no compiler, CPAL callback execution, real VB-CABLE receiver, latency or multi-device tests have been run for this revision. One selected virtual device is retained; no Python output pipeline or second physical microphone capture was introduced.
 
+## Code audit: Stop vs source switch safety — 2026-10-15
+
+- A source change can prepare AI while a concurrent Stop revokes Meeting authority. Late consumer/playback admission must reject revoked generations, and any just-spawned thread must remain visible to the existing Stop resource owner.
+- Source-switch admission now rechecks the Live session identity after AI readiness and before native source cutover.
+- If native Original output stop/start or translated output cancellation cannot be confirmed, source switching revokes audio authority and marks the same Meeting for canonical Stop cleanup. No automatic source fallback is allowed after uncertain native teardown.
+- Evidence remains **REMOTE_GITHUB source inspection only**; Rust/TypeScript tests, Windows callback behavior and application meeting reception were not executed.
+
 ## Next code delivery
 
 The source selector, epoch-gated TTS, and Original PCM output now exist on Local. Next, address any source-level compile or contract findings, then perform the one authorized integrated local build/package and TARGET_WINDOWS microphone-receiver acceptance. Original-only startup without AI readiness and device naming in Windows remain separate, unapplied product scope. Do not claim audio reception or validation before executed evidence.
