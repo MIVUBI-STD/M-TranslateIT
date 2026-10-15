@@ -3,9 +3,8 @@
   import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
   import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { availableMonitors, getCurrentWindow, primaryMonitor } from "@tauri-apps/api/window";
-  import { ArrowLeft, History, Maximize2, Minus, Pause, Play, X } from "@lucide/svelte";
+  import { Maximize2, Minus, X } from "@lucide/svelte";
   import { onMount, tick } from "svelte";
-  import { runtimeApi } from "../app/bridge/runtimeApi";
   import {
     TRANSLATION_OVERLAY_EVENT,
     TRANSLATION_OVERLAY_CLEAR_EVENT,
@@ -19,13 +18,10 @@
     fitOverlayWidth,
     fitOverlayHeight,
     isProgrammaticOverlayMove,
-    overlayMeetingSession,
     mayPresentOverlayCaption,
     overlayFontSize,
     overlayWidth,
-    recentMeetingCaptions,
     type PhysicalRect,
-    type RecentCaptionEntry,
     type TranslationOverlayPayload,
     type TranslationOverlayClearPayload,
     type TranslationOverlayPreferences,
@@ -41,29 +37,19 @@
   } from "../app/runtime/translationOverlayState";
 
   const COLLAPSED_WIDTH = 260;
-  const HISTORY_HEIGHT = 420;
   let caption = $state<TranslationOverlayPayload | null>(null);
   let preferences = $state<TranslationOverlayPreferences>(readOverlayPreferences());
   let captionBody = $state<HTMLDivElement | null>(null);
   let captionText = $state<HTMLParagraphElement | null>(null);
-  let historyBody = $state<HTMLDivElement | null>(null);
-  let historyButton = $state<HTMLButtonElement | null>(null);
   let measuredCaptionHeight = $state(0);
   let disposed = false;
   let lastAutomaticPosition: { x: number; y: number } | null = null;
   let layoutQueue: Promise<void> = Promise.resolve();
   let layoutPending = false;
-  let historyRequestId = 0;
-  let historyOpen = $state(false);
-  let historyLoading = $state(false);
-  let historyEntries = $state<RecentCaptionEntry[]>([]);
-  let historyMessage = $state("");
-  let captionsPaused = $state(false);
-  let pendingCaption = $state<TranslationOverlayPayload | null>(null);
 
   const collapsed = $derived(preferences.visibility === "collapsed");
   const currentWidth = $derived(collapsed ? COLLAPSED_WIDTH : overlayWidth(preferences.width));
-  const currentHeight = $derived(historyOpen ? HISTORY_HEIGHT : captionHeightForContent(measuredCaptionHeight, preferences.textSize, collapsed));
+  const currentHeight = $derived(captionHeightForContent(measuredCaptionHeight, preferences.textSize, collapsed));
   const fontSize = $derived(overlayFontSize(preferences.textSize));
 
   function languageLabel(language: string): string {
@@ -137,7 +123,7 @@
 
   async function resizeCaption(): Promise<void> {
     await tick();
-    if (disposed || historyOpen || collapsed) return;
+    if (disposed || collapsed) return;
     const measured = captionText?.scrollHeight ?? 0;
     if (measured === measuredCaptionHeight) return;
     measuredCaptionHeight = measured;
@@ -152,7 +138,6 @@
       await getCurrentWindow().hide();
       return;
     }
-    if (next.visibility === "collapsed") historyOpen = false;
     await scheduleLayout();
     await resizeCaption();
     try { await getCurrentWindow().setIgnoreCursorEvents(next.clickThrough); }
@@ -171,96 +156,26 @@
     await hideTranslationOverlay();
     preferences = readOverlayPreferences();
   }
-  async function openRecentHistory(): Promise<void> {
-    const requestedSession = overlayMeetingSession(caption);
-    if (historyLoading || !requestedSession || preferences.visibility === "hidden") return;
-    const requestId = ++historyRequestId;
-    historyLoading = true;
-    let snapshot: Awaited<ReturnType<typeof runtimeApi.getMeetingCommittedTurns>> | null = null;
-    try { snapshot = await runtimeApi.getMeetingCommittedTurns(); }
-    catch { /* Only a generic availability message is shown. */ }
-    if (requestId === historyRequestId) historyLoading = false;
-    // The native request can finish after Hide, session rollover, or a newer review request.
-    if (disposed || requestId !== historyRequestId || overlayIsHidden()
-      || overlayMeetingSession(caption) !== requestedSession) return;
-    if (snapshot?.ok && snapshot.has_session && snapshot.session_id === requestedSession) {
-      historyEntries = recentMeetingCaptions(snapshot, 20);
-      historyMessage = historyEntries.length === 0 ? "No recent committed translations yet." : "";
-    } else {
-      historyEntries = [];
-      historyMessage = "Recent translations are unavailable right now.";
-    }
-    historyOpen = true;
-    await scheduleLayout();
-    await tick();
-    if (!disposed && historyOpen) historyBody?.focus();
-  }
-  function overlayIsHidden(): boolean {
-    return preferences.visibility === "hidden";
-  }
-
-  async function closeRecentHistory(): Promise<void> {
-    historyRequestId += 1;
-    historyOpen = false;
-    historyMessage = "";
-    historyEntries = [];
-    await scheduleLayout();
-    await resizeCaption();
-    await tick();
-    if (!disposed) historyButton?.focus();
-  }
-
   async function applyCaption(next: TranslationOverlayPayload): Promise<void> {
-    // Read cross-window visibility at delivery, not from potentially delayed events.
+    // Ignore duplicates and stale Meeting revisions without buffering old private text.
     if (disposed || !mayPresentOverlayCaption(readOverlayPreferences(), next)
-      || !shouldAcceptOverlayCaption(pendingCaption ?? caption, next)) return;
-    if (overlayMeetingSession(caption) !== overlayMeetingSession(next)) {
-      historyRequestId += 1;
-      historyOpen = false;
-      historyEntries = [];
-      historyMessage = "";
-      captionsPaused = false;
-      pendingCaption = null;
-    }
-    if (captionsPaused && next.source === "meeting") {
-      pendingCaption = next;
-      return;
-    }
-    if (next.source !== "meeting") captionsPaused = false;
+      || !shouldAcceptOverlayCaption(caption, next)) return;
     caption = next;
-    pendingCaption = null;
     await resizeCaption();
     if (next.source === "meeting" && captionBody) captionBody.scrollTop = 0;
   }
 
   function clearCaption(): void {
-    historyRequestId += 1;
-    historyLoading = false;
     caption = null;
-    pendingCaption = null;
-    historyEntries = [];
-    historyOpen = false;
-    captionsPaused = false;
     measuredCaptionHeight = 0;
     void scheduleLayout();
   }
 
   function onOverlayKeydown(event: KeyboardEvent): void {
-    if (event.key !== "Escape") return;
-    if (historyOpen) { event.preventDefault(); void closeRecentHistory(); }
-    else if (preferences.visibility !== "hidden") { event.preventDefault(); void hide(); }
-  }
-
-  async function togglePause(): Promise<void> {
-    if (caption?.source !== "meeting") return;
-    if (captionsPaused) {
-      captionsPaused = false;
-      const latest = pendingCaption;
-      pendingCaption = null;
-      if (latest?.source === "meeting") await applyCaption(latest);
-      return;
+    if (event.key === "Escape" && preferences.visibility !== "hidden") {
+      event.preventDefault();
+      void hide();
     }
-    captionsPaused = true;
   }
 
   // Observe actual wrap changes after DPI, language/font and native window width updates.
@@ -289,7 +204,7 @@
       if (!await track(listen<TranslationOverlayClearPayload>(TRANSLATION_OVERLAY_CLEAR_EVENT, (event) => {
         if (disposed) return;
         const onlyRevision = event.payload?.onlyRevision;
-        if (onlyRevision && caption?.revision !== onlyRevision && pendingCaption?.revision !== onlyRevision) return;
+        if (onlyRevision && caption?.revision !== onlyRevision) return;
         clearCaption();
       }))) return;
       if (!await track(listen<TranslationOverlayPreferences>(TRANSLATION_OVERLAY_PREFERENCES_EVENT, () => {
@@ -329,30 +244,14 @@
   <section class="caption-card" aria-label="Floating translation caption">
     <header class="caption-header" data-tauri-drag-region>
       <div class="caption-meta" data-tauri-drag-region>
-        {#if historyOpen}
-          <span>RECENT · {historyEntries.length}</span>
-        {:else if caption?.source === "meeting"}
-          <span class:paused-dot={captionsPaused} class="live-dot" aria-hidden="true"></span>
-          <span>{captionsPaused ? "PAUSED" : "LIVE"} · {languageLabel(caption.language)}</span>
+        {#if caption?.source === "meeting"}
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>MEETING · {languageLabel(caption.language)}</span>
         {:else}
           <span>{caption ? languageLabel(caption.language) : "TRANSLATION"}</span>
         {/if}
       </div>
       <div class="caption-controls">
-        {#if historyOpen}
-          <button type="button" class="caption-control" aria-label="Back to live caption" title="Back to live" onclick={() => void closeRecentHistory()}><ArrowLeft size={15} /></button>
-        {:else if caption?.source === "meeting" && !collapsed}
-          <button
-            type="button"
-            class="caption-control"
-            aria-label={captionsPaused ? "Resume floating captions" : "Pause floating captions"}
-            title={captionsPaused ? "Resume captions" : "Pause captions"}
-            onclick={() => void togglePause()}
-          >
-            {#if captionsPaused}<Play size={15} />{:else}<Pause size={15} />{/if}
-          </button>
-          <button type="button" bind:this={historyButton} class="caption-control" aria-label="Show recent translations" title="Recent translations" disabled={historyLoading} onclick={() => void openRecentHistory()}><History size={15} /></button>
-        {/if}
         <button type="button" class="caption-control" aria-label={collapsed ? "Expand floating caption" : "Collapse floating caption"} title={collapsed ? "Expand" : "Collapse"} onclick={() => void setVisibility(collapsed ? "expanded" : "collapsed")}>
           {#if collapsed}<Maximize2 size={15} />{:else}<Minus size={16} />{/if}
         </button>
@@ -360,31 +259,10 @@
       </div>
     </header>
     {#if !collapsed}
-      {#if historyOpen}
         <!-- svelte-ignore a11y_no_noninteractive_tabindex (Named scroll regions need keyboard focus to scroll their read-only text.) -->
-        <div class="history-body" bind:this={historyBody} role="region" tabindex="0" aria-label="Recent committed translations">
-          {#if historyMessage}
-            <p class="history-empty">{historyMessage}</p>
-          {:else}
-            {#each historyEntries as entry (entry.sequence)}
-              <article class="history-entry">
-                <div class="history-entry-meta">
-                  <span>{entry.lane === "incoming" ? "THEM" : "YOU"}</span>
-                  {#if entry.createdUnixMs > 0}
-                    <time datetime={new Date(entry.createdUnixMs).toISOString()}>{new Date(entry.createdUnixMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
-                  {/if}
-                </div>
-                <p lang={entry.language}>{entry.text}</p>
-              </article>
-            {/each}
-          {/if}
-        </div>
-      {:else}
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex (Named scroll regions need keyboard focus to scroll their read-only text.) -->
-        <div class="caption-body" bind:this={captionBody} role="region" tabindex="0" aria-label="Current translation" aria-live={captionsPaused ? "off" : "polite"} aria-atomic="true">
+        <div class="caption-body" bind:this={captionBody} role="region" tabindex="0" aria-label="Current translation" aria-live="polite" aria-atomic="true">
           {#if caption}<p lang={caption.language} bind:this={captionText}>{caption.text}</p>{:else}<p class="caption-placeholder">Your latest translation will appear here.</p>{/if}
         </div>
-      {/if}
     {/if}
   </section>
 </main>

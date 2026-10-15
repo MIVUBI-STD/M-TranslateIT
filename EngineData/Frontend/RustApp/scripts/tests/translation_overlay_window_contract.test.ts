@@ -83,20 +83,20 @@ test("caption resize and native subscriptions have bounded lifecycle ownership",
   assert.match(overlayPage, /recordOverlayError\("Floating caption setup is unavailable\."\)/);
 });
 
-test("screen-reader caption and bounded transcript regions are keyboard reachable", () => {
+test("only the current caption is keyboard readable and controls are minimal", () => {
   assert.match(overlayPage, /role="region" tabindex="0" aria-label="Current translation"/);
-  assert.match(overlayPage, /role="region" tabindex="0" aria-label="Recent committed translations"/);
-  assert.match(overlayPage, /aria-live=\{captionsPaused \? "off" : "polite"\}/);
-  assert.match(overlayPage, /historyBody\?\.focus\(\)/);
-  assert.match(overlayPage, /historyButton\?\.focus\(\)/);
+  assert.match(overlayPage, /aria-live="polite"/);
+  assert.match(overlayPage, /aria-label="Hide floating caption"/);
+  assert.match(overlayPage, /Collapse floating caption/);
+  assert.doesNotMatch(overlayPage, /togglePause|captionsPaused|pendingCaption|Show recent translations|recentMeetingCaptions|openRecentHistory|historyOpen/);
+  assert.doesNotMatch(overlayPage, /getMeetingCommittedTurns\(\)/);
 });
 
-test("stale Meeting review responses cannot restore private text after Hide or session rollover", () => {
-  assert.match(overlayPage, /requestedSession = overlayMeetingSession\(caption\)/);
-  assert.match(overlayPage, /requestId !== historyRequestId/);
-  assert.match(overlayPage, /snapshot\.session_id === requestedSession/);
-  assert.match(overlayPage, /historyRequestId \+= 1/);
+test("stale Meeting updates and Hide cannot restore private caption text", () => {
+  assert.match(overlayPage, /shouldAcceptOverlayCaption\(caption, next\)/);
+  assert.match(overlayPage, /onlyRevision && caption\?\.revision !== onlyRevision/);
   assert.match(overlayPage, /clearCaption\(\);\s*await hideTranslationOverlay\(\)/);
+  assert.match(overlayPage, /caption = null;/);
 });
 
 test("native preference delivery errors remain bounded and user recoverable", () => {
@@ -129,7 +129,7 @@ test("Meeting end and reset revoke the previous caption, never a newer Text over
   assert.match(meetingLiveController, /await clearLatestMeetingOverlay\(\)/);
   assert.match(overlayRuntime, /if \(previous\?\.source !== "meeting"\) return/);
   assert.match(overlayRuntime, /onlyRevision: previous\.revision/);
-  assert.match(overlayPage, /caption\?\.revision !== onlyRevision && pendingCaption\?\.revision !== onlyRevision/);
+  assert.match(overlayPage, /onlyRevision && caption\?\.revision !== onlyRevision/);
   assert.match(overlayRuntime, /if \(!caption\) \{\s*await clearLatestMeetingOverlay\(\)/);
 });
 

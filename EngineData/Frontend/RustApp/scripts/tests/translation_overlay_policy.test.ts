@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove, overlayMeetingSession, mayPresentOverlayCaption } from "../../src/app/runtime/translationOverlayPolicy.ts";
+import { bestWorkAreaForWindow, clampPositionToWorkArea, defaultBottomCenterPosition, intersectionArea, latestMeetingCaption, normalizeOverlayText, overlayFontSize, overlayHeightForTextSize, overlayWidth, shouldAcceptOverlayCaption, captionHeightForContent, fitOverlayWidth, fitOverlayHeight, isProgrammaticOverlayMove, mayPresentOverlayCaption } from "../../src/app/runtime/translationOverlayPolicy.ts";
 
 test("floating caption normalizes text without inventing content", () => {
   assert.equal(normalizeOverlayText("  Hello world.  "), "Hello world.");
@@ -75,11 +75,11 @@ test("automatic overlay placement events do not overwrite intentional position",
   assert.equal(isProgrammaticOverlayMove({ x: 650, y: 700 }, null), false);
 });
 
-test("Meeting revision parsing retains compound session IDs and rejects malformed sequences", () => {
-  assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "meeting", revision: "meeting:s:20" }), "meeting:s");
-  assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "meeting", revision: "meeting:s:bad" }), null);
-  assert.equal(overlayMeetingSession({ text: "hi", language: "en", source: "text", revision: "meeting:s:20" }), null);
-  assert.equal(overlayMeetingSession(null), null);
+test("compound Meeting session IDs still reject stale captions", () => {
+  const current = { text: "current", language: "en", source: "meeting" as const, revision: "meeting:s:20" };
+  assert.equal(shouldAcceptOverlayCaption(current, { ...current, revision: "meeting:s:19" }), false);
+  assert.equal(shouldAcceptOverlayCaption(current, { ...current, revision: "meeting:s:21" }), true);
+  assert.equal(shouldAcceptOverlayCaption(current, { ...current, revision: "meeting:other:1" }), true);
 });
 
 test("visibility admission denies hidden or disabled Meeting content", () => {

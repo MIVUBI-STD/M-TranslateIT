@@ -9,6 +9,8 @@ const state = readFileSync(new URL("../../src/app/runtime/translationOverlayStat
 
 test("caption customization stays limited to readability controls", () => {
   assert.match(owner, /Text size/);
+  assert.match(owner, /<summary[^>]*>More caption options<\/summary>/);
+  assert.match(owner, /<details/);
   assert.match(owner, /Reading width/);
   assert.match(owner, /Contrast/);
   assert.doesNotMatch(owner, /font family|color picker|shadow|opacity slider/i);
@@ -22,6 +24,7 @@ test("caption width and contrast persist as bounded presets", () => {
   assert.match(overlay, /translation-overlay\.css/);
   assert.match(overlayCss, /\.overlay-shell\.high-contrast \.caption-card/);
   assert.match(owner, /Allow clicks through caption/);
+  assert.match(owner, /Show caption window/);
 });
 
 test("floating caption preferences belong directly to Meeting Settings", () => {

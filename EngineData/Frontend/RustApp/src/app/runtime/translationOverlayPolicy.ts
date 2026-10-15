@@ -44,28 +44,15 @@ export function shouldAcceptOverlayCaption(current: TranslationOverlayPayload | 
   return !Number.isSafeInteger(previous) || !Number.isSafeInteger(upcoming) || upcoming > previous;
 }
 
-// Meeting captions carry a session-specific revision (session id + committed sequence).
-// This identity is used only to guard temporary review data, never as persistent history.
-export function overlayMeetingSession(payload: TranslationOverlayPayload | null): string | null {
-  if (payload?.source !== "meeting") return null;
-  const separator = payload.revision.lastIndexOf(":");
-  if (separator <= 0) return null;
-  const sequence = Number(payload.revision.slice(separator + 1));
-  if (!Number.isSafeInteger(sequence) || sequence < 0) return null;
-  return payload.revision.slice(0, separator);
-}
-
 export type PhysicalPoint = { x: number; y: number };
 export type PhysicalRect = { x: number; y: number; width: number; height: number };
 
 type MeetingTurnLike = {
   sequence: number;
   lane: string;
-  source_language?: string;
   target_language?: string;
   translated_text: string;
   translation_state?: "pending" | "translated" | "failed";
-  created_unix_ms?: number;
 };
 type MeetingTurnsLike = { ok: boolean; has_session: boolean; session_id: string | null; turns: MeetingTurnLike[]; };
 
@@ -174,28 +161,3 @@ export function defaultBottomCenterPosition(windowWidth: number, windowHeight: n
 }
 
 
-export type RecentCaptionEntry = {
-  sequence: number;
-  lane: string;
-  text: string;
-  language: string;
-  createdUnixMs: number;
-};
-
-export function recentMeetingCaptions(snapshot: MeetingTurnsLike | null, limit = 20): RecentCaptionEntry[] {
-  if (!snapshot?.ok || !snapshot.has_session || !snapshot.session_id) return [];
-  const boundedLimit = Math.max(1, Math.min(20, Math.trunc(limit) || 20));
-  return [...snapshot.turns]
-    .filter((turn) => normalizeOverlayText(turn.translated_text).length > 0)
-    .sort((left, right) => right.sequence - left.sequence)
-    .slice(0, boundedLimit)
-    .map((turn) => ({
-      sequence: turn.sequence,
-      lane: turn.lane,
-      text: normalizeOverlayText(turn.translated_text),
-      language: turn.target_language === "id" || turn.target_language === "en"
-        ? turn.target_language
-        : turn.lane === "incoming" ? "id" : "en",
-      createdUnixMs: "created_unix_ms" in turn && typeof turn.created_unix_ms === "number" ? turn.created_unix_ms : 0,
-    }));
-}
