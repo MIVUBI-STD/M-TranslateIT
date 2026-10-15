@@ -613,6 +613,8 @@
         ? "GPU detected — this trainer needs an unsupported precision profile" : computeStatus?.admission_state === "blocked_gpu_headroom"
         ? "Insufficient free GPU memory" : "Training hardware unavailable"}
     </p>
+    <details class="mt-3 border-t border-[var(--ti-border)] pt-3">
+      <summary class="cursor-pointer text-xs font-medium text-[var(--ti-text-muted)]">Technical device details</summary>
     {#if computeStatus}
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">CPU: {computeStatus.cpu_name}</p>
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">
@@ -628,6 +630,7 @@
     {:else if !computeChecking}
       <p class="mb-0 mt-1 text-xs text-[var(--ti-text-muted)]">Recheck to identify your local compute environment before creating a voice.</p>
     {/if}
+    </details>
   </div>
 
   <div class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-4 py-3.5">
@@ -725,17 +728,23 @@
     {/if}
   {/if}
 
-  <QuickVoicePreview
-    {build}
-    busy={busy || statusCheckUnavailable}
-    {quickPreviewBusy}
-    {quickPreviewReady}
-    {quickPreviewPlaying}
-    {quickPreviewLoading}
-    bind:previewAuthorized
-    bind:quickPreviewOptionsOpen
-    onGenerate={generateQuickPreview}
-    onPlay={playQuickPreview}
-  />
+  <details class="mt-5 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)]">
+    <summary class="cursor-pointer px-4 py-3 text-sm font-medium">Advanced: temporary voice sample</summary>
+    <div class="border-t border-[var(--ti-border)] p-4">
+      <p class="mb-0 text-xs leading-5 text-[var(--ti-text-muted)]">Optional experiment. This sample cannot be selected as a Meeting voice; it does not replace training or final voice review.</p>
+      <QuickVoicePreview
+        {build}
+        busy={busy || statusCheckUnavailable}
+        {quickPreviewBusy}
+        {quickPreviewReady}
+        {quickPreviewPlaying}
+        {quickPreviewLoading}
+        bind:previewAuthorized
+        bind:quickPreviewOptionsOpen
+        onGenerate={generateQuickPreview}
+        onPlay={playQuickPreview}
+      />
+    </div>
+  </details>
   <p class="mb-0 mt-5 text-xs leading-5 text-[var(--ti-text-soft)]">Only a trained, evaluated and explicitly approved My Voice can be selected for Meeting. Quick Preview is not an output voice.</p>
 </section>

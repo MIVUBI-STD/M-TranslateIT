@@ -67,6 +67,7 @@
   let buildSnapshot = $state<MyVoiceBuildStatus | null>(null);
   let buildStatusUnavailable = $state(false);
   let selectedPane = $state<"auto" | "record" | "create" | "review">("auto");
+  let creatorOpen = $state(false);
   let browseLinesOpen = $state(false);
   let browseLevel = $state("all");
   let browseFocus = $state("all");
@@ -302,6 +303,15 @@
   const currentLine = $derived(recordingState.lines.find((line) => line.line_id === selectedLineId) ?? null);
   const isRecording = $derived(recordingState.recording_line_id !== null);
   const pendingLineId = $derived(recordingState.pending_review?.line_id ?? null);
+  // Keep the creator mounted while hidden: its build status owns Stop/Review recovery.
+  const creatorNeedsAttention = $derived(Boolean(
+    recordingStatusUnknown || isRecording || pendingLineId !== null
+    || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active
+    || buildSnapshot?.evaluation_ready,
+  ));
+  $effect(() => {
+    if (creatorNeedsAttention) creatorOpen = true;
+  });
 
   function builtinLabel(voiceId: BuiltinVoiceId): string {
     return voiceId === "MaleVoice" ? "Built-in Male" : "Built-in Female";
@@ -783,9 +793,21 @@
     </div>
   {/if}
 
+  <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--ti-border)] pt-5">
+    <div class="min-w-0">
+      <h3 class="mb-0 text-base font-semibold">Create your own voice</h3>
+      <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">Optional. Built-in voices work without recording or training.</p>
+    </div>
+    <button type="button" class="ti-button ti-button-secondary"
+      aria-controls="my-voice-create-workspace" aria-expanded={creatorOpen}
+      disabled={creatorNeedsAttention}
+      onclick={() => { creatorOpen = !creatorOpen; }}>
+      {creatorNeedsAttention ? "Creation in progress" : creatorOpen ? "Hide creation steps" : "Create My Voice"}
+    </button>
+  </div>
 
-
-  <section class="border-t border-[var(--ti-border)] pt-5" aria-labelledby="my-voice-create-title">
+  <section id="my-voice-create-workspace" hidden={!creatorOpen}
+    class="border-t border-[var(--ti-border)] pt-5" aria-labelledby="my-voice-create-title">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h3 id="my-voice-create-title" class="mb-0 text-xl font-semibold tracking-[-0.02em]">Create My Voice</h3>
@@ -1037,10 +1059,15 @@
         refreshRevision={buildRefreshRevision} />
     </div>
   </section>
-  <div class="mt-8 border-t border-[var(--ti-border)] pt-6">
-    <h3 class="mb-0 text-lg font-semibold">Saved voices &amp; tools</h3>
-    <p class="mb-0 mt-1 text-sm leading-5 text-[var(--ti-text-muted)]">Manage earlier recordings, voice versions and backups when you need them.</p>
-  </div>
+  <details class="mt-6 overflow-hidden rounded-[var(--ti-radius-md)] border border-[var(--ti-border)]" aria-label="Saved voice management">
+    <summary class="cursor-pointer px-5 py-4 text-sm font-semibold">
+      Saved voices &amp; backups
+      {#if legacyProtectionUnknown || (legacyProtection?.attention_sources ?? 0) > 0}
+        <span class="ml-2 text-xs font-medium text-[var(--ti-warning)]">Recording storage needs attention</span>
+      {/if}
+    </summary>
+    <div class="border-t border-[var(--ti-border)] px-5 pb-5">
+      <p class="mb-0 mt-4 text-sm leading-5 text-[var(--ti-text-muted)]">Advanced tools for earlier recordings, saved voice versions and backups. Your current Meeting voice is unchanged by opening these tools.</p>
   <section class="mt-4" aria-label="Recording library">
     <button type="button" class="text-left text-sm font-medium text-[var(--ti-text-muted)] underline underline-offset-4"
       aria-expanded={savedLibraryOpen}
@@ -1188,5 +1215,7 @@
     </section>
   {/if}
 
+    </div>
+  </details>
 
 </section>
