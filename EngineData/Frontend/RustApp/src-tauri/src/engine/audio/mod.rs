@@ -7,6 +7,7 @@ pub mod live_audio_buffer;
 pub mod live_capture;
 pub mod live_segment_writer;
 pub mod meeting_output;
+pub mod original_voice_pcm;
 pub mod meeting_sound_capture;
 // Deterministic handoff prototype: production callback remains unchanged until
 // offline Rust execution and matched device tests prove the new boundary.

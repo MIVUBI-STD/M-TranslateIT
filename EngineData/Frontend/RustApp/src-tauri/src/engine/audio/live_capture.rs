@@ -7,6 +7,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::device_selection::resolve_unique_named_device;
+use super::original_voice_pcm;
 use super::finalized_utterance::{
     bind_finalized_outbound_capture_errors, clear_finalized_outbound_utterance_producer,
     observe_finalized_outbound_f32_samples,
@@ -348,6 +349,7 @@ fn build_stream_for_format(
                     move |data: &[f32], _| {
                         record_frames(data.len(), channels, &frames);
                         if channels <= 1 {
+                            original_voice_pcm::try_push_mono(data, sample_rate_hz);
                             // The common mono-F32 path needs no conversion buffer.
                             publish_runtime_native_f32_mono(
                                 data,
@@ -356,6 +358,7 @@ fn build_stream_for_format(
                             );
                         } else {
                             downmix_f32_into(data, channels, &mut mono_scratch);
+                            original_voice_pcm::try_push_mono(&mono_scratch, sample_rate_hz);
                             publish_runtime_mono(
                                 &mono_scratch,
                                 sample_rate_hz,
@@ -390,6 +393,7 @@ fn build_stream_for_format(
                         // happen in one pass instead of allocating a converted Vec and
                         // then allocating another mono Vec for every callback.
                         mono_f32_from_i16_into(data, channels, &mut mono_scratch);
+                        original_voice_pcm::try_push_mono(&mono_scratch, sample_rate_hz);
                         publish_runtime_mono(
                             &mono_scratch,
                             sample_rate_hz,
@@ -417,6 +421,7 @@ fn build_stream_for_format(
                     move |data: &[u16], _| {
                         record_frames(data.len(), channels, &frames);
                         mono_f32_from_u16_into(data, channels, &mut mono_scratch);
+                        original_voice_pcm::try_push_mono(&mono_scratch, sample_rate_hz);
                         publish_runtime_mono(
                             &mono_scratch,
                             sample_rate_hz,
