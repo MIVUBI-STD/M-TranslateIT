@@ -54,7 +54,7 @@ Production rules:
 - RuntimeAssets readiness requires `.translateit_model_revision` to match the pinned revision;
 - no M2M100/Marian/second-translator fallback/router.
 
-Meeting translation context is bounded by the Rust/session contract: outbound may include the last three committed own-voice ID→EN pairs; incoming remains context-free; standalone Text does not inherit Meeting context.
+Meeting translation is context-free across turns: outbound ID→EN uses only the current finalized Indonesian utterance; incoming EN→ID uses only the current finalized English utterance. Standalone Text uses only its current input. Prior translated pairs, transcript history, and historical `context_pairs` are not supplied to MiLMMT. Transcript retention is for review/export only.
 
 ## ASR and Meeting voice
 

@@ -2,9 +2,9 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current bounded delivery:** Meeting's existing speech-loss counts are visible in the Live activity view without speaker attribution or new polling. Text Translation now preserves Rust review metadata for both freshly translated text and cache hits, displays actual hints, and clears stale review guidance after source/direction/translation edits. No translation inference, voice engine, or runtime quality policy changed. Frontend regression contracts authored; tests, compiler and Windows validation NOT EXECUTED.
+**Current bounded delivery:** Live Meeting now exposes native speech-loss counters and Text displays fresh/cached review warnings, both through their existing source owners. The Python worker README was corrected to match the actual current-utterance-only MiLMMT contract; no model prompt or runtime inference code changed. All claims remain `STATIC_SOURCE`, with compiler/tests/Windows acceptance NOT EXECUTED.
 
-**Next:** Reconcile the remaining source audit findings (translation context documentation, responsive window constraints, and transcript export crash-safe write), prioritizing one owner per bounded change before the integrated test-ready candidate gate.
+**Next:** Make manual Meeting transcript export crash-safe using the existing Rust export owner, preserving privacy, session scoping and honest status messages. Responsive display dimensions need a rendered layout test before guessing a new minimum.
 
 ## Retained My Voice source candidate (paused)
 
@@ -213,11 +213,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Reconcile the stale Python worker context description with the canonical
-current-utterance-only Meeting contract (no historical translation pairs).
-Then review remaining source-proven issues without expanding the model or
-runtime architecture. Preserve the single integrated Windows acceptance
-phase; compiler and native results remain `UNKNOWN / NOT EXECUTED`.
+Harden manual Meeting transcript export in its existing Rust owner so an
+interrupted write cannot publish a partial final TXT/Markdown file. Keep
+exports explicit and session-scoped, and record any remaining durability
+limitations. Do not lower the Windows minimum window size without rendered
+DPI/layout evidence. Compiler and native status remain
+`UNKNOWN / NOT EXECUTED`.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.
