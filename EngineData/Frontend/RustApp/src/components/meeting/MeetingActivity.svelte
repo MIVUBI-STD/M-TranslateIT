@@ -26,6 +26,11 @@
       ? [...turns.turns].sort((a, b) => a.sequence - b.sequence)
       : [],
   );
+  // Existing producer counters aggregate You + incoming Meeting Sound, not speakers.
+  const overflowDropped = $derived(status.outbound.overflow_dropped_utterance_count ?? 0);
+  const pendingEvicted = $derived(status.outbound.evicted_pending_utterance_count ?? 0);
+  const missingSpeech = $derived(overflowDropped > 0 || pendingEvicted > 0);
+
   const activity = $derived.by((): { label: string; detail: string; warning: boolean } => {
     if (meeting.busy) return { label: meeting.label, detail: "", warning: false };
     if (status.outbound.output_active) {
@@ -116,6 +121,15 @@
   {/if}
   {#if status.incoming.degraded}
     <p class="m-0 text-sm leading-6 text-[var(--ti-warning)]">Incoming captions are unavailable. Your voice translation can continue.</p>
+  {/if}
+  {#if missingSpeech}
+    <p class="m-0 rounded-[var(--ti-radius-sm)] border border-[var(--ti-warning-border)] px-3 py-2 text-sm leading-6 text-[var(--ti-warning)]"
+      role="status" aria-live="polite">
+      Some meeting speech was not processed:
+      {#if overflowDropped > 0}{overflowDropped} overlong speech segment{overflowDropped === 1 ? "" : "s"} skipped{/if}{#if overflowDropped > 0 && pendingEvicted > 0}; {/if}{#if pendingEvicted > 0}{pendingEvicted} pending speech segment{pendingEvicted === 1 ? "" : "s"} evicted when processing fell behind{/if}.
+      These counts combine your microphone and incoming meeting audio; they do not identify a speaker.
+      Important details may need repeating.
+    </p>
   {/if}
 
   <section class="border-t border-[var(--ti-border)] pt-4" aria-label="Translated conversation">

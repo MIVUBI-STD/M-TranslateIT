@@ -2,9 +2,9 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current bounded delivery:** Outbound/incoming consumers, physical microphone/Meeting Sound capture, and playback retain exact JoinHandle ownership after bounded 500 ms Stop waits. Capture Start failure keeps an unconfirmed thread; Mic Test preserves its cleanup generation and late incoming activation requests scoped Stop. Playback closes queue admission without detaching the consumer; Retry Stop may finish cleanup later. Inline Rust regression tests are authored, NOT EXECUTED. Other lifecycle owners and actual Windows driver behavior are NOT certified.
+**Current bounded delivery:** Capture, consumer and playback cleanup retain thread ownership after bounded waits. Live Meeting now displays canonical overflow and eviction counts, freshly read from the existing runtime status. Counters aggregate microphone and incoming lanes; the UI does not invent speaker attribution or delivery success. Source-contract fixture authored, NOT EXECUTED; compiler and Windows audio/UI evidence remain unknown.
 
-**Next:** Surface missing/evicted finalized Meeting utterances in the normal Meeting UI using existing runtime counters (no second tracking state), then restore Text translation review hints as a separate presentation change. Native C4/C5 acceptance remains NOT EXECUTED.
+**Next:** Restore Text Translation review warnings on fresh and cached results using existing Rust-owned hints and state policy.
 
 ## Retained My Voice source candidate (paused)
 
@@ -213,12 +213,11 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Surface bounded queue overflow/eviction information from existing Meeting
-outbound runtime counters in the normal Meeting activity UI. Preserve source
-truth and avoid a second counter or poller. Then fix Text result review feedback
-as a separate change. My Voice GPU/training acceptance remains deferred to one
-integrated Windows phase. Compiler and native results remain
-`UNKNOWN / NOT EXECUTED`.
+Restore Text result review warnings and cache-hit parity using existing Rust
+review hints and Text result policy. Preserve editable translations, Copy
+and direction-based stale-result rejection. My Voice GPU/training acceptance
+remains deferred to one integrated Windows phase; compilation/native proof
+remains `UNKNOWN / NOT EXECUTED`.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.

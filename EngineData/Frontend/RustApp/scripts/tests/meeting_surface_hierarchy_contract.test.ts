@@ -54,6 +54,17 @@ test("Meeting Live reports local output truth, not fabricated participant delive
   assert.match(live, /statusLabel=\{turn\.lane === "you" \? deliveryLabel\(turn\) : ""\}/);
 });
 
+test("Meeting exposes bounded speech loss without falsely attributing a speaker", () => {
+  const native = readFileSync(new URL("../../src-tauri/src/commands/meeting_session/session_state.rs", import.meta.url), "utf8");
+  assert.match(native, /status\.overflow_dropped_utterance_count = overflow_dropped_utterance_count\(\)/);
+  assert.match(native, /status\.evicted_pending_utterance_count = evicted_pending_utterance_count\(\)/);
+  assert.match(live, /status\.outbound\.overflow_dropped_utterance_count/);
+  assert.match(live, /status\.outbound\.evicted_pending_utterance_count/);
+  assert.match(live, /\{#if missingSpeech\}/);
+  assert.match(live, /counts combine your microphone and incoming meeting audio/);
+  assert.match(live, /Important details may need repeating/);
+});
+
 test("Live transcript stays minimal while preserving reading position and copy errors", () => {
   assert.doesNotMatch(live, /searchOpen|toggleSearch|togglePin|pinnedSequences|PinOff/);
   assert.match(live, /followingLatest/);

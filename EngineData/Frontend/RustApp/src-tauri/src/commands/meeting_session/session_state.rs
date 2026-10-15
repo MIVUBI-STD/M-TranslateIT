@@ -110,10 +110,15 @@ pub(super) fn clear_all_start_preflight() {
 }
 
 pub(super) fn current_outbound_status() -> MeetingOutboundRuntimeStatus {
-    outbound_status_store()
+    // Producer drops can occur while inference is busy, with no new stage event.
+    // Project canonical atomic counters at snapshot read time, not last update.
+    let mut status = outbound_status_store()
         .lock()
         .map(|status| status.clone())
-        .unwrap_or_else(|_| idle_outbound_status())
+        .unwrap_or_else(|_| idle_outbound_status());
+    status.overflow_dropped_utterance_count = overflow_dropped_utterance_count();
+    status.evicted_pending_utterance_count = evicted_pending_utterance_count();
+    status
 }
 
 // A failed self-output suppression permanently disables optional incoming
