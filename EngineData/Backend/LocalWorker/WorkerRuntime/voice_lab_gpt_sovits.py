@@ -241,11 +241,19 @@ def write_wav(path: Path, sample_rate: int, audio: Any) -> None:
     import numpy as np
 
     values = np.asarray(audio).reshape(-1)
-    if values.dtype != np.int16:
-        values = np.clip(values, -1.0, 1.0)
-        values = (values * 32767.0).astype(np.int16)
     if values.size == 0:
         raise VoiceLabProviderError("evaluation_audio_empty")
+    # Playback accepts 8–192 kHz. Reject incompatible TTS output at its source
+    # rather than reporting successful synthesis of an unplayable WAV.
+    if not 8_000 <= sample_rate <= 192_000:
+        raise VoiceLabProviderError("evaluation_sample_rate_unsupported")
+    if values.dtype != np.int16:
+        # Non-finite model output otherwise becomes arbitrary int16 samples
+        # during quantization, producing spikes in synthesized speech.
+        if not np.isfinite(values).all():
+            raise VoiceLabProviderError("evaluation_audio_nonfinite")
+        values = np.clip(values, -1.0, 1.0)
+        values = (values * 32767.0).astype(np.int16)
     # CPython 3.12 wave.writeframes() accepts a contiguous buffer. Passing the
     # ndarray through memoryview avoids making a second full-size PCM16 bytes
     # copy for every TTS utterance. Only strided inputs need a contiguous copy.

@@ -170,6 +170,33 @@ def test_voice_wav_writer_still_refuses_empty_audio(tmp_path: Path) -> None:
         provider.write_wav(tmp_path / "empty.wav", 32_000, np.empty(0, dtype=np.int16))
 
 
+@pytest.mark.parametrize("invalid_sample", [float("nan"), float("inf"), -float("inf")])
+def test_voice_wav_writer_rejects_nonfinite_float_audio_before_creating_file(
+    tmp_path: Path, invalid_sample: float
+) -> None:
+    import numpy as np
+
+    provider = load_provider_module()
+    output = tmp_path / "nonfinite.wav"
+    samples = np.array([0.25, invalid_sample, -0.25], dtype=np.float32)
+    with pytest.raises(provider.VoiceLabProviderError, match="evaluation_audio_nonfinite"):
+        provider.write_wav(output, 32_000, samples)
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("sample_rate", [0, 7_999, 192_001])
+def test_voice_wav_writer_rejects_unplayable_sample_rates(
+    tmp_path: Path, sample_rate: int
+) -> None:
+    import numpy as np
+
+    provider = load_provider_module()
+    output = tmp_path / "unplayable-rate.wav"
+    with pytest.raises(provider.VoiceLabProviderError, match="evaluation_sample_rate_unsupported"):
+        provider.write_wav(output, sample_rate, np.array([0, 1], dtype=np.int16))
+    assert not output.exists()
+
+
 def test_actor_wav_duration_avoids_recomputing_reference_quality_metrics(
     tmp_path: Path, monkeypatch
 ) -> None:
