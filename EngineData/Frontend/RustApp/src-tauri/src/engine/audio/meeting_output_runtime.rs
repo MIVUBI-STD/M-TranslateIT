@@ -504,11 +504,10 @@ pub fn deliver_meeting_output_wav(
     };
     let sample_format = supported.sample_format();
     let config: cpal::StreamConfig = supported.into();
-    let samples = Arc::new(prepare_output_samples(
-        &wav,
-        config.sample_rate.0,
-        config.channels,
-    ));
+    let samples = match prepare_output_samples(&wav, config.sample_rate.0, config.channels) {
+        Ok(value) => Arc::new(value),
+        Err(blocker) => return blocked(&blocker, false),
+    };
     if samples.is_empty() {
         return blocked("meeting_output:prepared_audio_empty", false);
     }
@@ -715,9 +714,25 @@ mod tests {
         assert_eq!(decoded.channels, 1);
         assert_eq!(decoded.samples.len(), 4);
 
-        let prepared = prepare_output_samples(&decoded, 44_100, 2);
+        let prepared = prepare_output_samples(&decoded, 44_100, 2)
+            .expect("bounded PCM16 output should prepare");
         assert_eq!(prepared.len(), 16);
         assert!(prepared.iter().all(|sample| (-1.0..=1.0).contains(sample)));
+    }
+
+    #[test]
+    fn output_resampling_rejects_expanded_audio_before_allocation() {
+        // A valid 25s, 8kHz mono source expands to 38.4 million f32
+        // samples at a supported 192kHz / 8-channel device configuration.
+        let source = super::audio_format::DecodedWav {
+            sample_rate_hz: 8_000,
+            channels: 1,
+            samples: vec![0.0; 200_000],
+        };
+        assert_eq!(
+            prepare_output_samples(&source, 192_000, 8).unwrap_err(),
+            "meeting_output:prepared_audio_too_large",
+        );
     }
 
     #[test]

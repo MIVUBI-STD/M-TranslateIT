@@ -7,6 +7,10 @@ use super::{
 };
 use super::super::duration_ms;
 
+// Keep resampled f32 delivery under 128 MiB even when device rate/channels
+// expand a valid, bounded input WAV. This is a memory ceiling, not truncation.
+const MAX_PREPARED_OUTPUT_SAMPLES: u128 = 32 * 1024 * 1024;
+
 pub(super) struct DecodedWav {
     pub(super) sample_rate_hz: u32,
     pub(super) channels: u16,
@@ -160,22 +164,41 @@ pub(super) fn prepare_output_samples(
     source: &DecodedWav,
     target_rate_hz: u32,
     target_channels: u16,
-) -> Vec<f32> {
+) -> Result<Vec<f32>, String> {
     let source_channels = usize::from(source.channels);
+    if source_channels == 0
+        || source.sample_rate_hz == 0
+        || target_channels == 0
+        || target_rate_hz == 0
+    {
+        return Ok(Vec::new());
+    }
     let source_frames = source.samples.len() / source_channels;
-    if source_frames == 0 || target_channels == 0 || target_rate_hz == 0 {
-        return Vec::new();
+    if source_frames == 0 {
+        return Ok(Vec::new());
     }
 
-    let mut mono = Vec::with_capacity(source_frames);
+    // Calculate the full expanded size BEFORE allocating the mono or device buffer.
+    // In particular, a small 8 kHz WAV can become enormous at 192 kHz / 8ch.
+    let target_frames = (source_frames as u128 * u128::from(target_rate_hz))
+        .div_ceil(u128::from(source.sample_rate_hz));
+    let output_samples = target_frames * u128::from(target_channels);
+    if output_samples > MAX_PREPARED_OUTPUT_SAMPLES {
+        return Err("meeting_output:prepared_audio_too_large".to_string());
+    }
+    let target_frames = target_frames as usize;
+    let mut mono = Vec::new();
+    mono.try_reserve_exact(source_frames)
+        .map_err(|_| "meeting_output:prepared_audio_allocation_failed".to_string())?;
     for frame in source.samples.chunks_exact(source_channels) {
         let sum = frame.iter().copied().sum::<f32>();
         mono.push(sum / source_channels as f32);
     }
 
-    let target_frames = (source_frames as u128 * u128::from(target_rate_hz))
-        .div_ceil(u128::from(source.sample_rate_hz)) as usize;
-    let mut output = Vec::with_capacity(target_frames * usize::from(target_channels));
+    let mut output = Vec::new();
+    output
+        .try_reserve_exact(output_samples as usize)
+        .map_err(|_| "meeting_output:prepared_audio_allocation_failed".to_string())?;
     for target_index in 0..target_frames {
         let source_position =
             target_index as f64 * source.sample_rate_hz as f64 / target_rate_hz as f64;
@@ -187,7 +210,7 @@ pub(super) fn prepare_output_samples(
             output.push(value.clamp(-1.0, 1.0));
         }
     }
-    output
+    Ok(output)
 }
 
 pub(super) fn delivery_deadline_ms(sample_count: usize, channels: u16, sample_rate_hz: u32) -> u64 {
