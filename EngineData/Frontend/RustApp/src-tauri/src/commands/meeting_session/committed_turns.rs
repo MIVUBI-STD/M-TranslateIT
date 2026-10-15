@@ -421,6 +421,15 @@ pub(super) fn clear_committed_turns_for_session(session_id: &str) -> bool {
 
 // No-session Stop may discard orphaned active turns but must preserve the
 // last explicitly ended Meeting until the next Start resets it for privacy.
+// Explicit archive deletion also removes the private in-memory last-session review.
+pub(super) fn forget_ended_saved_session(session_id: &str) {
+    if let Ok(mut ended) = ended_transcript_store().lock() {
+        if ended.as_ref().and_then(|snapshot| snapshot.session_id.as_deref()) == Some(session_id) {
+            *ended = None;
+        }
+    }
+}
+
 pub(super) fn clear_inactive_committed_turns() -> bool {
     let Ok(mut guard) = committed_turn_store().lock() else {
         return false;

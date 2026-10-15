@@ -18,6 +18,7 @@
     onNavigate: (route: AppRoute) => void;
   } = $props();
 
+  let savedDeletionRevision = $state(0);
   let resumeBusy = $state(false);
   let sourceChanging = $state(false);
   let currentSource = $state<"original" | "translateit">("translateit");
@@ -180,6 +181,10 @@
       </div>
     {/if}
   </article>
-  <MeetingSessionReview sessionActive={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
-  <MeetingTranscriptExport hasSession={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
+  {#key savedDeletionRevision}
+    <MeetingSessionReview sessionActive={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
+  {/key}
+  <MeetingTranscriptExport hasSession={meeting.hasSession}
+    onNotice={(message) => void onRefresh(message)}
+    onDeleted={() => { savedDeletionRevision += 1; }} />
 </section>

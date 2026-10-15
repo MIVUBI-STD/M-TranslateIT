@@ -84,3 +84,12 @@ test("legacy live preview remains capped while export reads the disk-backed sess
   assert.match(html, /stream_saved_turns\(&session_id/);
   assert.doesNotMatch(html, /snapshot_for_export\(/);
 });
+
+test("explicit Delete removes matching in-memory last-session review as well as archive", () => {
+  assert.match(archive, /forget_ended_saved_session\(&session_id\)/);
+  assert.match(memory, /pub\(super\) fn forget_ended_saved_session\(session_id: &str\)/);
+  assert.match(memory, /snapshot\.session_id\.as_deref\(\)\) == Some\(session_id\)/);
+  assert.match(page, /\{#key savedDeletionRevision\}/);
+  assert.match(ui, /onDeleted\?\.\(\)/);
+  assert.match(ui, /Existing exported HTML files will remain/);
+});

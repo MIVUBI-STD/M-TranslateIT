@@ -347,7 +347,10 @@ pub fn delete_saved_session(session_id: String) -> ArchiveActionResult {
         return ArchiveActionResult { ok: false, message: "Saved transcript folder is not available.".to_string() };
     }
     match fs::remove_dir_all(dir) {
-        Ok(()) => ArchiveActionResult { ok: true, message: "Saved transcript deleted from this device.".to_string() },
+        Ok(()) => {
+            super::committed_turns::forget_ended_saved_session(&session_id);
+            ArchiveActionResult { ok: true, message: "Saved transcript deleted from this device.".to_string() }
+        },
         Err(_) => ArchiveActionResult { ok: false, message: "Saved transcript could not be deleted.".to_string() },
     }
 }

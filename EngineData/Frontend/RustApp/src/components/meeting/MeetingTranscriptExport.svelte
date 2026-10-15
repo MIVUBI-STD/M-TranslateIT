@@ -4,9 +4,10 @@
   import { languageName } from "../../app/shared/state";
   import { meetingTime } from "../../app/runtime/meetingTranscriptPresentation";
 
-  let { hasSession = false, onNotice }: {
+  let { hasSession = false, onNotice, onDeleted }: {
     hasSession?: boolean;
     onNotice: (message: string) => void;
+    onDeleted?: () => void;
   } = $props();
   let history = $state<SavedMeetingSessions | null>(null);
   let expanded = $state<string | null>(null);
@@ -75,6 +76,7 @@
       if (expanded === sessionId) { expanded = null; preview = null; }
       if (receipt?.sessionId === sessionId) receipt = null;
       confirming = null;
+      onDeleted?.();
       onNotice("Saved transcript deleted.");
       await refresh();
     } catch { notice = "Saved transcript could not be deleted."; }
