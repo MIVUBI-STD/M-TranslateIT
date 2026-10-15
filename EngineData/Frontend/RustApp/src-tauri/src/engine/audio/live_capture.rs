@@ -355,7 +355,9 @@ fn build_stream_for_format(
                             publish_runtime_native_f32_mono(
                                 data,
                                 sample_rate_hz,
-                                finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
+                                finalized_outbound_enabled
+                                && !original_voice_pcm::is_original_active(generation)
+                                && !original_voice_pcm::is_output_muted(generation),
                             );
                         } else {
                             downmix_f32_into(data, channels, &mut mono_scratch);
@@ -364,7 +366,9 @@ fn build_stream_for_format(
                                 &mono_scratch,
                                 sample_rate_hz,
                                 channels,
-                                finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
+                                finalized_outbound_enabled
+                                && !original_voice_pcm::is_original_active(generation)
+                                && !original_voice_pcm::is_output_muted(generation),
                             );
                         }
                         // The guided recorder is normally inactive during Meeting;
@@ -399,7 +403,9 @@ fn build_stream_for_format(
                             &mono_scratch,
                             sample_rate_hz,
                             channels,
-                            finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
+                            finalized_outbound_enabled
+                                && !original_voice_pcm::is_original_active(generation)
+                                && !original_voice_pcm::is_output_muted(generation),
                         );
                         append_guided_f32(&mono_scratch, sample_rate_hz, 1);
                     },
@@ -427,7 +433,9 @@ fn build_stream_for_format(
                             &mono_scratch,
                             sample_rate_hz,
                             channels,
-                            finalized_outbound_enabled && !original_voice_pcm::is_original_active(generation),
+                            finalized_outbound_enabled
+                                && !original_voice_pcm::is_original_active(generation)
+                                && !original_voice_pcm::is_output_muted(generation),
                         );
                         append_guided_f32(&mono_scratch, sample_rate_hz, 1);
                     },

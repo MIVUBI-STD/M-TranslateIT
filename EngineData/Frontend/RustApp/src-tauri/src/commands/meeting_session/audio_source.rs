@@ -129,6 +129,9 @@ pub(super) fn set_muted(muted: bool) -> MeetingMuteActionResult {
     if let Err(error) = original_voice_pcm::set_output_muted(generation, muted) {
         return reply(false, Some(generation), error);
     }
+    // Discard any speech/pre-roll from the muted interval in the existing VAD.
+    // Original mode can safely return None if its VAD producer is unavailable.
+    let _ = reset_finalized_outbound_speech_boundary(&session.session_id, generation);
     if muted {
         // Output callback is already silent via MUTED. Cancellation additionally
         // interrupts the current translated WAV without affecting captions.

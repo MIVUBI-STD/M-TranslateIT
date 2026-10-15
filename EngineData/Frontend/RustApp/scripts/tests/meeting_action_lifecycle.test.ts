@@ -99,7 +99,7 @@ test("Meeting page and Quick Access use the same native Meeting actions", () => 
   assert.match(page, /meeting_setup_state: "new"/);
   assert.match(page, /onclick=\{handlePrimary\}/);
   assert.match(app, /const control = meetingControlState\(/);
-  assert.match(app, /const action = control\.action/);
+  assert.match(app, /const action = startOriginal \? "start" : control\.action/);
   assert.match(header, /toggleQuickAccess/);
   assert.match(quickAccess, /runtimeApi\.selectMeetingAudioSource/);
   assert.match(quickAccess, /applicationRuntimeApi\.dispatchIntent/);

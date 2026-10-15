@@ -61,8 +61,8 @@ test("Quick Access controls captions through the existing overlay only", () => {
   assert.match(overlay, /subscribeQuickAccessCaptionRequests/);
   assert.match(overlay, /showTranslationOverlay\(\)/);
   assert.match(overlay, /hideTranslationOverlay\(\)/);
-  assert.match(popup, /native\.meeting\.audio_source !== requested/);
-  assert.match(popup, /result\.snapshot\.meeting\.lifecycle !== "live"/);
+  assert.match(popup, /actual\.audio_source !== requested/);
+  assert.match(popup, /actual\.lifecycle !== "live"/);
 });
 
 

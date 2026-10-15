@@ -103,3 +103,13 @@ test("Native mute gates both raw callback and translated TTS without mixing the 
   assert.match(source, /set_meeting_output_muted|pub\(super\) fn set_muted/);
   assert.match(source, /cancel_meeting_output_for_generation\(generation\)/);
 });
+
+
+test("Mute blocks new VAD speech in all supported capture formats", () => {
+  const capture = read("src-tauri/src/engine/audio/live_capture.rs");
+  const source = read("src-tauri/src/commands/meeting_session/audio_source.rs");
+  assert.equal(
+    (capture.match(/&& !original_voice_pcm::is_output_muted\(generation\)/g) ?? []).length, 4,
+  );
+  assert.match(source, /reset_finalized_outbound_speech_boundary\(&session\.session_id, generation\)/);
+});

@@ -83,6 +83,9 @@ Requires relevant A/B capability first.
 | D12 | Single Quick Access naming and launch | source + rendered TARGET_WINDOWS | One hidden-by-default `quick-access` window opens from app header, in-app Ctrl+K, and Windows tray (if supported); old Command Palette absent; all entrypoints open the same popup |
 | D13 | Quick Access meeting actions | source + TARGET_WINDOWS with real mic/route | Original/TranslateIT switches only after native acknowledgment; captions show/hide uses the existing overlay; Stop requires explicit confirmation; stale status/events cannot misstate the source; failures stay visible |
 | D14 | Quick Access desktop comfort | rendered TARGET_WINDOWS, including secondary monitor | Popup opens within current monitor work area without covering default bottom-center captions, Escape/blur/success hide only the popup, and application exit destroys popup/captions without orphan process |
+| D15 | One native Virtual Microphone Mute | source + TARGET_WINDOWS receiver | Muting either Original or translated TTS outputs immediate silence to one virtual endpoint; no muted audio queues for Unmute; source selection is preserved; Floating Captions remain independently available |
+| D16 | Synchronized pre-Start source choice | source + TARGET_WINDOWS | Choosing Original/TranslateIT in either Meeting or Quick Access immediately updates both through the same native preference; neither page falsely implies a second audio owner; Start uses the selected source |
+| D17 | Caption action and visibility truth | source + TARGET_WINDOWS | Quick Access reads actual native caption-window visibility and delegates Show/Hide to main's existing caption runtime, preserving the active private caption content and state across windows |
 
 ## Group E — Distribution
 
