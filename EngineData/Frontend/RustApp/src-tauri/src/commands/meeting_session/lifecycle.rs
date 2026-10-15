@@ -295,7 +295,17 @@ fn start_meeting_impl(original_requested: bool) -> MeetingSessionActionResult {
         return MeetingSessionActionResult {
             ok: false,
             state: "blocked".to_string(),
-            message: preflight.summary.clone(),
+            message: if original_requested {
+                if !preflight.microphone_ready {
+                    "Original Microphone needs a working physical microphone.".to_string()
+                } else if !preflight.meeting_route_ready {
+                    "Original Microphone needs the configured virtual audio route.".to_string()
+                } else {
+                    "Original Microphone audio setup is not ready. Retry Stop if cleanup is incomplete.".to_string()
+                }
+            } else {
+                preflight.summary.clone()
+            },
             status: status_from_report(latest_runtime_session_state(), preflight),
         };
     }

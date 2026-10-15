@@ -93,6 +93,8 @@ export function mapProductReadiness(input: {
   const worker = parseWorkerCapabilities(input.workerStatus ?? null);
   const meeting = meetingPreflight(input.meetingSession ?? null);
   const productMeeting = mapProductMeetingState(input.meetingSession ?? null);
+  // An explicitly selected raw microphone is not a translation session.
+  const originalLive = productMeeting.live && input.meetingSession?.audio_source === "original";
 
   const helperUnavailable = helperBridgeUnavailable(helper);
   const meetingUnavailable = meetingBridgeUnavailable(input.meetingSession ?? null);
@@ -153,7 +155,9 @@ export function mapProductReadiness(input: {
   const nextAction = runtimeUnavailable
     ? "TranslateIT is unavailable right now. Try the status check again before using translation."
     : productMeeting.live
-      ? "Translation is live. Stop the Meeting session when you are finished."
+      ? originalLive
+        ? "Original Microphone is live. Your own voice is sent directly without translation."
+        : "Translation is live. Stop the Meeting session when you are finished."
       : productMeeting.hasSession || productMeeting.lifecycle === "cleanup_incomplete"
         ? productMeeting.message
       : voiceGate.nextAction
@@ -170,7 +174,7 @@ export function mapProductReadiness(input: {
   const summary = runtimeUnavailable
     ? "TranslateIT is unavailable right now. Try the status check again."
     : productMeeting.live
-      ? "Meeting Translation is live."
+      ? originalLive ? "Original Microphone is live." : "Meeting Translation is live."
       : productMeeting.hasSession || productMeeting.lifecycle === "cleanup_incomplete"
         ? productMeeting.message
       : voiceGate.summary

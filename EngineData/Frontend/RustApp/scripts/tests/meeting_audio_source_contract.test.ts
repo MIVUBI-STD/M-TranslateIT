@@ -79,3 +79,13 @@ test("late consumer or playback thread cannot bypass Meeting Stop ownership", ()
   assert.match(playback, /canonical Stop cleanup can release and join it/);
   assert.match(outbound, /retain ownership for canonical Stop teardown/);
 });
+
+test("Original Live is not mislabeled as active translation in product readiness", () => {
+  const ready = read("src/app/bridge/productReadinessState.ts");
+  const lifecycle = read("src-tauri/src/commands/meeting_session/lifecycle.rs");
+  assert.match(ready, /const originalLive = productMeeting\.live/);
+  assert.match(ready, /Original Microphone is live\./);
+  assert.match(ready, /input\.meetingSession\?\.audio_source === "original"/);
+  assert.match(lifecycle, /Original Microphone needs a working physical microphone/);
+  assert.match(lifecycle, /Original Microphone needs the configured virtual audio route/);
+});
