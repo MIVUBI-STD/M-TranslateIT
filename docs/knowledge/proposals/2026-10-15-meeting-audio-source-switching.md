@@ -1,6 +1,6 @@
 # Meeting Audio Source Switching — implementation contract (2026-10-15)
 
-Status: SOURCE INTEGRATED / COMPILATION AND TARGET_WINDOWS NOT EXECUTED.
+Status: SOURCE INTEGRATED (including Original-first Meeting) / COMPILATION AND TARGET_WINDOWS NOT EXECUTED.
 Branch authority: Local only. This document is an implementation handoff, not a runtime proof.
 
 ## User-visible behavior
@@ -69,7 +69,7 @@ The feedback example assumes compatible f32 stream configurations; TranslateIT m
 - `2b595985`: Meeting now has a native two-choice source command, Rust/Svelte bridge and selector while an existing translation session is Live. Source epoch gates ASR→translation→TTS work, queued playback and native callback. Switching resets the outbound VAD boundary; Meeting Stop attempts both output cleanup paths.
 - `0611c745`: fixed the `source_epoch` field placement to the native playback cursor; this was an identified source error caught during static inspection.
 - Native Original output subsequently gained a bounded first-output-callback check and a unit test for a TranslateIT → Original → TranslateIT epoch round trip. Authored tests remain NOT EXECUTED.
-- **Current scope limitation:** Start is still the existing AI-dependent `Start Translation` path. Users can switch Original/TranslateIT only after Meeting becomes Live. Original-only startup without AI readiness, Windows device renaming and custom branded driver are separate changes and are NOT claimed.
+- **Original-first startup added:** `start_original_meeting` uses the same Meeting session ownership and virtual route without starting AI models. Switching from Original to TranslateIT prepares the required worker, voice and translated playback consumer on demand. Windows device renaming and custom branded driver remain separate tasks and are NOT claimed.
 - Production-level validation remains UNKNOWN: no compiler, CPAL callback execution, real VB-CABLE receiver, latency or multi-device tests have been run for this revision. One selected virtual device is retained; no Python output pipeline or second physical microphone capture was introduced.
 
 ## Next code delivery

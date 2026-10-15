@@ -27,7 +27,13 @@
     }
   });
   async function selectSource(source: "original" | "translateit"): Promise<void> {
-    if (sourceChanging || !meeting.live || currentSource === source) return;
+    if (sourceChanging || currentSource === source) return;
+    // Before Start, selection is local UI intent; the native Meeting will
+    // commit exactly the chosen source when the user presses Start.
+    if (!meeting.live) {
+      if (!meeting.hasSession) currentSource = source;
+      return;
+    }
     sourceChanging = true;
     try {
       const result = await runtimeApi.selectMeetingAudioSource(source);
@@ -69,7 +75,8 @@
   function handlePrimary(): void {
     if (!actionEnabled) return;
     if (currentSource === "original" && !meeting.hasSession && !meeting.canStop) {
-      void onMeetingAction("original");
+      if (originalAvailable) void onMeetingAction("original");
+      else onNavigate("settings");
       return;
     }
     if (needsSetup) { void continueSetup(); return; }
@@ -94,7 +101,6 @@
     primaryControl.action === "stop" ? "Stop Microphone"
       : currentSource === "original" && originalAvailable ? "Start Original Microphone"
       : currentSource === "original" && !meeting.hasSession ? "Check Audio Setup"
-      : primaryControl.action === "stop" ? primaryControl.label
       : meeting.busy || actionBusy ? primaryControl.label
       : resumeBusy ? "Opening setup..."
       : needsSetup ? "Finish Setup"
@@ -109,7 +115,6 @@
         : meeting.message
     : currentSource === "original"
       ? "Original microphone sends your own voice directly to the meeting."
-
     : snapshot.settings.meeting_setup_state === "deferred" || snapshot.settings.meeting_setup_state === "new"
       ? "Finish initial setup before starting."
     : snapshot.readiness.level === "unavailable"
@@ -142,7 +147,7 @@
   <article class="ti-panel overflow-hidden">
     <div class="flex items-start justify-between gap-4 px-6 py-5">
       <div class="min-w-0">
-        <strong class="text-[15px] font-semibold">{meeting.live ? "Translation is on" : "Meeting translation"}</strong>
+        <strong class="text-[15px] font-semibold">{meeting.live && meetingStatus?.audio_source === "original" ? "Original microphone is on" : meeting.live ? "Translation is on" : "Meeting microphone"}</strong>
         <p class="mb-0 mt-2 text-[13px] leading-6 text-[var(--ti-text-muted)]" aria-live="polite">{statusMessage}</p>
       </div>
       <StatusBadge label={meeting.live ? "Live" : meeting.label} tone={statusTone} />

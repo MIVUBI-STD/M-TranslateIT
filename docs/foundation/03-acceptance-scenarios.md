@@ -54,6 +54,9 @@ Requires relevant A/B capability first.
 |---|---|---|---|
 | C0 | Day-one start with built-in voice | TARGET_WINDOWS | choose Built-in Male/Female; required readiness can reach Start without My Voice training |
 | C1 | Outbound end-to-end | TARGET_WINDOWS | Start→capture→ASR→ID→EN→selected voice→Meeting Microphone; stage timing recorded when latency is claimed |
+| C1A | Original passthrough without AI | source + TARGET_WINDOWS | Start Original with worker/models unavailable, record physical mic → unchanged selected virtual device; no ASR/MT/TTS requests |
+| C1B | Source switching within one session | source + TARGET_WINDOWS | Original→TranslateIT→Original changes only the source, never calling-app input; no overlap, stale translated playback, unintended raw leakage or second capture owner |
+| C1C | Original start/stop without voice model | source + TARGET_WINDOWS | Original ignores selected voice readiness but respects microphone, route, session ownership and Stop cleanup; failed native stream does not claim Live |
 | C2 | Outbound context isolation | TARGET_WINDOWS or matching runtime fixture | previous translated pairs never enter the model prompt; the current finalized utterance is the only translation source |
 | C3 | Incoming context isolation | TARGET_WINDOWS or matching runtime fixture | incoming EN→ID remains context-free and incoming failure does not break outbound |
 | C4 | Stop lifecycle | TARGET_WINDOWS | output authority revoked, work/capture cleaned, no dangling handles/stale output |

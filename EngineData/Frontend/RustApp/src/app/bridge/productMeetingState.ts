@@ -147,7 +147,9 @@ export function mapProductMeetingState(status: MeetingSessionStatus | null): Pro
     message = "Meeting status is unavailable. Try the check again when TranslateIT is available.";
   } else if (live) {
     label = "Live";
-    message = liveMeetingMessage(outboundStage, status?.outbound?.output_active === true);
+    message = status?.audio_source === "original"
+      ? "Original microphone is live. Your voice goes directly to the virtual microphone."
+      : liveMeetingMessage(outboundStage, status?.outbound?.output_active === true);
   } else if (starting) {
     label = "Starting";
     message = "Translation is starting.";

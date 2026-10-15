@@ -238,9 +238,9 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
         : result.meeting.lifecycle === "unavailable" || result.state === "frontend_bridge_error"
           ? "Meeting status is unknown. Check its status before trying another action."
           : result.ok && action === "start" && result.meeting.live
-            ? "Translation is live."
+            ? source === "original" ? "Original microphone is live." : "Translation is live."
             : result.ok && action === "stop" && !result.meeting.hasSession && result.meeting.lifecycle === "idle"
-              ? "Translation stopped."
+              ? "Meeting microphone stopped."
               : result.meeting.message;
       applyMeetingStatus(result.status, resultNotice);
       if (!result.status.has_session || action === "start") {

@@ -34,3 +34,30 @@ test("unknown bridge state preserves a safe literal translated-mode fallback", (
   const fallback = read("src/app/runtime/meetingBridgeFallback.ts");
   assert.match(fallback, /audio_source: "translateit" as const/);
 });
+
+
+test("Original mode starts under existing Meeting ownership without AI", () => {
+  const lifecycle = read("src-tauri/src/commands/meeting_session/lifecycle.rs");
+  const intents = read("src-tauri/src/commands/application_runtime/intents.rs");
+  const facade = read("src/app/bridge/runtimeProductFacade.ts");
+  const meeting = read("src/pages/Meeting.svelte");
+  const sources = read("src-tauri/src/commands/meeting_session/audio_source.rs");
+  assert.match(lifecycle, /start_meeting_original_impl/);
+  assert.match(lifecycle, /if original_requested \{/);
+  assert.match(lifecycle, /start_original_voice_output\(output_device, generation, 2\)/);
+  assert.match(intents, /"start_original_meeting"/);
+  assert.match(facade, /source === "original" \? "start_original_meeting"/);
+  assert.match(meeting, /if \(!meeting.live\)/);
+  assert.match(meeting, /Start Original Microphone/);
+  assert.match(sources, /prepare_required_outbound_ai_runtime\(generation\)/);
+});
+
+test("One session uses bounded cleanup, no silent raw speech fallback", () => {
+  const source = read("src-tauri/src/commands/meeting_session/audio_source.rs");
+  const output = read("src-tauri/src/engine/audio/original_voice_pcm.rs");
+  const lifecycle = read("src-tauri/src/commands/meeting_session/lifecycle.rs");
+  assert.match(source, /reset_finalized_outbound_speech_boundary/);
+  assert.match(source, /original_voice_pcm::begin\(generation, epoch\)/);
+  assert.match(output, /translated_epoch_matches/);
+  assert.match(lifecycle, /original_voice_pcm::stop\(generation\)/);
+});

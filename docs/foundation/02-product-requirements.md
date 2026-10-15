@@ -209,11 +209,11 @@ Indonesian speech
 ### Canonical Meeting audio topology
 
 ```text
-REQUIRED OUTBOUND
+MEETING OUTBOUND — ONE SELECTED SOURCE
 Physical spoken microphone (selected Windows capture endpoint)
-  -> TranslateIT mic capture / finalized speech / local ID->EN AI
-  -> selected English Meeting voice TTS
-  -> Rust playback to CABLE Input (VB-Audio playback endpoint)
+  -> [Original] direct mono PCM passthrough (no AI/ASR/translation/TTS)
+  -> [TranslateIT] finalized speech / local ID->EN AI / selected English Meeting voice TTS
+  -> ONE Rust-selected playback route to CABLE Input (VB-Audio playback endpoint)
   -> paired CABLE Output (VB-Audio recording endpoint)
   -> meeting application's microphone INPUT
 
@@ -234,13 +234,16 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 
 ### PR-070 — Outbound content
-**MUST:** Meeting output contain translated English speech from the selected Meeting voice, never raw Indonesian mic audio or a silent fallback voice.
+**MUST:** When `TranslateIT Audio` is selected, output only translated English speech from the selected Meeting voice. Raw physical microphone speech must never be an automatic fallback for a failed translation. When `Original Microphone` is explicitly selected, send raw mic PCM directly to the same virtual microphone without AI, ASR, translation, TTS or discretionary processing. The two sources must not be mixed.
 
 ### PR-071 — Physical microphone
 **MUST:** Physical microphone remain outbound ASR capture source.
 
 ### PR-072 — Meeting Microphone
 **MUST:** Provide TranslateIT Meeting Microphone or a functionally equivalent supported Windows endpoint selectable by meeting applications.
+
+### PR-072A — Simple outbound source selection
+**MUST:** One virtual Meeting microphone remain selected in the calling application while users choose between `Original Microphone` and `TranslateIT Audio` inside TranslateIT. Original must be able to Start with only an available physical mic and supported virtual route, without loading translation models. Translation requires its existing AI and selected voice verification. Changing sources during a Live session must reject stale queued speech and release the previous source safely; a failed translation never silently sends Original audio. The selector is not a general audio mixer, device picker, speech effect, or separate Meeting session owner.
 
 ### PR-073 — Missing route
 **MUST:** Missing route block required outbound Start/delivery with clear Setup Needed recovery; stale queued speech is not dumped after recovery.
@@ -476,10 +479,10 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 **MUST:** Meeting is default workspace.
 
 ### PR-162 — Meeting Ready
-**MUST:** Show only one primary Meeting control: Start when ready, Stop while active, or an appropriate single recovery action when blocked. Show finalized chronological conversation during Live. Do not expose device selectors or Meeting presets on the main Meeting page.
+**MUST:** Show only one primary Meeting control: Start when the selected outbound source is ready, Stop while active, or an appropriate single recovery action when blocked. The Meeting page may show exactly one two-choice outbound source selector (`Original Microphone` / `TranslateIT Audio`); this is not a device selector or preset. Show finalized chronological conversation when translation is active. Do not expose device pickers or Meeting presets on the main Meeting page.
 
 ### PR-163 — Meeting Live
-**MUST:** Emphasize Translation Live, finalized chronological transcript, simple activity and Stop Translation.
+**MUST:** Emphasize the currently selected outbound source, its truthful Live status and a single Stop control. For TranslateIT, show finalized chronological transcript and translation activity. Original passthrough must not be presented as AI translation or incorrectly claim finalized translated text.
 
 **MUST:** Present the conversation as chat bubbles: `You` on the right and `Person 1` on the left, using one shared presentation for Live and Last Meeting review. Show original language/text, translation language/text, and recorded timestamp.
 
