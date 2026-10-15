@@ -34,8 +34,7 @@
     && meeting && !meeting.has_session && meeting.lifecycle === "idle"
     && !snapshot.resources.audio_locked
     && meeting.preflight.microphone_ready && meeting.preflight.meeting_route_ready
-    && (choice === "original" ||
-      (meeting.preflight.start_eligible && snapshot.capabilities.meeting_translation))));
+    && (choice === "original" || meeting.preflight.start_eligible)));
   const canStop = $derived(Boolean(meeting && !stopping
     && ((meeting.has_session && owned) || needsStop)));
   const sourceLabel = $derived(live
@@ -195,6 +194,7 @@
     const onKeydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { event.preventDefault(); void hide(); }
     };
+    let closeUnlisten: (() => void) | null = null;
     void currentWindow.onCloseRequested((event) => {
       event.preventDefault();
       void hide();
@@ -202,7 +202,6 @@
       if (disposed) unlisten();
       else closeUnlisten = unlisten;
     }).catch(() => {});
-    let closeUnlisten: (() => void) | null = null;
     window.addEventListener("focus", onFocus);
     window.addEventListener("blur", onBlur);
     window.addEventListener("keydown", onKeydown);
@@ -237,7 +236,7 @@
 
     <div class="qa-section">
       <div class="flex items-center gap-2">
-        <span class:qa-busy={busy} class="size-2 rounded-full bg-[var(--ti-text-soft)]" class:bg-[var(--ti-success)]={live && !busy} class:bg-[var(--ti-warning)]={needsStop} aria-hidden="true"></span>
+        <span class={"size-2 rounded-full " + (needsStop ? "bg-[var(--ti-warning)]" : live && !busy ? "bg-[var(--ti-success)]" : "bg-[var(--ti-text-soft)]")} aria-hidden="true"></span>
         <div class="min-w-0 flex-1">
           <p class="m-0 text-[13px] font-semibold" role="status" aria-live="polite">{statusLabel}</p>
           <p class="m-0 mt-1 text-[11px] text-[var(--ti-text-muted)]">{sourceLabel} · Virtual Meeting Microphone</p>
@@ -273,7 +272,7 @@
         </div>
       </div>
       <button type="button" class="qa-caption-toggle" role="switch" aria-checked={captionsVisible}
-        aria-label="Show Floating Captions" disabled={busy}
+        aria-label={captionsVisible ? "Hide Floating Captions" : "Show Floating Captions"} disabled={busy}
         onclick={() => void toggleCaptions()}>
         {captionsVisible ? "Hide" : "Show"}
       </button>

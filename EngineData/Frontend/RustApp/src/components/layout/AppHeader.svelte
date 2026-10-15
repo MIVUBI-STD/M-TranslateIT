@@ -1,8 +1,6 @@
 <script lang="ts">
   import type { ProductRuntimeSnapshot } from "../../app/bridge/runtimeProductFacade";
   import type { AppRoute } from "../../app/shared/types";
-  import type { UtilityDestination } from "../../app/runtime/productCommandRegistry";
-  import { meetingControlState } from "../../app/bridge/productMeetingState";
   import { Zap } from "@lucide/svelte";
   import UpdateAction from "../runtime/UpdateAction.svelte";
   import { toggleQuickAccess } from "../../app/runtime/quickAccessRuntime";
@@ -12,29 +10,17 @@
     route,
     notice,
     myVoiceRecording,
-    meetingActionBusy,
     onNavigate,
-    onOpenUtility,
-    onToggleMeeting,
     onNotice,
   }: {
     snapshot: ProductRuntimeSnapshot;
     route: AppRoute;
     notice: string;
     myVoiceRecording: boolean;
-    meetingActionBusy: boolean;
     onNavigate: (route: AppRoute) => void;
-    onOpenUtility: (destination: UtilityDestination) => void;
-    onToggleMeeting: () => void | Promise<void>;
     onNotice: (message: string) => void;
   } = $props();
 
-  const meetingControl = $derived(meetingControlState(
-    snapshot.meeting,
-    snapshot.readiness.approvedVoiceReady,
-    snapshot.settings.meeting_setup_state,
-    meetingActionBusy,
-  ));
   const meetingNeedsAttention = $derived(snapshot.meeting.hasSession && !snapshot.meeting.live
     || snapshot.meeting.lifecycle === "cleanup_incomplete");
 
@@ -88,11 +74,6 @@
     >
       <span class={`size-2 rounded-full ${meetingNeedsAttention ? "bg-[var(--ti-warning)]" : "bg-[var(--ti-success)]"}`} aria-hidden="true"></span>
       <strong class={`text-[11.5px] font-semibold ${meetingNeedsAttention ? "text-[var(--ti-warning)]" : "text-[var(--ti-success)]"}`}>{snapshot.meeting.label}</strong>
-    </button>
-  {/if}
-  {#if route !== "meeting" && meetingControl.action === "stop" && meetingControl.enabled}
-    <button type="button" class="ti-button ti-button-danger min-h-8 shrink-0" onclick={() => void onToggleMeeting()}>
-      {meetingControl.label}
     </button>
   {/if}
 </header>

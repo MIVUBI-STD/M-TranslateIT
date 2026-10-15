@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
-  import type { UtilityDestination } from "../app/runtime/productCommandRegistry";
+  import { onMount } from "svelte";
   import { classifyVirtualMicRoute } from "../app/bridge/virtualMicRoutePresentation";
   import { runtimeApi, type VirtualMicRouteContractStatus } from "../app/bridge/runtimeApi";
   import {
@@ -21,8 +20,6 @@
   type SettingsTab = "meeting" | "translation" | "advanced";
 
   let {
-    utilityTarget = null,
-    utilityRequest = 0,
     snapshot,
     settings,
     setupBusy = false,
@@ -34,8 +31,6 @@
     onMicTest,
     onNotice,
   }: {
-    utilityTarget?: UtilityDestination | null;
-    utilityRequest?: number;
     snapshot: ProductRuntimeSnapshot;
     settings: RuntimeSettings;
     setupBusy?: boolean;
@@ -49,8 +44,6 @@
   } = $props();
 
   let tab = $state<SettingsTab>("meeting");
-  // A Quick Actions destination is a one-shot request, not a persistent tab preference.
-  let activeUtility = $state<UtilityDestination | null>(null);
   let diagnosticsOpen = $state(false);
   let diagnosticsLoading = $state(false);
   let diagnosticsRefreshRevision = $state(0);
@@ -177,24 +170,6 @@
     }
   }
 
-  $effect(() => {
-    const target = utilityTarget;
-    const request = utilityRequest;
-    if (!target || !target.startsWith("settings-")) return;
-    activeUtility = target;
-    tab = target === "settings-captions" ? "translation"
-      : target === "settings-diagnostics" ? "advanced" : "meeting";
-    diagnosticsOpen = target === "settings-diagnostics";
-    const anchor = target === "settings-diagnostics" ? "utility-diagnostics"
-      : target === "settings-captions" ? "utility-captions" : "utility-microphone";
-    void tick().then(() => {
-      if (utilityRequest !== request || utilityTarget !== target || activeUtility !== target) return;
-      const element = document.getElementById(anchor);
-      element?.scrollIntoView({ block: "start" });
-      element?.focus({ preventScroll: true });
-    });
-  });
-
   onMount(() => {
     void loadDevices();
     void loadRouteStatus();
@@ -214,18 +189,18 @@
         <p class="px-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ti-text-soft)]">App Settings</p>
         <button type="button" class={"rounded-[8px] px-3 py-2.5 text-left text-[13px] " + (tab === "meeting" ? "bg-[var(--ti-surface-raised)] font-semibold" : "hover:bg-[var(--ti-surface-raised)]")}
           aria-current={tab === "meeting" ? "page" : undefined}
-          onclick={() => { activeUtility = null; tab = "meeting"; diagnosticsOpen = false; }}>Voice &amp; Audio</button>
+          onclick={() => { tab = "meeting"; diagnosticsOpen = false; }}>Voice &amp; Audio</button>
         <button type="button" class={"rounded-[8px] px-3 py-2.5 text-left text-[13px] " + (tab === "translation" ? "bg-[var(--ti-surface-raised)] font-semibold" : "hover:bg-[var(--ti-surface-raised)]")}
           aria-current={tab === "translation" ? "page" : undefined}
-          onclick={() => { activeUtility = null; tab = "translation"; diagnosticsOpen = false; }}>Meeting Captions</button>
+          onclick={() => { tab = "translation"; diagnosticsOpen = false; }}>Meeting Captions</button>
         <p class="mt-3 px-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--ti-text-soft)]">Support</p>
         <button type="button" class={"rounded-[8px] px-3 py-2.5 text-left text-[13px] " + (tab === "advanced" ? "bg-[var(--ti-surface-raised)] font-semibold" : "hover:bg-[var(--ti-surface-raised)]")}
           aria-current={tab === "advanced" ? "page" : undefined}
-          onclick={() => { activeUtility = null; tab = "advanced"; diagnosticsOpen = false; }}>Help</button>
+          onclick={() => { tab = "advanced"; diagnosticsOpen = false; }}>Help</button>
       </nav>
       <div class="min-w-0">
     {#if tab === "meeting"}
-      <article id="utility-microphone" tabindex="-1" class="ti-panel overflow-hidden">
+      <article  class="ti-panel overflow-hidden">
         <header class="flex items-start justify-between gap-5 border-b border-[var(--ti-border)] bg-[var(--ti-surface-soft)] px-5 py-4">
           <div>
             <h3 class="m-0 text-[15px] font-semibold tracking-[-0.015em]">Voice &amp; Audio</h3>
@@ -313,7 +288,7 @@
         </footer>
       </article>
     {:else if tab === "translation"}
-      <div id="utility-captions" tabindex="-1">
+      <div >
         <FloatingCaptionPreferences {onNotice} />
       </div>
     {:else if !diagnosticsOpen}
@@ -351,7 +326,7 @@
         </div>
       </details>
     {:else}
-      <div id="utility-diagnostics" tabindex="-1">
+      <div >
       <SettingsDiagnostics
         {snapshot}
         {setupBusy}

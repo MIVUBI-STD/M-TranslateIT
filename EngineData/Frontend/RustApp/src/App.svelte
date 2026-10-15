@@ -34,7 +34,6 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     AppRoute,
     RuntimeSettings,
   } from "./app/shared/types";
-  import type { UtilityDestination } from "./app/runtime/productCommandRegistry";
   import Sidebar from "./components/layout/Sidebar.svelte";
   import NativeCloseDialog from "./components/runtime/NativeCloseDialog.svelte";
   import AppHeader from "./components/layout/AppHeader.svelte";
@@ -53,8 +52,6 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
 
   let booting = $state(true);
   let route=$state<AppRoute>("meeting");
-  let utilityTarget = $state<UtilityDestination | null>(null);
-  let utilityRequest = $state(0);
   let notice=$state("Getting TranslateIT ready...");
   let meetingActionBusy=$state(false);
   let setupActionBusy=$state(false);
@@ -108,17 +105,6 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
       return;
     }
     route = next;
-    utilityTarget = null;
-  }
-
-  function openUtility(target: UtilityDestination): void {
-    if (voiceRecordingLock) {
-      setNotice("Stop the current My Voice recording before opening another tool.");
-      return;
-    }
-    utilityTarget = target;
-    utilityRequest += 1;
-    route = target.startsWith("meeting-") ? "meeting" : "settings";
   }
 
   function applyMeetingStatus(status: MeetingSessionStatus, preferredNotice?: string): void {
@@ -463,11 +449,8 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
         {snapshot}
         {route}
         {notice}
-        meetingActionBusy={meetingActionBusy}
         myVoiceRecording={voiceRecordingLock}
         onNavigate={navigate}
-        onOpenUtility={openUtility}
-        onToggleMeeting={handleMeetingAction}
         onNotice={setNotice}
       />
 
@@ -493,8 +476,6 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
           />
         {:else}
           <Settings
-            {utilityTarget}
-            {utilityRequest}
             {snapshot}
             settings={snapshot.settings}
             setupBusy={setupActionBusy}

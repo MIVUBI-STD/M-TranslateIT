@@ -1,6 +1,8 @@
 //! One on-demand Quick Access popup. Tray and frontend triggers share this
 //! existing window instance; there is no second action dispatcher or audio owner.
 use tauri::{AppHandle, Manager, PhysicalPosition};
+use std::sync::{Mutex, OnceLock};
+static TOGGLE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 const QUICK_ACCESS_LABEL: &str = "quick-access";
 
@@ -33,6 +35,8 @@ fn position_popup(window: &tauri::WebviewWindow) -> Result<(), String> {
 }
 
 pub fn toggle_window(app: &AppHandle) -> Result<bool, String> {
+    let _guard = TOGGLE_LOCK.get_or_init(|| Mutex::new(())).lock()
+        .map_err(|_| "quick_access:toggle_state_unavailable".to_string())?;
     let window = popup_window(app)?;
     if window.is_visible().map_err(|_| "quick_access:visibility_unavailable")? {
         window.hide().map_err(|_| "quick_access:window_hide_failed")?;
@@ -50,7 +54,7 @@ pub fn toggle_quick_access(app: AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn open_translateit_main(app: AppHandle) -> Result<(), String> {
+pub fn open_translateit_main(app: AppHandle) -> Result<bool, String> {
     let main = app.get_webview_window("main")
         .ok_or_else(|| "quick_access:main_window_unavailable".to_string())?;
     main.unminimize().map_err(|_| "quick_access:main_restore_failed")?;
@@ -59,7 +63,7 @@ pub fn open_translateit_main(app: AppHandle) -> Result<(), String> {
     if let Some(quick) = app.get_webview_window(QUICK_ACCESS_LABEL) {
         let _ = quick.hide();
     }
-    Ok(())
+    Ok(true)
 }
 
 // Tray is only a *trigger*, not a parallel Quick Access menu or a separate

@@ -11,10 +11,8 @@ export async function toggleQuickAccess(): Promise<boolean> {
 }
 
 export async function openTranslateIt(): Promise<void> {
-  const result = await runCommand<void>("open_translateit_main");
-  // This command returns void on success; runCommand's null sentinel cannot
-  // distinguish a successful void command from an unavailable bridge.
-  void result;
+  const opened = await runCommand<boolean>("open_translateit_main");
+  if (opened !== true) throw new Error("TranslateIT main window is unavailable.");
 }
 
 export async function hideQuickAccess(): Promise<void> {

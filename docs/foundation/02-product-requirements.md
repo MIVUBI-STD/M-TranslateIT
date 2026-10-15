@@ -475,6 +475,15 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 ### PR-160 — Navigation
 **MUST:** Meeting | Text | My Voice | Settings.
 
+### PR-160A — One on-demand Quick Access
+**MUST:** Quick Access is one small, single-instance popup for in-meeting controls; do not maintain parallel Quick Nav/Quick Actions/Command Palette panels or replicate Sidebar lists. The UI exposes only truthful microphone status, Original/TranslateIT source selection, Floating Captions Show/Hide and Start/Stop (with Stop confirmation).
+
+**MUST:** One native Meeting authority owns every source/action, with duplicate transitions blocked. A failed source switch stays visible with a clear recovery action; the popup does not claim success until native state confirms it. Hiding the popup never stops the microphone.
+
+**SHOULD:** The popup is initially hidden, opens from the header, in-app Ctrl+K or the Windows tray, and dismisses on Esc, loss of focus, or confirmed successful action. Position it within the active monitor work area and away from the default bottom-center floating caption. These are triggers to the same popup, never separate menus.
+
+**MUST:** A missing tray is not an application startup blocker. Exit/Stop logic must not leave the popup running after the main application closes. No global shortcut dependency/toolchain change without its own compatible validation.
+
 ### PR-161 — Default workspace
 **MUST:** Meeting is default workspace.
 

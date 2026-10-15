@@ -82,7 +82,7 @@ const rustPreflight = readFileSync(new URL("../../src-tauri/src/commands/meeting
 const app = readFileSync(new URL("../../src/App.svelte", import.meta.url), "utf8");
 const page = readFileSync(new URL("../../src/pages/Meeting.svelte", import.meta.url), "utf8");
 const header = readFileSync(new URL("../../src/components/layout/AppHeader.svelte", import.meta.url), "utf8");
-const actions = readFileSync(new URL("../../src/components/runtime/ProductivityActions.svelte", import.meta.url), "utf8");
+const quickAccess = readFileSync(new URL("../../src/pages/QuickAccess.svelte", import.meta.url), "utf8");
 
 test("Rust preserves no-session cleanup until Stop succeeds and blocks Start meanwhile", () => {
   assert.match(rustLifecycle, /STOP_CLEANUP_PENDING\.store\(true, Ordering::Release\)/);
@@ -92,7 +92,7 @@ test("Rust preserves no-session cleanup until Stop succeeds and blocks Start mea
   assert.match(rustPreflight, /"cleanup_incomplete"\.to_string\(\)/);
 });
 
-test("Meeting page, handler, header and command palette share the exact action resolver", () => {
+test("Meeting page and Quick Access use the same native Meeting actions", () => {
   assert.match(page, /const primaryControl = \$derived\(meetingControlState\(/);
   assert.match(page, /disabled=\{!actionEnabled\}/);
   assert.match(page, /needsSetup \? "Finish Setup"/);
@@ -100,7 +100,8 @@ test("Meeting page, handler, header and command palette share the exact action r
   assert.match(page, /onclick=\{handlePrimary\}/);
   assert.match(app, /const control = meetingControlState\(/);
   assert.match(app, /const action = control\.action/);
-  assert.match(header, /const meetingControl = \$derived\(meetingControlState\(/);
-  assert.match(header, /route !== "meeting" && meetingControl\.action === "stop"/);
-  assert.match(actions, /meetingCanStop: meetingControl\.enabled && meetingControl\.action === "stop"/);
+  assert.match(header, /toggleQuickAccess/);
+  assert.match(quickAccess, /runtimeApi\.selectMeetingAudioSource/);
+  assert.match(quickAccess, /applicationRuntimeApi\.dispatchIntent/);
+  assert.match(quickAccess, /stop_meeting/);
 });
