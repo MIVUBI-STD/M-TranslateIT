@@ -31,6 +31,12 @@ test("hidden voice creator stays mounted and must show active or uncertain work"
   assert.doesNotMatch(page, /\{#if creatorOpen\}[\s\S]*?<MyVoiceBuild/);
 });
 
+test("ongoing Improve My Voice request cannot be hidden while submission is pending", () => {
+  assert.match(page, /\|\| improvementStarting \|\| buildStatusUnavailable/);
+  assert.match(page, /if \(creatorNeedsAttention\) creatorOpen = true/);
+  assert.match(page, /disabled=\{creatorNeedsAttention\}/);
+});
+
 test("saved recordings, historic versions and backup remain accessible but secondary", () => {
   assert.match(page, /<details[^>]*aria-label="Saved voice management"/);
   assert.match(page, /Saved voices &amp; backups/);

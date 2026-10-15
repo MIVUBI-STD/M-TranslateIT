@@ -5,6 +5,7 @@ import test from "node:test";
 const meeting = readFileSync(new URL("../../src/pages/Meeting.svelte", import.meta.url), "utf8");
 const live = readFileSync(new URL("../../src/components/meeting/MeetingActivity.svelte", import.meta.url), "utf8");
 const review = readFileSync(new URL("../../src/components/meeting/MeetingSessionReview.svelte", import.meta.url), "utf8");
+const header = readFileSync(new URL("../../src/components/layout/AppHeader.svelte", import.meta.url), "utf8");
 
 test("Meeting has a single primary button that can Start, Stop, or guide recovery", () => {
   assert.match(meeting, /Indonesian speech → English voice/);
@@ -19,6 +20,17 @@ test("Meeting has a single primary button that can Start, Stop, or guide recover
     assert.equal(meeting.includes(retired), false, retired);
   }
 });
+test("Meeting keeps a single accessible Stop or Retry Stop above live transcript", () => {
+  assert.match(meeting, /meeting\.lifecycle === "cleanup_incomplete" \? primaryControl\.label : "Stop Microphone"/);
+  assert.match(meeting, /meeting\.lifecycle === "cleanup_incomplete" \? "warning"/);
+  const action = meeting.indexOf('aria-label="Meeting main action"');
+  const sourceSelector = meeting.indexOf('for="meeting-audio-source"');
+  const transcript = meeting.indexOf("<MeetingActivity status={meetingStatus}");
+  assert.ok(action > 0 && action < sourceSelector && sourceSelector < transcript,
+    "Stop/Retry Stop must remain before the scrollable conversation");
+  assert.equal((meeting.match(/onclick=\{handlePrimary\}/g) ?? []).length, 1);
+});
+
 test("deferred setup has a real recovery path without creating another Meeting start", () => {
   assert.match(meeting, /async function continueSetup\(\)/);
   assert.match(meeting, /meeting_setup_state: "new"/);
@@ -53,6 +65,12 @@ test("Live transcript stays minimal while preserving reading position and copy e
   assert.match(live, /<MeetingTurnBubble \{turn\}/);
   assert.match(bubble, /languageName\(turn\.source_language\)/);
   assert.match(bubble, /lang=\{turn\.translation_state === "translated" \? turn\.target_language : undefined\}/);
+});
+
+test("global notices remain keyboard-scrollable and expose full text instead of one-line truncation", () => {
+  assert.doesNotMatch(header, /flex-1 truncate text-right/);
+  assert.match(header, /max-h-16 flex-1 overflow-y-auto break-words/);
+  assert.match(header, /role="status" aria-live="polite" tabindex="0" title=\{notice\}/);
 });
 
 test("Last-session transcript is private-by-default and export remains explicit", () => {

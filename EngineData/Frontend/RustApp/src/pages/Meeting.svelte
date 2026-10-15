@@ -97,7 +97,8 @@
     && (primaryControl.enabled || originalAvailable || needsSetup || needsVoice || needsSettings));
   const activityVisible = $derived(Boolean(meetingStatus && meeting.applicationOwned && meeting.live));
   const primaryLabel = $derived(
-    primaryControl.action === "stop" ? "Stop Microphone"
+    primaryControl.action === "stop"
+      ? meeting.lifecycle === "cleanup_incomplete" ? primaryControl.label : "Stop Microphone"
       : currentSource === "original" && originalAvailable ? "Start Original Microphone"
       : currentSource === "original" && !meeting.hasSession ? "Check Audio Setup"
       : meeting.busy || actionBusy ? primaryControl.label
@@ -131,8 +132,8 @@
       : "Checking translation readiness. If this persists, open Help in Settings."
   );
   const statusTone = $derived<"good" | "warning" | "danger" | "neutral">(
-    meeting.live || snapshot.readiness.meetingReady && !meeting.hasSession && !needsSetup ? "good"
-      : meeting.lifecycle === "cleanup_incomplete" ? "warning"
+    meeting.lifecycle === "cleanup_incomplete" ? "warning"
+      : meeting.live || snapshot.readiness.meetingReady && !meeting.hasSession && !needsSetup ? "good"
       : snapshot.readiness.level === "unavailable" ? "danger" : "neutral"
   );
 </script>
@@ -153,6 +154,10 @@
       </div>
       <StatusBadge label={meeting.live ? "Live" : meeting.label} tone={statusTone} />
     </div>
+    <footer class="flex justify-end border-t border-[var(--ti-border)] px-6 py-4" aria-label="Meeting main action">
+      <button type="button" class={"ti-button min-w-44 " + (primaryControl.action === "stop" ? "ti-button-danger" : "")}
+        disabled={!actionEnabled} onclick={handlePrimary}>{primaryLabel}</button>
+    </footer>
     {#if !meeting.busy && (!meeting.hasSession || activityVisible) && meetingStatus}
       <div class="border-t border-[var(--ti-border)] px-6 py-4">
         <label for="meeting-audio-source" class="ti-field-label">Microphone output</label>
@@ -173,10 +178,6 @@
         <MeetingActivity status={meetingStatus} turns={meetingTurns} />
       </div>
     {/if}
-    <footer class="flex justify-end border-t border-[var(--ti-border)] px-6 py-4">
-      <button type="button" class={"ti-button min-w-44 " + (primaryControl.action === "stop" ? "ti-button-danger" : "")}
-        disabled={!actionEnabled} onclick={handlePrimary}>{primaryLabel}</button>
-    </footer>
   </article>
   <MeetingSessionReview sessionActive={meeting.hasSession} onNotice={(message) => void onRefresh(message)} />
 </section>

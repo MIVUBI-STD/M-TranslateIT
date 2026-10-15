@@ -347,7 +347,7 @@
       {:else if resultMessage}
         <p class="qa-feedback">{resultMessage}</p>
       {:else if needsStop}
-        <p class="qa-feedback qa-error">Audio needs cleanup. Use Stop to recover.</p>
+        <p class="qa-feedback qa-error">Audio needs cleanup. Use Retry Stop to recover.</p>
       {:else if !live && !canStart && !foreignOwner && snapshot?.revision}
         <p class="qa-feedback">{choice === "original"
           ? "Connect a physical microphone and the virtual audio route."
@@ -363,13 +363,13 @@
           <button type="button" class="ti-button ti-button-secondary min-h-9 px-2 text-xs"
             onclick={() => { confirmingStop = false; }}>Cancel</button>
           <button type="button" class="ti-button ti-button-danger min-h-9 px-2 text-xs"
-            disabled={busy} onclick={() => void meetingAction()}>Confirm Stop</button>
+            disabled={busy} onclick={() => void meetingAction()}>{needsStop ? "Confirm Retry Stop" : "Confirm Stop"}</button>
         </div>
       {:else}
         <button type="button" class={"ti-button min-h-9 px-3 text-xs " + (canStop ? "ti-button-danger" : "")}
           disabled={busy || (!canStart && !canStop)}
           onclick={() => void meetingAction()}>
-          {#if canStop}<Square size={13} aria-hidden="true" /> Stop
+          {#if canStop}<Square size={13} aria-hidden="true" /> {needsStop ? "Retry Stop" : "Stop"}
           {:else}<Play size={13} aria-hidden="true" /> Start{/if}
         </button>
       {/if}

@@ -84,6 +84,13 @@ const page = readFileSync(new URL("../../src/pages/Meeting.svelte", import.meta.
 const header = readFileSync(new URL("../../src/components/layout/AppHeader.svelte", import.meta.url), "utf8");
 const quickAccess = readFileSync(new URL("../../src/pages/QuickAccess.svelte", import.meta.url), "utf8");
 
+test("Quick Access distinguishes first Stop from recovery without changing native ownership", () => {
+  assert.match(quickAccess, /\{needsStop \? "Retry Stop" : "Stop"\}/);
+  assert.match(quickAccess, /\{needsStop \? "Confirm Retry Stop" : "Confirm Stop"\}/);
+  assert.match(quickAccess, /if \(stop && !confirmingStop\)/);
+  assert.match(quickAccess, /stop_meeting/);
+});
+
 test("Rust preserves no-session cleanup until Stop succeeds and blocks Start meanwhile", () => {
   assert.match(rustLifecycle, /STOP_CLEANUP_PENDING\.store\(true, Ordering::Release\)/);
   assert.match(rustLifecycle, /STOP_CLEANUP_PENDING\.store\(false, Ordering::Release\)/);

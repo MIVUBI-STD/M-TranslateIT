@@ -42,7 +42,8 @@
     </div>
   </div>
 
-  <p class="m-0 min-w-0 flex-1 truncate text-right text-[11.5px] text-[var(--ti-text-muted)]" aria-live="polite">{notice}</p>
+  <p class="m-0 min-w-0 max-h-16 flex-1 overflow-y-auto break-words text-right text-[11.5px] leading-4 text-[var(--ti-text-muted)]"
+    role="status" aria-live="polite" tabindex="0" title={notice}>{notice}</p>
 
   <button
     type="button"

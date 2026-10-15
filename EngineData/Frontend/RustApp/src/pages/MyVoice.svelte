@@ -306,7 +306,7 @@
   // Keep the creator mounted while hidden: its build status owns Stop/Review recovery.
   const creatorNeedsAttention = $derived(Boolean(
     recordingStatusUnknown || isRecording || pendingLineId !== null
-    || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active
+    || improvementStarting || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active
     || buildSnapshot?.evaluation_ready,
   ));
   $effect(() => {
