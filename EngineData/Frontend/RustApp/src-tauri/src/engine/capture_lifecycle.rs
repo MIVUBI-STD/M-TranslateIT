@@ -37,7 +37,22 @@ pub fn start_capture() -> CommandResult {
             "Microphone test recording started. This capture-only path does not run ASR, translation, or TTS.",
         )
     } else {
-        let _ = clear_runtime_session_if_generation(generation);
+        if capture.status.blocker == "live_capture:cleanup_pending"
+            && capture.status.owner_id.as_deref() == Some(MIC_TEST_OWNER_ID)
+            && capture.status.session_id.as_deref() == Some(snapshot.session_id.as_str())
+        {
+            let _ = revoke_runtime_session_authority(
+                generation,
+                "Mic Test microphone Start failed; capture ownership has not been released.",
+            );
+            let _ = mark_runtime_session_cleanup_incomplete(
+                generation,
+                true,
+                "Mic Test startup could not confirm capture thread exit. Retry Stop Mic Test.",
+            );
+        } else {
+            let _ = clear_runtime_session_if_generation(generation);
+        }
         CommandResult::blocked(LifecycleState::Error, capture.message)
     }
 }

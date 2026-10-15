@@ -2,9 +2,9 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current bounded delivery:** The existing Meeting outbound and incoming consumer owners now retain their JoinHandles after a 500 ms stop wait budget instead of blocking indefinitely or detaching an unconfirmed worker. A repeated Stop can recheck the same owner. Inline Rust regression cases were authored, NOT executed. This does not yet bound the microphone/Meeting Sound capture or playback cleanup.
+**Current bounded delivery:** Outbound/incoming consumers and physical microphone/Meeting Sound capture retain their exact owned JoinHandles after a finite 500 ms Stop wait, returning cleanup-incomplete rather than detaching an unconfirmed thread. Startup capture failures retain the unconfirmed thread, Mic Test preserves its generation for Retry Stop, and late incoming activation requests scoped cleanup even after failed Start. Rust regression fixtures were authored, NOT executed. No Windows driver or native acceptance evidence exists.
 
-**Next:** Repair unbounded join paths for physical microphone and Meeting Sound capture Start/Stop using existing ownership, followed by playback cleanup. Keep the same fail-closed generation/session rules. Do not claim C4/C5 native acceptance without Windows execution.
+**Next:** Bound the existing playback runtime JoinHandle cleanup without releasing ownership while callback/driver work remains uncertain; inspect its existing deadline and cancellation contracts. Do not claim C4/C5 native acceptance without Windows execution.
 
 ## Retained My Voice source candidate (paused)
 
@@ -213,11 +213,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Bound physical microphone and Meeting Sound capture Start/Stop thread joins without
-detaching unconfirmed thread owners; preserve Retry Stop and session isolation. This
-is a source-reproducible issue from the 2026-10-16 end-to-end audit. The previous
-My Voice GPU/training acceptance remains deferred to one integrated Windows phase.
-Compiler and native results remain `UNKNOWN / NOT EXECUTED`.
+Bound playback runtime Stop join without detaching an unconfirmed playback
+thread. Preserve the existing generation/output cancellation and fail-closed
+Retry Stop behavior. After playback, address UI notice of utterance eviction and
+Text review feedback as separate bounded owners. My Voice GPU/training acceptance
+remains deferred to one integrated Windows phase. Compiler and native results
+remain `UNKNOWN / NOT EXECUTED`.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.

@@ -54,6 +54,7 @@ pub struct MeetingSoundCaptureStopReport {
 struct MeetingSoundCaptureRuntime {
     stop_tx: mpsc::Sender<()>,
     capture_thread: Option<thread::JoinHandle<()>>,
+    cleanup_pending: bool,
     session_id: String,
     device_name: Option<String>,
     sample_rate_hz: u32,
@@ -77,6 +78,24 @@ struct MeetingSoundReady {
 
 static MEETING_SOUND_CAPTURE_RUNTIME: OnceLock<Mutex<Option<MeetingSoundCaptureRuntime>>> =
     OnceLock::new();
+
+const CAPTURE_STOP_WAIT_BUDGET: Duration = Duration::from_millis(500);
+const CAPTURE_STOP_POLL: Duration = Duration::from_millis(10);
+
+// Never detach a capture whose device thread has not exited; retry on the
+// same stored JoinHandle after the finite wait budget.
+fn capture_finished_within(thread: &thread::JoinHandle<()>, budget: Duration) -> bool {
+    let started = std::time::Instant::now();
+    while !thread.is_finished() {
+        let remaining = budget.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return false;
+        }
+        thread::sleep(remaining.min(CAPTURE_STOP_POLL));
+    }
+    true
+}
+
 
 pub fn start_meeting_sound_capture_runtime(
     session_id: &str,
@@ -109,9 +128,11 @@ pub fn start_meeting_sound_capture_runtime(
     if let Some(runtime) = guard.as_ref() {
         let status = build_status_from_guard(Some(runtime));
         return MeetingSoundCaptureStartReport {
-            ok: runtime.session_id == session_id,
+            ok: runtime.session_id == session_id && !runtime.cleanup_pending,
             status,
-            message: if runtime.session_id == session_id {
+            message: if runtime.cleanup_pending {
+                "Meeting Sound capture cleanup is pending; Retry Stop before starting another session.".to_string()
+            } else if runtime.session_id == session_id {
                 "Meeting Sound loopback capture is already active for this Meeting session."
                     .to_string()
             } else {
@@ -150,44 +171,47 @@ pub fn start_meeting_sound_capture_runtime(
         }
     });
 
-    let ready = match ready_rx.recv_timeout(Duration::from_secs(10)) {
-        Ok(Ok(ready)) => ready,
-        Ok(Err(error)) => {
-            let _ = capture_thread.join();
-            clear_finalized_incoming_utterance_producer();
-            let blocker = if error == "meeting_sound:incoming_equals_virtual_tts_output" {
-                "meeting_sound:incoming_equals_virtual_tts_output"
-            } else {
-                "meeting_sound:loopback_start_failed"
-            };
-            return blocked_start(blocker, &error);
-        }
-        Err(error) => {
-            let _ = stop_tx.send(());
-            let _ = capture_thread.join();
-            clear_finalized_incoming_utterance_producer();
-            return blocked_start(
-                "meeting_sound:loopback_start_timeout",
-                &format!("Timed out while opening Meeting Sound loopback capture: {error}"),
-            );
-        }
-    };
-
-    *guard = Some(MeetingSoundCaptureRuntime {
+    let mut runtime = MeetingSoundCaptureRuntime {
         stop_tx,
         capture_thread: Some(capture_thread),
+        cleanup_pending: false,
         session_id,
-        device_name: ready.device_name,
-        sample_rate_hz: ready.sample_rate_hz,
-        channels: ready.channels,
-        sample_format: ready.sample_format,
-        started_unix_ms: ready.started_unix_ms,
+        device_name: None,
+        sample_rate_hz: 0,
+        channels: 0,
+        sample_format: String::new(),
+        started_unix_ms: current_unix_ms(),
         frames_received,
         suppressed_frames,
         suppression,
         callback_errors,
         callback_error_epoch,
-    });
+    };
+    let ready = match ready_rx.recv_timeout(Duration::from_secs(10)) {
+        Ok(Ok(ready)) => ready,
+        Ok(Err(error)) => {
+            let blocker = if error == "meeting_sound:incoming_equals_virtual_tts_output" {
+                "meeting_sound:incoming_equals_virtual_tts_output"
+            } else {
+                "meeting_sound:loopback_start_failed"
+            };
+            return finish_failed_meeting_sound_start(&mut guard, runtime, blocker, &error);
+        }
+        Err(error) => {
+            return finish_failed_meeting_sound_start(
+                &mut guard,
+                runtime,
+                "meeting_sound:loopback_start_timeout",
+                &format!("Timed out while opening Meeting Sound loopback capture: {error}"),
+            );
+        }
+    };
+    runtime.device_name = ready.device_name;
+    runtime.sample_rate_hz = ready.sample_rate_hz;
+    runtime.channels = ready.channels;
+    runtime.sample_format = ready.sample_format;
+    runtime.started_unix_ms = ready.started_unix_ms;
+    *guard = Some(runtime);
 
     MeetingSoundCaptureStartReport {
         ok: true,
@@ -254,9 +278,24 @@ fn stop_meeting_sound_capture_runtime_owned(
         };
     };
 
-    // Hold the capture mutex until thread join AND VAD cleanup finish. Releasing
-    // it immediately after take() would allow next Start to reset the incoming
-    // producer before the old capture thread erased it.
+    // Hold the mutex while requesting cancellation and confirming bounded
+    // thread exit. An unconfirmed owner must remain stored for Retry Stop.
+    if let Some(runtime) = guard
+        .as_mut()
+        .filter(|runtime| expected_session.is_none_or(|session| runtime.session_id == session))
+    {
+        let _ = runtime.stop_tx.send(());
+        if runtime.capture_thread.as_ref().is_some_and(|thread| {
+            !capture_finished_within(thread, CAPTURE_STOP_WAIT_BUDGET)
+        }) {
+            runtime.cleanup_pending = true;
+            return MeetingSoundCaptureStopReport {
+                ok: false,
+                status: build_status_from_guard(guard.as_ref()),
+                message: "Meeting Sound capture thread has not exited after the bounded Stop wait. Retry Stop; its session owner remains reserved.".to_string(),
+            };
+        }
+    }
     let runtime = take_capture_if_owned(
         &mut guard,
         expected_session,
@@ -285,7 +324,6 @@ fn stop_meeting_sound_capture_runtime_owned(
     };
 
     let stopped_session = runtime.session_id.clone();
-    let _ = runtime.stop_tx.send(());
     let joined = runtime
         .capture_thread
         .take()
@@ -531,12 +569,12 @@ fn build_status_from_guard(runtime: Option<&MeetingSoundCaptureRuntime>) -> Meet
                 .map(|guard| guard.clone())
                 .unwrap_or_default();
             MeetingSoundCaptureStatus {
-                stream_active: true,
+                stream_active: !runtime.cleanup_pending,
                 session_id: Some(runtime.session_id.clone()),
                 device_name: runtime.device_name.clone(),
-                sample_rate_hz: Some(runtime.sample_rate_hz),
-                channels: Some(runtime.channels),
-                sample_format: Some(runtime.sample_format.clone()),
+                sample_rate_hz: (runtime.sample_rate_hz != 0).then_some(runtime.sample_rate_hz),
+                channels: (runtime.channels != 0).then_some(runtime.channels),
+                sample_format: (!runtime.sample_format.is_empty()).then_some(runtime.sample_format.clone()),
                 started_unix_ms: Some(runtime.started_unix_ms),
                 active_age_ms: Some(current_unix_ms().saturating_sub(runtime.started_unix_ms)),
                 frames_received: runtime.frames_received.load(Ordering::Relaxed),
@@ -545,13 +583,43 @@ fn build_status_from_guard(runtime: Option<&MeetingSoundCaptureRuntime>) -> Meet
                 callback_error_count: runtime.callback_error_epoch.load(Ordering::Acquire)
                     .min(usize::MAX as u64) as usize,
                 latest_callback_error: errors.last().cloned(),
-                blocker: String::new(),
-                note: "Meeting Sound capture owns one Windows output-loopback stream for the current Meeting session. Actual device audio and suppression behavior require Windows runtime proof."
-                    .to_string(),
+                blocker: if runtime.cleanup_pending {
+                    "meeting_sound:cleanup_pending".to_string()
+                } else {
+                    String::new()
+                },
+                note: if runtime.cleanup_pending {
+                    "Meeting Sound thread exit is unconfirmed; old session ownership remains reserved until Retry Stop succeeds.".to_string()
+                } else {
+                    "Meeting Sound capture owns one Windows output-loopback stream for the current Meeting session. Actual device audio and suppression behavior require Windows runtime proof.".to_string()
+                },
             }
         }
         None => inactive_status("meeting_sound:not_active", "Meeting Sound capture is not active."),
     }
+}
+
+fn finish_failed_meeting_sound_start(
+    store: &mut Option<MeetingSoundCaptureRuntime>,
+    mut runtime: MeetingSoundCaptureRuntime,
+    blocker: &str,
+    message: &str,
+) -> MeetingSoundCaptureStartReport {
+    let _ = runtime.stop_tx.send(());
+    if !runtime.capture_thread.as_ref().is_some_and(|thread| {
+        capture_finished_within(thread, CAPTURE_STOP_WAIT_BUDGET)
+    }) {
+        runtime.cleanup_pending = true;
+        *store = Some(runtime);
+        return MeetingSoundCaptureStartReport {
+            ok: false,
+            status: build_status_from_guard(store.as_ref()),
+            message: format!("{message} Capture exit is not confirmed; Retry Stop before another Start."),
+        };
+    }
+    let _ = runtime.capture_thread.take().map(|thread| thread.join());
+    clear_finalized_incoming_utterance_producer_for_session(&runtime.session_id);
+    blocked_start(blocker, message)
 }
 
 fn blocked_start(blocker: &str, message: &str) -> MeetingSoundCaptureStartReport {

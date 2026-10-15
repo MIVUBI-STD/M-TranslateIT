@@ -47,9 +47,9 @@ fn start_optional_incoming_lane(session_id: &str) -> String {
         session_id, suppression, &virtual_playback_device,
     );
     if !incoming_session_is_eligible(session_id) {
-        if capture.ok {
-            let _ = stop_meeting_sound_capture_runtime_for_session(session_id);
-        }
+        // Even a failed late Start may retain an unconfirmed capture thread.
+        // Scoped Stop cannot erase a newer Meeting's incoming producer.
+        let _ = stop_meeting_sound_capture_runtime_for_session(session_id);
         return "Incoming activation ended because the Meeting stopped while optional capture was opening."
             .to_string();
     }

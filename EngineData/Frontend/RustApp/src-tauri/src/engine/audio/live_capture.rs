@@ -57,6 +57,7 @@ pub struct LiveCaptureStopReport {
 struct LiveCaptureRuntime {
     stop_tx: mpsc::Sender<()>,
     capture_thread: Option<thread::JoinHandle<()>>,
+    cleanup_pending: bool,
     owner_id: String,
     session_id: String,
     device_name: Option<String>,
@@ -70,6 +71,24 @@ struct LiveCaptureRuntime {
 }
 
 static LIVE_CAPTURE_RUNTIME: OnceLock<Mutex<Option<LiveCaptureRuntime>>> = OnceLock::new();
+
+const CAPTURE_STOP_WAIT_BUDGET: Duration = Duration::from_millis(500);
+const CAPTURE_STOP_POLL: Duration = Duration::from_millis(10);
+
+// Never detach a capture whose device thread has not exited; retry on the
+// same stored JoinHandle after the finite wait budget.
+fn capture_finished_within(thread: &thread::JoinHandle<()>, budget: Duration) -> bool {
+    let started = std::time::Instant::now();
+    while !thread.is_finished() {
+        let remaining = budget.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return false;
+        }
+        thread::sleep(remaining.min(CAPTURE_STOP_POLL));
+    }
+    true
+}
+
 
 struct LiveCaptureReady {
     device_name: Option<String>,
@@ -139,41 +158,48 @@ pub fn start_live_capture_runtime(
         }
     });
 
+    // Own the thread before awaiting device readiness. On a failed/late device
+    // open, a still-running child remains in the canonical capture store.
+    let mut runtime = LiveCaptureRuntime {
+        stop_tx,
+        capture_thread: Some(capture_thread),
+        cleanup_pending: false,
+        owner_id: session.owner_id.clone(),
+        session_id: session.session_id.clone(),
+        device_name: None,
+        sample_rate_hz: 0,
+        channels: 0,
+        sample_format: String::new(),
+        started_unix_ms: current_unix_ms(),
+        frames_received,
+        callback_errors,
+        callback_error_epoch,
+    };
     let ready = match ready_rx.recv_timeout(Duration::from_secs(10)) {
         Ok(Ok(ready)) => ready,
         Ok(Err(error)) => {
-            let _ = capture_thread.join();
-            clear_live_audio_buffer();
-            clear_finalized_outbound_utterance_producer();
-            return blocked_start("live_capture:stream_build_failed", &error);
+            return finish_failed_live_capture_start(
+                &mut guard,
+                runtime,
+                "live_capture:stream_build_failed",
+                &error,
+            );
         }
         Err(error) => {
-            let _ = stop_tx.send(());
-            let _ = capture_thread.join();
-            clear_live_audio_buffer();
-            clear_finalized_outbound_utterance_producer();
-            return blocked_start(
+            return finish_failed_live_capture_start(
+                &mut guard,
+                runtime,
                 "live_capture:stream_start_timeout",
                 &format!("Timed out while starting live microphone stream: {error}"),
             );
         }
     };
 
-    let runtime = LiveCaptureRuntime {
-        stop_tx,
-        capture_thread: Some(capture_thread),
-        owner_id: session.owner_id.clone(),
-        session_id: session.session_id.clone(),
-        device_name: ready.device_name,
-        sample_rate_hz: ready.sample_rate_hz,
-        channels: ready.channels,
-        sample_format: ready.sample_format,
-        started_unix_ms: ready.started_unix_ms,
-        frames_received,
-        callback_errors,
-        callback_error_epoch,
-    };
-
+    runtime.device_name = ready.device_name;
+    runtime.sample_rate_hz = ready.sample_rate_hz;
+    runtime.channels = ready.channels;
+    runtime.sample_format = ready.sample_format;
+    runtime.started_unix_ms = ready.started_unix_ms;
     *guard = Some(runtime);
     let status = build_status_from_guard(guard.as_ref());
 
@@ -215,7 +241,7 @@ pub fn stop_live_capture_runtime() -> LiveCaptureStopReport {
         };
     };
 
-    let Some(mut runtime) = guard.take() else {
+    if guard.is_none() {
         clear_live_audio_buffer();
         clear_finalized_outbound_utterance_producer();
         return LiveCaptureStopReport {
@@ -224,18 +250,31 @@ pub fn stop_live_capture_runtime() -> LiveCaptureStopReport {
                 "live_capture:not_active",
                 "No live microphone stream was active.",
             ),
-            message: "No live microphone stream was active. Rolling/finalized audio state was cleared and Stop remains safe."
-                .to_string(),
+            message: "No live microphone stream was active. Rolling/finalized audio state was cleared and Stop remains safe.".to_string(),
         };
-    };
+    }
 
-    drop(guard);
-    let _ = runtime.stop_tx.send(());
+    // Keep the owner lock during the bounded exit check so Start cannot race
+    // an old capture thread's late producer teardown.
+    let active = guard.as_mut().expect("capture owner checked above");
+    let _ = active.stop_tx.send(());
+    if active.capture_thread.as_ref().is_some_and(|thread| {
+        !capture_finished_within(thread, CAPTURE_STOP_WAIT_BUDGET)
+    }) {
+        active.cleanup_pending = true;
+        return LiveCaptureStopReport {
+            ok: false,
+            status: build_status_from_guard(guard.as_ref()),
+            message: "Microphone capture thread has not exited after the bounded Stop wait. Retry Stop; this capture owner remains reserved.".to_string(),
+        };
+    }
+
+    let mut runtime = guard.take().expect("matching capture owner still held");
     let thread_stopped = runtime
         .capture_thread
         .take()
         .map(|handle| handle.join().is_ok())
-        .unwrap_or(true);
+        .unwrap_or(false);
     clear_live_audio_buffer();
     clear_finalized_outbound_utterance_producer();
     LiveCaptureStopReport {
@@ -245,11 +284,9 @@ pub fn stop_live_capture_runtime() -> LiveCaptureStopReport {
             "Live microphone stream ownership was released.",
         ),
         message: if thread_stopped {
-            "Live microphone stream stopped; rolling and pending finalized audio were cleared and ownership was released."
-                .to_string()
+            "Live microphone stream stopped; rolling and pending finalized audio were cleared and ownership was released.".to_string()
         } else {
-            "Live microphone stream stopped and audio state was cleared, but its owner thread exited unexpectedly."
-                .to_string()
+            "Live microphone stream stopped and audio state was cleared, but its owner thread exited unexpectedly.".to_string()
         },
     }
 }
@@ -576,24 +613,32 @@ fn build_status_from_guard(runtime: Option<&LiveCaptureRuntime>) -> LiveCaptureS
                 .map(|guard| guard.clone())
                 .unwrap_or_default();
             LiveCaptureStatusReport {
-                stream_active: true,
+                stream_active: !runtime.cleanup_pending,
                 owner_id: Some(runtime.owner_id.clone()),
                 session_id: Some(runtime.session_id.clone()),
                 device_name: runtime.device_name.clone(),
-                sample_rate_hz: Some(runtime.sample_rate_hz),
-                channels: Some(runtime.channels),
-                sample_format: Some(runtime.sample_format.clone()),
+                sample_rate_hz: (runtime.sample_rate_hz != 0).then_some(runtime.sample_rate_hz),
+                channels: (runtime.channels != 0).then_some(runtime.channels),
+                sample_format: (!runtime.sample_format.is_empty()).then_some(runtime.sample_format.clone()),
                 started_unix_ms: Some(runtime.started_unix_ms),
                 active_age_ms: Some(active_age_ms),
                 frames_received: runtime.frames_received.load(Ordering::Relaxed),
                 callback_error_count: runtime.callback_error_epoch.load(Ordering::Acquire)
                     .min(usize::MAX as u64) as usize,
                 latest_callback_error: errors.last().cloned(),
-                blocker: String::new(),
-                note: format!(
+                blocker: if runtime.cleanup_pending {
+                    "live_capture:cleanup_pending".to_string()
+                } else {
+                    String::new()
+                },
+                note: if runtime.cleanup_pending {
+                    "Microphone capture thread exit is unconfirmed. The previous owner is reserved; Retry Stop before Start.".to_string()
+                } else {
+                    format!(
                     "Live microphone stream is active. age_ms={}, sample_rate_hz={}, channels={}. Rolling audio remains preview-capable; finalized output production is scoped to the application Meeting owner.",
                     active_age_ms, runtime.sample_rate_hz, runtime.channels
-                ),
+                )
+                },
             }
         }
         None => inactive_status(
@@ -601,6 +646,30 @@ fn build_status_from_guard(runtime: Option<&LiveCaptureRuntime>) -> LiveCaptureS
             "Live microphone stream is not active.",
         ),
     }
+}
+
+fn finish_failed_live_capture_start(
+    store: &mut Option<LiveCaptureRuntime>,
+    mut runtime: LiveCaptureRuntime,
+    blocker: &str,
+    message: &str,
+) -> LiveCaptureStartReport {
+    let _ = runtime.stop_tx.send(());
+    if !runtime.capture_thread.as_ref().is_some_and(|thread| {
+        capture_finished_within(thread, CAPTURE_STOP_WAIT_BUDGET)
+    }) {
+        runtime.cleanup_pending = true;
+        *store = Some(runtime);
+        return LiveCaptureStartReport {
+            ok: false,
+            status: build_status_from_guard(store.as_ref()),
+            message: format!("{message} Capture thread exit is not confirmed; Retry Stop before another Start."),
+        };
+    }
+    let _ = runtime.capture_thread.take().map(|thread| thread.join());
+    clear_live_audio_buffer();
+    clear_finalized_outbound_utterance_producer();
+    blocked_start(blocker, message)
 }
 
 fn blocked_start(blocker: &str, message: &str) -> LiveCaptureStartReport {
@@ -648,6 +717,16 @@ fn safe_sample(value: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn capture_exit_wait_is_bounded_and_rechecks_exact_thread() {
+        let (release, blocked) = mpsc::channel::<()>();
+        let thread = thread::spawn(move || { let _ = blocked.recv(); });
+        assert!(!capture_finished_within(&thread, Duration::ZERO));
+        release.send(()).expect("release fixture capture");
+        assert!(capture_finished_within(&thread, Duration::from_secs(2)));
+        thread.join().expect("capture fixture joined");
+    }
 
     #[test]
     fn callback_conversion_reuses_scratch_and_downmixes_in_one_pass() {
