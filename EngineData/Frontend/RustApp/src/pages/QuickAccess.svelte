@@ -50,6 +50,9 @@
   );
 
   function syncFromNative(next: ApplicationSnapshot): void {
+    // Native application snapshots carry a monotonic observation revision.
+    // A delayed poll or event cannot overwrite a newer confirmed source state.
+    if (snapshot && next.revision < snapshot.revision) return;
     snapshot = next;
     if (next.meeting.lifecycle === "live"
       && next.meeting.owner_id === APPLICATION_MEETING_OWNER_ID) {
@@ -95,8 +98,9 @@
       const result = await runtimeApi.selectMeetingAudioSource(requested);
       const native = await applicationRuntimeApi.getSnapshot();
       if (!disposed) syncFromNative(native);
-      if (!result?.ok || native.meeting.audio_source !== requested
-        || native.meeting.lifecycle !== "live") {
+      const actual = snapshot?.meeting ?? native.meeting;
+      if (!result?.ok || actual.audio_source !== requested
+        || actual.lifecycle !== "live") {
         errorMessage = result?.message ?? "Could not confirm the audio source. Check Meeting status.";
         resultMessage = "";
       } else {
@@ -286,7 +290,9 @@
       {:else if needsStop}
         <p class="qa-feedback qa-error">Audio needs cleanup. Use Stop to recover.</p>
       {:else if !live && !canStart && !foreignOwner && snapshot?.revision}
-        <p class="qa-feedback">Check your microphone, virtual route, or selected translation voice.</p>
+        <p class="qa-feedback">{choice === "original"
+          ? "Connect a physical microphone and the virtual audio route."
+          : "Check the microphone, virtual route, and selected translation voice."}</p>
       {/if}
     </div>
 

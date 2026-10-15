@@ -60,3 +60,16 @@ test("Quick Access controls captions through the existing overlay only", () => {
   assert.match(popup, /native\.meeting\.audio_source !== requested/);
   assert.match(popup, /result\.snapshot\.meeting\.lifecycle !== "live"/);
 });
+
+
+test("Late status observations cannot overwrite a newer confirmed source", () => {
+  assert.match(popup, /next\.revision < snapshot\.revision/);
+  assert.match(popup, /const actual = snapshot\?\.meeting \?\? native\.meeting/);
+  assert.match(popup, /actual\.audio_source !== requested/);
+});
+
+test("Native popup doesn't misreport a Windows foreground-focus denial as Show failure", () => {
+  assert.match(native, /let _ = window\.set_focus\(\)/);
+  assert.match(native, /TOGGLE_LOCK/);
+  assert.match(native, /quick_access:window_show_failed/);
+});

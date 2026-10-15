@@ -80,6 +80,9 @@ Requires relevant A/B capability first.
 | D9 | Chat-style transcript | source + rendered local | You/right and Person 1/left in Live and Last Meeting; original and translated content visible; recorded time accurate; no participant-ID inference |
 | D10 | Manual session isolation | source + TARGET_WINDOWS file check | each meeting has a distinct session ID; manual exports land in unique session folders, not one accumulating file; unexported last-session data is never described as persistently saved |
 | D11 | Full-session bounded manual export | Rust source unit + TARGET_WINDOWS file check | live/review window remains last 240, manual export contains up to 4,096 session turns under 8 MiB text budget, evicted content is clearly disclosed, and no automatic file write occurs |
+| D12 | Single Quick Access naming and launch | source + rendered TARGET_WINDOWS | One hidden-by-default `quick-access` window opens from app header, in-app Ctrl+K, and Windows tray (if supported); old Command Palette absent; all entrypoints open the same popup |
+| D13 | Quick Access meeting actions | source + TARGET_WINDOWS with real mic/route | Original/TranslateIT switches only after native acknowledgment; captions show/hide uses the existing overlay; Stop requires explicit confirmation; stale status/events cannot misstate the source; failures stay visible |
+| D14 | Quick Access desktop comfort | rendered TARGET_WINDOWS, including secondary monitor | Popup opens within current monitor work area without covering default bottom-center captions, Escape/blur/success hide only the popup, and application exit destroys popup/captions without orphan process |
 
 ## Group E — Distribution
 

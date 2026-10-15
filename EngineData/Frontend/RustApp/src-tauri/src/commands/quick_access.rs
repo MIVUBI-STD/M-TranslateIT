@@ -44,7 +44,9 @@ pub fn toggle_window(app: &AppHandle) -> Result<bool, String> {
     }
     position_popup(&window)?;
     window.show().map_err(|_| "quick_access:window_show_failed")?;
-    window.set_focus().map_err(|_| "quick_access:focus_failed")?;
+    // Windows may deny foreground focus to an application invoked from another
+    // foreground process. A visible usable popup is still a successful Show.
+    let _ = window.set_focus();
     Ok(true)
 }
 
@@ -71,8 +73,10 @@ pub fn open_translateit_main(app: AppHandle) -> Result<bool, String> {
 #[cfg(target_os = "windows")]
 pub fn install_tray<R: tauri::Runtime>(app: &tauri::App<R>) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-    let icon = app.default_window_icon().cloned()
-        .ok_or("quick_access:tray_icon_unavailable")?;
+    let icon = app.default_window_icon().cloned().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::NotFound,
+            "quick_access:tray_icon_unavailable")
+    })?;
     let _tray = TrayIconBuilder::with_id("quick-access-tray")
         .icon(icon)
         .tooltip("TranslateIT Quick Access")
