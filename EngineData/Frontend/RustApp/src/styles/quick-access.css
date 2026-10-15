@@ -17,7 +17,7 @@ html.ti-quick-access-document body { user-select: none; }
   border-radius: 16px; background: var(--ti-surface-raised);
   color: var(--ti-text); box-shadow: 0 16px 44px rgb(0 0 0 / 0.3);
 }
-.qa-section { padding: 14px 17px; border-top: 1px solid var(--ti-border); }
+.qa-section { padding: 12px 17px; border-top: 1px solid var(--ti-border); }
 .qa-choice {
   display: grid; align-content: center; justify-items: center;
   gap: 6px; min-height: 77px; padding: 10px 6px; border-radius: 11px;

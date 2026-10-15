@@ -47,7 +47,7 @@ test("Original mode starts under existing Meeting ownership without AI", () => {
   assert.match(lifecycle, /start_original_voice_output\(output_device, generation, 2\)/);
   assert.match(intents, /"start_original_meeting"/);
   assert.match(facade, /source === "original" \? "start_original_meeting"/);
-  assert.match(meeting, /if \(!meeting.live\)/);
+  assert.match(meeting, /selectMeetingPreferredAudioSource\(source\)/);
   assert.match(meeting, /Start Original Microphone/);
   assert.match(sources, /prepare_required_outbound_ai_runtime\(generation\)/);
 });

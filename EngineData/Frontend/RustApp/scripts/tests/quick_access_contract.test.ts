@@ -150,3 +150,15 @@ test("Caption visibility is the native window state and the main window owns cap
   assert.match(popup, /captionsVisible === null \? "Status unavailable"/);
   assert.doesNotMatch(popup, /showTranslationOverlay\(\)/);
 });
+
+
+test("Mute fits into the one bounded Quick Access popup without hiding Stop", () => {
+  const quick = config.app.windows.find((window: { label: string }) => window.label === "quick-access");
+  assert.equal(quick?.height, 500);
+  assert.equal(quick?.minHeight, 500);
+  assert.equal(quick?.maxHeight, 500);
+  const css = source("src/styles/quick-access.css");
+  assert.match(css, /qa-panel/);
+  assert.match(popup, /Microphone Mute/);
+  assert.match(popup, /Confirm Stop/);
+});
