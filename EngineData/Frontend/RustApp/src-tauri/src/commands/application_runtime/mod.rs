@@ -14,9 +14,9 @@ pub use contract::{ApplicationIntentResult, ApplicationSnapshot};
 pub use shutdown::prepare_for_app_exit;
 pub use snapshot::current_application_snapshot;
 
-pub(crate) fn notify_preferred_audio_source_change(app: &tauri::AppHandle) {
+pub(crate) fn notify_meeting_control_change(app: &tauri::AppHandle, reason: &str) {
     let snapshot = current_application_snapshot();
-    events::emit_application_snapshot(app, "meeting_preferred_source_changed", &snapshot);
+    events::emit_application_snapshot(app, reason, &snapshot);
 }
 
 #[tauri::command]

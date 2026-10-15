@@ -138,3 +138,13 @@ test("out-of-order preferences events reconcile from the current persisted state
   assert.match(overlayPage, /applyPreferences\(readOverlayPreferences\(\)\)/);
   assert.doesNotMatch(overlayPage, /applyPreferences\(event\.payload\)/);
 });
+
+
+test("Caption popup Show/Hide controls the native window, not just a child webview", () => {
+  const runtime = readFileSync(
+    new URL("../../src/app/runtime/translationOverlayRuntime.ts", import.meta.url), "utf8",
+  );
+  assert.match(runtime, /import \{ Window \} from "@tauri-apps\/api\/window"/);
+  assert.match(runtime, /Window\.getByLabel\(OVERLAY_WINDOW_LABEL\)/);
+  assert.doesNotMatch(runtime, /WebviewWindow\.getByLabel/);
+});

@@ -316,8 +316,15 @@ pub fn get_meeting_session_status() -> MeetingSessionStatus {
     current_status()
 }
 #[tauri::command]
-pub fn set_meeting_audio_source(source: String) -> audio_source::MeetingAudioSourceActionResult {
-    audio_source::set_source(&source)
+pub fn set_meeting_audio_source(
+    app: tauri::AppHandle, source: String,
+) -> audio_source::MeetingAudioSourceActionResult {
+    let result = audio_source::set_source(&source);
+    if result.ok {
+        crate::commands::application_runtime::notify_meeting_control_change(
+            &app, "meeting_audio_source_changed");
+    }
+    result
 }
 
 #[tauri::command]
@@ -326,14 +333,22 @@ pub fn set_meeting_preferred_audio_source(
 ) -> audio_source::MeetingAudioSourceActionResult {
     let result = audio_source::set_preferred_source(&source);
     if result.ok {
-        crate::commands::application_runtime::notify_preferred_audio_source_change(&app);
+        crate::commands::application_runtime::notify_meeting_control_change(
+            &app, "meeting_preferred_source_changed");
     }
     result
 }
 
 #[tauri::command]
-pub fn set_meeting_output_muted(muted: bool) -> audio_source::MeetingMuteActionResult {
-    audio_source::set_muted(muted)
+pub fn set_meeting_output_muted(
+    app: tauri::AppHandle, muted: bool,
+) -> audio_source::MeetingMuteActionResult {
+    let result = audio_source::set_muted(muted);
+    if result.ok {
+        crate::commands::application_runtime::notify_meeting_control_change(
+            &app, "meeting_output_mute_changed");
+    }
+    result
 }
 
 pub(crate) fn deferred_incoming_health_counts() -> (usize, u64, u64) {

@@ -162,3 +162,14 @@ test("Mute fits into the one bounded Quick Access popup without hiding Stop", ()
   assert.match(popup, /Microphone Mute/);
   assert.match(popup, /Confirm Stop/);
 });
+
+
+test("Mute and source changes broadcast one native snapshot to all active windows", () => {
+  const meeting = source("src-tauri/src/commands/meeting_session.rs");
+  const appRuntime = source("src-tauri/src/commands/application_runtime/mod.rs");
+  assert.match(meeting, /"meeting_audio_source_changed"/);
+  assert.match(meeting, /"meeting_output_mute_changed"/);
+  assert.match(meeting, /"meeting_preferred_source_changed"/);
+  assert.match(appRuntime, /fn notify_meeting_control_change\(app: &tauri::AppHandle, reason: &str\)/);
+  assert.match(appRuntime, /events::emit_application_snapshot\(app, reason, &snapshot\)/);
+});
