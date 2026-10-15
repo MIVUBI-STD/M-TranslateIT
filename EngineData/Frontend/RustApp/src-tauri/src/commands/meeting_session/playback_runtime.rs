@@ -25,6 +25,22 @@ use super::{generation_is_live, incoming_session_is_eligible};
 
 const PLAYBACK_QUEUE_CAPACITY: usize = 1;
 const ENQUEUE_RETRY_DELAY: Duration = Duration::from_millis(10);
+const PLAYBACK_STOP_WAIT_BUDGET: Duration = Duration::from_millis(500);
+const PLAYBACK_STOP_POLL: Duration = Duration::from_millis(10);
+
+// Caller keeps the canonical runtime mutex while waiting; no other Start may
+// replace a thread whose exit is not yet confirmed.
+fn playback_finished_within(thread: &JoinHandle<()>, budget: Duration) -> bool {
+    let started = Instant::now();
+    while !thread.is_finished() {
+        let remaining = budget.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return false;
+        }
+        thread::sleep(remaining.min(PLAYBACK_STOP_POLL));
+    }
+    true
+}
 
 pub(super) struct PreparedPlaybackJob {
     pub(super) generation: u64,
@@ -41,7 +57,7 @@ pub(super) struct PreparedPlaybackJob {
 struct MeetingPlaybackRuntime {
     generation: u64,
     session_id: String,
-    sender: SyncSender<PreparedPlaybackJob>,
+    sender: Option<SyncSender<PreparedPlaybackJob>>,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -351,7 +367,7 @@ pub(super) fn start_meeting_playback_runtime(
     *guard = Some(MeetingPlaybackRuntime {
         generation,
         session_id: runtime_session_id,
-        sender,
+        sender: Some(sender),
         thread: Some(handle),
     });
     // Stop takes this same owner lock. Keep any raced spawned thread visible
@@ -403,7 +419,7 @@ pub(super) fn enqueue_meeting_playback(job: PreparedPlaybackJob) -> Result<(), S
                 .filter(|runtime| {
                     runtime.generation == job.generation && runtime.session_id == job.session_id
                 })
-                .map(|runtime| runtime.sender.clone())
+                .and_then(|runtime| runtime.sender.as_ref().cloned())
                 .ok_or_else(|| "meeting_playback:runtime_not_active".to_string())
         });
     let sender = match sender {
@@ -431,39 +447,43 @@ pub(super) fn enqueue_meeting_playback(job: PreparedPlaybackJob) -> Result<(), S
 pub(super) fn stop_meeting_playback_runtime(
     generation: u64,
 ) -> MeetingPlaybackCleanupResult {
-    let runtime = match playback_runtime_store().lock() {
-        Ok(mut guard) => {
-            if guard
-                .as_ref()
-                .map(|runtime| runtime.generation == generation)
-                .unwrap_or(false)
-            {
-                guard.take()
-            } else {
-                None
-            }
-        }
-        Err(_) => {
-            return MeetingPlaybackCleanupResult {
-                ok: false,
-                message: "Meeting playback runtime state lock failed during cleanup.".to_string(),
-            };
-        }
+    let store = playback_runtime_store();
+    let Ok(mut guard) = store.lock() else {
+        return MeetingPlaybackCleanupResult {
+            ok: false,
+            message: "Meeting playback runtime state lock failed during cleanup.".to_string(),
+        };
     };
-
-    let Some(mut runtime) = runtime else {
+    if !guard.as_ref().is_some_and(|runtime| runtime.generation == generation) {
         return MeetingPlaybackCleanupResult {
             ok: true,
             message: "No matching Meeting playback runtime required cleanup.".to_string(),
         };
-    };
+    }
 
-    drop(runtime.sender);
+    let active = guard.as_mut().expect("matching playback owner checked");
+    // Close producer admission, but keep JoinHandle and generation identity
+    // through the bounded wait. A subsequent Retry Stop can check the same
+    // thread even after its queue sender was already closed.
+    active.sender.take();
+    if active.thread.as_ref().is_some_and(|thread| {
+        !playback_finished_within(thread, PLAYBACK_STOP_WAIT_BUDGET)
+    }) {
+        return MeetingPlaybackCleanupResult {
+            ok: false,
+            message: format!(
+                "Meeting playback runtime for {} generation {generation} has not exited. Retry Stop; another playback owner remains blocked.",
+                active.session_id,
+            ),
+        };
+    }
+
+    let mut runtime = guard.take().expect("matching playback owner still held");
     let joined = runtime
         .thread
         .take()
         .map(|handle| handle.join().is_ok())
-        .unwrap_or(true);
+        .unwrap_or(false);
     MeetingPlaybackCleanupResult {
         ok: joined,
         message: if joined {
@@ -483,9 +503,20 @@ pub(super) fn stop_meeting_playback_runtime(
 
 #[cfg(test)]
 mod tests {
-    use super::{enqueue_with_deadline, sequence_is_monotonic, PLAYBACK_QUEUE_CAPACITY};
+    use super::{enqueue_with_deadline, playback_finished_within, sequence_is_monotonic, PLAYBACK_QUEUE_CAPACITY};
     use std::sync::mpsc;
+    use std::thread;
     use std::time::Duration;
+
+    #[test]
+    fn unconfirmed_playback_exit_does_not_force_blocking_join() {
+        let (release, blocked) = mpsc::channel::<()>();
+        let thread = thread::spawn(move || { let _ = blocked.recv(); });
+        assert!(!playback_finished_within(&thread, Duration::ZERO));
+        release.send(()).expect("release playback fixture");
+        assert!(playback_finished_within(&thread, Duration::from_secs(2)));
+        thread.join().expect("playback fixture joined");
+    }
 
     #[test]
     fn admission_rejects_stall_cancellation_and_disconnect_without_eviction() {

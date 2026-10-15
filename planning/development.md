@@ -2,9 +2,9 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current bounded delivery:** Outbound/incoming consumers and physical microphone/Meeting Sound capture retain their exact owned JoinHandles after a finite 500 ms Stop wait, returning cleanup-incomplete rather than detaching an unconfirmed thread. Startup capture failures retain the unconfirmed thread, Mic Test preserves its generation for Retry Stop, and late incoming activation requests scoped cleanup even after failed Start. Rust regression fixtures were authored, NOT executed. No Windows driver or native acceptance evidence exists.
+**Current bounded delivery:** Outbound/incoming consumers, physical microphone/Meeting Sound capture, and playback retain exact JoinHandle ownership after bounded 500 ms Stop waits. Capture Start failure keeps an unconfirmed thread; Mic Test preserves its cleanup generation and late incoming activation requests scoped Stop. Playback closes queue admission without detaching the consumer; Retry Stop may finish cleanup later. Inline Rust regression tests are authored, NOT EXECUTED. Other lifecycle owners and actual Windows driver behavior are NOT certified.
 
-**Next:** Bound the existing playback runtime JoinHandle cleanup without releasing ownership while callback/driver work remains uncertain; inspect its existing deadline and cancellation contracts. Do not claim C4/C5 native acceptance without Windows execution.
+**Next:** Surface missing/evicted finalized Meeting utterances in the normal Meeting UI using existing runtime counters (no second tracking state), then restore Text translation review hints as a separate presentation change. Native C4/C5 acceptance remains NOT EXECUTED.
 
 ## Retained My Voice source candidate (paused)
 
@@ -213,12 +213,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Bound playback runtime Stop join without detaching an unconfirmed playback
-thread. Preserve the existing generation/output cancellation and fail-closed
-Retry Stop behavior. After playback, address UI notice of utterance eviction and
-Text review feedback as separate bounded owners. My Voice GPU/training acceptance
-remains deferred to one integrated Windows phase. Compiler and native results
-remain `UNKNOWN / NOT EXECUTED`.
+Surface bounded queue overflow/eviction information from existing Meeting
+outbound runtime counters in the normal Meeting activity UI. Preserve source
+truth and avoid a second counter or poller. Then fix Text result review feedback
+as a separate change. My Voice GPU/training acceptance remains deferred to one
+integrated Windows phase. Compiler and native results remain
+`UNKNOWN / NOT EXECUTED`.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.
