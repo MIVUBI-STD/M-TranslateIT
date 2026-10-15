@@ -136,6 +136,7 @@ pub struct MeetingSessionStatus {
     pub active_age_ms: Option<u128>,
     pub capture_active: bool,
     pub audio_source: String,
+    pub muted: bool,
     pub owner_id: Option<String>,
     pub blocker: String,
     pub note: String,
@@ -317,6 +318,11 @@ pub fn get_meeting_session_status() -> MeetingSessionStatus {
 #[tauri::command]
 pub fn set_meeting_audio_source(source: String) -> audio_source::MeetingAudioSourceActionResult {
     audio_source::set_source(&source)
+}
+
+#[tauri::command]
+pub fn set_meeting_output_muted(muted: bool) -> audio_source::MeetingMuteActionResult {
+    audio_source::set_muted(muted)
 }
 
 pub(crate) fn deferred_incoming_health_counts() -> (usize, u64, u64) {

@@ -23,6 +23,13 @@ pub struct MeetingAudioSourceActionResult {
     pub source: String,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MeetingMuteActionResult {
+    pub ok: bool,
+    pub muted: bool,
+    pub message: String,
+}
 fn response(ok: bool, generation: Option<u64>, message: &str) -> MeetingAudioSourceActionResult {
     MeetingAudioSourceActionResult {
         ok,
@@ -51,6 +58,44 @@ fn require_stop(generation: u64, reason: &str) -> MeetingAudioSourceActionResult
     let _ = mark_runtime_session_cleanup_incomplete(generation, true, reason);
     response(false, Some(generation),
         "Microphone switching could not safely finish. Audio is blocked; select Stop Microphone to recover.")
+}
+
+/// Mute is an output gate, never a third microphone source. The same atomic
+/// source gate covers Original and translated playback, independent of AI.
+pub(super) fn set_muted(muted: bool) -> MeetingMuteActionResult {
+    let reply = |ok: bool, generation: Option<u64>, message: &str| MeetingMuteActionResult {
+        ok,
+        muted: generation.is_some_and(original_voice_pcm::is_output_muted),
+        message: message.to_string(),
+    };
+    let Ok(_lock) = SOURCE_CHANGE_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return reply(false, None, "Microphone control is temporarily unavailable.");
+    };
+    let current = latest_runtime_session_state();
+    let Some(session) = current.snapshot.filter(|item|
+        item.owner_id == APPLICATION_MEETING_OWNER_ID
+            && item.authority_active && item.phase == "live") else {
+        return reply(false, None, "Start the Meeting before using Mute.");
+    };
+    let generation = session.generation;
+    if let Err(error) = original_voice_pcm::set_output_muted(generation, muted) {
+        return reply(false, Some(generation), error);
+    }
+    if muted {
+        // Output callback is already silent via MUTED. Cancellation additionally
+        // interrupts the current translated WAV without affecting captions.
+        if !cancel_meeting_output_for_generation(generation) {
+            let _ = mark_runtime_session_cleanup_incomplete(
+                generation, true, "Mute could not confirm native TTS cancellation.");
+            return reply(false, Some(generation),
+                "Mute was applied, but audio cleanup is uncertain. Use Stop to recover.");
+        }
+    }
+    reply(true, Some(generation), if muted {
+        "Microphone muted. Both Original and TranslateIT voice outputs are silent."
+    } else {
+        "Microphone unmuted. Only newly captured audio will be sent."
+    })
 }
 
 /// Switch exactly one source for the already-live Meeting generation.

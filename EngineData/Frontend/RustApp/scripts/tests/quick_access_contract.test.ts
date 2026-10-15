@@ -97,3 +97,23 @@ test("Popup success from a hidden operation cannot dismiss a later invocation", 
   assert.match(popup, /const token = \+\+actionRevision/);
   assert.match(popup, /if \(!busy\) resultMessage = ""/);
 });
+
+
+test("Quick Access includes a single native mute button independent of source selection", () => {
+  const registry = source("src-tauri/src/commands/registry.rs");
+  const nativeSource = source("src-tauri/src/commands/meeting_session/audio_source.rs");
+  const api = source("src/app/bridge/runtimeApi.ts");
+  assert.match(popup, /Microphone Mute/);
+  assert.match(popup, /toggleMute\(\)/);
+  assert.match(popup, /meeting\?\.muted/);
+  assert.match(popup, /setMeetingOutputMuted\(desired\)/);
+  assert.match(registry, /set_meeting_output_muted/);
+  assert.match(nativeSource, /Mute is an output gate, never a third microphone source/);
+  assert.match(api, /muted: boolean/);
+});
+test("Quick Access native hide uses Window API, not Webview.hide", () => {
+  const runtime = source("src/app/runtime/quickAccessRuntime.ts");
+  assert.match(runtime, /import \{ Window \} from "@tauri-apps\/api\/window"/);
+  assert.match(runtime, /Window\.getByLabel\(QUICK_ACCESS_WINDOW_LABEL\)/);
+  assert.doesNotMatch(runtime, /WebviewWindow\.getByLabel/);
+});

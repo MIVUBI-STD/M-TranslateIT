@@ -138,6 +138,9 @@ pub(super) fn status_from_report(
                 "translateit".to_string()
             })
             .unwrap_or_else(|| "translateit".to_string()),
+        muted: snapshot
+            .map(|current| original_voice_pcm::is_output_muted(current.generation))
+            .unwrap_or(false),
         capture_active: snapshot
             .map(|value| value.live_capture_stream_active)
             .unwrap_or(false),

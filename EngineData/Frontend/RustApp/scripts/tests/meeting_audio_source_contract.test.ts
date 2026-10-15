@@ -89,3 +89,17 @@ test("Original Live is not mislabeled as active translation in product readiness
   assert.match(lifecycle, /Original Microphone needs a working physical microphone/);
   assert.match(lifecycle, /Original Microphone needs the configured virtual audio route/);
 });
+
+
+test("Native mute gates both raw callback and translated TTS without mixing the source", () => {
+  const pcm = read("src-tauri/src/engine/audio/original_voice_pcm.rs");
+  const output = read("src-tauri/src/engine/audio/meeting_output_runtime.rs");
+  const source = read("src-tauri/src/commands/meeting_session/audio_source.rs");
+  assert.match(pcm, /static MUTED: AtomicBool/);
+  assert.match(pcm, /fn set_output_muted\(generation: u64, muted: bool\)/);
+  assert.match(pcm, /MUTED\.load\(Ordering::Acquire\)/);
+  assert.match(pcm, /state\.clear\(\)/);
+  assert.match(output, /original_voice_pcm::is_output_muted\(self\.generation\)/);
+  assert.match(source, /set_meeting_output_muted|pub\(super\) fn set_muted/);
+  assert.match(source, /cancel_meeting_output_for_generation\(generation\)/);
+});

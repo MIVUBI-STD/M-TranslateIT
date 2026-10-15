@@ -476,9 +476,9 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 **MUST:** Meeting | Text | My Voice | Settings.
 
 ### PR-160A — One on-demand Quick Access
-**MUST:** Quick Access is one small, single-instance popup for in-meeting controls; do not maintain parallel Quick Nav/Quick Actions/Command Palette panels or replicate Sidebar lists. The UI exposes only truthful microphone status, Original/TranslateIT source selection, Floating Captions Show/Hide and Start/Stop (with Stop confirmation).
+**MUST:** Quick Access is one small, single-instance popup for in-meeting controls; do not maintain parallel Quick Nav/Quick Actions/Command Palette panels or replicate Sidebar lists. The UI exposes only truthful microphone status, Original/TranslateIT source selection, independent Mute/Unmute, Floating Captions Show/Hide and Start/Stop (with Stop confirmation). Mute is not a third source.
 
-**MUST:** One native Meeting authority owns every source/action, with duplicate transitions blocked. A failed source switch stays visible with a clear recovery action; the popup does not claim success until native state confirms it. Hiding the popup never stops the microphone.
+**MUST:** One native Meeting authority owns every source/action, with duplicate transitions blocked. Mute must silence both Original PCM and translated TTS at the native output callback; reject stale TTS across mute/unmute, clear raw PCM buffered while muted, and preserve source selection while muted. A failed source switch stays visible with a clear recovery action; the popup does not claim success until native state confirms it. Hiding the popup never stops the microphone.
 
 **SHOULD:** The popup is initially hidden, opens from the header, in-app Ctrl+K or the Windows tray, and dismisses on Esc, loss of focus, or confirmed successful action. Position it within the active monitor work area and away from the default bottom-center floating caption. These are triggers to the same popup, never separate menus.
 

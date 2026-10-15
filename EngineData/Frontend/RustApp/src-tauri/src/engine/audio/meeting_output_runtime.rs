@@ -175,6 +175,7 @@ impl PlaybackCursor {
         convert: impl Fn(f32) -> T,
     ) {
         let cancelled = self.cancel_requested.load(Ordering::Acquire)
+            || original_voice_pcm::is_output_muted(self.generation)
             || !runtime_generation_is_authoritative(self.generation)
             || self.source_epoch.is_some_and(|epoch|
                 !original_voice_pcm::translated_epoch_matches(self.generation, epoch));
@@ -197,6 +198,14 @@ impl PlaybackCursor {
             }
         }
 
+        // If Mute was accepted while this callback was filling the output,
+        // discard this entire callback buffer; never leave late TTS samples.
+        if original_voice_pcm::is_output_muted(self.generation) {
+            data.fill(convert(0.0));
+            self.cancel_requested.store(true, Ordering::Release);
+            self.signal_complete(Duration::ZERO);
+            return;
+        }
         if self.index >= self.samples.len() {
             let frames = data.len() / usize::from(self.channels.max(1));
             let tail = if self.sample_rate_hz == 0 {

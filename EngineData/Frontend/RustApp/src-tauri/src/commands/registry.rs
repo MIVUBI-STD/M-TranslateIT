@@ -24,6 +24,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::helper_bridge::helper_bridge_worker_status,
         crate::commands::meeting_session::get_meeting_session_status,
         crate::commands::meeting_session::set_meeting_audio_source,
+        crate::commands::meeting_session::set_meeting_output_muted,
         crate::commands::quick_access::toggle_quick_access,
         crate::commands::quick_access::open_translateit_main,
         crate::commands::meeting_session::get_meeting_committed_turns,

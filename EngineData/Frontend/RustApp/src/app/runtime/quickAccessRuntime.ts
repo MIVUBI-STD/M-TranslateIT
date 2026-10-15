@@ -1,4 +1,4 @@
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { Window } from "@tauri-apps/api/window";
 import { runCommand } from "../shared/tauriBridge";
 
 export const QUICK_ACCESS_WINDOW_LABEL = "quick-access";
@@ -16,9 +16,9 @@ export async function openTranslateIt(): Promise<void> {
 }
 
 export async function hideQuickAccess(): Promise<void> {
-  await (await WebviewWindow.getByLabel(QUICK_ACCESS_WINDOW_LABEL))?.hide();
+  await (await Window.getByLabel(QUICK_ACCESS_WINDOW_LABEL))?.hide();
 }
 
 export async function destroyQuickAccessWindow(): Promise<void> {
-  await (await WebviewWindow.getByLabel(QUICK_ACCESS_WINDOW_LABEL))?.destroy();
+  await (await Window.getByLabel(QUICK_ACCESS_WINDOW_LABEL))?.destroy();
 }

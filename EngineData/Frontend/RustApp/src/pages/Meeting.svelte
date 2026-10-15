@@ -110,9 +110,11 @@
   );
   const statusMessage = $derived(
     meeting.canStop || meeting.hasSession
-      ? meeting.live && meetingStatus?.audio_source === "original"
-        ? "Original microphone is live. Audio bypasses translation and AI."
-        : meeting.message
+      ? meeting.live && meetingStatus?.muted
+        ? "Microphone muted. No voice is being sent to the meeting."
+        : meeting.live && meetingStatus?.audio_source === "original"
+          ? "Original microphone is live. Audio bypasses translation and AI."
+          : meeting.message
     : currentSource === "original"
       ? "Original microphone sends your own voice directly to the meeting."
     : snapshot.settings.meeting_setup_state === "deferred" || snapshot.settings.meeting_setup_state === "new"

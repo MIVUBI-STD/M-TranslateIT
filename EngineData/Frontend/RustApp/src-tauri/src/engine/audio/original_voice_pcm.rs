@@ -12,6 +12,7 @@ use std::sync::{Mutex, OnceLock, TryLockError};
 const MAX_QUEUE_MS: usize = 250;
 const MAX_MONO_FRAMES: usize = 48_000; // 250 ms at the supported 192 kHz upper bound
 static ACTIVE: AtomicBool = AtomicBool::new(false);
+static MUTED: AtomicBool = AtomicBool::new(false);
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 static SOURCE_EPOCH: AtomicU64 = AtomicU64::new(0);
 static BUFFER: OnceLock<Mutex<DirectPcm>> = OnceLock::new();
@@ -115,13 +116,50 @@ pub fn register_translated(generation: u64) -> Result<(), &'static str> {
     pcm.clear();
     GENERATION.store(generation, Ordering::Release);
     SOURCE_EPOCH.store(1, Ordering::Release);
+    MUTED.store(false, Ordering::Release);
     Ok(())
 }
+/// The mute gate is independent of the selected source. When muted, the
+/// microphone and TTS output callbacks can only submit silence.
+pub fn is_output_muted(generation: u64) -> bool {
+    generation != 0
+        && GENERATION.load(Ordering::Acquire) == generation
+        && MUTED.load(Ordering::Acquire)
+}
+
+/// Called only by the authoritative, serialized Meeting command.
+pub fn set_output_muted(generation: u64, muted: bool) -> Result<(), &'static str> {
+    if generation == 0 || GENERATION.load(Ordering::Acquire) != generation
+        || SOURCE_EPOCH.load(Ordering::Acquire) == 0
+    {
+        return Err("meeting_mute:source_generation_unavailable");
+    }
+    // Ensure a pending TTS WAV can never be replayed on Unmute. Raw Original
+    // output keeps its own stream epoch so the same CPAL stream can resume.
+    if muted && !MUTED.swap(true, Ordering::AcqRel)
+        && !ACTIVE.load(Ordering::Acquire)
+    {
+        SOURCE_EPOCH.fetch_update(Ordering::AcqRel, Ordering::Acquire, |epoch| epoch.checked_add(1))
+            .map_err(|_| "meeting_mute:source_epoch_exhausted")?;
+    }
+    if muted {
+        if let Some(queue) = BUFFER.get() {
+            let mut state = queue.lock().map_err(|_| "meeting_mute:pcm_lock_failed")?;
+            state.clear();
+        }
+    } else {
+        MUTED.store(false, Ordering::Release);
+    }
+    Ok(())
+}
+
 pub fn is_original_active(generation: u64) -> bool {
     ACTIVE.load(Ordering::Acquire) && GENERATION.load(Ordering::Acquire) == generation
 }
 pub fn translated_epoch(generation: u64) -> Option<u64> {
-    if GENERATION.load(Ordering::Acquire) != generation || ACTIVE.load(Ordering::Acquire) { return None; }
+    if GENERATION.load(Ordering::Acquire) != generation
+        || ACTIVE.load(Ordering::Acquire) || MUTED.load(Ordering::Acquire)
+    { return None; }
     let epoch = SOURCE_EPOCH.load(Ordering::Acquire);
     (epoch > 0).then_some(epoch)
 }
@@ -129,7 +167,11 @@ pub fn translated_epoch_matches(generation: u64, epoch: u64) -> bool {
     translated_epoch(generation) == Some(epoch)
 }
 pub fn next_original_epoch(generation: u64) -> Result<u64, &'static str> {
-    translated_epoch(generation).ok_or("original_voice:source_not_translated")?
+    if generation == 0 || GENERATION.load(Ordering::Acquire) != generation
+        || ACTIVE.load(Ordering::Acquire) {
+        return Err("original_voice:source_not_translated");
+    }
+    SOURCE_EPOCH.load(Ordering::Acquire)
         .checked_add(1).ok_or("original_voice:source_epoch_exhausted")
 }
 
@@ -166,12 +208,12 @@ pub fn stop(generation: u64) {
 /// The existing physical microphone callback calls this after mono conversion.
 /// In the default translated mode the hot path is one atomic read and returns.
 pub fn try_push_mono(samples: &[f32], sample_rate_hz: u32) {
-    if !ACTIVE.load(Ordering::Acquire) {
+    if !ACTIVE.load(Ordering::Acquire) || MUTED.load(Ordering::Acquire) {
         return;
     }
     let Some(queue) = BUFFER.get() else { return };
     if let Ok(mut state) = queue.try_lock() {
-        if ACTIVE.load(Ordering::Acquire) {
+        if ACTIVE.load(Ordering::Acquire) && !MUTED.load(Ordering::Acquire) {
             state.push(samples, sample_rate_hz);
         }
     }
@@ -189,7 +231,7 @@ pub fn try_render_native<T: Copy>(
     convert: impl Fn(f32) -> T,
 ) {
     dest.fill(silence);
-    if !ACTIVE.load(Ordering::Acquire)
+    if !ACTIVE.load(Ordering::Acquire) || MUTED.load(Ordering::Acquire)
         || GENERATION.load(Ordering::Acquire) != generation
         || SOURCE_EPOCH.load(Ordering::Acquire) != source_epoch
     {
@@ -198,7 +240,7 @@ pub fn try_render_native<T: Copy>(
     let Some(queue) = BUFFER.get() else { return };
     match queue.try_lock() {
         Ok(mut state) => {
-            if ACTIVE.load(Ordering::Acquire)
+            if ACTIVE.load(Ordering::Acquire) && !MUTED.load(Ordering::Acquire)
                 && GENERATION.load(Ordering::Acquire) == generation
                 && SOURCE_EPOCH.load(Ordering::Acquire) == source_epoch
             {
@@ -207,7 +249,7 @@ pub fn try_render_native<T: Copy>(
         }
         Err(TryLockError::WouldBlock | TryLockError::Poisoned(_)) => {}
     }
-    if !ACTIVE.load(Ordering::Acquire)
+    if !ACTIVE.load(Ordering::Acquire) || MUTED.load(Ordering::Acquire)
         || GENERATION.load(Ordering::Acquire) != generation
         || SOURCE_EPOCH.load(Ordering::Acquire) != source_epoch
     {
@@ -276,10 +318,21 @@ mod tests {
         super::begin(GENERATION, original_epoch).expect("switch to original");
         assert!(super::is_original_active(GENERATION));
         assert!(!super::translated_epoch_matches(GENERATION, before));
+        super::set_output_muted(GENERATION, true).expect("raw mute");
+        assert!(super::is_output_muted(GENERATION));
+        let mut silent = [1.0_f32; 8];
+        super::try_render_native(&mut silent, 48_000, 1, GENERATION, original_epoch, 0.0, |x| x);
+        assert_eq!(silent, [0.0; 8]);
+        super::set_output_muted(GENERATION, false).expect("raw unmute");
+        assert!(!super::is_output_muted(GENERATION));
         super::stop(GENERATION);
         let resumed = super::translated_epoch(GENERATION).expect("translated again");
         assert!(resumed > original_epoch);
         assert!(!super::translated_epoch_matches(GENERATION, before));
+        super::set_output_muted(GENERATION, true).expect("translated mute");
+        assert!(super::translated_epoch(GENERATION).is_none());
+        super::set_output_muted(GENERATION, false).expect("translated unmute");
+        assert!(super::translated_epoch(GENERATION).unwrap() > resumed);
     }
     #[test]
     fn malformed_samples_are_sanitized() {

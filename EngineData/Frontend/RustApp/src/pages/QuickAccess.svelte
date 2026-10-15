@@ -42,6 +42,7 @@
     : "No active source");
   const statusLabel = $derived(
     !snapshot || snapshot.revision <= 0 ? "Checking microphone..."
+    : live && meeting?.muted ? "Microphone Muted"
     : needsStop ? "Recovery required"
     : stopping ? "Meeting is changing state"
     : foreignOwner ? "Microphone in use"
@@ -147,6 +148,32 @@
       }
     } catch {
       errorMessage = "The Meeting action could not be confirmed. Check its status before retrying.";
+      resultMessage = "";
+    } finally { busy = false; }
+  }
+
+  async function toggleMute(): Promise<void> {
+    if (busy || !live || !meeting) return;
+    cancelAutoClose();
+    busy = true;
+    errorMessage = "";
+    const desired = !meeting.muted;
+    resultMessage = desired ? "Muting microphone..." : "Unmuting microphone...";
+    try {
+      const response = await runtimeApi.setMeetingOutputMuted(desired);
+      const native = await applicationRuntimeApi.getSnapshot();
+      if (!disposed) syncFromNative(native);
+      const actual = snapshot?.meeting ?? native.meeting;
+      if (!response?.ok || actual.muted !== desired
+        || actual.lifecycle !== "live") {
+        errorMessage = response?.message ?? "Mute status could not be confirmed.";
+        resultMessage = "";
+      } else {
+        resultMessage = desired ? "Microphone muted." : "Microphone unmuted.";
+        closeAfterSuccess();
+      }
+    } catch {
+      errorMessage = "Mute could not be verified. Check Meeting status.";
       resultMessage = "";
     } finally { busy = false; }
   }
@@ -276,6 +303,23 @@
         </button>
       </div>
       <p class="qa-feedback mt-2">{choice === "original" ? "Direct microphone · No AI" : "English translation · AI required"}</p>
+    </div>
+
+    <div class="qa-section flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <Mic size={17} aria-hidden="true" />
+        <div>
+          <p class="m-0 text-[12px] font-semibold">Microphone Mute</p>
+          <p class="qa-feedback">{meeting?.muted ? "No audio sent" : live ? "Voice output enabled" : "Available during Meeting"}</p>
+        </div>
+      </div>
+      <button type="button" class="qa-caption-toggle" role="switch"
+        aria-checked={Boolean(meeting?.muted)}
+        aria-label={meeting?.muted ? "Unmute microphone" : "Mute microphone"}
+        disabled={busy || !live}
+        onclick={() => void toggleMute()}>
+        {meeting?.muted ? "Unmute" : "Mute"}
+      </button>
     </div>
 
     <div class="qa-section flex items-center justify-between gap-3">
