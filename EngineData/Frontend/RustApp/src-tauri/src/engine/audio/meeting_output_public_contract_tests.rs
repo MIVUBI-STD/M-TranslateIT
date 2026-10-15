@@ -41,6 +41,24 @@ fn pcm16_wav(sample_rate: u32, channels: u16, samples: &[i16]) -> Vec<u8> {
     wav
 }
 
+fn extensible_pcm16_wav(sample_rate: u32, channels: u16, samples: &[i16]) -> Vec<u8> {
+    let mut wav = pcm16_wav(sample_rate, channels, samples);
+    let riff_size = u32::try_from(wav.len() - 8 + 24).expect("bounded fixture");
+    wav[4..8].copy_from_slice(&riff_size.to_le_bytes());
+    wav[16..20].copy_from_slice(&40u32.to_le_bytes());
+    wav[20..22].copy_from_slice(&0xfffeu16.to_le_bytes());
+
+    let mut extension = Vec::with_capacity(24);
+    extension.extend_from_slice(&22u16.to_le_bytes());
+    extension.extend_from_slice(&16u16.to_le_bytes());
+    extension.extend_from_slice(&0u32.to_le_bytes());
+    extension.extend_from_slice(&[
+        1, 0, 0, 0, 0, 0, 0x10, 0, 0x80, 0, 0, 0xaa, 0, 0x38, 0x9b, 0x71,
+    ]);
+    wav.splice(36..36, extension);
+    wav
+}
+
 fn authoritative_generation() -> u64 {
     let _ = clear_runtime_session_state();
     let report = begin_application_meeting_session();
@@ -123,6 +141,38 @@ fn malformed_wav_contracts_fail_before_device_access() {
         "meeting_output:wav_truncated",
     );
 
+    let mut short_riff = base.clone();
+    short_riff[4..8].copy_from_slice(&36u32.to_le_bytes());
+    assert_parser_blocker(
+        "riff-excludes-samples",
+        &short_riff,
+        "meeting_output:wav_truncated",
+    );
+
+    let mut long_riff = base.clone();
+    long_riff[4..8].copy_from_slice(&100u32.to_le_bytes());
+    assert_parser_blocker(
+        "riff-exceeds-file",
+        &long_riff,
+        "meeting_output:wav_truncated",
+    );
+
+    let mut invalid_subformat = extensible_pcm16_wav(16_000, 1, &[0, 1]);
+    invalid_subformat[54] ^= 1; // Tamper with the GUID tail, not the PCM WORD.
+    assert_parser_blocker(
+        "extensible-unsupported-guid",
+        &invalid_subformat,
+        "meeting_output:wav_subformat_unsupported",
+    );
+
+    let mut invalid_extension = extensible_pcm16_wav(16_000, 1, &[0, 1]);
+    invalid_extension[36..38].copy_from_slice(&0u16.to_le_bytes());
+    assert_parser_blocker(
+        "extensible-missing-extension",
+        &invalid_extension,
+        "meeting_output:wav_fmt_invalid",
+    );
+
     let zero_channels = pcm16_wav(16_000, 0, &[0]);
     assert_parser_blocker(
         "zero-channels",
@@ -168,19 +218,28 @@ fn malformed_wav_contracts_fail_before_device_access() {
 fn valid_pcm16_reaches_prepared_device_boundary_without_execution() {
     let _serial = crate::engine::runtime_state::runtime_test_guard();
     let generation = authoritative_generation();
-    let wav = pcm16_wav(16_000, 1, &[0, 8_000, -8_000, 0]);
-    let path = write_fixture("valid-pcm16", &wav);
+    let base = pcm16_wav(16_000, 1, &[0, 8_000, -8_000, 0]);
+    let mut trailing = base.clone();
+    trailing.extend_from_slice(b"data");
+    trailing.extend_from_slice(&100u32.to_le_bytes());
+    trailing.extend_from_slice(&[0, 0]);
 
-    let report = deliver_meeting_output_wav(
-        path.to_string_lossy().as_ref(),
-        Some("unused-test-output"),
-        generation,
-    );
+    for (label, wav) in [
+        ("valid-pcm16", base),
+        ("valid-extensible-pcm16", extensible_pcm16_wav(16_000, 1, &[0, 8_000, -8_000, 0])),
+        ("valid-riff-with-outside-bytes", trailing),
+    ] {
+        let path = write_fixture(label, &wav);
+        let report = deliver_meeting_output_wav(
+            path.to_string_lossy().as_ref(),
+            Some("unused-test-output"),
+            generation,
+        );
 
-    assert!(!report.ok);
-    assert!(!report.execution_attempted);
-    assert_eq!(report.blocker, "meeting_output:prepared_output_device_missing");
-
-    let _ = fs::remove_file(path);
+        assert!(!report.ok);
+        assert!(!report.execution_attempted);
+        assert_eq!(report.blocker, "meeting_output:prepared_output_device_missing");
+        let _ = fs::remove_file(path);
+    }
     let _ = clear_runtime_session_state();
 }

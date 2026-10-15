@@ -36,18 +36,36 @@ pub(super) fn decode_wav_bytes(bytes: &[u8]) -> Result<DecodedWav, String> {
         return Err("meeting_output:wav_invalid_riff".to_string());
     }
 
+    // The RIFF length defines which chunks belong to this audio container.
+    // Bytes appended outside that boundary must not override fmt/data.
+    let riff_end = (read_u32(bytes, 4)? as usize)
+        .checked_add(8)
+        .ok_or_else(|| "meeting_output:wav_chunk_overflow".to_string())?;
+    if riff_end < 12 {
+        return Err("meeting_output:wav_invalid_riff".to_string());
+    }
+    if riff_end > bytes.len() {
+        return Err("meeting_output:wav_truncated".to_string());
+    }
+
     let mut offset = 12usize;
     let mut format: Option<(u16, u16, u32, u16, u16)> = None;
     let mut data: Option<&[u8]> = None;
 
-    while offset + 8 <= bytes.len() {
+    while offset < riff_end {
+        if riff_end - offset < 8 {
+            return Err("meeting_output:wav_truncated".to_string());
+        }
         let id = &bytes[offset..offset + 4];
         let size = read_u32(bytes, offset + 4)? as usize;
         let start = offset + 8;
         let end = start
             .checked_add(size)
             .ok_or_else(|| "meeting_output:wav_chunk_overflow".to_string())?;
-        if end > bytes.len() {
+        let next_offset = end
+            .checked_add(size & 1)
+            .ok_or_else(|| "meeting_output:wav_chunk_overflow".to_string())?;
+        if next_offset > riff_end {
             return Err("meeting_output:wav_truncated".to_string());
         }
 
@@ -60,7 +78,22 @@ pub(super) fn decode_wav_bytes(bytes: &[u8]) -> Result<DecodedWav, String> {
             let sample_rate = read_u32(bytes, start + 4)?;
             let block_align = read_u16(bytes, start + 12)?;
             let bits_per_sample = read_u16(bytes, start + 14)?;
-            if audio_format == 0xfffe && size >= 40 {
+            if audio_format == 0xfffe {
+                // WAVEFORMATEXTENSIBLE requires a complete 22-byte extension
+                // and its canonical PCM/IEEE-float GUID, not just a type WORD.
+                if size < 40 {
+                    return Err("meeting_output:wav_fmt_invalid".to_string());
+                }
+                let extension_size = usize::from(read_u16(bytes, start + 16)?);
+                if extension_size < 22 || extension_size > size - 18 {
+                    return Err("meeting_output:wav_fmt_invalid".to_string());
+                }
+                const KS_SUBFORMAT_SUFFIX: [u8; 14] = [
+                    0, 0, 0, 0, 0x10, 0, 0x80, 0, 0, 0xaa, 0, 0x38, 0x9b, 0x71,
+                ];
+                if &bytes[start + 26..start + 40] != KS_SUBFORMAT_SUFFIX.as_slice() {
+                    return Err("meeting_output:wav_subformat_unsupported".to_string());
+                }
                 audio_format = read_u16(bytes, start + 24)?;
             }
             format = Some((
@@ -74,7 +107,7 @@ pub(super) fn decode_wav_bytes(bytes: &[u8]) -> Result<DecodedWav, String> {
             data = Some(&bytes[start..end]);
         }
 
-        offset = end + (size & 1);
+        offset = next_offset;
     }
 
     let (audio_format, channels, sample_rate_hz, block_align, bits_per_sample) =
