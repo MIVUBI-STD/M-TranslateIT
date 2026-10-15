@@ -4,6 +4,8 @@
 //! Agreement across growing windows is TEXT evidence, not word/audio alignment.
 
 use crate::engine::audio::finalized_utterance::FinalizedMeetingUtterance;
+use crate::engine::audio::evidence::AudioEvidenceReport;
+use crate::engine::audio::vad::runtime_vad_profile;
 
 const ASR_RATE_HZ: u32 = 16_000;
 const MAX_OBSERVATION_BYTES: usize = 8 * 1024;
@@ -16,6 +18,7 @@ const MAX_TIMING_PROBE_BYTES: usize = 16 * 1024;
 const PROPOSED_MAX_SEGMENT_SAMPLES: u64 = 16_000 * 20;
 const PROPOSED_MIN_SEGMENT_SAMPLES: u64 = 16_000 * 3;
 const PROPOSED_MIN_QUIET_SAMPLES: u64 = 16_000 * 160 / 1_000;
+const QUIET_PROBE_FRAME_SAMPLES: usize = 16_000 * 20 / 1_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SourceLane {
@@ -245,6 +248,7 @@ pub(super) enum ObservationError {
     InvalidWordTiming,
     NoSafeSegmentBoundary,
     InvalidQuietEvidence,
+    UnavailableFinalizedSource,
 }
 
 pub(super) struct SourceStabilizer {
@@ -325,6 +329,31 @@ impl SourceStabilizer {
         Ok(mapped)
     }
 
+    /// Test-only bridge from an actual finalized producer frame to the
+    /// previously isolated segmentation proposal. This never asks Whisper
+    /// to infer, writes a WAV, mutates the producer, or commits speech.
+    ///
+    /// The optional worker alignment probe supplies estimated words; those
+    /// estimates are still untrusted. Quiet is measured directly from the
+    /// *matching* 16-kHz finalized PCM samples, not from ASR word gaps.
+    pub fn propose_from_finalized_pcm(
+        &self,
+        utterance: &FinalizedMeetingUtterance,
+        revision: u64,
+        words: &[ModelEstimatedWord],
+    ) -> Result<Vec<LongSpeechSegmentProposal>, ObservationError> {
+        let (scope, window, capture_map) = finalized_capture_clock(utterance)
+            .ok_or(ObservationError::UnavailableFinalizedSource)?;
+        let pcm = &utterance.frame.samples;
+        if window.end_sample - window.start_sample != pcm.len() as u64 {
+            return Err(ObservationError::UnavailableFinalizedSource);
+        }
+        let quiet = measured_pcm_quiet_windows(pcm, window)?;
+        self.propose_long_speech_segments(
+            &scope, revision, window, pcm.len() as u64, words, &capture_map, &quiet,
+        )
+    }
+
     /// Experimental bounded segmentation proposal. Never transcribes, commits,
     /// translates or plays. We require matching current-word evidence plus a
     /// independently producer-observed quiet interval after a sentence-ending
@@ -381,7 +410,9 @@ impl SourceStabilizer {
                 {
                     continue;
                 }
-                let previous_end = window.start_sample + previous.end_sample;
+                let previous_end = window.start_sample
+                    .checked_add(previous.end_sample)
+                    .ok_or(ObservationError::InvalidWordTiming)?;
                 let next_start = proposed;
                 if !pcm_quiet_windows.iter().any(|quiet| {
                     quiet.start_sample >= previous_end
@@ -524,6 +555,58 @@ impl SourceStabilizer {
         Ok(result)
     }
 }
+
+
+ // PCM-derived quiet is a *proposal* signal, not speech-recognition or a
+ // semantic boundary. A 20-ms frame must be plainly below BOTH canonical
+ // VAD amplitude thresholds. Clipped, non-finite or out-of-range PCM fails
+ // closed rather than being sanitized into evidence of silence.
+fn measured_pcm_quiet_windows(
+    pcm: &[f32],
+    window: AudioWindow,
+) -> Result<Vec<AudioWindow>, ObservationError> {
+    if pcm.is_empty()
+        || pcm.len() as u64 != window.end_sample.saturating_sub(window.start_sample)
+        || pcm.len() as u64 > MAX_WINDOW_SAMPLES_16K
+        || pcm.iter().any(|sample| !sample.is_finite() || sample.abs() > 1.0)
+    {
+        return Err(ObservationError::InvalidQuietEvidence);
+    }
+    let gate = runtime_vad_profile().gate;
+    let mut quiet = Vec::new();
+    let mut start = None;
+    let mut accepted_end = window.start_sample;
+    for (index, frame) in pcm.chunks_exact(QUIET_PROBE_FRAME_SAMPLES).enumerate() {
+        let frame_start = window.start_sample
+            + (index * QUIET_PROBE_FRAME_SAMPLES) as u64;
+        let frame_end = frame_start + QUIET_PROBE_FRAME_SAMPLES as u64;
+        let evidence = AudioEvidenceReport::from_samples(frame);
+        let is_quiet = evidence.rms < gate.min_rms * 0.5
+            && evidence.peak < gate.min_peak * 0.5
+            && evidence.clipping_ratio == 0.0;
+        if is_quiet {
+            if start.is_none() { start = Some(frame_start); }
+            accepted_end = frame_end;
+        } else if let Some(begin) = start.take() {
+            if accepted_end - begin >= PROPOSED_MIN_QUIET_SAMPLES {
+                quiet.push(AudioWindow { start_sample: begin, end_sample: accepted_end });
+                if quiet.len() > MAX_TIMING_PROBE_WORDS {
+                    return Err(ObservationError::InvalidQuietEvidence);
+                }
+            }
+        }
+    }
+    if let Some(begin) = start {
+        if accepted_end - begin >= PROPOSED_MIN_QUIET_SAMPLES {
+            quiet.push(AudioWindow { start_sample: begin, end_sample: accepted_end });
+            if quiet.len() > MAX_TIMING_PROBE_WORDS {
+                return Err(ObservationError::InvalidQuietEvidence);
+            }
+        }
+    }
+    Ok(quiet)
+}
+
 
 fn agreed_prefix(previous: &str, current: &str) -> Option<String> {
     let first: Vec<&str> = previous.split_whitespace().collect();
@@ -927,6 +1010,137 @@ mod tests {
         assert!(proposals.iter().all(|entry|
             entry.asr_window.end_sample - entry.asr_window.start_sample
                 <= PROPOSED_MAX_SEGMENT_SAMPLES));
+    }
+
+    #[test]
+    fn finalized_pcm_bridge_requires_actual_quiet_not_just_whisper_word_gaps() {
+        use crate::engine::audio::finalized_utterance::{
+            FinalizedCaptureProvenance, FinalizedMeetingUtterance,
+        };
+        use crate::engine::audio::AudioFrame;
+        use std::time::Instant;
+
+        let id = scope(71);
+        let rate = ASR_RATE_HZ as usize;
+        let mut samples = vec![0.12_f32; rate * 51];
+        for (from_ms, until_ms) in [
+            (14_600_usize, 14_900_usize),
+            (29_600, 29_900),
+            (44_600, 44_900),
+        ] {
+            samples[from_ms * rate / 1_000..until_ms * rate / 1_000].fill(0.0);
+        }
+        let now = Instant::now();
+        let utterance = FinalizedMeetingUtterance {
+            session_id: id.session_id.clone(),
+            sequence: 1,
+            lane: "you".into(),
+            generation: id.generation,
+            utterance_id: id.speech_id,
+            finalized_at: now,
+            enqueued_at: now,
+            finalized_unix_ms: 0,
+            speech_boundary_ms: 0,
+            speech_duration_ms: 51_000,
+            finalization_ms: 0,
+            capture_provenance: Some(FinalizedCaptureProvenance {
+                audio_epoch: id.audio_epoch,
+                input_rate_hz: 48_000,
+                input_start_sample: 12_000,
+                input_end_sample: 12_000 + 51 * 48_000,
+                asr_sample_count: samples.len() as u64,
+            }),
+            frame: AudioFrame {
+                sample_rate_hz: ASR_RATE_HZ,
+                channels: 1,
+                samples,
+            },
+        };
+        let (source, window, capture) = finalized_capture_clock(&utterance).unwrap();
+        assert_eq!(source, id);
+        let mut tracker = SourceStabilizer::new(id.clone()).unwrap();
+        tracker.observe_with_capture_mapping(
+            observation(&id, 1, 0, window.end_sample,
+                "Start now. Again go. Later done. Finish okay.", true),
+            Some(&capture),
+        ).unwrap();
+        let word = |text: &str, from_ms: u64, until_ms: u64| ModelEstimatedWord {
+            text: text.into(),
+            start_sample: from_ms * u64::from(ASR_RATE_HZ) / 1_000,
+            end_sample: until_ms * u64::from(ASR_RATE_HZ) / 1_000,
+        };
+        // Matches the opt-in worker's estimated word ranges, but does not
+        // infer PCM quiet from those estimates.
+        let words = [
+            word("Start", 0, 1_000),
+            word(" now.", 1_000, 14_500),
+            word(" Again", 15_000, 16_000),
+            word(" go.", 16_000, 29_500),
+            word(" Later", 30_000, 31_000),
+            word(" done.", 31_000, 44_500),
+            word(" Finish", 45_000, 46_000),
+            word(" okay.", 46_000, 50_000),
+        ];
+        let proposal = tracker.propose_from_finalized_pcm(&utterance, 1, &words)
+            .expect("matching finalized PCM quiet + estimated words yields proposed cuts");
+        let spans: Vec<(u64, u64)> = proposal.iter()
+            .map(|part| (part.asr_window.start_sample / u64::from(ASR_RATE_HZ),
+                part.asr_window.end_sample / u64::from(ASR_RATE_HZ)))
+            .collect();
+        assert_eq!(spans, vec![(0, 15), (15, 30), (30, 45), (45, 51)]);
+        assert_eq!(proposal[0].capture_bounds.start_lower_sample, 12_000);
+        assert_eq!(proposal[3].capture_bounds.end_upper_sample, 12_000 + 51 * 48_000);
+        assert!(proposal.windows(2).all(|pair|
+            pair[0].capture_bounds.end_upper_sample
+                == pair[1].capture_bounds.start_lower_sample));
+
+        let mut loud = utterance.clone();
+        loud.frame.samples.fill(0.12);
+        assert_eq!(tracker.propose_from_finalized_pcm(&loud, 1, &words),
+            Err(ObservationError::NoSafeSegmentBoundary));
+
+        // A single 20-ms burst splits 300 ms of quiet into two pieces too
+        // short for a valid natural-boundary proposal.
+        let mut interrupted = utterance.clone();
+        let at = 14_740 * rate / 1_000;
+        interrupted.frame.samples[at..at + QUIET_PROBE_FRAME_SAMPLES].fill(0.12);
+        assert_eq!(tracker.propose_from_finalized_pcm(&interrupted, 1, &words),
+            Err(ObservationError::NoSafeSegmentBoundary));
+
+        let mut corrupted = utterance.clone();
+        corrupted.frame.samples[0] = f32::NAN;
+        assert_eq!(tracker.propose_from_finalized_pcm(&corrupted, 1, &words),
+            Err(ObservationError::InvalidQuietEvidence));
+
+        let mut wrong_provenance = utterance.clone();
+        wrong_provenance.capture_provenance.as_mut().unwrap().asr_sample_count -= 1;
+        assert_eq!(tracker.propose_from_finalized_pcm(&wrong_provenance, 1, &words),
+            Err(ObservationError::UnavailableFinalizedSource));
+
+        assert_eq!(tracker.propose_from_finalized_pcm(&utterance, 2, &words),
+            Err(ObservationError::UnmatchedWordTiming));
+        let other = SourceStabilizer::new(scope(72)).unwrap();
+        assert_eq!(other.propose_from_finalized_pcm(&utterance, 1, &words),
+            Err(ObservationError::UnmatchedWordTiming));
+    }
+
+    #[test]
+    fn measured_pcm_quiet_windows_rejects_corrupt_or_unbounded_frames() {
+        let window = AudioWindow { start_sample: 20, end_sample: 20 + 16_000 };
+        assert!(measured_pcm_quiet_windows(&vec![0.0; 16_000], window)
+            .is_ok_and(|quiet| quiet == vec![window]));
+        assert_eq!(measured_pcm_quiet_windows(&vec![0.0; 15_999], window),
+            Err(ObservationError::InvalidQuietEvidence));
+        let mut clipped = vec![0.0_f32; 16_000];
+        clipped[0] = 1.1;
+        assert_eq!(measured_pcm_quiet_windows(&clipped, window),
+            Err(ObservationError::InvalidQuietEvidence));
+        // 150 ms is below the conservative 160-ms minimum.
+        let short = vec![0.0_f32; 16_000 * 150 / 1_000];
+        let short_window = AudioWindow {
+            start_sample: 0, end_sample: short.len() as u64,
+        };
+        assert_eq!(measured_pcm_quiet_windows(&short, short_window), Ok(vec![]));
     }
 
     #[test]
