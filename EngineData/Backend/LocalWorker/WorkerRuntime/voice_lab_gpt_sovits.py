@@ -237,11 +237,15 @@ def write_wav(path: Path, sample_rate: int, audio: Any) -> None:
         values = (values * 32767.0).astype(np.int16)
     if values.size == 0:
         raise VoiceLabProviderError("evaluation_audio_empty")
+    # CPython 3.12 wave.writeframes() accepts a contiguous buffer. Passing the
+    # ndarray through memoryview avoids making a second full-size PCM16 bytes
+    # copy for every TTS utterance. Only strided inputs need a contiguous copy.
+    values = np.ascontiguousarray(values)
     with wave.open(str(path), "wb") as writer:
         writer.setnchannels(1)
         writer.setsampwidth(2)
         writer.setframerate(sample_rate)
-        writer.writeframes(values.tobytes())
+        writer.writeframes(memoryview(values))
 
 
 @contextmanager

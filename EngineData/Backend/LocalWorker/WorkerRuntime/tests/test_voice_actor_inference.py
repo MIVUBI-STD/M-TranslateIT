@@ -104,6 +104,58 @@ def test_reference_wav_metrics_preserve_silent_reference_behavior(tmp_path: Path
     assert metrics["dc_offset"] == 0.0
 
 
+def test_voice_wav_writer_preserves_pcm16_bytes_without_extra_serialize(tmp_path: Path) -> None:
+    import numpy as np
+
+    provider = load_provider_module()
+    samples = np.array([-32768, -32000, -128, 0, 128, 16000, 32767], dtype=np.int16)
+    output = tmp_path / "voice-pcm16.wav"
+    provider.write_wav(output, 32_000, samples)
+
+    with wave.open(str(output), "rb") as reader:
+        assert reader.getnchannels() == 1
+        assert reader.getsampwidth() == 2
+        assert reader.getframerate() == 32_000
+        assert reader.readframes(reader.getnframes()) == samples.tobytes()
+
+
+def test_voice_wav_writer_supports_strided_pcm16_audio(tmp_path: Path) -> None:
+    import numpy as np
+
+    provider = load_provider_module()
+    samples = np.arange(-1000, 1000, dtype=np.int16)[::3]
+    assert not samples.flags.c_contiguous
+    output = tmp_path / "voice-strided.wav"
+    provider.write_wav(output, 24_000, samples)
+
+    with wave.open(str(output), "rb") as reader:
+        assert reader.getframerate() == 24_000
+        assert reader.readframes(reader.getnframes()) == samples.tobytes()
+
+
+def test_voice_wav_writer_preserves_float_quantization(tmp_path: Path) -> None:
+    import numpy as np
+
+    provider = load_provider_module()
+    samples = np.array(
+        [[-1.5, -1.0, -0.5, 0.0], [0.5, 1.0, 1.5, 0.25]], dtype=np.float32
+    )
+    expected = (np.clip(samples.reshape(-1), -1.0, 1.0) * 32767.0).astype(np.int16)
+    output = tmp_path / "voice-float.wav"
+    provider.write_wav(output, 32_000, samples)
+
+    with wave.open(str(output), "rb") as reader:
+        assert reader.readframes(reader.getnframes()) == expected.tobytes()
+
+
+def test_voice_wav_writer_still_refuses_empty_audio(tmp_path: Path) -> None:
+    import numpy as np
+
+    provider = load_provider_module()
+    with pytest.raises(provider.VoiceLabProviderError, match="evaluation_audio_empty"):
+        provider.write_wav(tmp_path / "empty.wav", 32_000, np.empty(0, dtype=np.int16))
+
+
 def test_source_working_directory_is_restored(tmp_path: Path) -> None:
     provider = load_provider_module()
     original = Path.cwd()

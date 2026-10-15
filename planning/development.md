@@ -183,6 +183,14 @@ These are future **acceptance scenarios**, not tests performed or runtime result
   thresholds and arithmetic are preserved; deterministic parity tests were
   authored but **not executed**. This affects actor/preview validation rather
   than the hot TTS acoustic generation.
+- The hot-path `write_wav()` adapter no longer serializes an already
+  contiguous PCM16 output with `.tobytes()`. CPython 3.12 `wave.writeframes`
+  accepts a contiguous buffer directly; use `memoryview` and only make a
+  contiguous copy for strided input. Existing int16/float conversion,
+  mono sample format, WAV header, and empty-output rejection are unchanged.
+  Source-authored byte-parity tests cover PCM16, strided and float inputs;
+  these tests were not executed. Lower temporary output allocation is
+  source-demonstrated, not a measured end-to-end latency improvement.
 - Section 5B of the **existing** target-Windows acceptance runbook now
   scopes eventual measurement to the current engines, stage latency, CUDA
   memory coexistence and selected voice output. No model/voice/GPU tests,
