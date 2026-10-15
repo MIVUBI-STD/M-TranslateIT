@@ -28,16 +28,56 @@ fn tts_output_path(session_id: &str, generation: u64, event_sequence: u64) -> St
     )
 }
 
-fn remove_temporary_tts(path: &str) {
-    if !path.trim().is_empty() {
-        let _ = fs::remove_file(path);
-    }
+const MEETING_TTS_REQUEST_PREFIX: &str = "UserData/CacheData/meeting_tts/";
+
+fn meeting_tts_directory() -> PathBuf {
+    PathBuf::from(ProjectPaths::discover().user_cache_dir).join("meeting_tts")
 }
 
-pub(super) fn remove_temporary_tts_paths(requested_path: &str, reported_path: &str) {
-    remove_temporary_tts(reported_path);
-    if requested_path.trim() != reported_path.trim() {
-        remove_temporary_tts(requested_path);
+fn expected_tts_path_in_dir(tts_dir: &Path, requested_path: &str) -> Option<PathBuf> {
+    // Rust owns the requested relative identity. Worker-reported paths do not
+    // grant permission to read or remove arbitrary files.
+    let filename = requested_path.strip_prefix(MEETING_TTS_REQUEST_PREFIX)?;
+    if !filename.ends_with(".wav")
+        || filename.len() <= ".wav".len()
+        || filename.contains("..")
+        || !filename
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.'))
+    {
+        return None;
+    }
+    Some(tts_dir.join(filename))
+}
+
+fn verified_tts_output_in_dir(
+    tts_dir: &Path,
+    requested_path: &str,
+    reported_path: &str,
+) -> Option<PathBuf> {
+    let expected = expected_tts_path_in_dir(tts_dir, requested_path)?;
+    let parent = fs::canonicalize(tts_dir).ok()?;
+    let resolved_expected = fs::canonicalize(expected).ok()?;
+    // A symlinked output must not escape its owned per-session cache directory.
+    if resolved_expected.parent() != Some(parent.as_path())
+        || fs::canonicalize(reported_path).ok()? != resolved_expected
+        || !fs::metadata(&resolved_expected).ok()?.is_file()
+    {
+        return None;
+    }
+    Some(resolved_expected)
+}
+
+pub(super) fn remove_temporary_tts_paths(requested_path: &str, _reported_path: &str) {
+    // Deleting an arbitrary path supplied by a worker response is not safe.
+    // Resolve the single requested file from the app-owned cache root instead.
+    let tts_dir = meeting_tts_directory();
+    remove_temporary_tts_paths_in_dir(&tts_dir, requested_path);
+}
+
+fn remove_temporary_tts_paths_in_dir(tts_dir: &Path, requested_path: &str) {
+    if let Some(path) = expected_tts_path_in_dir(tts_dir, requested_path) {
+        let _ = fs::remove_file(path);
     }
 }
 
@@ -417,13 +457,39 @@ pub(super) fn process_outbound_wav(
         };
     }
 
+    let Some(verified_tts_path) = verified_tts_output_in_dir(
+        &meeting_tts_directory(),
+        &requested_tts_path,
+        &tts_path,
+    ) else {
+        remove_temporary_tts_paths(&requested_tts_path, &tts_path);
+        let blocker = "voice_actor:output_path_mismatch";
+        let _ = update_committed_turn_delivery_state(
+            session_id, generation, utterance_id, "output_failed",
+        );
+        update_outbound_status(
+            generation, session_id, "attention_needed", event_sequence, false, false,
+            blocker,
+            "Meeting voice output did not match the owned session WAV. No playback was attempted.",
+        );
+        return MeetingOutboundProcessResult {
+            ok: false,
+            delivered: false,
+            state: "tts_failed".to_string(),
+            blocker: blocker.to_string(),
+            note: "Worker output was not the requested Meeting session WAV.".to_string(),
+            generation,
+            utterance_sequence: event_sequence,
+            runtime_claim: "meeting_outbound_tts_output_identity_mismatch".to_string(),
+        };
+    };
     let playback_job = PreparedPlaybackJob {
         generation,
         session_id: session_id.to_string(),
         event_sequence,
         utterance_id,
         requested_tts_path,
-        actual_tts_path: tts_path,
+        actual_tts_path: verified_tts_path.to_string_lossy().into_owned(),
         timing,
         prepared_at: Instant::now(),
     };
@@ -512,7 +578,8 @@ pub(super) fn process_outbound_wav(
 #[cfg(test)]
 mod tests {
     use super::{
-        cleanup_meeting_tts_for_session_in_dir, remove_temporary_tts_paths, tts_output_path,
+        cleanup_meeting_tts_for_session_in_dir, expected_tts_path_in_dir,
+        remove_temporary_tts_paths_in_dir, tts_output_path, verified_tts_output_in_dir,
     };
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -555,28 +622,51 @@ mod tests {
     }
 
     #[test]
-    fn tts_cleanup_removes_requested_path_when_worker_response_has_no_path() {
-        let requested = temp_wav("requested");
-        fs::write(&requested, b"temporary").expect("write temporary wav");
+    fn tts_cleanup_uses_only_owned_requested_identity() {
+        let root = temp_wav("owned-tts-root").with_extension("");
+        fs::create_dir_all(&root).expect("create isolated tts root");
+        let request = tts_output_path("session-a", 7, 11);
+        let expected = root.join("session-a_g7_s11.wav");
+        let unrelated = root.join("session-b_g7_s11.wav");
+        fs::write(&expected, b"requested").expect("write requested");
+        fs::write(&unrelated, b"unrelated").expect("write unrelated");
 
-        remove_temporary_tts_paths(requested.to_string_lossy().as_ref(), "");
+        remove_temporary_tts_paths_in_dir(&root, &request);
+        assert!(!expected.exists());
+        assert!(unrelated.exists(), "other session output must survive");
 
-        assert!(!requested.exists());
+        // A path outside the prescribed identity is never used for deletion.
+        assert!(expected_tts_path_in_dir(&root, "../outside.wav").is_none());
+        assert!(expected_tts_path_in_dir(&root, "UserData/CacheData/meeting_tts/../other.wav").is_none());
+        remove_temporary_tts_paths_in_dir(&root, unrelated.to_string_lossy().as_ref());
+        assert!(unrelated.exists());
+        fs::remove_dir_all(root).expect("remove isolated root");
     }
 
     #[test]
-    fn tts_cleanup_removes_distinct_requested_and_reported_paths() {
-        let requested = temp_wav("requested");
-        let reported = temp_wav("reported");
-        fs::write(&requested, b"requested").expect("write requested");
-        fs::write(&reported, b"reported").expect("write reported");
+    fn tts_playback_requires_matching_reported_and_owned_absolute_paths() {
+        let root = temp_wav("verified-tts-root").with_extension("");
+        fs::create_dir_all(&root).expect("create isolated tts root");
+        let request = tts_output_path("session-a", 7, 11);
+        let expected = root.join("session-a_g7_s11.wav");
+        let unrelated = root.join("session-b_g7_s11.wav");
+        fs::write(&expected, b"requested").expect("write requested");
+        fs::write(&unrelated, b"unrelated").expect("write unrelated");
 
-        remove_temporary_tts_paths(
-            requested.to_string_lossy().as_ref(),
-            reported.to_string_lossy().as_ref(),
+        let owned = verified_tts_output_in_dir(
+            &root, &request, expected.to_string_lossy().as_ref(),
+        ).expect("worker-reported absolute path matches requested session file");
+        assert_eq!(owned, fs::canonicalize(&expected).unwrap());
+        assert!(
+            verified_tts_output_in_dir(&root, &request, unrelated.to_string_lossy().as_ref()).is_none(),
+            "worker may not redirect playback to another session's WAV",
         );
+        assert!(
+            verified_tts_output_in_dir(&root, &request, "nonexistent-output.wav").is_none(),
+            "missing output cannot be promoted",
+        );
+        assert!(expected_tts_path_in_dir(&root, &request).is_some());
 
-        assert!(!requested.exists());
-        assert!(!reported.exists());
+        fs::remove_dir_all(root).expect("remove isolated root");
     }
 }
