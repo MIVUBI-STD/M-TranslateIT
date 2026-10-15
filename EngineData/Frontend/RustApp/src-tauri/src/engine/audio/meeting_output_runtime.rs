@@ -753,6 +753,7 @@ mod tests {
             fn drop(&mut self) {
                 let present = cancel_control()
                     .lock()
+                    .ok()
                     .expect("output control lock")
                     .as_ref()
                     .map(|control| control.generation == self.generation)
@@ -777,7 +778,7 @@ mod tests {
             generation,
         );
         assert!(observed.load(Ordering::Acquire));
-        assert!(cancel_control().lock().expect("output control lock").is_none());
+        assert!(cancel_control().lock().ok().expect("output control lock").is_none());
         let _ = clear_runtime_session_state();
     }
 
