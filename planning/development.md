@@ -1,4 +1,12 @@
-# My Voice — Active development: device-aware SAFE_CUDA
+# TranslateIT — staged source repair after end-to-end audit
+
+**Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
+
+**Current bounded delivery:** The existing Meeting outbound and incoming consumer owners now retain their JoinHandles after a 500 ms stop wait budget instead of blocking indefinitely or detaching an unconfirmed worker. A repeated Stop can recheck the same owner. Inline Rust regression cases were authored, NOT executed. This does not yet bound the microphone/Meeting Sound capture or playback cleanup.
+
+**Next:** Repair unbounded join paths for physical microphone and Meeting Sound capture Start/Stop using existing ownership, followed by playback cleanup. Keep the same fail-closed generation/session rules. Do not claim C4/C5 native acceptance without Windows execution.
+
+## Retained My Voice source candidate (paused)
 
 **Status:** SOURCE_CANDIDATE / NOT EXECUTED. **Branch:** `Local`. **Date:** 2026-10-14.
 **Source of history:** prior commits on `Local` and `docs/knowledge/proposals/2026-10-14-my-voice-safe-8gb-training.md`. This file is the CURRENT work handoff, not an ever-growing changelog.
@@ -205,11 +213,11 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Keep the current `Local` source as a candidate for the existing integrated
-Windows admission and GPU/Meeting/My Voice acceptance, including current-engine
-MiLMMT/TTS timing accuracy, measured VRAM coexistence and voice-quality parity.
-When local testing is unavailable, **STOP speculative source edits** unless a new reproducible,
-source-provable defect appears; compiler and native checks remain
-`UNKNOWN / NOT EXECUTED`.
+Bound physical microphone and Meeting Sound capture Start/Stop thread joins without
+detaching unconfirmed thread owners; preserve Retry Stop and session isolation. This
+is a source-reproducible issue from the 2026-10-16 end-to-end audit. The previous
+My Voice GPU/training acceptance remains deferred to one integrated Windows phase.
+Compiler and native results remain `UNKNOWN / NOT EXECUTED`.
 
-**STOP boundary:** Do not run tests, Python/Node execution, cargo, Windows/CUDA probes, fault injection or training until the user explicitly authorizes validation.
+**STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
+Windows audio/GPU tests, or native performance claims in this source-only phase.

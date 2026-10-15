@@ -35,6 +35,23 @@ use super::{
 // Only wait on a short interval when deferred incoming work exists. Normal
 // idle Meeting Sound retains the existing event-driven blocking wait.
 const DEFERRED_INCOMING_RETRY_WAIT: Duration = Duration::from_millis(500);
+// Stop must never block indefinitely on inference/driver work. If the old
+// thread is still running at this deadline, its JoinHandle stays in the
+// canonical store and Start remains blocked until Retry Stop proves exit.
+const CONSUMER_STOP_WAIT_BUDGET: Duration = Duration::from_millis(500);
+const CONSUMER_STOP_POLL: Duration = Duration::from_millis(10);
+
+fn consumer_thread_finished_within(thread: &JoinHandle<()>, budget: Duration) -> bool {
+    let started = Instant::now();
+    while !thread.is_finished() {
+        let remaining = budget.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return false;
+        }
+        thread::sleep(remaining.min(CONSUMER_STOP_POLL));
+    }
+    true
+}
 
 struct MeetingOutboundConsumerRuntime {
     generation: u64,
@@ -199,11 +216,20 @@ pub(super) fn stop_meeting_outbound_consumer(generation: u64) -> MeetingConsumer
     let store = outbound_consumer_store();
     let runtime = match store.lock() {
         Ok(mut guard) => {
-            if guard
-                .as_ref()
-                .map(|value| value.generation == generation)
-                .unwrap_or(false)
-            {
+            if let Some(active) = guard.as_ref().filter(|value| value.generation == generation) {
+                if active.thread.as_ref().is_some_and(|thread| {
+                    !consumer_thread_finished_within(thread, CONSUMER_STOP_WAIT_BUDGET)
+                }) {
+                    // Retain the exact owner: detaching a still-running consumer
+                    // would permit another Start while its AI work remains alive.
+                    return MeetingConsumerCleanupResult {
+                        ok: false,
+                        message: format!(
+                            "Meeting outbound consumer for {} generation {generation} has not exited. Retry Stop; starting another consumer remains blocked.",
+                            active.session_id,
+                        ),
+                    };
+                }
                 guard.take()
             } else {
                 None
@@ -350,11 +376,19 @@ pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsume
     let store = incoming_consumer_store();
     let runtime = match store.lock() {
         Ok(mut guard) => {
-            if guard
-                .as_ref()
-                .map(|value| value.session_id == session_id)
-                .unwrap_or(false)
-            {
+            if let Some(active) = guard.as_ref().filter(|value| value.session_id == session_id) {
+                if active.thread.as_ref().is_some_and(|thread| {
+                    !consumer_thread_finished_within(thread, CONSUMER_STOP_WAIT_BUDGET)
+                }) {
+                    // Deferred queue and producer have already been stopped.
+                    // Do not detach a consumer still holding its session owner.
+                    return MeetingConsumerCleanupResult {
+                        ok: false,
+                        message: format!(
+                            "Meeting incoming consumer for {session_id} has not exited. Retry Stop; starting another consumer remains blocked."
+                        ),
+                    };
+                }
                 guard.take()
             } else {
                 None
@@ -407,5 +441,39 @@ pub(super) fn stop_meeting_incoming_consumer(session_id: &str) -> MeetingConsume
                 ),
             }
         },
+    }
+}
+
+#[cfg(test)]
+mod bounded_consumer_stop_tests {
+    use super::consumer_thread_finished_within;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn still_running_consumer_is_not_joined_or_detached_at_timeout() {
+        let (release, blocked) = mpsc::channel::<()>();
+        let thread = thread::spawn(move || {
+            let _ = blocked.recv();
+        });
+        assert!(!consumer_thread_finished_within(&thread, Duration::ZERO));
+        assert!(!thread.is_finished());
+        release.send(()).expect("release owned fixture thread");
+        assert!(consumer_thread_finished_within(
+            &thread,
+            Duration::from_secs(2),
+        ));
+        thread.join().expect("fixture thread exits normally");
+    }
+
+    #[test]
+    fn already_exited_consumer_is_immediately_joinable() {
+        let thread = thread::spawn(|| {});
+        assert!(consumer_thread_finished_within(
+            &thread,
+            Duration::from_secs(2),
+        ));
+        thread.join().expect("fixture thread exits normally");
     }
 }
