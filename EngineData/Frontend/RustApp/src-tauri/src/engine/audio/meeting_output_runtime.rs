@@ -457,6 +457,24 @@ fn wait_for_output_completion(
     }
 }
 
+// The final device callback may enqueue up to one callback buffer of audio.
+// Wait only while this generation still owns playback: Stop must not wait a
+// full tail interval when an output stream has already been cancelled.
+fn wait_for_output_tail(tail: Duration, mut cancelled: impl FnMut() -> bool) -> bool {
+    let bounded = tail.min(Duration::from_secs(1));
+    let started = Instant::now();
+    loop {
+        if cancelled() {
+            return false;
+        }
+        let remaining = bounded.saturating_sub(started.elapsed());
+        if remaining.is_zero() {
+            return !cancelled();
+        }
+        thread::sleep(remaining.min(DELIVERY_CANCEL_POLL_INTERVAL));
+    }
+}
+
 fn blocked(blocker: &str, execution_attempted: bool) -> MeetingOutputDeliveryReport {
     MeetingOutputDeliveryReport {
         ok: false,
@@ -559,7 +577,7 @@ pub fn deliver_meeting_output_wav(
         }
         cancel_requested.load(Ordering::Acquire)
     });
-    let callback_error = callback_errors
+    let callback_error_before_tail = callback_errors
         .lock()
         .ok()
         .and_then(|error| error.clone());
@@ -572,10 +590,11 @@ pub fn deliver_meeting_output_wav(
         || !runtime_generation_is_authoritative(generation);
 
     match completion {
-        Ok(tail) if !cancelled && callback_error.is_none() => {
-            if !tail.is_zero() {
-                thread::sleep(tail.min(Duration::from_secs(1)));
-            }
+        Ok(tail) if !cancelled && callback_error_before_tail.is_none() => {
+            let _ = wait_for_output_tail(tail, || {
+                cancel_requested.load(Ordering::Acquire)
+                    || !runtime_generation_is_authoritative(generation)
+            });
         }
         Ok(_) => {}
         Err(_) => {
@@ -585,7 +604,15 @@ pub fn deliver_meeting_output_wav(
     drop(stream);
     clear_cancel_control(generation);
 
-    if cancelled || cancel_requested.load(Ordering::Acquire) && completion.is_ok() {
+    // Cancellation and callback errors can arrive while the final buffered
+    // audio drains. A pre-tail snapshot must never report their output as OK.
+    let cancelled_after_tail = cancel_requested.load(Ordering::Acquire)
+        || !runtime_generation_is_authoritative(generation);
+    let callback_error_after_tail = callback_errors
+        .lock()
+        .ok()
+        .and_then(|error| error.clone());
+    if cancelled_after_tail {
         let mut report = blocked("meeting_output:cancelled", true);
         report.first_playback_at = first_playback_at;
         report.first_playback_unix_ms = first_playback_unix_ms;
@@ -593,7 +620,7 @@ pub fn deliver_meeting_output_wav(
         report.stream_start_to_first_audio_ms = stream_start_to_first_audio_ms;
         return report;
     }
-    if callback_error.is_some() {
+    if callback_error_before_tail.is_some() || callback_error_after_tail.is_some() {
         let mut report = blocked("meeting_output:stream_callback_failed", true);
         report.first_playback_at = first_playback_at;
         report.first_playback_unix_ms = first_playback_unix_ms;
@@ -625,7 +652,7 @@ pub fn deliver_meeting_output_wav(
 mod tests {
     use super::{
         decode_wav_bytes, delivery_deadline_ms, prepare_output_samples, projected_unix_ms,
-        stream_start_to_first_audio_ms, wait_for_output_completion,
+        stream_start_to_first_audio_ms, wait_for_output_completion, wait_for_output_tail,
     };
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc;
@@ -672,6 +699,28 @@ mod tests {
             wait_for_output_completion(&pending_rx, Duration::ZERO, || false),
             Err(mpsc::RecvTimeoutError::Timeout),
         );
+    }
+
+    #[test]
+    fn final_output_tail_checks_cancellation_during_drain() {
+        let mut polls = 0;
+        let completed = wait_for_output_tail(Duration::from_secs(1), || {
+            polls += 1;
+            polls >= 2
+        });
+        assert!(!completed, "Stop must interrupt buffered playback tail");
+        assert_eq!(polls, 2);
+    }
+
+    #[test]
+    fn final_output_tail_checks_authority_even_for_zero_duration() {
+        let mut polls = 0;
+        assert!(wait_for_output_tail(Duration::ZERO, || {
+            polls += 1;
+            false
+        }));
+        assert!(polls >= 2);
+        assert!(!wait_for_output_tail(Duration::ZERO, || true));
     }
 
     #[test]
