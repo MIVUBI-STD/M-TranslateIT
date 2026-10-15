@@ -129,9 +129,15 @@ pub fn start_original_voice_output(device_name: &str, generation: u64, source_ep
         }
     };
     let result = ready_rx.recv_timeout(START_TIMEOUT);
-    if !matches!(result, Ok(Ok(()))) || !runtime_generation_is_authoritative(generation) {
+    if !matches!(&result, Ok(Ok(()))) || !runtime_generation_is_authoritative(generation) {
         original_voice_pcm::stop(generation);
         let _ = stop_tx.try_send(());
+        // A driver may stall in its native stream start. Do not join a thread
+        // that failed our deadline; retain its owner for bounded Stop retry.
+        if !thread.is_finished() {
+            *guard = Some(OriginalOutput { generation, stop_tx, thread });
+            return Err("original_voice:output_start_unconfirmed_cleanup_required".into());
+        }
         let _ = thread.join();
         return match result {
             Ok(Err(error)) => Err(error),
@@ -149,7 +155,15 @@ pub fn stop_original_voice_output(generation: u64) -> bool {
         return false;
     }
     original_voice_pcm::stop(generation);
-    let Some(runtime) = guard.take() else { return true };
+    let Some(runtime) = guard.as_ref() else { return true };
     let _ = runtime.stop_tx.try_send(());
-    runtime.thread.join().is_ok()
+    for _ in 0..100 {
+        if runtime.thread.is_finished() { break; }
+        thread::sleep(Duration::from_millis(20));
+    }
+    if !runtime.thread.is_finished() {
+        // Keep ownership and refuse to claim cleanup. Stop may be retried.
+        return false;
+    }
+    guard.take().is_some_and(|runtime| runtime.thread.join().is_ok())
 }
