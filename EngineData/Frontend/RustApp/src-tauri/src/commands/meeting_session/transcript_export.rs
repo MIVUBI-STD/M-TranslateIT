@@ -58,7 +58,7 @@ fn language_label(value: &str) -> &str {
 }
 
 fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
-    let mut out = String::from("# TranslateIT Meeting Transcript\n\n> You = your microphone. Person 1 = combined incoming meeting audio; individual speakers are not identified.\n\n");
+    let mut out = String::from("# TranslateIT Meeting Transcript\n\n> You = your microphone. Meeting audio = combined incoming sound; individual speakers are not identified.\n\n");
     if let Some(session_id) = snapshot.session_id.as_deref() {
         out.push_str(&format!("Session: {}\n\n", session_id));
     }
@@ -69,7 +69,7 @@ fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
         ));
     }
     for turn in &snapshot.turns {
-        let speaker = if turn.lane == "you" { "You" } else { "Person 1" };
+        let speaker = if turn.lane == "you" { "You" } else { "Meeting audio" };
         out.push_str(&format!(
             "## {speaker} · {} → {}\n\n**Source**\n\n{}\n\n**Translation**\n\n{}\n\n",
             language_label(&turn.source_language),
@@ -88,7 +88,7 @@ fn format_markdown(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
 }
 
 fn format_text(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
-    let mut out = String::from("TranslateIT Meeting Transcript\nYou = your microphone; Person 1 = combined incoming meeting audio. Individual speakers are not identified.\n");
+    let mut out = String::from("TranslateIT Meeting Transcript\nYou = your microphone; Meeting audio = combined incoming sound. Individual speakers are not identified.\n");
     if let Some(session_id) = snapshot.session_id.as_deref() {
         out.push_str(&format!("Session: {session_id}\n"));
     }
@@ -100,7 +100,7 @@ fn format_text(snapshot: &MeetingCommittedTurnsSnapshot) -> String {
     }
     out.push('\n');
     for turn in &snapshot.turns {
-        let speaker = if turn.lane == "you" { "YOU" } else { "PERSON 1" };
+        let speaker = if turn.lane == "you" { "YOU" } else { "MEETING AUDIO" };
         out.push_str(&format!(
             "[{speaker}] {} -> {}\nSource: {}\nTranslation: {}\n\n",
             language_label(&turn.source_language),
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn text_export_contains_source_translation_and_truncation_warning() {
         let body = format_text(&snapshot());
-        assert!(body.contains("[PERSON 1] English -> Indonesian"));
+        assert!(body.contains("[MEETING AUDIO] English -> Indonesian"));
         assert!(body.contains("Individual speakers are not identified."));
         assert!(body.contains("Source: See you tomorrow."));
         assert!(body.contains("Translation: Sampai jumpa besok."));

@@ -148,7 +148,7 @@
   <article class="ti-panel overflow-hidden">
     <div class="flex items-start justify-between gap-4 px-6 py-5">
       <div class="min-w-0">
-        <strong class="text-[15px] font-semibold">{meeting.live && meetingStatus?.audio_source === "original" ? "Original microphone is on" : meeting.live ? "Translation is on" : "Meeting microphone"}</strong>
+        <strong class="text-[15px] font-semibold">{meeting.live && meetingStatus?.audio_source === "original" ? "Original microphone is on" : meeting.live ? "Translation session active" : "Meeting microphone"}</strong>
         <p class="mb-0 mt-2 text-[13px] leading-6 text-[var(--ti-text-muted)]" aria-live="polite">{statusMessage}</p>
       </div>
       <StatusBadge label={meeting.live ? "Live" : meeting.label} tone={statusTone} />

@@ -1,7 +1,7 @@
 import type { MeetingCommittedTurn } from "../bridge/runtimeApi";
 
 export function meetingSpeakerLabel(lane: string): string {
-  return lane === "you" ? "You" : "Person 1";
+  return lane === "you" ? "You" : "Meeting audio";
 }
 
 export function meetingSpeakerDescription(lane: string): string {

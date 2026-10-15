@@ -36,16 +36,14 @@ test("Meeting Live reports local output truth, not fabricated participant delive
   assert.match(live, /label: "Speaking"/);
   assert.match(live, /label: "Translating"/);
   assert.match(live, /label: "Listening"/);
-  assert.match(live, /case "output_complete": return "Played"/);
+  assert.match(live, /case "output_complete": return "Local playback complete"/);
   assert.match(live, /case "output_failed": return "Not played"/);
   assert.doesNotMatch(live, /"Sent"|"Delivered to participants"|"Sending"/);
   assert.match(live, /statusLabel=\{turn\.lane === "you" \? deliveryLabel\(turn\) : ""\}/);
 });
 
-test("Transcript tools follow user intent and preserve focus, reading position, and copy errors", () => {
-  assert.match(live, /orderedTurns\.length > 1 \|\| searchOpen/);
-  assert.match(live, /aria-expanded=\{searchOpen\}/);
-  assert.match(live, /searchInput\?\.focus\(\)/);
+test("Live transcript stays minimal while preserving reading position and copy errors", () => {
+  assert.doesNotMatch(live, /searchOpen|toggleSearch|togglePin|pinnedSequences|PinOff/);
   assert.match(live, /followingLatest/);
   assert.match(live, /onscroll=\{updateScrollPosition\}/);
   assert.match(live, />Jump to latest<\/button>/);
@@ -74,8 +72,8 @@ test("live and last-session transcript reuse one WhatsApp-style lane-aware bubbl
   assert.match(bubble, /meetingSpeakerLabel\(turn\.lane\)/);
   assert.match(bubble, /turn\.created_unix_ms/);
   assert.match(bubble, /Original/);
-  assert.match(live, /Person 1 groups incoming audio/);
-  assert.match(review, /Person 1 groups incoming audio/);
+  assert.match(live, /Meeting audio is combined; individual speakers are not identified/);
+  assert.match(review, /Meeting audio combines incoming sound; individual speakers are not identified/);
   assert.match(bubble, /Translation/);
   assert.doesNotMatch(bubble, /Person 2|speaker_id|diarizationResult/);
 });

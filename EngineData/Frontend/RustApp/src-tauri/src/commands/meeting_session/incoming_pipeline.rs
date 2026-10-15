@@ -157,7 +157,7 @@ fn process_incoming_wav_with_direction(
         IncomingAsrDisposition::Transcript(transcript) => transcript,
     };
 
-    // Retain a source-first Person 1 turn even if MiLMMT later fails,
+    // Retain a source-first mixed incoming-audio turn even if MiLMMT later fails,
     // is deferred, or the helper becomes unavailable.
     if !commit_meeting_turn(
         session_id, event_sequence, None, utterance_id, "incoming",

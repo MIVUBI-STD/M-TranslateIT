@@ -12,7 +12,7 @@ import type { MeetingCommittedTurn } from "../../src/app/bridge/runtimeApi.ts";
 
 test("You is distinct from the one mixed incoming audio lane, not fake diarization", () => {
   assert.equal(meetingSpeakerLabel("you"), "You");
-  assert.equal(meetingSpeakerLabel("incoming"), "Person 1");
+  assert.equal(meetingSpeakerLabel("incoming"), "Meeting audio");
   assert.match(meetingSpeakerDescription("incoming"), /speakers are not identified/);
   assert.doesNotMatch(meetingSpeakerDescription("you"), /speakers are not identified/);
 });

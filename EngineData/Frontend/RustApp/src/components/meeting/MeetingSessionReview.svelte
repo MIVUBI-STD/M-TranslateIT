@@ -67,7 +67,7 @@
   <details bind:open={reviewOpen} class="ti-panel mt-4 overflow-hidden">
     <summary class="cursor-pointer px-5 py-4 hover:bg-[var(--ti-surface-soft)]">
       <strong class="block text-[15px] font-semibold">{sessionLabel} · Last session</strong>
-      <span class="mt-1 block text-sm text-[var(--ti-text-muted)]">Showing {snapshot.turns.length} recent phrase{snapshot.turns.length === 1 ? "" : "s"} · Person 1 groups incoming audio (speaker unverified).</span>
+      <span class="mt-1 block text-sm text-[var(--ti-text-muted)]">Showing {snapshot.turns.length} recent phrase{snapshot.turns.length === 1 ? "" : "s"} · Meeting audio combines incoming sound; individual speakers are not identified.</span>
       <span class="mt-1 block text-xs text-[var(--ti-warning)]">Only this meeting is available until the next meeting or app exit. Export manually to keep the full retained session.</span>
     </summary>
     <div class="border-t border-[var(--ti-border)]">

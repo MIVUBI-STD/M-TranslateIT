@@ -314,7 +314,7 @@
         <Mic size={17} aria-hidden="true" />
         <div>
           <p class="m-0 text-[12px] font-semibold">Microphone Mute</p>
-          <p class="qa-feedback">{meeting?.muted ? "No audio sent" : live ? "Voice output enabled" : "Available during Meeting"}</p>
+          <p class="qa-feedback">{meeting?.muted ? "Virtual output muted" : live ? "Virtual output unmuted" : "Available during Meeting"}</p>
         </div>
       </div>
       <button type="button" class="qa-caption-toggle" role="switch"

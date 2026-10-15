@@ -10,7 +10,7 @@ lifecycle: ACTIVE
 # TranslateIT — Product Overview
 
 **Status:** Active Policy  
-**Updated:** 2026-09-07
+**Updated:** 2026-10-15
 
 ## Purpose
 
@@ -117,6 +117,8 @@ Text
 ```
 
 History/Saved data and incoming participant turns never become automatic translation context; incoming remains context-free.
+
+**Current capability boundary:** Transcript retention is for review/export only, not Meeting Context Memory. Current Meeting has no speaker identification and no Gemini-style continuous speech-to-speech streaming. A native `Live` session means the local session is active; it does not establish that another participant received translated audio. Keep normal Meeting UI minimal and avoid user-facing feature claims without matching source and target-Windows evidence.
 
 Translation priorities:
 

@@ -55,19 +55,6 @@ impl MeetingCommittedTurnStore {
         }
     }
 
-    fn recent_outbound_context_pairs(&self, max_pairs: usize) -> Vec<[String; 2]> {
-        let mut newest_first: Vec<[String; 2]> = self
-            .turns
-            .iter()
-            .rev()
-            .filter(|turn| turn.lane == "you")
-            .take(max_pairs)
-            .map(|turn| [turn.source_text.clone(), turn.translated_text.clone()])
-            .collect();
-        newest_first.reverse();
-        newest_first
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn commit_at(
         &mut self,
@@ -481,22 +468,6 @@ pub(super) fn exportable_committed_turn_snapshot() -> Option<MeetingCommittedTur
         }
     }
     ended_transcript_store().lock().ok().and_then(|guard| guard.clone())
-}
-
-pub(super) fn recent_outbound_context_pairs(
-    session_id: &str,
-    max_pairs: usize,
-) -> Vec<[String; 2]> {
-    let Ok(guard) = committed_turn_store().lock() else {
-        return Vec::new();
-    };
-    let Some(store) = guard.as_ref() else {
-        return Vec::new();
-    };
-    if store.session_id != session_id {
-        return Vec::new();
-    }
-    store.recent_outbound_context_pairs(max_pairs)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1104,74 +1075,6 @@ mod tests {
         assert_eq!(store.turns.front().map(|turn| turn.updated_unix_ms), Some(1_020));
     }
 
-    #[test]
-    fn outbound_context_uses_latest_own_turns_in_chronological_order() {
-        let mut store = MeetingCommittedTurnStore::new("session-a");
-        assert!(store.commit_at(
-            "session-a",
-            1,
-            Some(5),
-            10,
-            "you",
-            "id",
-            "en",
-            "satu",
-            "one",
-            Some("output_complete"),
-            Some(timing(1)),
-            1,
-        ));
-        assert!(store.commit_at(
-            "session-a",
-            2,
-            None,
-            20,
-            "incoming",
-            "en",
-            "id",
-            "incoming",
-            "masuk",
-            None,
-            None,
-            2,
-        ));
-        assert!(store.commit_at(
-            "session-a",
-            3,
-            Some(5),
-            30,
-            "you",
-            "id",
-            "en",
-            "tiga",
-            "three",
-            Some("output_complete"),
-            Some(timing(3)),
-            3,
-        ));
-        assert!(store.commit_at(
-            "session-a",
-            4,
-            Some(5),
-            40,
-            "you",
-            "id",
-            "en",
-            "empat",
-            "four",
-            Some("output_complete"),
-            Some(timing(4)),
-            4,
-        ));
-
-        assert_eq!(
-            store.recent_outbound_context_pairs(2),
-            vec![
-                ["tiga".to_string(), "three".to_string()],
-                ["empat".to_string(), "four".to_string()],
-            ]
-        );
-    }
     #[test]
     fn duplicate_source_and_evicted_sequence_never_restart_inference() {
         let mut store = MeetingCommittedTurnStore::new("s1");

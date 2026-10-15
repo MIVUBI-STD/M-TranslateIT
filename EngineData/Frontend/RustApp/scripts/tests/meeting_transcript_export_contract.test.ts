@@ -53,11 +53,11 @@ test("manual exports are isolated in a per-session folder without automatic sess
   assert.match(exporter, /if fs::write\(&path, body\.as_bytes\(\)\)\.is_err\(\)/);
   assert.match(committed, /\*ended = None/);
 });
-test("manual exports describe Person 1 honestly instead of fabricating participant identity", () => {
-  assert.match(exporter, /Person 1 = combined incoming meeting audio/);
+test("manual exports label incoming audio without fabricating participant identity", () => {
+  assert.match(exporter, /Meeting audio = combined incoming sound/);
   assert.match(exporter, /individual speakers are not identified/);
-  assert.match(exporter, /"Person 1"/);
-  assert.match(exporter, /"PERSON 1"/);
+  assert.match(exporter, /"Meeting audio"/);
+  assert.match(exporter, /"MEETING AUDIO"/);
 });
 
 test("manual transcript export retains original source after translation failure", () => {
