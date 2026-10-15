@@ -74,4 +74,4 @@ The feedback example assumes compatible f32 stream configurations; TranslateIT m
 
 ## Next code delivery
 
-Implement the bounded PCM handoff and epoch-aware source selector in existing Rust owners first, then wire the native command and Meeting UI. Do not declare complete until the entire source path is wired and independently reviewed. No hosted CI/build or per-commit Windows requests.
+The source selector, epoch-gated TTS, and Original PCM output now exist on Local. Next, address any source-level compile or contract findings, then perform the one authorized integrated local build/package and TARGET_WINDOWS microphone-receiver acceptance. Original-only startup without AI readiness and device naming in Windows remain separate, unapplied product scope. Do not claim audio reception or validation before executed evidence.

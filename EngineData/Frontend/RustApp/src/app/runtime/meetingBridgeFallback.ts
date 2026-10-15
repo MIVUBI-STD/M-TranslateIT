@@ -10,7 +10,7 @@ export function meetingSessionStatusFallback(message: string) {
     started_unix_ms: null,
     active_age_ms: null,
     capture_active: false,
-    audio_source: "translateit",
+    audio_source: "translateit" as const,
     owner_id: null,
     blocker: "frontend_bridge_unavailable",
     note: message,
