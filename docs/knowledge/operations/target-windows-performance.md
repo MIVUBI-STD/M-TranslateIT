@@ -310,9 +310,24 @@ after the baseline passes, assess this candidate in isolation:
 2. If conversion succeeds, verify token IDs, the official Xiaomi prompt for
    both directions, output-only generation and exact EOS/stop-token behavior.
    CTranslate2's generic Gemma instruction-tuned `<end_of_turn>` default must
-   not replace MiLMMT's actual verified terminal token. Retain the production
-   incomplete/ceiling rejection policy. No silent CPU fallback or alternate
-   model/prompt is allowed.
+   not replace MiLMMT's actual verified terminal token. The inspected **CT2
+   v4.8.1** `Gemma3Loader.set_config` selects `<end_of_turn>` whenever its
+   tokenizer has a non-empty `chat_template`, otherwise `tokenizer.eos_token`.
+   Public MiLMMT configuration shows `eos_token_id=1` and `pad_token_id=0`;
+   compare these against the **exact pinned local snapshot** and the converted
+   model's effective end-token before evaluation. Do not infer that a chat
+   template means MiLMMT must end with `<end_of_turn>`.
+
+   CT2 v4.8.1 `Generator.generate_batch` has `end_token` (override),
+   `return_end_token` (defaults to false), and `include_prompt_in_result`
+   (defaults to true). An isolated candidate **must explicitly** use the
+   verified MiLMMT stop token, `return_end_token=True` to make successful
+   termination auditable, `include_prompt_in_result=False` to preserve the
+   continuation-only contract, and deterministic greedy decoding. Check the
+   `max_length` / `max_new_tokens` equivalence rather than copying the
+   number 256 blindly. Fail closed on a missing EOS, token-ID mismatch,
+   decoding-budget mismatch or any unfinished translation. No silent CPU
+   fallback or alternate model/prompt is allowed.
 3. Compare pinned PyTorch BF16 baseline with the candidate on identical
    short/normal/long Indonesian ↔ English prompts and the existing translation
    quality/held-out scenarios. Record warm P50/P95 end-to-end generation and
