@@ -160,10 +160,29 @@ These are future **acceptance scenarios**, not tests performed or runtime result
   terminate a genuinely unowned process remains an environment-level
   limitation, never a claimed success.
 
+## MiLMMT inference evidence correction and engine-feasibility research — source-only (2026-10-15)
+
+- The canonical MiLMMT PyTorch path already uses persistent residency,
+  `torch.inference_mode()`, BF16 CUDA, deterministic generation and KV cache.
+  Avoid speculative `torch.compile`, quantization, model replacement or a
+  second production provider before an exact-revision quality/latency baseline.
+- The existing `inference_ms` measurement is corrected to include the
+  required output-ID CPU transfer: `model.generate()` alone may return before
+  all queued CUDA work is finished. The reported tokens/second denominator
+  uses the corrected wall-clock span. No new GPU polling or synchronization
+  barrier was added. A source regression assertion is authored but unexecuted.
+- The pinned MiLMMT family is Gemma 3 text-only; current CTranslate2
+  documentation supports this family in a Generator, but **MiLMMT conversion,
+  tokenizer/EOS behavior, quality parity and performance remain UNKNOWN**.
+  The existing target-Windows runbook section 5B owns the isolated feasibility
+  gate, under the same integrated session. No conversion, REA provider call,
+  model download, benchmark, runtime switch or dependency update occurred.
+
 ## Single next step
 
 Keep the current `Local` source as a candidate for the existing integrated
-Windows admission and GPU/Meeting/My Voice acceptance. When local testing is
+Windows admission and GPU/Meeting/My Voice acceptance, including MiLMMT timing
+accuracy and the isolated CTranslate2 feasibility gate in the existing runbook. When local testing is
 unavailable, **STOP speculative source edits** unless a new reproducible,
 source-provable defect appears; compiler and native checks remain
 `UNKNOWN / NOT EXECUTED`.

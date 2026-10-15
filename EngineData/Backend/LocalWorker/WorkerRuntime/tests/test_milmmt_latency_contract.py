@@ -61,3 +61,15 @@ def test_milmmt_translation_reports_stage_level_inference_telemetry() -> None:
     assert "tokenization_started = time.perf_counter()" in source
     assert "inference_started = time.perf_counter()" in source
     assert "decode_started = time.perf_counter()" in source
+
+def test_milmmt_inference_timing_waits_for_output_materialization() -> None:
+    # PyTorch CUDA work may be asynchronous; CPU output-ID materialization
+    # already synchronizes the generated result. Do not record a misleading
+    # tokens/second rate before that required transfer finishes.
+    source = MILMMT_PROVIDER_PATH.read_text(encoding="utf-8")
+    generate = source.index("generated = model.generate(")
+    materialize = source.index("completion = _continuation(", generate)
+    measurement = source.index("inference_ms = round(", generate)
+    assert generate < materialize < measurement
+    assert "finally:\n            # Preserve failure telemetry" in source
+    assert "torch.cuda.synchronize(" not in source

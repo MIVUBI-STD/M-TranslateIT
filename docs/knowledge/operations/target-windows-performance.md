@@ -276,6 +276,60 @@ source/runtime defect and STOP the related acceptance lane. If whole-device
 VRAM, model latency or perceptual quality has not been observed, report
 `UNKNOWN / NOT EXECUTED` rather than asserting a PyTorch performance win.
 
+### 5B. MiLMMT inference metric and CTranslate2 feasibility — same integrated phase
+
+**Current source-only finding:** `milmmt_translation_provider.py` previously stopped
+`inference_ms` immediately after `model.generate()`, before `_continuation()`
+transferred output token IDs to CPU. CUDA dispatch can be asynchronous. The
+metric now includes the mandatory output materialization and its synchronization,
+without an additional per-utterance device-wide barrier. It is **host wall-clock
+generation plus output materialization**, not kernel-only GPU timing. Calculate
+`inference_tokens_per_second` from this same span, and compare only matching
+metric definitions on the **same source revision**. Failure telemetry still
+records this span when output materialization/terminal validation raises. These
+source observations do not establish a faster engine.
+
+**One potential alternative, not an enabled production engine:** the pinned
+MiLMMT model is a text-only Gemma 3 causal LM family; upstream CTranslate2
+documents Gemma 3 text-only support in its `Generator` API, and our locked
+worker already uses CTranslate2 for Faster Whisper. References:
+https://opennmt.net/CTranslate2/guides/transformers.html and
+https://huggingface.co/xiaomi-research/MiLMMT-46-1B-v1.0 .
+Generic family support does **not** prove conversion, exact model-config support,
+EoS semantics, tokenizer-ID compatibility, output parity or GPU superiority for
+our pinned MiLMMT revision.
+
+Within an explicitly authorized **single** integrated Windows evaluation, only
+after the baseline passes, assess this candidate in isolation:
+
+1. Pin the original MiLMMT revision, tokenizer/config hashes and licensed model
+   assets. Inspect its `Gemma3ForCausalLM` / `gemma3_text` configuration;
+   attempt conversion using the **already locked** CTranslate2 version on a
+   separate disposable developer artifact, never overwrite RuntimeAssets.
+   Fail closed if the converter rejects any configuration or weight.
+2. If conversion succeeds, verify token IDs, the official Xiaomi prompt for
+   both directions, output-only generation and exact EOS/stop-token behavior.
+   CTranslate2's generic Gemma instruction-tuned `<end_of_turn>` default must
+   not replace MiLMMT's actual verified terminal token. Retain the production
+   incomplete/ceiling rejection policy. No silent CPU fallback or alternate
+   model/prompt is allowed.
+3. Compare pinned PyTorch BF16 baseline with the candidate on identical
+   short/normal/long Indonesian ↔ English prompts and the existing translation
+   quality/held-out scenarios. Record warm P50/P95 end-to-end generation and
+   first-playback time, successful EOS rate, output-quality regressions, peak
+   **whole-device** VRAM, worker generation, and ASR/TTS coexistence. Distinguish
+   Python dispatch timings from true CUDA events/profiler measurements.
+4. Reject the candidate on unsupported conversion, model/token mismatch,
+   degraded translation fidelity, increased operational risk or unmeasured
+   results. No production engine/router/dependency/installer change is
+   authorized merely because the converter supports the model family.
+
+REA is useful only for a **separately authorized** external packaged runtime
+whose behavior cannot be established from public source; for this open-source
+converter/API study, inspect the source/docs first. No REA capture, model
+conversion, CUDA benchmark, Windows/Meeting execution or model-quality PASS
+has occurred during this source-only preparation.
+
 ### 6. Optional incoming isolation
 
 After the outbound-only baseline is healthy, enable the intended Meeting Sound source and repeat several outbound utterances while English incoming speech is present.

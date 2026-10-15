@@ -323,8 +323,17 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
                 do_sample=False,
                 use_cache=True,
             )
-        inference_ms = round((time.perf_counter() - inference_started) * 1000.0, 2)
-        completion = _continuation(generated, prompt_tokens, tokenizer, model, generation_budget)
+        # The output-ID transfer inside _continuation synchronizes CUDA work
+        # needed to materialize the result. Include that transfer in this host
+        # wall-clock metric; timing only generate() can undercount asynchronous
+        # GPU completion. This is not an isolated CUDA kernel-duration metric.
+        # No additional per-utterance device-wide synchronization is added.
+        try:
+            completion = _continuation(generated, prompt_tokens, tokenizer, model, generation_budget)
+        finally:
+            # Preserve failure telemetry even if token materialization or
+            # terminal EOS validation raises.
+            inference_ms = round((time.perf_counter() - inference_started) * 1000.0, 2)
         if inference_ms > 0:
             inference_tokens_per_second = round(
                 completion["generated_tokens"] / (inference_ms / 1000.0),
