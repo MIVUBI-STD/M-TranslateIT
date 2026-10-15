@@ -421,6 +421,13 @@ fn clear_cancel_control(generation: u64) {
     }
 }
 
+// The control must remain installed until the native stream has been dropped,
+// including when stream.play() itself fails. Stop must never lose its owner.
+fn release_output_stream<T>(stream: T, generation: u64) {
+    drop(stream);
+    clear_cancel_control(generation);
+}
+
 pub fn cancel_meeting_output_for_generation(generation: u64) -> bool {
     let Ok(guard) = cancel_control().lock() else {
         return false;
@@ -585,7 +592,7 @@ pub fn deliver_meeting_output_wav(
     }
     let stream_started_at = Instant::now();
     if stream.play().is_err() {
-        clear_cancel_control(generation);
+        release_output_stream(stream, generation);
         return blocked("meeting_output:stream_start_failed", true);
     }
 
@@ -624,8 +631,7 @@ pub fn deliver_meeting_output_wav(
             cancel_requested.store(true, Ordering::Release);
         }
     }
-    drop(stream);
-    clear_cancel_control(generation);
+    release_output_stream(stream, generation);
 
     // Cancellation and callback errors can arrive while the final buffered
     // audio drains. A pre-tail snapshot must never report their output as OK.
@@ -677,6 +683,7 @@ mod tests {
         decode_wav_bytes, delivery_deadline_ms, prepare_output_samples, projected_unix_ms,
         stream_start_to_first_audio_ms, wait_for_output_completion, wait_for_output_tail,
         install_cancel_control, clear_cancel_control, cancel_meeting_output_for_generation,
+        cancel_control, release_output_stream,
     };
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc;
@@ -728,6 +735,49 @@ mod tests {
             "released control permits another authorized delivery",
         );
         clear_cancel_control(generation);
+        let _ = clear_runtime_session_state();
+    }
+
+    #[test]
+    fn output_control_stays_owned_until_stream_drop() {
+        use crate::engine::runtime_state::{
+            begin_application_meeting_session, clear_runtime_session_state,
+        };
+        use std::sync::Arc;
+
+        struct StreamDropProbe {
+            generation: u64,
+            control_present_at_drop: Arc<AtomicBool>,
+        }
+        impl Drop for StreamDropProbe {
+            fn drop(&mut self) {
+                let present = cancel_control()
+                    .lock()
+                    .expect("output control lock")
+                    .as_ref()
+                    .map(|control| control.generation == self.generation)
+                    .unwrap_or(false);
+                self.control_present_at_drop.store(present, Ordering::Release);
+            }
+        }
+
+        let _serial = crate::engine::runtime_state::runtime_test_guard();
+        let _ = clear_runtime_session_state();
+        let generation = begin_application_meeting_session()
+            .snapshot
+            .expect("Meeting generation")
+            .generation;
+        let _token = install_cancel_control(generation).expect("control admitted");
+        let observed = Arc::new(AtomicBool::new(false));
+        release_output_stream(
+            StreamDropProbe {
+                generation,
+                control_present_at_drop: Arc::clone(&observed),
+            },
+            generation,
+        );
+        assert!(observed.load(Ordering::Acquire));
+        assert!(cancel_control().lock().expect("output control lock").is_none());
         let _ = clear_runtime_session_state();
     }
 
