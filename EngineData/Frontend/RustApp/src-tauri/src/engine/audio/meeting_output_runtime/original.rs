@@ -48,14 +48,22 @@ fn run(
 
         let channels = config.channels;
         let rate = config.sample_rate.0;
-        let error_cb = |_error: cpal::StreamError| {
-            // The source authority remains closed on callback failures until Stop;
-            // normal device-loss diagnostics own user-facing error classification.
+        let (callback_tx, callback_rx) = mpsc::sync_channel::<Result<(), String>>(1);
+        let failure_tx = callback_tx.clone();
+        let error_cb = move |_error: cpal::StreamError| {
+            let _ = failure_tx.try_send(Err("original_voice:stream_callback_failed".to_string()));
         };
         let stream = match format {
-            cpal::SampleFormat::F32 => device.build_output_stream(
+            cpal::SampleFormat::F32 => {
+                let confirmation = callback_tx.clone();
+                let mut first_callback = true;
+                device.build_output_stream(
                 &config,
                 move |samples: &mut [f32], _| {
+                    if first_callback && !samples.is_empty() {
+                        first_callback = false;
+                        let _ = confirmation.try_send(Ok(()));
+                    }
                     original_voice_pcm::try_render_native(
                         samples, rate, channels, generation, source_epoch,
                         0.0_f32, |sample| sample,
@@ -63,10 +71,18 @@ fn run(
                 },
                 error_cb,
                 None,
-            ),
-            cpal::SampleFormat::I16 => device.build_output_stream(
+            )
+            },
+            cpal::SampleFormat::I16 => {
+                let confirmation = callback_tx.clone();
+                let mut first_callback = true;
+                device.build_output_stream(
                 &config,
                 move |samples: &mut [i16], _| {
+                    if first_callback && !samples.is_empty() {
+                        first_callback = false;
+                        let _ = confirmation.try_send(Ok(()));
+                    }
                     original_voice_pcm::try_render_native(
                         samples, rate, channels, generation, source_epoch,
                         0_i16, |sample| (sample.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16,
@@ -74,10 +90,18 @@ fn run(
                 },
                 error_cb,
                 None,
-            ),
-            cpal::SampleFormat::U16 => device.build_output_stream(
+            )
+            },
+            cpal::SampleFormat::U16 => {
+                let confirmation = callback_tx.clone();
+                let mut first_callback = true;
+                device.build_output_stream(
                 &config,
                 move |samples: &mut [u16], _| {
+                    if first_callback && !samples.is_empty() {
+                        first_callback = false;
+                        let _ = confirmation.try_send(Ok(()));
+                    }
                     original_voice_pcm::try_render_native(
                         samples, rate, channels, generation, source_epoch,
                         u16::MAX / 2 + 1,
@@ -86,11 +110,16 @@ fn run(
                 },
                 error_cb,
                 None,
-            ),
+            )
+            },
             _ => return Err("original_voice:unsupported_output_sample_format".into()),
         }.map_err(|_| "original_voice:stream_build_failed".to_string())?;
         stream.play().map_err(|_| "original_voice:stream_start_failed".to_string())?;
-        Ok(stream)
+        match callback_rx.recv_timeout(Duration::from_secs(2)) {
+            Ok(Ok(())) => Ok(stream),
+            Ok(Err(blocker)) => Err(blocker),
+            Err(_) => Err("original_voice:stream_callback_timeout".to_string()),
+        }
     })();
 
     match result {

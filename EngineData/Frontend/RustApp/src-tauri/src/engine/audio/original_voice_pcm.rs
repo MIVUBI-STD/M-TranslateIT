@@ -253,6 +253,21 @@ mod tests {
         assert_eq!(pcm.sample_rate_hz, 44_100);
     }
     #[test]
+    fn source_epoch_blocks_stale_tts_across_mode_round_trip() {
+        const GENERATION: u64 = 880_012;
+        super::register_translated(GENERATION).expect("translation epoch initialized");
+        let before = super::translated_epoch(GENERATION).expect("translated");
+        assert!(super::translated_epoch_matches(GENERATION, before));
+        let original_epoch = super::next_original_epoch(GENERATION).expect("next epoch");
+        super::begin(GENERATION, original_epoch).expect("switch to original");
+        assert!(super::is_original_active(GENERATION));
+        assert!(!super::translated_epoch_matches(GENERATION, before));
+        super::stop(GENERATION);
+        let resumed = super::translated_epoch(GENERATION).expect("translated again");
+        assert!(resumed > original_epoch);
+        assert!(!super::translated_epoch_matches(GENERATION, before));
+    }
+    #[test]
     fn malformed_samples_are_sanitized() {
         let mut pcm = DirectPcm::new();
         pcm.push(&[f32::NAN, 2.0, -2.0], 48_000);
