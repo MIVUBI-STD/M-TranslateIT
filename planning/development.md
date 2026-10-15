@@ -160,30 +160,40 @@ These are future **acceptance scenarios**, not tests performed or runtime result
   terminate a genuinely unowned process remains an environment-level
   limitation, never a claimed success.
 
-## MiLMMT inference evidence correction and engine-feasibility research — source-only (2026-10-15)
+## Existing-engine inference efficiency — source-only (2026-10-15)
 
-- The canonical MiLMMT PyTorch path already uses persistent residency,
-  `torch.inference_mode()`, BF16 CUDA, deterministic generation and KV cache.
-  Avoid speculative `torch.compile`, quantization, model replacement or a
-  second production provider before an exact-revision quality/latency baseline.
-- The existing `inference_ms` measurement is corrected to include the
-  required output-ID CPU transfer: `model.generate()` alone may return before
-  all queued CUDA work is finished. The reported tokens/second denominator
-  uses the corrected wall-clock span. No new GPU polling or synchronization
-  barrier was added. A source regression assertion is authored but unexecuted.
-- The pinned MiLMMT family is Gemma 3 text-only; current CTranslate2
-  documentation supports this family in a Generator, but **MiLMMT conversion,
-  tokenizer/EOS behavior, quality parity and performance remain UNKNOWN**.
-  The existing target-Windows runbook section 5B owns the isolated feasibility
-  gate, under the same integrated session. No conversion, REA provider call,
-  model download, benchmark, runtime switch or dependency update occurred.
+- **Product decision:** retain Faster Whisper/CTranslate2 ASR, MiLMMT/PyTorch
+  translation, GPT-SoVITS/PyTorch TTS and the single Python worker. Research
+  into alternative translation runtimes is historical only and **not an active
+  candidate**; do not implement an engine swap, parallel provider, fallback
+  router or model substitution for optimization.
+- MiLMMT already uses persistent model reuse, BF16, deterministic generation,
+  `torch.inference_mode()` and KV cache. Its `inference_ms` now includes the
+  existing output-ID CPU materialization instead of stopping at potentially
+  asynchronous CUDA dispatch. No extra GPU sync or speculative compiler/cache
+  policy was introduced.
+- Current GPT-SoVITS reuses its prompt/reference cache, including the
+  TranslateIT speaker-embedding adapter. Source inspection of pinned upstream
+  confirms per-`run()` `gc.collect()` and CUDA `empty_cache()` cleanup.
+  Retain that lifecycle pending real multi-engine VRAM and warm-latency data;
+  allocator cleanup changes are **not** proven safe from source alone.
+- Optimized `voice_lab_gpt_sovits.py` PCM16 reference signal validation by
+  combining silence/clipping/active-RMS/DC calculations in one traversal
+  without allocating a separate active-sample list. Original quality
+  thresholds and arithmetic are preserved; deterministic parity tests were
+  authored but **not executed**. This affects actor/preview validation rather
+  than the hot TTS acoustic generation.
+- Section 5B of the **existing** target-Windows acceptance runbook now
+  scopes eventual measurement to the current engines, stage latency, CUDA
+  memory coexistence and selected voice output. No model/voice/GPU tests,
+  cloud CI or REA runtime analysis was executed.
 
 ## Single next step
 
 Keep the current `Local` source as a candidate for the existing integrated
-Windows admission and GPU/Meeting/My Voice acceptance, including MiLMMT timing
-accuracy and the isolated CTranslate2 feasibility gate in the existing runbook. When local testing is
-unavailable, **STOP speculative source edits** unless a new reproducible,
+Windows admission and GPU/Meeting/My Voice acceptance, including current-engine
+MiLMMT/TTS timing accuracy, measured VRAM coexistence and voice-quality parity.
+When local testing is unavailable, **STOP speculative source edits** unless a new reproducible,
 source-provable defect appears; compiler and native checks remain
 `UNKNOWN / NOT EXECUTED`.
 

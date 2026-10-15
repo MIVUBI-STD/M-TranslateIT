@@ -276,74 +276,70 @@ source/runtime defect and STOP the related acceptance lane. If whole-device
 VRAM, model latency or perceptual quality has not been observed, report
 `UNKNOWN / NOT EXECUTED` rather than asserting a PyTorch performance win.
 
-### 5B. MiLMMT inference metric and CTranslate2 feasibility — same integrated phase
+### 5B. Existing-engine PyTorch and GPT-SoVITS efficiency — same integrated phase
 
-**Current source-only finding:** `milmmt_translation_provider.py` previously stopped
-`inference_ms` immediately after `model.generate()`, before `_continuation()`
-transferred output token IDs to CPU. CUDA dispatch can be asynchronous. The
-metric now includes the mandatory output materialization and its synchronization,
-without an additional per-utterance device-wide barrier. It is **host wall-clock
-generation plus output materialization**, not kernel-only GPU timing. Calculate
-`inference_tokens_per_second` from this same span, and compare only matching
-metric definitions on the **same source revision**. Failure telemetry still
-records this span when output materialization/terminal validation raises. These
-source observations do not establish a faster engine.
+**Immutable runtime boundary:** Faster Whisper + the existing CTranslate2 ASR,
+MiLMMT + PyTorch/Transformers translation, GPT-SoVITS V2ProPlus + PyTorch TTS,
+and one persistent canonical worker. No conversion to another translation
+runtime, alternate model, provider/router, extra GPU worker, new background
+profiler or cloud fallback is part of this performance work.
 
-**One potential alternative, not an enabled production engine:** the pinned
-MiLMMT model is a text-only Gemma 3 causal LM family; upstream CTranslate2
-documents Gemma 3 text-only support in its `Generator` API, and our locked
-worker already uses CTranslate2 for Faster Whisper. References:
-https://opennmt.net/CTranslate2/guides/transformers.html and
-https://huggingface.co/xiaomi-research/MiLMMT-46-1B-v1.0 .
-Generic family support does **not** prove conversion, exact model-config support,
-EoS semantics, tokenizer-ID compatibility, output parity or GPU superiority for
-our pinned MiLMMT revision.
+**Existing source observation:** `milmmt_translation_provider.py` measures
+`inference_ms` from before `model.generate()` until the generated token IDs
+have been materialized on CPU by `_continuation()`. The latter operation
+synchronizes the required CUDA output and is included in the measured host
+wall-clock time. This is **not CUDA kernel-only time**. Its associated
+`inference_tokens_per_second` is meaningful only with the same timing
+definition and successfully EOS-complete result. Preserve the canonical
+MiLMMT weights, BF16 admission, tokenizer, prompt, greedy decoding and dynamic
+KV cache; do not imply `torch.compile`, StaticCache or an attention backend
+is better without a matched model/device comparison.
 
-Within an explicitly authorized **single** integrated Windows evaluation, only
-after the baseline passes, assess this candidate in isolation:
+**GPT-SoVITS source observation:** our pinned upstream
+`GPT_SoVITS/TTS_infer_pack/TTS.py` implements a prompt cache for speaker,
+semantic and linguistic reference data. TranslateIT also reuses its reference
+speaker embeddings in the current actor. The upstream `TTS.run()` calls its
+`empty_cache()` in `finally`, which includes `gc.collect()` and, on CUDA,
+`torch.cuda.empty_cache()`. This is a concrete potentially repeated CPU/GPU
+allocator operation, but removing it is **not** automatically safe: ASR,
+MiLMMT and TTS share finite device headroom. Do not patch the immutable
+upstream, monkeypatch its allocator, globally suppress garbage collection,
+or disable cleanup absent observed full-pipeline benefit and stable VRAM.
 
-1. Pin the original MiLMMT revision, tokenizer/config hashes and licensed model
-   assets. Inspect its `Gemma3ForCausalLM` / `gemma3_text` configuration;
-   attempt conversion using the **already locked** CTranslate2 version on a
-   separate disposable developer artifact, never overwrite RuntimeAssets.
-   Fail closed if the converter rejects any configuration or weight.
-2. If conversion succeeds, verify token IDs, the official Xiaomi prompt for
-   both directions, output-only generation and exact EOS/stop-token behavior.
-   CTranslate2's generic Gemma instruction-tuned `<end_of_turn>` default must
-   not replace MiLMMT's actual verified terminal token. The inspected **CT2
-   v4.8.1** `Gemma3Loader.set_config` selects `<end_of_turn>` whenever its
-   tokenizer has a non-empty `chat_template`, otherwise `tokenizer.eos_token`.
-   Public MiLMMT configuration shows `eos_token_id=1` and `pad_token_id=0`;
-   compare these against the **exact pinned local snapshot** and the converted
-   model's effective end-token before evaluation. Do not infer that a chat
-   template means MiLMMT must end with `<end_of_turn>`.
+**Applied source-only optimization:** the canonical
+`voice_lab_gpt_sovits.py::wav_signal_metrics_pcm16` now computes silence,
+clipping, active RMS and DC offset in one pass over its decoded PCM16 samples
+without building the former separate active-sample list. This affects
+reference validation/preview preparation, **not per-utterance GPT-SoVITS
+acoustic inference**. Regression cases cover mixed boundary samples and silent
+input. Source equivalence is not executable/runtime or latency proof.
 
-   CT2 v4.8.1 `Generator.generate_batch` has `end_token` (override),
-   `return_end_token` (defaults to false), and `include_prompt_in_result`
-   (defaults to true). An isolated candidate **must explicitly** use the
-   verified MiLMMT stop token, `return_end_token=True` to make successful
-   termination auditable, `include_prompt_in_result=False` to preserve the
-   continuation-only contract, and deterministic greedy decoding. Check the
-   `max_length` / `max_new_tokens` equivalence rather than copying the
-   number 256 blindly. Fail closed on a missing EOS, token-ID mismatch,
-   decoding-budget mismatch or any unfinished translation. No silent CPU
-   fallback or alternate model/prompt is allowed.
-3. Compare pinned PyTorch BF16 baseline with the candidate on identical
-   short/normal/long Indonesian ↔ English prompts and the existing translation
-   quality/held-out scenarios. Record warm P50/P95 end-to-end generation and
-   first-playback time, successful EOS rate, output-quality regressions, peak
-   **whole-device** VRAM, worker generation, and ASR/TTS coexistence. Distinguish
-   Python dispatch timings from true CUDA events/profiler measurements.
-4. Reject the candidate on unsupported conversion, model/token mismatch,
-   degraded translation fidelity, increased operational risk or unmeasured
-   results. No production engine/router/dependency/installer change is
-   authorized merely because the converter supports the model family.
+In the **same** future integrated Windows acceptance, only after the
+pre-existing exact-SHA source/build gates, collect the following evidence
+without adding a normal-Meeting profiler or another test framework:
 
-REA is useful only for a **separately authorized** external packaged runtime
-whose behavior cannot be established from public source; for this open-source
-converter/API study, inspect the source/docs first. No REA capture, model
-conversion, CUDA benchmark, Windows/Meeting execution or model-quality PASS
-has occurred during this source-only preparation.
+1. Capture existing stage-level `asr_ms`, `translation_ms`, `tts_ms`,
+   scheduler waits, `playback_queue_ms`, first-playback latency and
+   P50/P95 on matched public sample sentences. Separate cold model admission
+   from warm consecutive utterances. Compare same source/model/actor identities.
+2. For translation, compare existing `tokenization_ms`,
+   `inference_ms` (which includes output materialization) and `decode_ms`.
+   Inspect CPU preparation, attention/prefill and token-by-token decode only
+   with the already-available developer profiling tools if their cost is
+   justified by stage timing. Do not invent separate CUDA-stage numbers.
+3. For TTS, distinguish reference/actor cold load, warm `tts.run()`
+   including upstream cleanup, final WAV processing and native playback.
+   If `tts_ms` dominates, measure the cost of the pinned upstream
+   `empty_cache()` and resulting real whole-device/allocator headroom
+   under consecutive spoken turns before proposing a scoped change.
+4. Preserve the existing voice actor, reference-cache invalidation, CUDA
+   safety, translation completeness, speech quality, ordered delivery and
+   Stop/Meeting generation authority. Reject optimizations that cannot show a
+   meaningful end-to-end improvement **and** safe model/device/quality parity.
+
+No PyTorch compiler experiment, allocator bypass, CUDA profile, actual voice
+inference, model-quality score, VRAM result or Windows test has been executed
+by this source-only investigation.
 
 ### 6. Optional incoming isolation
 
