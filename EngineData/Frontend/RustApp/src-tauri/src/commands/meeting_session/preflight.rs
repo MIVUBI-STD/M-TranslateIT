@@ -137,7 +137,7 @@ pub(super) fn status_from_report(
             } else {
                 "translateit".to_string()
             })
-            .unwrap_or_else(|| "translateit".to_string()),
+            .unwrap_or_else(|| super::audio_source::preferred_source().to_string()),
         muted: snapshot
             .map(|current| original_voice_pcm::is_output_muted(current.generation))
             .unwrap_or(false),

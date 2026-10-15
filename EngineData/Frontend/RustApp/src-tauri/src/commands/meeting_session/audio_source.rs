@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 use crate::engine::audio::finalized_utterance::reset_finalized_outbound_speech_boundary;
 use crate::engine::audio::meeting_output::{
     cancel_meeting_output_for_generation, start_original_voice_output, stop_original_voice_output,
@@ -17,6 +18,53 @@ use super::consumer_runtime::ensure_meeting_outbound_consumer;
 use super::playback_runtime::ensure_meeting_playback_runtime;
 use super::super::virtual_mic_route::get_bound_virtual_mic_output_device;
 static SOURCE_CHANGE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static PREFER_ORIGINAL: AtomicBool = AtomicBool::new(false);
+
+pub(super) fn preferred_source() -> &'static str {
+    if PREFER_ORIGINAL.load(Ordering::Acquire) { "original" } else { "translateit" }
+}
+
+pub(super) fn remember_preferred_source(source: &str) {
+    if matches!(source, "original" | "translateit") {
+        PREFER_ORIGINAL.store(source == "original", Ordering::Release);
+    }
+}
+
+/// Keep the pre-Start choice in the same native owner as the Live source.
+/// This is ephemeral intent; it does not change Windows audio devices.
+pub(super) fn set_preferred_source(source: &str) -> MeetingAudioSourceActionResult {
+    if !matches!(source, "original" | "translateit") {
+        return MeetingAudioSourceActionResult {
+            ok: false, source: preferred_source().to_string(),
+            message: "Unknown microphone source.".to_string(),
+        };
+    }
+    let Ok(_lock) = SOURCE_CHANGE_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return MeetingAudioSourceActionResult {
+            ok: false, source: preferred_source().to_string(),
+            message: "Meeting source selection is temporarily unavailable.".to_string(),
+        };
+    };
+    let state = latest_runtime_session_state();
+    if state.has_active_session || state.snapshot.is_some()
+        || super::lifecycle::transient_stop_cleanup_pending()
+    {
+        return MeetingAudioSourceActionResult {
+            ok: false, source: preferred_source().to_string(),
+            message: "You can choose the next source only before Meeting starts.".to_string(),
+        };
+    }
+    remember_preferred_source(source);
+    MeetingAudioSourceActionResult {
+        ok: true, source: preferred_source().to_string(),
+        message: if source == "original" {
+            "Original Voice selected for the next Meeting."
+        } else {
+            "TranslateIT Voice selected for the next Meeting."
+        }.to_string(),
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct MeetingAudioSourceActionResult {
     pub ok: bool,
@@ -163,6 +211,7 @@ pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
         if !still_live(generation, &session_id) {
             return response(false, Some(generation), "Meeting stopped during source switching.");
         }
+        remember_preferred_source("translateit");
         return response(true, Some(generation), "TranslateIT Audio selected.");
     }
     let Ok(epoch) = original_voice_pcm::next_original_epoch(generation) else {
@@ -189,8 +238,10 @@ pub(super) fn set_source(requested: &str) -> MeetingAudioSourceActionResult {
         return response(false, Some(generation), "Meeting stopped during source switching.");
     }
     match start_original_voice_output(&output_device, generation, epoch) {
-        Ok(()) if still_live(generation, &session_id) =>
-            response(true, Some(generation), "Original Microphone selected."),
+        Ok(()) if still_live(generation, &session_id) => {
+            remember_preferred_source("original");
+            response(true, Some(generation), "Original Microphone selected.")
+        },
         Ok(()) => {
             original_voice_pcm::stop(generation);
             response(false, Some(generation), "Meeting stopped during source switching.")

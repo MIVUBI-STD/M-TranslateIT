@@ -59,8 +59,9 @@
     if (!next.meeting.has_session && next.meeting.lifecycle !== "cleanup_incomplete") {
       confirmingStop = false;
     }
-    if (next.meeting.lifecycle === "live"
-      && next.meeting.owner_id === APPLICATION_MEETING_OWNER_ID) {
+    if ((next.meeting.lifecycle === "live"
+        && next.meeting.owner_id === APPLICATION_MEETING_OWNER_ID)
+      || (next.meeting.lifecycle === "idle" && !next.meeting.has_session)) {
       choice = next.meeting.audio_source === "original" ? "original" : "translateit";
     }
     const preferences = readOverlayPreferences();
@@ -98,25 +99,28 @@
   async function selectSource(requested: Source): Promise<void> {
     if (busy || stopping || needsStop || foreignOwner || !meeting || choice === requested) return;
     cancelAutoClose();
-    if (!live) { choice = requested; errorMessage = ""; return; }
     busy = true;
     errorMessage = "";
     resultMessage = "Switching audio source...";
     try {
-      const result = await runtimeApi.selectMeetingAudioSource(requested);
+      const result = live
+        ? await runtimeApi.selectMeetingAudioSource(requested)
+        : meeting.lifecycle === "idle" && !meeting.has_session
+          ? await runtimeApi.selectMeetingPreferredAudioSource(requested)
+          : null;
       const native = await applicationRuntimeApi.getSnapshot();
       if (!disposed) syncFromNative(native);
       const actual = snapshot?.meeting ?? native.meeting;
       if (!result?.ok || actual.audio_source !== requested
-        || actual.lifecycle !== "live") {
-        errorMessage = result?.message ?? "Could not confirm the audio source. Check Meeting status.";
+        || (live ? actual.lifecycle !== "live" : actual.lifecycle !== "idle")) {
+        errorMessage = result?.message ?? "Could not confirm the selected voice source.";
         resultMessage = "";
       } else {
         resultMessage = requested === "original" ? "Original Voice selected." : "TranslateIT Voice selected.";
         closeAfterSuccess();
       }
     } catch {
-      errorMessage = "Audio source could not be verified. Check the current Meeting status.";
+      errorMessage = "Voice source could not be verified. Check the current Meeting status.";
       resultMessage = "";
     } finally { busy = false; }
   }

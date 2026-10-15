@@ -21,22 +21,21 @@
   let sourceChanging = $state(false);
   let currentSource = $state<"original" | "translateit">("translateit");
   $effect(() => {
-    // Preserve the user's selection before Start; native state owns it only once Live.
-    if (meeting.live && !sourceChanging) {
-      currentSource = meetingStatus?.audio_source === "original" ? "original" : "translateit";
+    // Both Meeting and Quick Access show the same Rust-owned pre-Start choice
+    // and the same confirmed Live selection.
+    if (!sourceChanging && meetingStatus) {
+      currentSource = meetingStatus.audio_source === "original" ? "original" : "translateit";
     }
   });
   async function selectSource(source: "original" | "translateit"): Promise<void> {
     if (sourceChanging || currentSource === source) return;
-    // Before Start, selection is local UI intent; the native Meeting will
-    // commit exactly the chosen source when the user presses Start.
-    if (!meeting.live) {
-      if (!meeting.hasSession) currentSource = source;
-      return;
-    }
     sourceChanging = true;
     try {
-      const result = await runtimeApi.selectMeetingAudioSource(source);
+      const result = meeting.live
+        ? await runtimeApi.selectMeetingAudioSource(source)
+        : !meeting.hasSession
+          ? await runtimeApi.selectMeetingPreferredAudioSource(source)
+          : null;
       if (result?.ok) {
         currentSource = result.source;
         await onRefresh(result.message);

@@ -411,6 +411,10 @@ export const runtimeApi = {
     return invokeNullable<MeetingMuteActionResult>("set_meeting_output_muted", { muted });
   },
 
+  async selectMeetingPreferredAudioSource(source: "original" | "translateit"): Promise<MeetingAudioSourceActionResult | null> {
+    return invokeNullable<MeetingAudioSourceActionResult>("set_meeting_preferred_audio_source", { source });
+  },
+
   async selectMeetingAudioSource(source: "original" | "translateit"): Promise<MeetingAudioSourceActionResult | null> {
     return invokeNullable<MeetingAudioSourceActionResult>("set_meeting_audio_source", { source });
   },

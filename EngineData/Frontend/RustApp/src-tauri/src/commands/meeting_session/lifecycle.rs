@@ -439,6 +439,7 @@ fn start_meeting_impl(original_requested: bool) -> MeetingSessionActionResult {
             generation, &session_id, "listening", 0, false, true, "",
             "Original Microphone is passing audio directly to the virtual input without AI.",
         );
+        super::audio_source::remember_preferred_source("original");
         return MeetingSessionActionResult {
             ok: true,
             state: "live".to_string(),
@@ -599,6 +600,7 @@ fn start_meeting_impl(original_requested: bool) -> MeetingSessionActionResult {
         "",
         "Translation Live is listening. Rolling audio remains preview-only; finalized utterances receive shared Meeting event sequence before AI.",
     );
+    super::audio_source::remember_preferred_source("translateit");
     let incoming_message = schedule_optional_incoming_lane(&session_id);
     MeetingSessionActionResult {
         ok: true,

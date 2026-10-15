@@ -117,3 +117,18 @@ test("Quick Access native hide uses Window API, not Webview.hide", () => {
   assert.match(runtime, /Window\.getByLabel\(QUICK_ACCESS_WINDOW_LABEL\)/);
   assert.doesNotMatch(runtime, /WebviewWindow\.getByLabel/);
 });
+
+
+test("Pre-Start preferred voice source has one Rust owner across Meeting and Quick Access", () => {
+  const native = source("src-tauri/src/commands/meeting_session/audio_source.rs");
+  const status = source("src-tauri/src/commands/meeting_session/preflight.rs");
+  const meetingPage = source("src/pages/Meeting.svelte");
+  const registry = source("src-tauri/src/commands/registry.rs");
+  assert.match(native, /static PREFER_ORIGINAL: AtomicBool/);
+  assert.match(native, /fn set_preferred_source\(source: &str\)/);
+  assert.match(status, /super::audio_source::preferred_source\(\)/);
+  assert.match(meetingPage, /selectMeetingPreferredAudioSource\(source\)/);
+  assert.match(popup, /selectMeetingPreferredAudioSource\(requested\)/);
+  assert.match(registry, /set_meeting_preferred_audio_source/);
+  assert.match(popup, /next\.meeting\.lifecycle === "idle"/);
+});

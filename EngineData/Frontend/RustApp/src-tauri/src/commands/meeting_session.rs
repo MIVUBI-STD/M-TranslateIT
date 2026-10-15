@@ -321,6 +321,17 @@ pub fn set_meeting_audio_source(source: String) -> audio_source::MeetingAudioSou
 }
 
 #[tauri::command]
+pub fn set_meeting_preferred_audio_source(
+    app: tauri::AppHandle, source: String,
+) -> audio_source::MeetingAudioSourceActionResult {
+    let result = audio_source::set_preferred_source(&source);
+    if result.ok {
+        crate::commands::application_runtime::notify_preferred_audio_source_change(&app);
+    }
+    result
+}
+
+#[tauri::command]
 pub fn set_meeting_output_muted(muted: bool) -> audio_source::MeetingMuteActionResult {
     audio_source::set_muted(muted)
 }
