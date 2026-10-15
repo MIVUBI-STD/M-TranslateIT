@@ -62,6 +62,7 @@ def test_milmmt_translation_reports_stage_level_inference_telemetry() -> None:
     assert "inference_started = time.perf_counter()" in source
     assert "decode_started = time.perf_counter()" in source
 
+
 def test_milmmt_inference_timing_waits_for_output_materialization() -> None:
     # PyTorch CUDA work may be asynchronous; CPU output-ID materialization
     # already synchronizes the generated result. Do not record a misleading

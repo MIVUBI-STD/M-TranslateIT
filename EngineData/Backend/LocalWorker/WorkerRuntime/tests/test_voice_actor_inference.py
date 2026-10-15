@@ -64,7 +64,21 @@ def test_reference_wav_metrics_preserve_original_sample_math(tmp_path: Path) -> 
     import struct
 
     provider = load_provider_module()
-    samples = (-32_768, -32_760, -32_759, -129, -128, -1, 0, 1, 128, 129, 32_759, 32_760, 32_767) * 100
+    samples = (
+        -32_768,
+        -32_760,
+        -32_759,
+        -129,
+        -128,
+        -1,
+        0,
+        1,
+        128,
+        129,
+        32_759,
+        32_760,
+        32_767,
+    ) * 100
     path = tmp_path / "mixed-reference.wav"
     with wave.open(str(path), "wb") as writer:
         writer.setnchannels(1)
