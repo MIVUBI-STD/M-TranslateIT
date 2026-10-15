@@ -1,6 +1,6 @@
 # Meeting Audio Source Switching — implementation contract (2026-10-15)
 
-Status: DESIGN APPROVED / SOURCE IMPLEMENTATION PENDING / TARGET_WINDOWS NOT EXECUTED.
+Status: DESIGN APPROVED / PARTIAL SOURCE IMPLEMENTATION / BUILD AND TARGET_WINDOWS NOT EXECUTED.
 Branch authority: Local only. This document is an implementation handoff, not a runtime proof.
 
 ## User-visible behavior
@@ -48,6 +48,21 @@ RustAudio CPAL feedback example: https://github.com/RustAudio/cpal/blob/master/e
 CPAL callback guidance: https://docs.rs/cpal/latest/cpal/
 
 The feedback example assumes compatible f32 stream configurations; TranslateIT must not copy that assumption blindly.
+
+## Source work completed on Local (2026-10-15)
+
+- `a230b516`: existing CPAL microphone capture now offers a gated mono PCM tap; a bounded raw audio queue handles underflow, format changes and channel/sample conversion. Authored five focused Rust unit tests; unexecuted.
+- `0faf8cf0`: existing native Meeting output owner exposes an Original-voice stream through the same already-prepared VB-CABLE playback endpoint. This is internal only and NOT YET CONNECTED to Meeting Start, Stop, mode authorization or UI.
+- `1ad8c80d`: source hardening for native output startup timeout and bounded cleanup ownership.
+- These are **partial source components**, not a working user-visible source switch. Do not claim Original audio reaches meeting applications or show a live selector before the missing integration lands.
+
+## Immediate integration still required
+
+1. Bind Original/TranslateIT mode and incrementing source epoch to authoritative Meeting session start/switch/stop. Start/Stop must clean the native Original output owner and PCM buffers.
+2. Gate stale ASR/translation/TTS work and the existing TTS playback callback against that epoch. An old WAV must remain silent even when the mode cycles TranslateIT → Original → TranslateIT.
+3. Add a native Tauri source-selection command, status projection and a two-option control in Meeting. UI success must require native acknowledgment.
+4. Ensure original capture bypasses the AI functional-start requirement where applicable; keep translation readiness checks only for TranslateIT mode.
+5. Source review/compile tests and then eventual integrated TARGET_WINDOWS audio-device and meeting receiver acceptance. Do not request per-commit PC tests.
 
 ## Next code delivery
 
