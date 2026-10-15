@@ -64,8 +64,15 @@ impl DirectPcm {
         }
     }
 
-    fn render(&mut self, dest: &mut [f32], target_rate_hz: u32, channels: u16) {
-        dest.fill(0.0);
+    fn render_native<T: Copy>(
+        &mut self,
+        dest: &mut [T],
+        target_rate_hz: u32,
+        channels: u16,
+        silence: T,
+        convert: impl Fn(f32) -> T,
+    ) {
+        dest.fill(silence);
         if target_rate_hz == 0 || channels == 0 || self.sample_rate_hz == 0 {
             return;
         }
@@ -77,13 +84,18 @@ impl DirectPcm {
                 return;
             };
             let mono = left + (right - left) * self.phase as f32;
-            frame.fill(mono);
+            frame.fill(convert(mono));
             self.phase += step;
             while self.phase >= 1.0 {
                 self.samples.pop_front();
                 self.phase -= 1.0;
             }
         }
+    }
+
+    #[cfg(test)]
+    fn render(&mut self, dest: &mut [f32], target_rate_hz: u32, channels: u16) {
+        self.render_native(dest, target_rate_hz, channels, 0.0_f32, |sample| sample);
     }
 }
 
@@ -134,15 +146,17 @@ pub fn try_push_mono(samples: &[f32], sample_rate_hz: u32) {
 }
 
 /// Output callback: bounded, nonblocking, and silence-only when not authorized.
-/// PCM is mono in the queue and copied to the requested output channel count.
-pub fn try_render(
-    dest: &mut [f32],
+/// Supports the native f32/i16/u16 device formats without an intermediate allocation.
+pub fn try_render_native<T: Copy>(
+    dest: &mut [T],
     sample_rate_hz: u32,
     channels: u16,
     generation: u64,
     source_epoch: u64,
+    silence: T,
+    convert: impl Fn(f32) -> T,
 ) {
-    dest.fill(0.0);
+    dest.fill(silence);
     if !ACTIVE.load(Ordering::Acquire)
         || GENERATION.load(Ordering::Acquire) != generation
         || SOURCE_EPOCH.load(Ordering::Acquire) != source_epoch
@@ -156,7 +170,7 @@ pub fn try_render(
                 && GENERATION.load(Ordering::Acquire) == generation
                 && SOURCE_EPOCH.load(Ordering::Acquire) == source_epoch
             {
-                state.render(dest, sample_rate_hz, channels);
+                state.render_native(dest, sample_rate_hz, channels, silence, convert);
             }
         }
         Err(TryLockError::WouldBlock | TryLockError::Poisoned(_)) => {}
@@ -165,7 +179,7 @@ pub fn try_render(
         || GENERATION.load(Ordering::Acquire) != generation
         || SOURCE_EPOCH.load(Ordering::Acquire) != source_epoch
     {
-        dest.fill(0.0);
+        dest.fill(silence);
     }
 }
 
