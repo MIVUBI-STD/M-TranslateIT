@@ -54,9 +54,13 @@ test("Dismissing Quick Access does not end Meeting; app exit destroys its window
 });
 
 test("Quick Access controls captions through the existing overlay only", () => {
-  assert.match(popup, /showTranslationOverlay\(\)/);
-  assert.match(popup, /hideTranslationOverlay\(\)/);
-  assert.match(popup, /notifyOverlayPreferencesChanged/);
+  const overlay = source("src/app/runtime/translationOverlayRuntime.ts");
+  const access = source("src/app/runtime/quickAccessRuntime.ts");
+  assert.match(access, /changeCaptionVisibility/);
+  assert.match(access, /captionWindowIsVisible/);
+  assert.match(overlay, /subscribeQuickAccessCaptionRequests/);
+  assert.match(overlay, /showTranslationOverlay\(\)/);
+  assert.match(overlay, /hideTranslationOverlay\(\)/);
   assert.match(popup, /native\.meeting\.audio_source !== requested/);
   assert.match(popup, /result\.snapshot\.meeting\.lifecycle !== "live"/);
 });
@@ -131,4 +135,18 @@ test("Pre-Start preferred voice source has one Rust owner across Meeting and Qui
   assert.match(popup, /selectMeetingPreferredAudioSource\(requested\)/);
   assert.match(registry, /set_meeting_preferred_audio_source/);
   assert.match(popup, /next\.meeting\.lifecycle === "idle"/);
+});
+
+
+test("Caption visibility is the native window state and the main window owns caption text", () => {
+  const access = source("src/app/runtime/quickAccessRuntime.ts");
+  const overlay = source("src/app/runtime/translationOverlayRuntime.ts");
+  assert.match(access, /Window\.getByLabel\("translation-overlay"\)/);
+  assert.match(access, /await window\.isVisible\(\)/);
+  assert.match(access, /emitTo\("main", QUICK_ACCESS_CAPTION_REQUEST/);
+  assert.match(app, /subscribeQuickAccessCaptionRequests/);
+  assert.match(overlay, /await showTranslationOverlay\(\)/);
+  assert.match(overlay, /await hideTranslationOverlay\(\)/);
+  assert.match(popup, /captionsVisible === null \? "Status unavailable"/);
+  assert.doesNotMatch(popup, /showTranslationOverlay\(\)/);
 });

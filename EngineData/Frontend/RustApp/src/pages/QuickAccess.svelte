@@ -5,17 +5,15 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { applicationRuntimeApi, type ApplicationSnapshot } from "../app/bridge/applicationRuntimeApi";
   import { runtimeApi } from "../app/bridge/runtimeApi";
-  import { readOverlayPreferences, updateOverlayPreferences } from "../app/runtime/translationOverlayState";
   import {
-    hideTranslationOverlay, notifyOverlayPreferencesChanged, showTranslationOverlay,
-  } from "../app/runtime/translationOverlayRuntime";
-  import { hideQuickAccess, openTranslateIt } from "../app/runtime/quickAccessRuntime";
+    hideQuickAccess, openTranslateIt, captionWindowIsVisible, changeCaptionVisibility,
+  } from "../app/runtime/quickAccessRuntime";
   import { APPLICATION_MEETING_OWNER_ID } from "../app/shared/types";
 
   type Source = "original" | "translateit";
   let snapshot = $state<ApplicationSnapshot | null>(null);
   let choice = $state<Source>("original");
-  let captionsVisible = $state(false);
+  let captionsVisible = $state<boolean | null>(null);
   let busy = $state(false);
   let confirmingStop = $state(false);
   let errorMessage = $state("");
@@ -64,13 +62,16 @@
       || (next.meeting.lifecycle === "idle" && !next.meeting.has_session)) {
       choice = next.meeting.audio_source === "original" ? "original" : "translateit";
     }
-    const preferences = readOverlayPreferences();
-    captionsVisible = preferences.visibility !== "hidden" && preferences.meetingEnabled;
   }
 
   async function refresh(): Promise<void> {
-    const current = await applicationRuntimeApi.getSnapshot();
-    if (!disposed && !busy) syncFromNative(current);
+    const [current, visible] = await Promise.all([
+      applicationRuntimeApi.getSnapshot(), captionWindowIsVisible(),
+    ]);
+    if (!disposed && !busy) {
+      syncFromNative(current);
+      captionsVisible = visible;
+    }
   }
 
   function cancelAutoClose(): void {
@@ -187,22 +188,21 @@
     cancelAutoClose();
     busy = true;
     errorMessage = "";
-    const desired = !captionsVisible;
+    const desired = captionsVisible === false;
     try {
-      if (desired) {
-        const preferences = updateOverlayPreferences({ meetingEnabled: true });
-        await notifyOverlayPreferencesChanged(preferences);
-        if (!await showTranslationOverlay()) throw new Error("Caption window did not open.");
+      const result = await changeCaptionVisibility(desired);
+      const actual = await captionWindowIsVisible();
+      if (!disposed) captionsVisible = actual;
+      if (!result.ok || actual !== desired) {
+        errorMessage = result.message || "Floating Captions visibility could not be confirmed.";
+        resultMessage = "";
       } else {
-        await hideTranslationOverlay();
+        resultMessage = actual ? "Floating Captions shown." : "Floating Captions hidden.";
+        closeAfterSuccess();
       }
-      const actual = readOverlayPreferences();
-      captionsVisible = actual.visibility !== "hidden" && actual.meetingEnabled;
-      if (captionsVisible !== desired) throw new Error("Caption state not confirmed.");
-      resultMessage = captionsVisible ? "Floating Captions shown." : "Floating Captions hidden.";
-      closeAfterSuccess();
     } catch {
-      errorMessage = "Floating Captions could not be updated. Check caption settings.";
+      errorMessage = "Floating Captions could not be verified. Open Settings for recovery.";
+      resultMessage = "";
     } finally { busy = false; }
   }
 
@@ -331,11 +331,11 @@
         <Captions size={17} aria-hidden="true" />
         <div>
           <p class="m-0 text-[12px] font-semibold">Floating Captions</p>
-          <p class="qa-feedback">{captionsVisible ? "Visible" : "Hidden"}</p>
+          <p class="qa-feedback">{captionsVisible === null ? "Status unavailable" : captionsVisible ? "Visible" : "Hidden"}</p>
         </div>
       </div>
-      <button type="button" class="qa-caption-toggle" role="switch" aria-checked={captionsVisible}
-        aria-label={captionsVisible ? "Hide Floating Captions" : "Show Floating Captions"} disabled={busy}
+      <button type="button" class="qa-caption-toggle" role="switch" aria-checked={captionsVisible === true}
+        aria-label={captionsVisible ? "Hide Floating Captions" : "Show Floating Captions"} disabled={busy || captionsVisible === null}
         onclick={() => void toggleCaptions()}>
         {captionsVisible ? "Hide" : "Show"}
       </button>

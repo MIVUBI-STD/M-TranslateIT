@@ -12,7 +12,7 @@
     type ProductSetupAction,
   } from "./app/bridge/runtimeProductFacade";
   import { startMeetingRuntimeMonitors } from "./app/runtime/reliabilityMonitor";
-import { subscribeOverlayReady } from "./app/runtime/translationOverlayRuntime";
+  import { subscribeOverlayReady, subscribeQuickAccessCaptionRequests } from "./app/runtime/translationOverlayRuntime";
 import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlayState";
   import { startVoiceBuildRuntimeSync } from "./app/runtime/voiceBuildRuntimeSync";
   import { installNativeCloseGuard } from "./app/runtime/nativeCloseRuntime";
@@ -353,6 +353,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     let unlistenClose: (() => void) | null = null;
     let unlistenApplicationRuntime: (() => void) | null = null;
     let unlistenOverlayReady: (() => void) | null = null;
+    let unlistenQuickAccessCaptions: (() => void) | null = null;
     discardLegacyOverlayCaption();
     const stopVoiceBuildRuntimeSync = startVoiceBuildRuntimeSync((message) => refreshSnapshot(message));
     const boot = async () => {
@@ -408,6 +409,10 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
       if (disposed) stop();
       else unlistenOverlayReady = stop;
     }).catch(() => { /* Live event delivery remains available. */ });
+    void subscribeQuickAccessCaptionRequests().then(stop => {
+      if (disposed) stop();
+      else unlistenQuickAccessCaptions = stop;
+    }).catch(() => { /* Quick Access reports a missing caption owner. */ });
 
     return () => {
       disposed = true;
@@ -415,6 +420,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
       unlistenClose?.();
       unlistenApplicationRuntime?.();
       unlistenOverlayReady?.();
+      unlistenQuickAccessCaptions?.();
       stopVoiceBuildRuntimeSync();
     };
   });

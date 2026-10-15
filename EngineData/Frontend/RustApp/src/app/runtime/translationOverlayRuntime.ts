@@ -1,5 +1,6 @@
 import { emit, emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { Window } from "@tauri-apps/api/window";
 import type { MeetingCommittedTurnsSnapshot } from "../bridge/runtimeApi";
 import {
   TRANSLATION_OVERLAY_EVENT,
@@ -169,4 +170,45 @@ export async function destroyTranslationOverlay(): Promise<void> {
   pendingNativeVisibility = false;
   try { await nativeVisibilityTask; } catch { /* Shutdown still owns destruction. */ }
   await (await overlayWindow())?.destroy();
+}
+
+
+/**
+ * Quick Access asks the existing main caption owner to show or hide its window.
+ * The popup must not call showTranslationOverlay itself: its private in-memory
+ * caption is empty and would replace the user's active captions.
+ */
+export const QUICK_ACCESS_CAPTION_REQUEST = "translateit://quick-access-caption-request";
+export const QUICK_ACCESS_CAPTION_RESPONSE = "translateit://quick-access-caption-response";
+export type QuickAccessCaptionRequest = { id: string; visible: boolean };
+export type QuickAccessCaptionResponse = { id: string; ok: boolean; visible: boolean; message: string };
+
+export async function subscribeQuickAccessCaptionRequests(): Promise<UnlistenFn> {
+  return listen<QuickAccessCaptionRequest>(QUICK_ACCESS_CAPTION_REQUEST, async event => {
+    const request = event.payload;
+    if (typeof request?.id !== "string" || !/^qa_[a-z0-9]+$/.test(request.id)
+        || typeof request.visible !== "boolean") return;
+    let ok = false;
+    let visible = false;
+    let message = "Floating Captions could not be updated.";
+    try {
+      if (request.visible) {
+        updateOverlayPreferences({ meetingEnabled: true });
+        ok = await showTranslationOverlay();
+      } else {
+        await hideTranslationOverlay();
+        ok = true;
+      }
+      const native = await Window.getByLabel(OVERLAY_WINDOW_LABEL);
+      visible = native ? await native.isVisible() : false;
+      ok = ok && visible === request.visible;
+      message = ok ? visible ? "Floating Captions shown." : "Floating Captions hidden."
+        : "Floating Captions state was not confirmed.";
+    } catch { ok = false; }
+    try {
+      await emitTo("quick-access", QUICK_ACCESS_CAPTION_RESPONSE, {
+        id: request.id, ok, visible, message,
+      } satisfies QuickAccessCaptionResponse);
+    } catch { /* The caller owns its timeout and must not infer success. */ }
+  });
 }
