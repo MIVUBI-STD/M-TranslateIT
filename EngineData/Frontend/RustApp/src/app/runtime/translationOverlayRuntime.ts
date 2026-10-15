@@ -1,5 +1,4 @@
 import { emit, emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Window } from "@tauri-apps/api/window";
 import type { MeetingCommittedTurnsSnapshot } from "../bridge/runtimeApi";
 import {
@@ -62,8 +61,10 @@ export async function clearLatestMeetingOverlay(): Promise<void> {
   catch { /* No sensitive payload is logged or persisted. */ }
 }
 
-async function overlayWindow(): Promise<WebviewWindow | null> {
-  return WebviewWindow.getByLabel(OVERLAY_WINDOW_LABEL);
+async function overlayWindow(): Promise<Window | null> {
+  // Show/Hide must operate on the native window. Hiding only the webview
+  // leaves a still-visible, empty always-on-top floating caption window.
+  return Window.getByLabel(OVERLAY_WINDOW_LABEL);
 }
 async function emitPreferences(preferences: TranslationOverlayPreferences): Promise<void> {
   await emitTo(OVERLAY_WINDOW_LABEL, TRANSLATION_OVERLAY_PREFERENCES_EVENT, preferences);
