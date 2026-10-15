@@ -113,6 +113,25 @@ def validate_dependencies(root: Path) -> None:
     require(TOKENIZERS_SDIST_SHA256 in lock, "dependency:tokenizers_sdist_hash")
 
 
+def require_manual_workflow(source: str, label: str) -> None:
+    """Verify the sole authorized workflow trigger using the current YAML shape."""
+    lines = source.splitlines()
+    blocks = [index for index, line in enumerate(lines) if line.startswith("on:")]
+    require(len(blocks) == 1 and lines[blocks[0]] == "on:", f"{label}:trigger_block")
+    events: list[str] = []
+    for line in lines[blocks[0] + 1 :]:
+        if line.strip() and not line[0].isspace():
+            break
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line.startswith("    "):
+            continue
+        match = re.fullmatch(r"  ([a-z_]+):(?:[ ]*#.*)?", line)
+        require(match is not None, f"{label}:trigger_shape")
+        events.append(match.group(1))
+    require(events == ["workflow_dispatch"], f"{label}:manual_only")
+
+
 def validate_release(root: Path) -> None:
     app = "EngineData/Frontend/RustApp/"
     stage = read(root, app + "scripts/stage_release_inputs.ps1")
@@ -171,11 +190,11 @@ def validate_release(root: Path) -> None:
     require(TOKENIZERS_SDIST_SHA256 in license_stager, "release:tokenizers_license_hash")
     require("tokenizers-0.22.2.dist-info" in payload_validator, "release:tokenizers_payload_version")
 
+    require_manual_workflow(release_workflow, "workflow:release")
+    require_manual_workflow(lock_workflow, "workflow:lock")
     require("R3 Release Contract" in release_workflow, "workflow:release_owner")
     require("source-contract" in release_workflow, "workflow:release_source_job")
     require("controlled-payload" in release_workflow, "workflow:release_controlled_payload_job")
-    require("push:\n    branches:\n      - Local" in release_workflow, "workflow:release_local_push")
-    require("github.event_name == 'push'" in release_workflow, "workflow:release_push_payload")
     require("build_r3_external_payload.py" in release_workflow, "workflow:payload_builder")
     require(not (root / ".github/workflows/release-efficiency-profile.yml").exists(), "workflow:duplicate_efficiency_profile")
     require(not (root / ".github/workflows/release-python-profile.yml").exists(), "workflow:duplicate_python_profile")
@@ -201,7 +220,11 @@ def validate_quality_evaluation(root: Path) -> None:
         require(required in categories, f"quality:missing_category:{required}")
 
     workflow = read(root, ".github/workflows/milmmt-repo-contract.yml")
-    require('"tools/translation_quality/**"' in workflow, "quality:workflow_path_scope")
+    require_manual_workflow(workflow, "quality:workflow")
+    require(
+        "python tools/translation_quality/validate_canonical_milmmt_repo.py" in workflow,
+        "quality:workflow_validator_task",
+    )
     require("Validate translation quality corpus" in workflow, "quality:workflow_corpus_gate")
     require("Self-test translation quality evaluator" in workflow, "quality:workflow_self_test")
 
