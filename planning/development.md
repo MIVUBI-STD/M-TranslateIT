@@ -191,6 +191,13 @@ These are future **acceptance scenarios**, not tests performed or runtime result
   Source-authored byte-parity tests cover PCM16, strided and float inputs;
   these tests were not executed. Lower temporary output allocation is
   source-demonstrated, not a measured end-to-end latency improvement.
+- Repeated actor-package readiness validation requires WAV duration and complete
+  canonical PCM16 frames, but had called the full preview-quality analyzer
+  (decode, silence, clipping, RMS and DC) each time. Both paths now share
+  the original full-frame validation while duration-only reads no longer
+  unpack or traverse individual samples. The same empty/truncated/noncanonical
+  rejection remains. Authored negative/parity tests are not executed; this
+  removes CPU work, not TTS model inference or safety validation.
 - Section 5B of the **existing** target-Windows acceptance runbook now
   scopes eventual measurement to the current engines, stage latency, CUDA
   memory coexistence and selected voice output. No model/voice/GPU tests,

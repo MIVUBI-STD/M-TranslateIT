@@ -92,7 +92,8 @@ def inference_source_assets(source_root: Path) -> dict[str, Path]:
     return assets
 
 
-def wav_signal_metrics_pcm16(path: Path) -> dict[str, float]:
+def _read_reference_pcm16(path: Path) -> tuple[int, bytes]:
+    """Verify the complete canonical WAV frames without analyzing their samples."""
     try:
         with wave.open(str(path), "rb") as reader:
             if (
@@ -109,7 +110,11 @@ def wav_signal_metrics_pcm16(path: Path) -> dict[str, float]:
         raise VoiceLabProviderError(f"invalid_take:{path.name}") from exc
     if frame_count <= 0 or len(payload) != frame_count * 2:
         raise VoiceLabProviderError(f"empty_take:{path.name}")
+    return frame_count, payload
 
+
+def wav_signal_metrics_pcm16(path: Path) -> dict[str, float]:
+    frame_count, payload = _read_reference_pcm16(path)
     samples = struct.unpack(f"<{frame_count}h", payload)
     # Read every decoded sample once. The former separate silence, clipping,
     # active-RMS and DC passes also allocated a redundant list of active samples
@@ -142,7 +147,11 @@ def wav_signal_metrics_pcm16(path: Path) -> dict[str, float]:
 
 
 def wav_duration_ms(path: Path) -> int:
-    return int(wav_signal_metrics_pcm16(path)["duration_ms"])
+    # Actor identity validation only needs duration and complete PCM frames.
+    # Avoid decoding every sample and computing silence, clipping, RMS and DC
+    # on repeated readiness probes; preview quality still uses full metrics.
+    frame_count, _ = _read_reference_pcm16(path)
+    return int(frame_count * 1_000 / 32_000)
 
 
 def require_regular_file(path: Path, label: str) -> tuple[int, int]:

@@ -156,6 +156,49 @@ def test_voice_wav_writer_still_refuses_empty_audio(tmp_path: Path) -> None:
         provider.write_wav(tmp_path / "empty.wav", 32_000, np.empty(0, dtype=np.int16))
 
 
+def test_actor_wav_duration_avoids_recomputing_reference_quality_metrics(
+    tmp_path: Path, monkeypatch
+) -> None:
+    provider = load_provider_module()
+    path = tmp_path / "actor-reference.wav"
+    write_reference_wav(path, duration_ms=4_000)
+
+    def forbid_full_quality_metrics(_path: Path):
+        raise AssertionError("actor identity only requires verified duration")
+
+    monkeypatch.setattr(provider, "wav_signal_metrics_pcm16", forbid_full_quality_metrics)
+    assert provider.wav_duration_ms(path) == 4_000
+    # Repeat as a static readiness probe would; no quality analysis is needed.
+    assert provider.wav_duration_ms(path) == 4_000
+
+
+def test_actor_duration_rejects_truncated_and_wrong_format_references(tmp_path: Path) -> None:
+    provider = load_provider_module()
+    truncated = tmp_path / "truncated.wav"
+    write_reference_wav(truncated)
+    truncated.write_bytes(truncated.read_bytes()[:-64])
+    with pytest.raises(provider.VoiceLabProviderError, match="empty_take:truncated.wav"):
+        provider.wav_duration_ms(truncated)
+
+    wrong_rate = tmp_path / "wrong-rate.wav"
+    with wave.open(str(wrong_rate), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(16_000)
+        writer.writeframes(b"\0\0" * 16_000)
+    with pytest.raises(provider.VoiceLabProviderError, match="noncanonical_take:wrong-rate.wav"):
+        provider.wav_duration_ms(wrong_rate)
+
+
+def test_actor_duration_and_preview_quality_use_identical_validated_frames(tmp_path: Path) -> None:
+    provider = load_provider_module()
+    path = tmp_path / "shared-reference.wav"
+    write_reference_wav(path, duration_ms=4_000)
+    assert provider.wav_duration_ms(path) == int(
+        provider.wav_signal_metrics_pcm16(path)["duration_ms"]
+    )
+
+
 def test_source_working_directory_is_restored(tmp_path: Path) -> None:
     provider = load_provider_module()
     original = Path.cwd()
