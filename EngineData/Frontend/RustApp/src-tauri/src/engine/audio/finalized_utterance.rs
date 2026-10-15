@@ -9,10 +9,13 @@ use super::{duration_ms, AudioFrame, TARGET_CHANNELS, TARGET_SAMPLE_RATE_HZ};
 use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
 // Internal safety bounds only. They are not product speech-boundary policy.
-// An overlong in-progress utterance is dropped fail-closed rather than emitted as a
-// partial segment merely to satisfy a limit. Pending finalized work remains bounded
-// separately and prefers newer waiting speech over an older realtime backlog.
+// Never force a speech boundary or truncate speech to satisfy a byte limit.
+// Allow only a short, bounded *quiet* suffix to complete natural VAD finalization
+// near the limit; that suffix is trimmed from the ASR WAV if necessary. Truly
+// uninterrupted speech beyond the limit still fails closed and is counted.
+// Pending finalized work is separately bounded and favors recent speech.
 const MAX_IN_PROGRESS_UTTERANCE_MS: u32 = 60_000;
+const MAX_FINALIZING_QUIET_OVERHANG_MS: u32 = 1_000;
 const MAX_PENDING_FINALIZED_UTTERANCES: usize = 2;
 const LANE_YOU: &str = "you";
 const LANE_INCOMING: &str = "incoming";
@@ -689,13 +692,28 @@ fn ingest_observation(
 
     if !state.overflowed {
         extend_safe_samples(&mut state.current_samples, samples);
-        if duration_ms(state.current_samples.len(), state.sample_rate_hz)
-            > MAX_IN_PROGRESS_UTTERANCE_MS
-        {
-            // Never turn this safety bound into a forced speech boundary. Discard the
-            // overlong in-progress payload and wait for a natural silence reset.
-            state.current_samples.clear();
-            state.overflowed = true;
+        let max_samples = samples_for_duration(
+            state.sample_rate_hz, MAX_IN_PROGRESS_UTTERANCE_MS,
+        );
+        // The additional checks matter only for rare near-limit utterances,
+        // not for every ordinary audio callback.
+        if state.current_samples.len() > max_samples {
+            // A phrase just under 60 s must not be discarded merely because
+            // its closing VAD-rejected quiet frame makes the buffer longer.
+            let closing_quiet = !speech_like
+                && gate.reason != "rejected_clipping"
+                && state.speech_samples < max_samples
+                && state.current_samples.len()
+                    <= samples_for_duration(
+                        state.sample_rate_hz,
+                        MAX_IN_PROGRESS_UTTERANCE_MS + MAX_FINALIZING_QUIET_OVERHANG_MS,
+                    );
+            if !closing_quiet {
+                // Never invent a cut during continuous speech. The genuinely
+                // overlong utterance still fails closed until a natural reset.
+                state.current_samples.clear();
+                state.overflowed = true;
+            }
         }
     }
 
@@ -754,6 +772,15 @@ fn finalize_current_utterance(state: &mut FinalizedProducerState) -> bool {
         return false;
     }
     let speech_duration_ms = duration_ms(speech_end, state.sample_rate_hz);
+    let max_source_samples =
+        samples_for_duration(state.sample_rate_hz, MAX_IN_PROGRESS_UTTERANCE_MS);
+    if speech_end > max_source_samples {
+        // Only silence may be trimmed. Never pass a truncated spoken phrase
+        // to ASR or count it as successfully translated.
+        OVERFLOW_DROPPED_UTTERANCES.fetch_add(1, Ordering::Relaxed);
+        reset_current_utterance(state);
+        return false;
+    }
 
     // PR-052 begins at detected finalized-utterance end. Capture that point before
     // evidence validation/resampling. The preceding VAD/silence boundary is tracked
@@ -773,12 +800,17 @@ fn finalize_current_utterance(state: &mut FinalizedProducerState) -> bool {
         return false;
     }
 
-    let source_samples = std::mem::take(&mut state.current_samples);
-    // The WAV includes preserved pre-roll AND trailing silence: never use
-    // speech_end as its full native clock boundary.
+    let captured_samples = state.current_samples.len();
+    let mut source_samples = std::mem::take(&mut state.current_samples);
+    // The only permitted truncation is excess *trailing silence* from the
+    // bounded finalization overhang, never recognized speech or pre-roll.
+    source_samples.truncate(max_source_samples);
+    // Bind provenance to the actual retained WAV samples, excluding any
+    // discarded quiet suffix. Verify continuity against the full captured
+    // callback range before shortening the endpoint.
     let native_range = state.current_input_start.and_then(|start| {
-        (start.checked_add(source_samples.len() as u64) == Some(state.input_sample_cursor))
-            .then_some((start, state.input_sample_cursor))
+        (start.checked_add(captured_samples as u64) == Some(state.input_sample_cursor))
+            .then_some((start, start + source_samples.len() as u64))
     });
     let target_samples = if state.sample_rate_hz == TARGET_SAMPLE_RATE_HZ {
         source_samples

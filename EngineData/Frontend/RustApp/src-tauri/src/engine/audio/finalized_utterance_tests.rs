@@ -1,6 +1,6 @@
 use super::*;
 
-// Both scenarios run inside one test fn because the producer state lives in
+// These scenarios run inside one test fn because the producer state lives in
 // process-wide statics; parallel unit tests would race on those mutexes.
 
 #[test]
@@ -57,6 +57,35 @@ fn incoming_lane_segmentation_eviction_and_overflow_are_observable() {
     assert_eq!(overflow_dropped_utterance_count() - overflow_before, 1, "overlong speech must land in the overflow counter");
     assert_eq!(evicted_pending_utterance_count() - evicted_before, 0);
 
+    clear_finalized_incoming_utterance_producer();
+    clear_finalized_meeting_sequence();
+
+    // Scenario 3: a legitimate 59.75 s utterance followed by one quiet
+    // 600 ms callback must remain intact. Its buffer is 60.35 s, but the
+    // extra trailing silence (not the spoken prefix) may be shortened to
+    // satisfy the 60 s WAV writer limit.
+    reset_finalized_meeting_sequence("sess-quiet-tail");
+    reset_finalized_incoming_utterance_producer("sess-quiet-tail", 8_000);
+    let overflow_before = overflow_dropped_utterance_count();
+    let evicted_before = evicted_pending_utterance_count();
+    let short_speech: Vec<f32> = (0..(8_000 * 250 / 1_000))
+        .map(|i| 0.3 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / 8_000.0).sin())
+        .collect();
+    for _ in 0..239 {
+        observe_finalized_incoming_f32_samples(&short_speech, 8_000, 1);
+    }
+    observe_finalized_incoming_f32_samples(&silence_of(8_000, 600), 8_000, 1);
+    let preserved = try_take_finalized_incoming_utterance("sess-quiet-tail")
+        .expect("a near-limit finalized phrase must survive trailing silence");
+    assert_eq!(preserved.speech_duration_ms, 59_750);
+    assert_eq!(preserved.frame.samples.len(), 16_000 * 60);
+    let capture = preserved.capture_provenance.expect("sample-accurate provenance");
+    assert_eq!(capture.input_start_sample, 0);
+    assert_eq!(capture.input_end_sample, 8_000 * 60);
+    assert_eq!(capture.asr_sample_count, 16_000 * 60);
+    assert_eq!(overflow_dropped_utterance_count() - overflow_before, 0);
+    assert_eq!(evicted_pending_utterance_count() - evicted_before, 0);
+    assert!(try_take_finalized_incoming_utterance("sess-quiet-tail").is_none());
     clear_finalized_incoming_utterance_producer();
     clear_finalized_meeting_sequence();
 }
