@@ -310,3 +310,20 @@ test("committed delivery, playback timing and Stop interruption reach the same d
   assert.match(memory, /fn final_playback_state_and_timing_remain_attached_to_one_turn\(/);
   assert.match(archive, /Record::Turn\(record\)/);
 });
+
+test("Stop persists unfinished incoming translations without fabricating playback", () => {
+  const stopMutation = memory.slice(
+    memory.indexOf("fn interrupt_generation_at("),
+    memory.indexOf("fn outbound_latency_distribution("),
+  );
+  assert.match(stopMutation, /let unfinished_incoming = turn\.lane == "incoming"/);
+  assert.match(stopMutation, /&& turn\.translation_state == "pending"/);
+  assert.match(stopMutation, /if interrupted_outbound \{\s*turn\.delivery_state = Some\("interrupted"/);
+  assert.match(stopMutation, /if turn\.translation_state == "pending" \{\s*turn\.translation_state = "failed"/);
+  assert.match(stopMutation, /changed\.push\(turn\.clone\(\)\)/);
+  assert.match(memory, /fn stop_finalizes_pending_incoming_without_rewriting_translated_incoming\(/);
+  assert.match(memory, /incoming captions must never invent outbound playback state/);
+  assert.match(memory, /Retry Stop must not produce a second pending-incoming update/);
+  assert.match(memory, /for turn in store\.interrupt_generation_at\(generation, unix_ms\(\)\)/);
+  assert.match(archive, /Record::Finish\(reply\)/);
+});

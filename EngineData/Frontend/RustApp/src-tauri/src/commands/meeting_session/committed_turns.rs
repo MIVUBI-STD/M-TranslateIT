@@ -302,10 +302,17 @@ impl MeetingCommittedTurnStore {
     ) -> Vec<MeetingCommittedTurn> {
         let mut changed = Vec::new();
         for turn in &mut self.turns {
-            if turn.generation == Some(generation)
-                && !terminal_delivery_state(turn.delivery_state.as_deref())
-            {
-                turn.delivery_state = Some("interrupted".to_string());
+            // Outbound output may have been interrupted before local playback.
+            // Incoming audio has no playback generation, but its translation
+            // is also terminal when Stop revokes session authority.
+            let interrupted_outbound = turn.generation == Some(generation)
+                && !terminal_delivery_state(turn.delivery_state.as_deref());
+            let unfinished_incoming = turn.lane == "incoming"
+                && turn.translation_state == "pending";
+            if interrupted_outbound || unfinished_incoming {
+                if interrupted_outbound {
+                    turn.delivery_state = Some("interrupted".to_string());
+                }
                 if turn.translation_state == "pending" {
                     turn.translation_state = "failed".to_string();
                 }
@@ -1150,6 +1157,32 @@ mod tests {
             "Retry Stop must not enqueue a duplicate interruption");
         let completed = store.turns.iter().find(|turn| turn.sequence == 2).unwrap();
         assert_eq!(completed.delivery_state.as_deref(), Some("output_complete"));
+    }
+
+    #[test]
+    fn stop_finalizes_pending_incoming_without_rewriting_translated_incoming() {
+        let mut store = MeetingCommittedTurnStore::new("session-a");
+        assert!(store.commit_at(
+            "session-a", 1, None, 101, "incoming", "en", "id",
+            "Please review", "", None, None, 100,
+        ).is_some());
+        assert!(store.commit_at(
+            "session-a", 2, None, 102, "incoming", "en", "id",
+            "Approved", "Disetujui", None, None, 101,
+        ).is_some());
+        let changed = store.interrupt_generation_at(7, 200);
+        assert_eq!(changed.len(), 1, "only the unfinished incoming turn is updated");
+        assert_eq!(changed[0].sequence, 1);
+        assert_eq!(changed[0].lane, "incoming");
+        assert_eq!(changed[0].translation_state, "failed");
+        assert!(changed[0].delivery_state.is_none(),
+            "incoming captions must never invent outbound playback state");
+        assert!(store.interrupt_generation_at(7, 300).is_empty(),
+            "Retry Stop must not produce a second pending-incoming update");
+        let completed = store.turns.iter().find(|turn| turn.sequence == 2).unwrap();
+        assert_eq!(completed.translation_state, "translated");
+        assert_eq!(completed.translated_text, "Disetujui");
+        assert_eq!(completed.updated_unix_ms, 101);
     }
 
     #[test]
