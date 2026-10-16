@@ -170,7 +170,7 @@
             <div class="min-w-0">
               <strong class="block text-[13px] font-semibold">{sessionLabel(session.session_id)}</strong>
               <p class="m-0 mt-1 text-xs text-[var(--ti-text-muted)]">
-                {session.entry_count === 0 ? "No recognized entries" : `${session.entry_count} saved entries`} · {session.complete ? "Session ended" : "Storage finalization unverified"}
+                {session.entry_count === 0 ? "No recognized entries" : `${session.entry_count} saved entries`} · {session.complete ? "Finalized (entry count checked)" : "Storage finalization unverified"}
               </p>
               {#if session.storage_warning || !session.complete}
                 <p class="m-0 mt-1 text-xs text-[var(--ti-warning)]">Check this transcript for missing entries.</p>

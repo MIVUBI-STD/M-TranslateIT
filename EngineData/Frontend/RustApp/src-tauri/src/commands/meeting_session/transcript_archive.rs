@@ -2,11 +2,11 @@
 // in committed_turns.rs. This owner only writes immutable session identity and
 // replaceable snapshots of individual authorized turns off the audio/AI threads.
 use std::fs::{self, File};
-use std::io::{self, BufWriter, Write};
+use std::io::{self, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -68,9 +68,19 @@ struct ArchiveWriter {
 }
 
 static WRITER: OnceLock<Mutex<Option<ArchiveWriter>>> = OnceLock::new();
+// Serialize explicit saved-session deletion and HTML publication. The lock
+// never participates in the live audio/translation writer pipeline.
+static SAVED_SESSION_OPERATIONS: OnceLock<Mutex<()>> = OnceLock::new();
 
 fn writer_store() -> &'static Mutex<Option<ArchiveWriter>> {
     WRITER.get_or_init(|| Mutex::new(None))
+}
+
+pub(super) fn saved_session_operation_guard() -> Result<MutexGuard<'static, ()>, String> {
+    SAVED_SESSION_OPERATIONS
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .map_err(|_| "Saved transcript operations are unavailable; retry after restarting.".to_string())
 }
 
 fn valid_id(id: &str) -> bool {
@@ -411,6 +421,38 @@ pub fn list_saved_sessions() -> SavedMeetingSessions {
     result
 }
 
+pub(super) fn saved_session_entry_count(id: &str) -> Result<usize, String> {
+    let dir = session_dir(id)?;
+    Ok(stored_turn_paths(&dir)
+        .map_err(|_| "Cannot list saved transcript entries.".to_string())?.len())
+}
+
+fn read_validated_turn(path: &Path, session_id: &str) -> Result<MeetingCommittedTurn, String> {
+    // Reuse one strict reader for both Preview and Export. Streaming JSON
+    // decoding avoids an additional allocation for the entire encoded file.
+    let file = File::open(path)
+        .map_err(|_| "A saved transcript entry could not be read.".to_string())?;
+    let turn: MeetingCommittedTurn = serde_json::from_reader(BufReader::new(file))
+        .map_err(|_| "A saved transcript entry is damaged or incomplete.".to_string())?;
+    let file_sequence = path.file_name().and_then(|name| name.to_str())
+        .and_then(|name| name.strip_prefix("turn_"))
+        .and_then(|name| name.strip_suffix(".json"))
+        .and_then(|number| number.parse::<u64>().ok());
+    if file_sequence != Some(turn.sequence) || turn.sequence == 0
+        || turn.session_id != session_id
+        || !matches!(turn.lane.as_str(), "you" | "incoming")
+        || !matches!(turn.source_language.as_str(), "id" | "en")
+        || !matches!(turn.target_language.as_str(), "id" | "en")
+        || turn.source_language == turn.target_language
+        || turn.source_text.trim().is_empty()
+        || !matches!(turn.translation_state.as_str(), "pending" | "translated" | "failed")
+        || (turn.translation_state == "translated" && turn.translated_text.trim().is_empty())
+    {
+        return Err("Saved transcript entry content or identity is invalid.".to_string());
+    }
+    Ok(turn)
+}
+
 pub(super) fn stream_saved_turns(
     id: &str,
     mut accept: impl FnMut(&MeetingCommittedTurn) -> Result<(), String>,
@@ -420,13 +462,7 @@ pub(super) fn stream_saved_turns(
         .map_err(|_| "Cannot list saved transcript entries.".to_string())?;
     let count = paths.len();
     for path in paths {
-        let bytes = fs::read(&path)
-            .map_err(|_| "A saved transcript entry could not be read.".to_string())?;
-        let mut turn: MeetingCommittedTurn = serde_json::from_slice(&bytes)
-            .map_err(|_| "A saved transcript entry is damaged.".to_string())?;
-        if turn.session_id != id {
-            return Err("A saved transcript entry belongs to a different session.".to_string());
-        }
+        let mut turn = read_validated_turn(&path, id)?;
         if turn.translation_state == "pending" {
             turn.translation_state = "failed".to_string();
             if turn.lane == "you" { turn.delivery_state = Some("interrupted".to_string()); }
@@ -457,10 +493,7 @@ pub(super) fn read_saved_turns(id: &str, preview_limit: Option<usize>) -> Result
     }
     let mut turns = Vec::with_capacity(paths.len());
     for path in paths {
-        let bytes = fs::read(&path).map_err(|_| "A saved transcript entry could not be read.".to_string())?;
-        let mut turn: MeetingCommittedTurn = serde_json::from_slice(&bytes)
-            .map_err(|_| "A saved transcript entry is damaged.".to_string())?;
-        if turn.session_id != id { return Err("Saved transcript entry belongs to another session.".to_string()) }
+        let mut turn = read_validated_turn(&path, id)?;
         let active = latest_runtime_session_state().snapshot.as_ref().is_some_and(
             |session| session.owner_id == APPLICATION_MEETING_OWNER_ID && session.session_id == id
         );
@@ -492,6 +525,12 @@ pub fn saved_session_preview(session_id: String) -> MeetingCommittedTurnsSnapsho
 }
 
 pub fn delete_saved_session(session_id: String) -> ArchiveActionResult {
+    // Export may be streaming this session's files. Wait until publication
+    // finishes before allowing explicit deletion of the source archive.
+    let _operation = match saved_session_operation_guard() {
+        Ok(guard) => guard,
+        Err(message) => return ArchiveActionResult { ok: false, message },
+    };
     let dir = match session_dir(&session_id) {
         Ok(dir) => dir, Err(message) => return ArchiveActionResult { ok: false, message },
     };
@@ -551,6 +590,51 @@ mod tests {
         assert!(write_finished_receipt(&dir).is_err(), "staged entry must block successful finalization");
         std::fs::write(dir.join("finished"), b"legacy opaque marker").unwrap();
         assert!(finished_receipt_count(&dir).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn invalid_saved_entry_never_silently_enters_preview_or_html_export() {
+        let session = "meeting_1760600000000_9876";
+        let dir = std::env::temp_dir().join(format!(
+            "ti-archive-entry-validation-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                .unwrap().as_nanos(),
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(turn_name(1));
+        let mut value = serde_json::json!({
+            "session_id": session,
+            "sequence": 1,
+            "generation": null,
+            "utterance_id": 1,
+            "lane": "incoming",
+            "source_language": "en",
+            "target_language": "id",
+            "source_text": "Document revision",
+            "translated_text": "Revisi dokumen",
+            "translation_state": "translated",
+            "delivery_state": null,
+            "outbound_timing": null,
+            "created_unix_ms": 1760600000000_u128,
+            "updated_unix_ms": 1760600000001_u128,
+        });
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert_eq!(super::read_validated_turn(&path, session).unwrap().sequence, 1);
+
+        value["sequence"] = serde_json::json!(2);
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(super::read_validated_turn(&path, session).is_err(),
+            "filename/entry sequence mismatch must not be accepted");
+        value["sequence"] = serde_json::json!(1);
+        value["target_language"] = serde_json::json!("unknown");
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(super::read_validated_turn(&path, session).is_err(),
+            "invalid language contract must be rejected");
+        std::fs::write(&path, b"{bad json").unwrap();
+        assert!(super::read_validated_turn(&path, session).is_err(),
+            "truncated or damaged JSON must fail closed");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

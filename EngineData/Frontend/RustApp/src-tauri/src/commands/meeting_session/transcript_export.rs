@@ -10,7 +10,10 @@ use serde::Serialize;
 
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
-use super::transcript_archive::{read_saved_turns, session_warning, stream_saved_turns};
+use super::transcript_archive::{
+    read_saved_turns, saved_session_entry_count, saved_session_operation_guard,
+    session_warning, stream_saved_turns,
+};
 use super::MeetingCommittedTurn;
 
 static EXPORT_NONCE: AtomicU64 = AtomicU64::new(0);
@@ -223,14 +226,23 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
     ) {
         return failure("Stop this Meeting before exporting a stable full-session HTML transcript.");
     }
+    // Protect the source archive against a concurrent explicit Delete.
+    // This lock is only for saved-session commands, not the live writer.
+    let _operation = match saved_session_operation_guard() {
+        Ok(guard) => guard,
+        Err(error) => return failure(&error),
+    };
     let incomplete = match session_warning(&session_id) {
         Ok(value) => value,
         Err(error) => return failure(&error),
     };
-    let mut count = 0;
-    if let Err(error) = stream_saved_turns(&session_id, |_| {count += 1; Ok(())}) {
-        return failure(&error);
-    }
+    // Listing filenames obtains the header count; the actual HTML pass
+    // validates and decodes each JSON entry exactly once. A corrupt entry
+    // aborts before publication and retains the original archive untouched.
+    let count = match saved_session_entry_count(&session_id) {
+        Ok(count) => count,
+        Err(error) => return failure(&error),
+    };
     if count == 0 {
         return failure("No saved conversation entries are available for this Meeting.");
     }

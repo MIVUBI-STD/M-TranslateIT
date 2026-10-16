@@ -199,3 +199,28 @@ test("new Meeting start cannot reopen a previous archive folder with only an int
   assert.match(archive, /io::ErrorKind::AlreadyExists/);
   assert.doesNotMatch(archive.split("#[cfg(test)]")[0], /fs::create_dir_all\(&dir\)/);
 });
+
+test("saved JSON entry identity and content validation is shared by Preview and HTML export", () => {
+  assert.match(archive, /fn read_validated_turn\(path: &Path, session_id: &str\)/);
+  assert.match(archive, /serde_json::from_reader\(BufReader::new\(file\)\)/);
+  assert.match(archive, /file_sequence != Some\(turn\.sequence\)/);
+  assert.match(archive, /turn\.session_id != session_id/);
+  assert.match(archive, /turn\.source_language == turn\.target_language/);
+  assert.match(archive, /turn\.source_text\.trim\(\)\.is_empty\(\)/);
+  assert.equal((archive.match(/read_validated_turn\(&path, id\)/g) ?? []).length, 2);
+  assert.match(archive, /fn invalid_saved_entry_never_silently_enters_preview_or_html_export\(/);
+  assert.match(archive, /truncated or damaged JSON must fail closed/);
+  assert.match(html, /stream_saved_turns\(&session_id, \|turn\|/);
+  assert.match(html, /fs::remove_file\(&temporary\)/);
+  assert.match(html, /fs::rename\(&temporary, &destination\)/);
+});
+
+test("single-pass HTML export and Delete share a disk-only operation guard", () => {
+  assert.match(archive, /static SAVED_SESSION_OPERATIONS: OnceLock<Mutex<\(\)>>/);
+  assert.match(archive, /fn saved_session_operation_guard\(\)/);
+  assert.match(archive, /pub fn delete_saved_session[\s\S]*?saved_session_operation_guard\(\)/);
+  assert.match(html, /pub fn export_saved_html[\s\S]*?saved_session_operation_guard\(\)/);
+  assert.match(html, /saved_session_entry_count\(&session_id\)/);
+  assert.equal((html.match(/stream_saved_turns\(&session_id/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /stream_saved_turns\(&session_id, \|_\|/);
+});
