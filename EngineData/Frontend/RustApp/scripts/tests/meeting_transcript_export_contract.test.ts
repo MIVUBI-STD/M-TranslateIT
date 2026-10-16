@@ -97,9 +97,9 @@ test("explicit Delete removes matching in-memory last-session review as well as 
 test("HTML preview uses the real offline export renderer, not a second layout", () => {
   assert.match(html, /pub fn preview_saved_html\(session_id: String\)/);
   assert.match(html, /MAX_HTML_PREVIEW_ENTRIES: usize = 12/);
-  assert.match(html, /write_header\(&mut buffer, &session_id, turns\.len\(\), true\)/);
+  assert.match(html, /write_header\(&mut buffer, &session_id, turns\.len\(\), true, incomplete\)/);
   assert.match(html, /write_turn\(&mut buffer, turn\)/);
-  assert.match(html, /write_footer\(&mut buffer, incomplete\)/);
+  assert.match(html, /write_footer\(&mut buffer\)/);
   assert.match(ui, /runtimeApi\.previewSavedMeetingTranscriptHtml\(sessionId\)/);
   assert.match(ui, /Preview HTML/);
   assert.match(ui, /srcdoc=\{htmlSample\.html\}/);
@@ -223,4 +223,24 @@ test("single-pass HTML export and Delete share a disk-only operation guard", () 
   assert.match(html, /saved_session_entry_count\(&session_id\)/);
   assert.equal((html.match(/stream_saved_turns\(&session_id/g) ?? []).length, 1);
   assert.doesNotMatch(html, /stream_saved_turns\(&session_id, \|_\|/);
+});
+
+test("missing translation is never mislabeled as translated target-language text", () => {
+  assert.match(html, /ORIGINAL FALLBACK · \{source_lang\}/);
+  assert.match(html, /lang=\\"\{source_code\}\\"/);
+  assert.match(html, /\.original-fallback \{ display:none;/);
+  assert.match(html, /body:has\(#view-id:checked\) \.original-fallback/);
+  assert.match(html, /body:has\(#view-en:checked\) \.original-fallback/);
+  assert.match(html, /fn language_mode_never_labels_untranslated_source_as_target_language\(/);
+});
+
+test("incomplete transcript warning is shown before the first conversation entry", () => {
+  assert.match(html, /write_header\(&mut w, &session_id, count, false, incomplete\)/);
+  assert.match(html, /write_header\(&mut buffer, &session_id, turns\.len\(\), true, incomplete\)/);
+  assert.match(html, /Transcript completeness unverified\./);
+  assert.match(html, /fn incomplete_storage_warning_appears_before_conversation_entries\(/);
+  assert.match(html, /Reading view:/);
+  assert.match(html, /body:has\(#view-id:checked\) \.print-mode-id/);
+  assert.match(html, /body:has\(#view-en:checked\) \.print-mode-en/);
+  assert.match(html, /@media print/);
 });

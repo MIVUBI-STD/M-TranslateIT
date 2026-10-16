@@ -121,6 +121,11 @@ body:has(#view-en:checked) .version[data-language="id"] { display:none; }
 .lang-label { display:block; color:var(--muted); font-size:10px; letter-spacing:.05em; font-weight:650; margin-bottom:3px; }
 .body-text { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; font-size:14px; line-height:1.6; }
 .unavailable { color:var(--warning); }
+.original-fallback { display:none; margin-top:9px; border-top:1px solid var(--border); padding-top:9px; }
+body:has(#view-id:checked) .original-fallback,
+body:has(#view-en:checked) .original-fallback { display:block; }
+.conversation > .notice { margin:15px 20px; }
+.print-mode { display:none; }
 .notice { margin:22px 0; border:1px solid var(--border); border-radius:10px;
   background:var(--surface); padding:14px 16px; font-size:12px; color:var(--muted); }
 .notice strong { color:var(--text); }
@@ -134,6 +139,12 @@ body:has(#view-en:checked) .version[data-language="id"] { display:none; }
  body { background:#fff; font-size:11pt; }
  .page { max-width:none; padding:0; margin:0; }
  .reading { display:none; }
+ .print-mode { display:block; font-size:10pt; color:var(--muted); margin:0 0 12px; }
+ .print-mode-id, .print-mode-en { display:none; }
+ body:has(#view-id:checked) .print-mode-both,
+ body:has(#view-en:checked) .print-mode-both { display:none; }
+ body:has(#view-id:checked) .print-mode-id { display:inline; }
+ body:has(#view-en:checked) .print-mode-en { display:inline; }
  .fact { background:#fff; }
  .conversation { border:0; background:#fff; overflow:visible; }
  .turn { padding:12px 0; break-inside:avoid-page; }
@@ -144,11 +155,15 @@ body:has(#view-en:checked) .version[data-language="id"] { display:none; }
 "#;
 
 fn write_header<W: Write>(
-    w: &mut W, id: &str, count: usize, preview: bool,
+    w: &mut W, id: &str, count: usize, preview: bool, incomplete: bool,
 ) -> std::io::Result<()> {
     let start = id.strip_prefix("meeting_").and_then(|x| x.split('_').next())
         .and_then(|x| x.parse::<u128>().ok()).unwrap_or(0);
-    write!(w, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"dark light\"><title>Meeting Transcript · TranslateIT</title><style>{STYLE}</style></head><body><main class=\"page\"><header><div class=\"brand\"><span class=\"brandmark\" aria-hidden=\"true\">T</span><span>TranslateIT</span></div><h1>Meeting Transcript</h1><p class=\"subtitle\">Bilingual conversation · Indonesian / English</p><div class=\"summary\"><div class=\"fact\"><span>MEETING DATE (UTC)</span><strong>{}</strong></div><div class=\"fact\"><span>{}</span><strong>{count}</strong></div><div class=\"fact\"><span>SESSION REFERENCE</span><strong>{}</strong></div></div></header><section aria-labelledby=\"conversation-heading\"><div class=\"heading\"><h2 id=\"conversation-heading\">Conversation</h2></div><div class=\"reading\" role=\"group\" aria-label=\"Read transcript in\"><span class=\"reading-title\">Read transcript in</span><div class=\"segment\"><label><input type=\"radio\" id=\"view-both\" name=\"reading-view\" checked><span>Bilingual</span></label><label><input type=\"radio\" id=\"view-id\" name=\"reading-view\"><span>Bahasa Indonesia</span></label><label><input type=\"radio\" id=\"view-en\" name=\"reading-view\"><span>English</span></label></div></div><div class=\"conversation\">", utc_date(start), if preview { "PREVIEW ENTRIES" } else { "RECORDED ENTRIES" }, html_escape(id))
+    write!(w, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"dark light\"><title>Meeting Transcript · TranslateIT</title><style>{STYLE}</style></head><body><main class=\"page\"><header><div class=\"brand\"><span class=\"brandmark\" aria-hidden=\"true\">T</span><span>TranslateIT</span></div><h1>Meeting Transcript</h1><p class=\"subtitle\">Bilingual conversation · Indonesian / English</p><div class=\"summary\"><div class=\"fact\"><span>MEETING DATE (UTC)</span><strong>{}</strong></div><div class=\"fact\"><span>{}</span><strong>{count}</strong></div><div class=\"fact\"><span>SESSION REFERENCE</span><strong>{}</strong></div></div></header><section aria-labelledby=\"conversation-heading\"><div class=\"heading\"><h2 id=\"conversation-heading\">Conversation</h2></div><div class=\"reading\" role=\"group\" aria-label=\"Read transcript in\"><span class=\"reading-title\">Read transcript in</span><div class=\"segment\"><label><input type=\"radio\" id=\"view-both\" name=\"reading-view\" checked><span>Bilingual</span></label><label><input type=\"radio\" id=\"view-id\" name=\"reading-view\"><span>Bahasa Indonesia</span></label><label><input type=\"radio\" id=\"view-en\" name=\"reading-view\"><span>English</span></label></div></div><p class=\"print-mode\">Reading view: <span class=\"print-mode-both\">Bilingual</span><span class=\"print-mode-id\">Bahasa Indonesia</span><span class=\"print-mode-en\">English</span></p><div class=\"conversation\">", utc_date(start), if preview { "PREVIEW ENTRIES" } else { "RECORDED ENTRIES" }, html_escape(id))?;
+    if incomplete {
+        w.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Transcript completeness unverified.</strong> Some recognized entries may be missing after interrupted or unsuccessful local storage. The conversation below contains only the available saved records.</aside>")?;
+    }
+    Ok(())
 }
 
 fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Result<()> {
@@ -167,16 +182,16 @@ fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Resu
     if turn.translation_state == "translated" && !turn.translated_text.trim().is_empty() {
         write!(w, "<p class=\"body-text\" lang=\"{}\">{}</p>", target_code, html_escape(&turn.translated_text))?;
     } else {
-        write!(w, "<p class=\"body-text unavailable\">Translation unavailable. Original text: {}</p>", html_escape(&turn.source_text))?;
+        // The target-language lane must not pretend that source-language
+        // fallback text was translated. Reveal the source only in
+        // single-language reading modes, with its actual language marked.
+        write!(w, "<p class=\"body-text unavailable\">Translation unavailable.</p><div class=\"original-fallback\"><span class=\"lang-label\">ORIGINAL FALLBACK · {source_lang}</span><p class=\"body-text\" lang=\"{source_code}\">{}</p></div>", html_escape(&turn.source_text))?;
     }
     w.write_all(b"</div></article>")
 }
 
-fn write_footer<W: Write>(w: &mut W, incomplete: bool) -> std::io::Result<()> {
+fn write_footer<W: Write>(w: &mut W) -> std::io::Result<()> {
     w.write_all(b"</div></section>")?;
-    if incomplete {
-        w.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Transcript storage could not be fully verified.</strong> Some entries may be missing because of a storage interruption or unclean shutdown.</aside>")?;
-    }
     w.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Transcript scope.</strong> This file contains available recognized speech records, not a verified recording of every spoken sentence. Meeting audio may combine multiple speakers; individual identities are not known. Translation may be unavailable for some entries. Local playback is not proof of delivery to remote participants.</aside><footer class=\"footer\">Generated locally by TranslateIT · Self-contained offline HTML · No scripts or external resources</footer></main></body></html>")
 }
 
@@ -198,12 +213,12 @@ pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
     let incomplete = session_warning(&session_id).unwrap_or(true);
     let mut buffer = Vec::new();
     let rendered = (|| -> std::io::Result<()> {
-        write_header(&mut buffer, &session_id, turns.len(), true)?;
+        write_header(&mut buffer, &session_id, turns.len(), true, incomplete)?;
         buffer.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Sample preview.</strong> Only the latest saved entries are shown here. Export HTML after stopping the Meeting to include all archived entries. This preview does not prove that all spoken audio was recognized.</aside>")?;
         for turn in &turns {
             write_turn(&mut buffer, turn)?;
         }
-        write_footer(&mut buffer, incomplete)
+        write_footer(&mut buffer)
     })();
     if rendered.is_err() {
         return failed("Could not generate HTML preview.".to_string());
@@ -261,14 +276,14 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
     let write_result = (|| -> Result<(), String> {
         let file = File::create_new(&temporary).map_err(|_| "Could not start the HTML export file.".to_string())?;
         let mut w = BufWriter::new(file);
-        write_header(&mut w, &session_id, count, false).map_err(|_| "Cannot write HTML header.".to_string())?;
+        write_header(&mut w, &session_id, count, false, incomplete).map_err(|_| "Cannot write HTML header.".to_string())?;
         let exported = stream_saved_turns(&session_id, |turn| {
             write_turn(&mut w, turn).map_err(|_| "Cannot write a transcript entry.".to_string())
         })?;
         if exported != count {
             return Err("Saved transcript changed during export; retry after storage settles.".to_string());
         }
-        write_footer(&mut w, incomplete).map_err(|_| "Cannot finish the HTML document.".to_string())?;
+        write_footer(&mut w).map_err(|_| "Cannot finish the HTML document.".to_string())?;
         w.flush().map_err(|_| "Cannot flush HTML document.".to_string())?;
         w.get_ref().sync_all().map_err(|_| "Cannot sync HTML document.".to_string())?;
         drop(w);
@@ -327,12 +342,54 @@ pub fn open_saved_html(session_id: String, file_name: String, show_folder: bool)
 
 #[cfg(test)]
 mod tests {
-    use super::{html_escape, utc_date, utc_clock};
+    use super::{html_escape, utc_date, utc_clock, write_header, write_turn};
+    use super::super::MeetingCommittedTurn;
     #[test]
     fn export_escapes_untrusted_speech_in_html() {
         assert_eq!(html_escape("<script>alert('x') & \"q\"</script>"),
             "&lt;script&gt;alert(&#39;x&#39;) &amp; &quot;q&quot;&lt;/script&gt;");
     }
+    #[test]
+    fn language_mode_never_labels_untranslated_source_as_target_language() {
+        let turn = MeetingCommittedTurn {
+            session_id: "meeting_1760600000000_1".to_string(),
+            sequence: 1,
+            generation: None,
+            utterance_id: 1,
+            lane: "incoming".to_string(),
+            source_language: "en".to_string(),
+            target_language: "id".to_string(),
+            source_text: "We need to reschedule.".to_string(),
+            translated_text: String::new(),
+            translation_state: "failed".to_string(),
+            delivery_state: None,
+            outbound_timing: None,
+            created_unix_ms: 1_760_600_000_000,
+            updated_unix_ms: 1_760_600_000_001,
+        };
+        let mut html = Vec::new();
+        write_turn(&mut html, &turn).unwrap();
+        let html = String::from_utf8(html).unwrap();
+        assert!(html.contains("TRANSLATION · Indonesian"));
+        assert!(html.contains("Translation unavailable."));
+        assert!(html.contains("ORIGINAL FALLBACK · English"));
+        assert!(html.contains("lang=\"en\""));
+        assert!(!html.contains("Translation unavailable. Original text:"));
+    }
+
+    #[test]
+    fn incomplete_storage_warning_appears_before_conversation_entries() {
+        let mut html = Vec::new();
+        write_header(&mut html, "meeting_1760600000000_1", 2, false, true).unwrap();
+        let html = String::from_utf8(html).unwrap();
+        let conversation = html.find("<div class=\"conversation\">").unwrap();
+        let warning = html.find("Transcript completeness unverified.").unwrap();
+        assert!(warning > conversation, "warning should precede turn entries");
+        assert!(html.contains("Reading view:"));
+        assert!(html.contains("print-mode-id"));
+        assert!(html.contains("print-mode-en"));
+    }
+
     #[test]
     fn exported_times_are_explicitly_utc() {
         assert_eq!(utc_date(0), "1970-01-01");
