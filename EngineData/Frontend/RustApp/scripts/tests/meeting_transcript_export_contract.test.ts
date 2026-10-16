@@ -21,7 +21,7 @@ test("persistent archive is session-bound and starts before live microphone capt
   assert.match(memory, /transcript_archive::queue_turn\(turn\)/);
   assert.match(memory, /transcript_archive::finish_session\(session_id\)/);
   assert.match(archive, /mpsc::sync_channel\(WRITE_QUEUE_SIZE\)/);
-  assert.match(archive, /sender\.try_send\(Record::Turn\(turn\.clone\(\)\)\)/);
+  assert.match(archive, /writer\.sender\.try_send\(Record::Turn\(record\)\)/);
   assert.match(archive, /errors\.fetch_add\(1, Ordering::Relaxed\)/);
 });
 
@@ -145,4 +145,37 @@ test("zero-entry saved sessions remain visible for deliberate deletion without e
   assert.match(ui, /No recognized entries/);
   assert.match(ui, /session\.entry_count === 0/);
   assert.match(ui, /onclick=\{\(\) => \{ confirming = session\.session_id/);
+});
+
+test("accepted turn survives immediate bounded-memory eviction before disk queue", () => {
+  // The canonical owner returns an accepted record independently of whether
+  // the bounded Live VecDeque still contains that entry.
+  assert.match(memory, /\) -> Option<MeetingCommittedTurn> \{/);
+  assert.match(memory, /let archived = turn\.clone\(\);/);
+  assert.match(memory, /self\.enforce_session_limits\(\);\s*Some\(archived\)/);
+  assert.match(memory, /let accepted = committed\.is_some\(\);/);
+  assert.match(memory, /if let Some\(turn\) = committed \{\s*transcript_archive::queue_turn\(turn\);/);
+  assert.match(memory, /let accepted = updated\.is_some\(\);/);
+  assert.match(memory, /if let Some\(turn\) = updated \{\s*transcript_archive::queue_turn\(turn\);/);
+  assert.match(memory, /fn archive_receives_new_source_even_when_memory_evicts_it_immediately\(/);
+  assert.match(memory, /fn archive_receives_completed_translation_even_if_updated_turn_is_evicted\(/);
+  assert.doesNotMatch(memory, /if let Some\(turn\) = store\.turns\.iter\(\)\.find\(\|turn\| turn\.sequence == sequence\)/);
+  assert.match(archive, /pub\(super\) fn queue_turn\(turn: MeetingCommittedTurn\)/);
+  assert.match(archive, /Record::Turn\(record\)/);
+});
+
+test("archive queue has bounded record count and estimated UTF-8 payload size", () => {
+  assert.match(archive, /MAX_QUEUED_ESTIMATED_BYTES: usize = 128 \* 1024 \* 1024/);
+  assert.match(archive, /MAX_QUEUED_ESTIMATED_BYTES/);
+  assert.match(archive, /fn reserve_queued_bytes\(counter: &AtomicUsize, reservation: usize\)/);
+  assert.match(archive, /counter\.fetch_update\(/);
+  assert.match(archive, /current\.checked_add\(reservation\)/);
+  assert.match(archive, /writer\.queued_bytes\.fetch_sub\(reservation, Ordering::AcqRel\)/);
+  assert.match(archive, /queued_bytes\.fetch_sub\(record\.reserved_bytes, Ordering::AcqRel\)/);
+  assert.match(archive, /writer\.errors\.fetch_add\(1, Ordering::Relaxed\)/);
+  assert.match(archive, /fn queued_record_byte_budget_is_bounded_and_released\(/);
+  assert.match(archive, /serde_json::to_writer\(&mut buffered, turn\)/);
+  assert.match(archive, /buffered\.flush\(\)/);
+  assert.doesNotMatch(archive, /serde_json::to_vec\(turn\)/);
+  assert.match(archive, /mpsc::sync_channel\(WRITE_QUEUE_SIZE\)/);
 });

@@ -2,9 +2,9 @@
 // in committed_turns.rs. This owner only writes immutable session identity and
 // replaceable snapshots of individual authorized turns off the audio/AI threads.
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
@@ -17,6 +17,11 @@ use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEE
 use super::{MeetingCommittedTurn, MeetingCommittedTurnsSnapshot};
 
 const WRITE_QUEUE_SIZE: usize = 256;
+// A record-count cap alone is insufficient when a single source/translation
+// is large. Account for UTF-8 payload plus a small fixed metadata allowance.
+// This is a producer-memory budget, NOT a disk quota or HTML size guarantee.
+const MAX_QUEUED_ESTIMATED_BYTES: usize = 128 * 1024 * 1024;
+const PER_QUEUED_RECORD_OVERHEAD: usize = 4096;
 const FINISH_WAIT: Duration = Duration::from_secs(5);
 const MAX_SAVED_PREVIEW: usize = 240;
 
@@ -42,8 +47,13 @@ pub struct ArchiveActionResult {
     pub message: String,
 }
 
+struct QueuedTurn {
+    turn: MeetingCommittedTurn,
+    reserved_bytes: usize,
+}
+
 enum Record {
-    Turn(MeetingCommittedTurn),
+    Turn(QueuedTurn),
     Finish(mpsc::Sender<bool>),
 }
 
@@ -52,6 +62,7 @@ struct ArchiveWriter {
     sender: SyncSender<Record>,
     thread: Option<JoinHandle<()>>,
     errors: Arc<AtomicU64>,
+    queued_bytes: Arc<AtomicUsize>,
     finish_reply: Option<mpsc::Receiver<bool>>,
     finish_acknowledged: bool,
 }
@@ -108,9 +119,15 @@ fn atomic_turn_write(dir: &Path, turn: &MeetingCommittedTurn) -> io::Result<()> 
     // never mistaken for an archived turn by listing/export.
     let destination = dir.join(turn_name(turn.sequence));
     let temporary = dir.join(format!("turn_{:020}.tmp", turn.sequence));
-    let bytes = serde_json::to_vec(turn).map_err(io::Error::other)?;
     let mut file = File::create(&temporary)?;
-    file.write_all(&bytes)?;
+    // Stream JSON into the temporary file instead of materializing an
+    // additional encoded Vec, which can be many times the original text
+    // size for long or heavily escaped utterances.
+    {
+        let mut buffered = BufWriter::new(&mut file);
+        serde_json::to_writer(&mut buffered, turn).map_err(io::Error::other)?;
+        buffered.flush()?;
+    }
     file.sync_all()?;
     drop(file);
     fs::rename(&temporary, &destination)?;
@@ -128,11 +145,18 @@ fn write_marker(dir: &Path, marker: &str) -> io::Result<()> {
     fs::rename(temporary, final_path)
 }
 
-fn run_writer(dir: PathBuf, receiver: mpsc::Receiver<Record>, errors: Arc<AtomicU64>) {
+fn run_writer(
+    dir: PathBuf,
+    receiver: mpsc::Receiver<Record>,
+    errors: Arc<AtomicU64>,
+    queued_bytes: Arc<AtomicUsize>,
+) {
     for record in receiver {
         match record {
-            Record::Turn(turn) => {
-                if atomic_turn_write(&dir, &turn).is_err() {
+            Record::Turn(record) => {
+                let result = atomic_turn_write(&dir, &record.turn);
+                queued_bytes.fetch_sub(record.reserved_bytes, Ordering::AcqRel);
+                if result.is_err() {
                     errors.fetch_add(1, Ordering::Relaxed);
                     let _ = write_marker(&dir, "storage_warning");
                 }
@@ -162,24 +186,50 @@ pub(super) fn start_session(session_id: &str) -> Result<(), String> {
     }
     let (sender, receiver) = mpsc::sync_channel(WRITE_QUEUE_SIZE);
     let errors = Arc::new(AtomicU64::new(0));
+    let queued_bytes = Arc::new(AtomicUsize::new(0));
     let worker_errors = Arc::clone(&errors);
+    let worker_bytes = Arc::clone(&queued_bytes);
     let handle = thread::Builder::new().name("translateit-transcript-storage".to_string())
-        .spawn(move || run_writer(dir, receiver, worker_errors))
+        .spawn(move || run_writer(dir, receiver, worker_errors, worker_bytes))
         .map_err(|_| "Could not start local transcript storage.".to_string())?;
     *guard = Some(ArchiveWriter {
         session_id: session_id.to_string(), sender, thread: Some(handle), errors,
-        finish_reply: None, finish_acknowledged: false,
+        queued_bytes, finish_reply: None, finish_acknowledged: false,
     });
     Ok(())
 }
 
-pub(super) fn queue_turn(turn: &MeetingCommittedTurn) {
+fn reserve_queued_bytes(counter: &AtomicUsize, reservation: usize) -> bool {
+    reservation <= MAX_QUEUED_ESTIMATED_BYTES
+        && counter.fetch_update(
+            Ordering::AcqRel, Ordering::Relaxed,
+            |current| current.checked_add(reservation)
+                .filter(|total| *total <= MAX_QUEUED_ESTIMATED_BYTES),
+        ).is_ok()
+}
+
+pub(super) fn queue_turn(turn: MeetingCommittedTurn) {
     let Ok(guard) = writer_store().lock() else { return };
     let Some(writer) = guard.as_ref() else { return };
     if writer.session_id != turn.session_id { return }
-    match writer.sender.try_send(Record::Turn(turn.clone())) {
+
+    // Bounded reservation is taken before moving the text into the queue.
+    // The writer releases the reservation only after the record's disk
+    // write is finished. A full queue or byte budget is an explicit loss
+    // counted toward this session's storage_warning at finalization.
+    let reservation = turn.source_text.len()
+        .saturating_add(turn.translated_text.len())
+        .saturating_add(PER_QUEUED_RECORD_OVERHEAD);
+    if !reserve_queued_bytes(&writer.queued_bytes, reservation) {
+        writer.errors.fetch_add(1, Ordering::Relaxed);
+        return;
+    }
+    // Reuse the owned source accepted before Live buffer eviction.
+    let record = QueuedTurn { turn, reserved_bytes: reservation };
+    match writer.sender.try_send(Record::Turn(record)) {
         Ok(()) => {}
         Err(TrySendError::Full(_)) | Err(TrySendError::Disconnected(_)) => {
+            writer.queued_bytes.fetch_sub(reservation, Ordering::AcqRel);
             writer.errors.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -388,7 +438,8 @@ pub fn delete_saved_session(session_id: String) -> ArchiveActionResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{turn_name, valid_id};
+    use super::{turn_name, valid_id, reserve_queued_bytes, MAX_QUEUED_ESTIMATED_BYTES};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     #[test]
     fn saved_session_paths_accept_only_generated_meeting_identity() {
         assert!(valid_id("meeting_1760600000000_23"));
@@ -396,5 +447,16 @@ mod tests {
         assert!(!valid_id("meeting_../secret"));
         assert!(!valid_id("other_1760600000000_1"));
         assert_eq!(turn_name(22), "turn_00000000000000000022.json");
+    }
+
+    #[test]
+    fn queued_record_byte_budget_is_bounded_and_released() {
+        let pending = AtomicUsize::new(MAX_QUEUED_ESTIMATED_BYTES - 32);
+        assert!(reserve_queued_bytes(&pending, 32));
+        assert_eq!(pending.load(Ordering::Relaxed), MAX_QUEUED_ESTIMATED_BYTES);
+        assert!(!reserve_queued_bytes(&pending, 1));
+        assert!(!reserve_queued_bytes(&pending, usize::MAX));
+        pending.fetch_sub(32, Ordering::AcqRel);
+        assert!(reserve_queued_bytes(&pending, 32));
     }
 }

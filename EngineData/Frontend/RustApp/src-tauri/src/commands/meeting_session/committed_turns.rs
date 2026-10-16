@@ -71,7 +71,7 @@ impl MeetingCommittedTurnStore {
         delivery_state: Option<&str>,
         outbound_timing: Option<MeetingOutboundTiming>,
         now_unix_ms: u128,
-    ) -> bool {
+    ) -> Option<MeetingCommittedTurn> {
         if self.session_id != session_id
             || sequence == 0
             || !matches!(lane, "you" | "incoming")
@@ -79,20 +79,20 @@ impl MeetingCommittedTurnStore {
             || !matches!(target_language, "id" | "en")
             || source_language == target_language
         {
-            return false;
+            return None;
         }
         if source_text.trim().is_empty() {
-            return false;
+            return None;
         }
         if lane == "you"
             && (generation.is_none() || delivery_state.is_none() || outbound_timing.is_none())
         {
-            return false;
+            return None;
         }
         if lane == "incoming"
             && (generation.is_some() || delivery_state.is_some() || outbound_timing.is_some())
         {
-            return false;
+            return None;
         }
         // Only a newly inserted source can start MT/TTS. A duplicate sequence
         // or utterance identity must not reopen inference; evicted history is
@@ -105,7 +105,7 @@ impl MeetingCommittedTurnStore {
                         && turn.utterance_id == utterance_id)
             })
         {
-            return false;
+            return None;
         }
 
         let turn = MeetingCommittedTurn {
@@ -135,9 +135,12 @@ impl MeetingCommittedTurnStore {
             .unwrap_or(self.turns.len());
         self.retained_text_bytes =
             self.retained_text_bytes.saturating_add(turn_text_bytes(&turn));
+        // The archive owns an accepted copy before bounded Live memory can
+        // evict it, including a single unusually long recognized utterance.
+        let archived = turn.clone();
         self.turns.insert(insert_at, turn);
         self.enforce_session_limits();
-        true
+        Some(archived)
     }
 
     fn finish_translation_at(
@@ -149,23 +152,23 @@ impl MeetingCommittedTurnStore {
         lane: &str,
         translated: Option<&str>,
         now_unix_ms: u128,
-    ) -> bool {
+    ) -> Option<MeetingCommittedTurn> {
         if self.session_id != session_id || sequence == 0 || !matches!(lane, "you" | "incoming") {
-            return false;
+            return None;
         }
         let Some(turn) = self.turns.iter_mut().find(|turn| {
             turn.session_id == session_id && turn.sequence == sequence
                 && turn.generation == generation && turn.utterance_id == utterance_id
                 && turn.lane == lane
         }) else {
-            return false;
+            return None;
         };
         // Once a turn is complete, failed, or interrupted, stale results cannot
         // rewrite its recognized text, translation or playback state.
         if turn.translation_state != "pending"
             || terminal_delivery_state(turn.delivery_state.as_deref())
         {
-            return false;
+            return None;
         }
         let previous_bytes = turn.translated_text.len();
         if let Some(text) = translated.filter(|text| !text.trim().is_empty()) {
@@ -182,11 +185,14 @@ impl MeetingCommittedTurnStore {
             }
         }
         turn.updated_unix_ms = now_unix_ms;
+        // Retention may evict this turn when its translation expands the
+        // text budget. Return the verified final version to the archive first.
+        let archived = turn.clone();
         self.retained_text_bytes = self.retained_text_bytes
             .saturating_sub(previous_bytes)
             .saturating_add(turn.translated_text.len());
         self.enforce_session_limits();
-        true
+        Some(archived)
     }
 
     fn update_delivery_state_at(
@@ -529,16 +535,15 @@ pub(super) fn commit_meeting_turn(
         outbound_timing,
         unix_ms(),
     );
-    if committed {
-        if let Some(turn) = store.turns.iter().find(|turn| turn.sequence == sequence) {
-            transcript_archive::queue_turn(turn);
-        }
+    let accepted = committed.is_some();
+    if let Some(turn) = committed {
+        transcript_archive::queue_turn(turn);
     }
     drop(guard);
-    if committed {
+    if accepted {
         emit_meeting_runtime_event("turn_committed", Some(session_id), Some(sequence));
     }
-    committed
+    accepted
 }
 
 pub(super) fn finish_meeting_turn_translation(
@@ -568,16 +573,15 @@ pub(super) fn finish_meeting_turn_translation(
     let updated = store.finish_translation_at(
         session_id, sequence, generation, utterance_id, lane, translated, unix_ms(),
     );
-    if updated {
-        if let Some(turn) = store.turns.iter().find(|turn| turn.sequence == sequence) {
-            transcript_archive::queue_turn(turn);
-        }
+    let accepted = updated.is_some();
+    if let Some(turn) = updated {
+        transcript_archive::queue_turn(turn);
     }
     drop(guard);
-    if updated {
+    if accepted {
         emit_meeting_runtime_event("translation_state_changed", Some(session_id), Some(sequence));
     }
-    updated
+    accepted
 }
 
 // Sequence + source identity and queued state must all agree before audio.
@@ -808,17 +812,17 @@ mod tests {
         assert!(store.commit_at(
             "s1", 1, Some(7), 51, "you", "id", "en",
             "Saya tidak setuju", "", Some("translating"), Some(timing(1)), 1_000,
-        ));
+        ).is_some());
         assert_eq!(store.turns.front().unwrap().translation_state, "pending");
-        assert!(store.finish_translation_at("s1", 1, Some(7), 51, "you", None, 1_050));
+        assert!(store.finish_translation_at("s1", 1, Some(7), 51, "you", None, 1_050).is_some());
         let turn = store.turns.front().unwrap();
         assert_eq!(turn.source_text, "Saya tidak setuju");
         assert_eq!(turn.translated_text, "");
         assert_eq!(turn.translation_state, "failed");
         assert_eq!(turn.delivery_state.as_deref(), Some("output_failed"));
-        assert!(!store.finish_translation_at(
+        assert!(store.finish_translation_at(
             "s1", 1, Some(7), 51, "you", Some("I agree"), 1_100,
-        ));
+        ).is_none());
         assert_eq!(store.turns.front().unwrap().source_text, "Saya tidak setuju");
     }
 
@@ -828,21 +832,21 @@ mod tests {
         assert!(store.commit_at(
             "s1", 5, None, 31, "incoming", "en", "id", "Please confirm", "",
             None, None, 5_000,
-        ));
-        assert!(!store.finish_translation_at(
+        ).is_some());
+        assert!(store.finish_translation_at(
             "s2", 5, None, 31, "incoming", Some("Mohon konfirmasi"), 5_001,
-        ));
-        assert!(!store.finish_translation_at(
+        ).is_none());
+        assert!(store.finish_translation_at(
             "s1", 5, None, 32, "incoming", Some("Mohon konfirmasi"), 5_002,
-        ));
+        ).is_none());
         assert!(store.finish_translation_at(
             "s1", 5, None, 31, "incoming", Some("Mohon konfirmasi"), 5_003,
-        ));
+        ).is_some());
         let turn = store.turns.front().unwrap();
         assert_eq!(turn.translation_state, "translated");
         assert_eq!(turn.translated_text, "Mohon konfirmasi");
         assert_eq!(turn.source_text, "Please confirm");
-        assert!(!store.finish_translation_at("s1", 5, None, 31, "incoming", None, 5_004));
+        assert!(store.finish_translation_at("s1", 5, None, 31, "incoming", None, 5_004).is_none());
     }
 
     #[test]
@@ -851,13 +855,13 @@ mod tests {
         assert!(store.commit_at(
             "s1", 1, Some(7), 51, "you", "id", "en",
             "Tunggu sebentar", "", Some("translating"), Some(timing(1)), 1_000,
-        ));
+        ).is_some());
         store.interrupt_generation_at(7, 1_010);
         assert_eq!(store.turns.front().unwrap().translation_state, "failed");
         assert_eq!(store.turns.front().unwrap().delivery_state.as_deref(), Some("interrupted"));
-        assert!(!store.finish_translation_at(
+        assert!(store.finish_translation_at(
             "s1", 1, Some(7), 51, "you", Some("Wait a moment"), 1_020,
-        ));
+        ).is_none());
     }
 
     #[test]
@@ -878,12 +882,12 @@ mod tests {
                 "session-a", sequence, Some(9), sequence, "you", "id", "en",
                 "source", "translation", Some(state), Some(observed),
                 u128::from(sequence),
-            ));
+            ).is_some());
         }
         assert!(store.commit_at(
             "session-a", 7, None, 7, "incoming", "en", "id",
             "message", "pesan", None, None, 7,
-        ));
+        ).is_some());
         assert_eq!(store.outbound_latency_distribution(), Some((3, 20, 30)));
     }
 
@@ -903,7 +907,7 @@ mod tests {
             Some("preparing_voice"),
             Some(timing(3)),
             1_003,
-        ));
+        ).is_some());
         assert!(store.commit_at(
             "session-a",
             1,
@@ -917,7 +921,7 @@ mod tests {
             None,
             None,
             1_001,
-        ));
+        ).is_some());
         assert!(store.commit_at(
             "session-a",
             2,
@@ -931,7 +935,7 @@ mod tests {
             Some("preparing_voice"),
             Some(timing(2)),
             1_002,
-        ));
+        ).is_some());
 
         let sequences = store.turns.iter().map(|turn| turn.sequence).collect::<Vec<_>>();
         assert_eq!(sequences, vec![1, 2, 3]);
@@ -969,7 +973,7 @@ mod tests {
         assert!(active.commit_at(
             session_id, 1, None, 11, "incoming", "en", "id",
             "Hello", "Halo", None, None, 1,
-        ));
+        ).is_some());
         *super::committed_turn_store().lock().unwrap() = Some(active);
 
         assert!(super::retain_committed_turns_for_export(session_id));
@@ -1005,7 +1009,7 @@ mod tests {
                 None,
                 None,
                 u128::from(sequence),
-            ));
+            ).is_some());
         }
 
         assert_eq!(store.turns.len(), MAX_SESSION_COMMITTED_TURNS);
@@ -1027,7 +1031,7 @@ mod tests {
             assert!(store.commit_at(
                 "s1", seq, None, seq, "incoming", "en", "id",
                 "Can you confirm?", "Bisa konfirmasi?", None, None, seq as u128,
-            ));
+            ).is_some());
         }
         let preview = store.snapshot();
         let export = store.snapshot_for_export();
@@ -1046,11 +1050,43 @@ mod tests {
         assert!(store.commit_at(
             "s1", 1, None, 1, "incoming", "en", "id",
             &oversized, "", None, None, 1,
-        ));
+        ).is_some());
         assert!(store.turns.is_empty());
         assert_eq!(store.retained_text_bytes, 0);
         assert_eq!(store.dropped_turn_count, 1);
         assert!(store.snapshot_for_export().truncated);
+    }
+
+    #[test]
+    fn archive_receives_new_source_even_when_memory_evicts_it_immediately() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        let oversized = "x".repeat(MAX_SESSION_TRANSCRIPT_BYTES + 1);
+        let accepted = store.commit_at(
+            "s1", 1, None, 1, "incoming", "en", "id",
+            &oversized, "", None, None, 1,
+        ).expect("validated source must be handed to archive");
+        assert_eq!(accepted.sequence, 1);
+        assert_eq!(accepted.source_text, oversized);
+        assert!(store.turns.is_empty(), "Live memory remains bounded");
+        assert_eq!(store.dropped_turn_count, 1);
+    }
+
+    #[test]
+    fn archive_receives_completed_translation_even_if_updated_turn_is_evicted() {
+        let mut store = MeetingCommittedTurnStore::new("s1");
+        assert!(store.commit_at(
+            "s1", 1, None, 1, "incoming", "en", "id",
+            "Source phrase", "", None, None, 1,
+        ).is_some());
+        let oversized_translation = "y".repeat(MAX_SESSION_TRANSCRIPT_BYTES + 1);
+        let accepted = store.finish_translation_at(
+            "s1", 1, None, 1, "incoming", Some(&oversized_translation), 2,
+        ).expect("completed translation must be handed to archive");
+        assert_eq!(accepted.sequence, 1);
+        assert_eq!(accepted.translation_state, "translated");
+        assert_eq!(accepted.translated_text, oversized_translation);
+        assert!(store.turns.is_empty(), "Live memory remains bounded");
+        assert_eq!(store.dropped_turn_count, 1);
     }
 
     #[test]
@@ -1069,7 +1105,7 @@ mod tests {
             Some("preparing_voice"),
             Some(timing(1)),
             1_000,
-        ));
+        ).is_some());
         assert!(store.update_delivery_state_at("session-a", 7, 11, "speaking", 1_010));
         assert!(store.update_delivery_state_at(
             "session-a",
@@ -1106,30 +1142,30 @@ mod tests {
         assert!(store.commit_at(
             "s1", 1, Some(7), 10, "you", "id", "en",
             "Halo", "", Some("translating"), Some(timing(1)), 1,
-        ));
-        assert!(!store.commit_at(
+        ).is_some());
+        assert!(store.commit_at(
             "s1", 1, Some(7), 10, "you", "id", "en",
             "Halo", "", Some("translating"), Some(timing(1)), 2,
-        ));
-        assert!(!store.commit_at(
+        ).is_none());
+        assert!(store.commit_at(
             "s1", 1, Some(7), 11, "you", "id", "en",
             "Sumber lain", "", Some("translating"), Some(timing(1)), 3,
-        ));
-        assert!(!store.commit_at(
+        ).is_none());
+        assert!(store.commit_at(
             "s1", 2, Some(7), 10, "you", "id", "en",
             "Halo", "", Some("translating"), Some(timing(2)), 4,
-        ));
+        ).is_none());
         for sequence in 2..=(MAX_SESSION_COMMITTED_TURNS as u64 + 2) {
             assert!(store.commit_at(
                 "s1", sequence, None, sequence, "incoming", "en", "id",
                 "input", "", None, None, u128::from(sequence),
-            ));
+            ).is_some());
         }
         assert!(store.retired_sequence >= 1);
-        assert!(!store.commit_at(
+        assert!(store.commit_at(
             "s1", 1, Some(7), 10, "you", "id", "en",
             "Halo", "", Some("translating"), Some(timing(1)), 10_000,
-        ));
+        ).is_none());
     }
 
     #[test]
@@ -1138,10 +1174,10 @@ mod tests {
         assert!(store.commit_at(
             "s1", 3, Some(7), 10, "you", "id", "en",
             "Lanjutkan", "", Some("translating"), Some(timing(3)), 1,
-        ));
+        ).is_some());
         assert!(!store.update_delivery_state_at("s1", 7, 10, "queued", 2));
         assert!(!store.begin_playback_at("s1", 7, 3, 10, 3));
-        assert!(store.finish_translation_at("s1", 3, Some(7), 10, "you", Some("Continue"), 4));
+        assert!(store.finish_translation_at("s1", 3, Some(7), 10, "you", Some("Continue"), 4).is_some());
         assert!(!store.begin_playback_at("s1", 7, 4, 10, 5));
         assert!(!store.begin_playback_at("s1", 8, 3, 10, 5));
         assert!(store.update_delivery_state_at("s1", 7, 10, "queued", 6));
