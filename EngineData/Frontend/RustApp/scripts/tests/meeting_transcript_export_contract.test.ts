@@ -119,3 +119,30 @@ test("archive Retry Stop keeps the same finish receipt and JoinHandle on timeout
   assert.match(archive, /while writer\.thread\.as_ref\(\)\.is_some_and/);
   assert.match(archive, /guard\.take\(\)\.expect\("matching archive owner retained"\)/);
 });
+
+test("large transcript disk operations use Tauri blocking workers, not synchronous UI commands", () => {
+  for (const command of [
+    "list_saved_meeting_transcripts",
+    "get_saved_meeting_transcript_preview",
+    "delete_saved_meeting_transcript",
+    "export_saved_meeting_transcript_html",
+    "preview_saved_meeting_transcript_html",
+    "open_saved_meeting_html",
+  ]) {
+    assert.match(meeting, new RegExp(`pub async fn ${command}\\(`));
+  }
+  assert.match(meeting, /tauri::async_runtime::spawn_blocking\(transcript_archive::list_saved_sessions\)/);
+  assert.match(meeting, /spawn_blocking\(move \|\| transcript_export::export_saved_html\(session_id\)\)/);
+  assert.match(meeting, /spawn_blocking\(move \|\| transcript_archive::delete_saved_session\(session_id\)\)/);
+  assert.match(meeting, /HTML export was interrupted/);
+});
+
+test("zero-entry saved sessions remain visible for deliberate deletion without empty HTML export", () => {
+  assert.match(archive, /Retain empty archives in History as well/);
+  assert.match(archive, /match stored_turn_paths\(&entry\.path\(\)\) \{\s*\/\//);
+  assert.match(archive, /Ok\(turns\) => \{/);
+  assert.doesNotMatch(archive, /Ok\(turns\) if !turns\.is_empty\(\)/);
+  assert.match(ui, /No recognized entries/);
+  assert.match(ui, /session\.entry_count === 0/);
+  assert.match(ui, /onclick=\{\(\) => \{ confirming = session\.session_id/);
+});

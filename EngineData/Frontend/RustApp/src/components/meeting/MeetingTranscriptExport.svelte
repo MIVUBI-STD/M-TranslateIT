@@ -170,7 +170,7 @@
             <div class="min-w-0">
               <strong class="block text-[13px] font-semibold">{sessionLabel(session.session_id)}</strong>
               <p class="m-0 mt-1 text-xs text-[var(--ti-text-muted)]">
-                {session.entry_count} saved entries · {session.complete ? "Session ended" : "Storage finalization unverified"}
+                {session.entry_count === 0 ? "No recognized entries" : `${session.entry_count} saved entries`} · {session.complete ? "Session ended" : "Storage finalization unverified"}
               </p>
               {#if session.storage_warning || !session.complete}
                 <p class="m-0 mt-1 text-xs text-[var(--ti-warning)]">Check this transcript for missing entries.</p>
@@ -178,16 +178,16 @@
             </div>
             <div class="flex flex-wrap gap-2">
               <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs"
-                aria-expanded={expanded === session.session_id}
+                aria-expanded={expanded === session.session_id} disabled={busy || session.entry_count === 0}
                 onclick={() => void togglePreview(session.session_id)}>
                 {expanded === session.session_id ? "Hide" : "Read"}
               </button>
               <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs"
-                disabled={busy || previewBusy} aria-expanded={htmlSample?.sessionId === session.session_id}
+                disabled={busy || previewBusy || session.entry_count === 0} aria-expanded={htmlSample?.sessionId === session.session_id}
                 onclick={() => void toggleHtmlPreview(session.session_id)}>
                 {htmlSample?.sessionId === session.session_id ? "Hide HTML Preview" : "Preview HTML"}
               </button>
-              <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs" disabled={busy}
+              <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs" disabled={busy || session.entry_count === 0}
                 onclick={() => void exportHtml(session.session_id)}><Download size={14}/>Export HTML</button>
               <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs" disabled={busy}
                 onclick={() => { confirming = session.session_id; notice = ""; }}><Trash2 size={14}/>Delete</button>

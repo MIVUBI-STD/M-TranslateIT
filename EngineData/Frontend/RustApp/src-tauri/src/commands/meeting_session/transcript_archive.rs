@@ -263,15 +263,18 @@ pub fn list_saved_sessions() -> SavedMeetingSessions {
         if !valid_id(&id) { continue }
         if !entry.file_type().is_ok_and(|f| f.is_dir()) { result.ok = false; continue }
         match stored_turn_paths(&entry.path()) {
-            Ok(turns) if !turns.is_empty() => {
+            // Retain empty archives in History as well. They can result from
+            // sessions with no recognized speech or from interrupted storage.
+            // Hiding them would prevent the user's explicit Delete action.
+            Ok(turns) => {
                 let complete = entry.path().join("finished").exists();
                 let storage_warning = entry.path().join("storage_warning").exists()
+                    || !complete
                     || active.as_ref().is_some_and(|(current, issues)| current == &id && *issues > 0);
                 result.sessions.push(SavedMeetingSession {
                     session_id: id, entry_count: turns.len(), complete, storage_warning,
                 });
             }
-            Ok(_) => {}
             Err(_) => result.ok = false,
         }
     }

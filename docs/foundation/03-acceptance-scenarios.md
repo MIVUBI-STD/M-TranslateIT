@@ -86,6 +86,7 @@ Requires relevant A/B capability first.
 | D15 | One native Virtual Microphone Mute | source + TARGET_WINDOWS receiver | Muting either Original or translated TTS outputs immediate silence to one virtual endpoint; no muted audio queues for Unmute; source selection is preserved; Floating Captions remain independently available |
 | D16 | Synchronized pre-Start source choice | source + TARGET_WINDOWS | Choosing Original/TranslateIT in either Meeting or Quick Access immediately updates both through the same native preference; neither page falsely implies a second audio owner; Start uses the selected source |
 | D17 | Caption action and visibility truth | source + TARGET_WINDOWS | Quick Access reads actual native caption-window visibility and delegates Show/Hide to main's existing caption runtime, preserving the active private caption content and state across windows |
+| D18 | Saved transcript UI responsiveness and zero-entry deletion | source + rendered TARGET_WINDOWS | saved history/read/HTML preview/export/delete dispatch filesystem work via Tauri blocking workers; empty sessions remain listed with Delete enabled and Read/Preview/Export disabled; a long archive scan and export do not freeze Meeting UI |
 
 ## Group E — Distribution
 

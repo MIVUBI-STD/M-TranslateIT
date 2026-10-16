@@ -391,36 +391,70 @@ pub fn get_recent_meeting_transcript() -> MeetingCommittedTurnsSnapshot {
 
 // Persistent Meeting archives are separate from temporary Live/last-session
 // buffers. Users explicitly delete a saved archive; export never deletes it.
+// Saved transcript commands may scan many session entries or perform fsync
+// writes. Do not block the Tauri command/UI dispatcher while doing file I/O.
 #[tauri::command]
-pub fn list_saved_meeting_transcripts() -> transcript_archive::SavedMeetingSessions {
-    transcript_archive::list_saved_sessions()
+pub async fn list_saved_meeting_transcripts() -> transcript_archive::SavedMeetingSessions {
+    tauri::async_runtime::spawn_blocking(transcript_archive::list_saved_sessions)
+        .await
+        .unwrap_or_else(|_| transcript_archive::SavedMeetingSessions {
+            ok: false, sessions: Vec::new(),
+            message: "Saved transcript listing was interrupted.".to_string(),
+            active_write_errors: 0,
+        })
 }
 
 #[tauri::command]
-pub fn get_saved_meeting_transcript_preview(session_id: String) -> MeetingCommittedTurnsSnapshot {
-    transcript_archive::saved_session_preview(session_id)
+pub async fn get_saved_meeting_transcript_preview(session_id: String) -> MeetingCommittedTurnsSnapshot {
+    tauri::async_runtime::spawn_blocking(move || transcript_archive::saved_session_preview(session_id))
+        .await
+        .unwrap_or_else(|_| MeetingCommittedTurnsSnapshot {
+            ok: false, has_session: false, session_id: None, turns: Vec::new(),
+            dropped_turn_count: 0, truncated: false,
+            blocker: "transcript_archive:read_interrupted".to_string(),
+            note: "Saved Meeting preview was interrupted.".to_string(),
+            runtime_claim: "saved_transcript_disk_read_not_verified".to_string(),
+        })
 }
 
 #[tauri::command]
-pub fn delete_saved_meeting_transcript(session_id: String) -> transcript_archive::ArchiveActionResult {
-    transcript_archive::delete_saved_session(session_id)
+pub async fn delete_saved_meeting_transcript(session_id: String) -> transcript_archive::ArchiveActionResult {
+    tauri::async_runtime::spawn_blocking(move || transcript_archive::delete_saved_session(session_id))
+        .await
+        .unwrap_or_else(|_| transcript_archive::ArchiveActionResult {
+            ok: false, message: "Saved transcript deletion was interrupted; check its status before retrying.".to_string(),
+        })
 }
 
 #[tauri::command]
-pub fn export_saved_meeting_transcript_html(session_id: String) -> transcript_export::HtmlTranscriptResult {
-    transcript_export::export_saved_html(session_id)
+pub async fn export_saved_meeting_transcript_html(session_id: String) -> transcript_export::HtmlTranscriptResult {
+    tauri::async_runtime::spawn_blocking(move || transcript_export::export_saved_html(session_id))
+        .await
+        .unwrap_or_else(|_| transcript_export::HtmlTranscriptResult {
+            ok: false, file_path: None, turn_count: 0, incomplete: true,
+            message: "HTML export was interrupted; verify the export folder before retrying.".to_string(),
+        })
 }
 
 #[tauri::command]
-pub fn preview_saved_meeting_transcript_html(session_id: String) -> transcript_export::HtmlTranscriptPreview {
-    transcript_export::preview_saved_html(session_id)
+pub async fn preview_saved_meeting_transcript_html(session_id: String) -> transcript_export::HtmlTranscriptPreview {
+    tauri::async_runtime::spawn_blocking(move || transcript_export::preview_saved_html(session_id))
+        .await
+        .unwrap_or_else(|_| transcript_export::HtmlTranscriptPreview {
+            ok: false, html: String::new(), entry_count: 0,
+            message: "HTML preview was interrupted.".to_string(),
+        })
 }
 
 #[tauri::command]
-pub fn open_saved_meeting_html(session_id: String, file_name: String, show_folder: bool)
+pub async fn open_saved_meeting_html(session_id: String, file_name: String, show_folder: bool)
     -> transcript_archive::ArchiveActionResult
 {
-    transcript_export::open_saved_html(session_id, file_name, show_folder)
+    tauri::async_runtime::spawn_blocking(move || transcript_export::open_saved_html(session_id, file_name, show_folder))
+        .await
+        .unwrap_or_else(|_| transcript_archive::ArchiveActionResult {
+            ok: false, message: "Could not open the saved HTML location.".to_string(),
+        })
 }
 
 pub fn start_meeting_translation() -> MeetingSessionActionResult {
