@@ -337,11 +337,12 @@ impl MeetingCommittedTurnStore {
             session_id: Some(self.session_id.clone()),
             turns: self.turns.iter().cloned().collect(),
             dropped_turn_count: self.dropped_turn_count,
+            archive_write_errors: transcript_archive::active_write_errors(&self.session_id),
             truncated: self.dropped_turn_count > 0,
             blocker: String::new(),
             note: if self.dropped_turn_count > 0 {
                 format!(
-                    "The session transcript exceeded its bounded memory limit; {} earlier turns cannot be exported.",
+                    "The Live-memory buffer released {} earlier turns. The saved disk archive may retain them if each write succeeded.",
                     self.dropped_turn_count,
                 )
             } else {
@@ -363,10 +364,11 @@ impl MeetingCommittedTurnStore {
             session_id: Some(self.session_id.clone()),
             turns,
             dropped_turn_count: self.dropped_turn_count,
+            archive_write_errors: transcript_archive::active_write_errors(&self.session_id),
             truncated: self.dropped_turn_count > 0,
             blocker: String::new(),
             note: if self.dropped_turn_count > 0 {
-                format!("{} earlier phrases exceeded the session's bounded memory capacity and cannot be exported.", self.dropped_turn_count)
+                format!("{} earlier phrases left the bounded Live memory buffer; saved disk entries may still be available.", self.dropped_turn_count)
             } else if self.turns.len() > MAX_LIVE_COMMITTED_TURNS {
                 "Showing the latest 240 phrases. Earlier phrases remain available for manual export.".to_string()
             } else {
@@ -681,6 +683,7 @@ fn empty_committed_turn_snapshot(
         session_id,
         turns: Vec::new(),
         dropped_turn_count: 0,
+        archive_write_errors: 0,
         truncated: false,
         blocker: blocker.to_string(),
         note: note.to_string(),

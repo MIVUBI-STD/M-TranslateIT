@@ -30,6 +30,12 @@
   const overflowDropped = $derived(status.outbound.overflow_dropped_utterance_count ?? 0);
   const pendingEvicted = $derived(status.outbound.evicted_pending_utterance_count ?? 0);
   const missingSpeech = $derived(overflowDropped > 0 || pendingEvicted > 0);
+  // Disk archive loss is distinct from microphone/incoming speech loss.
+  const archiveErrors = $derived(
+    turns?.ok && turns.has_session && turns.session_id === status.session_id
+      ? turns.archive_write_errors ?? 0
+      : 0,
+  );
 
   const activity = $derived.by((): { label: string; detail: string; warning: boolean } => {
     if (meeting.busy) return { label: meeting.label, detail: "", warning: false };
@@ -121,6 +127,14 @@
   {/if}
   {#if status.incoming.degraded}
     <p class="m-0 text-sm leading-6 text-[var(--ti-warning)]">Incoming captions are unavailable. Your voice translation can continue.</p>
+  {/if}
+  {#if archiveErrors > 0}
+    <p class="m-0 rounded-[var(--ti-radius-sm)] border border-[var(--ti-warning-border)] px-3 py-2 text-sm leading-6 text-[var(--ti-warning)]"
+      role="alert">
+      Saved Transcript storage reported at least {archiveErrors} failed write or queue admission event{archiveErrors === 1 ? "" : "s"}.
+      Some recognized entries may be missing from the saved archive. Meeting audio and translation can continue.
+      Review Saved Transcripts after stopping. This does not measure missed speech recognition.
+    </p>
   {/if}
   {#if missingSpeech}
     <p class="m-0 rounded-[var(--ti-radius-sm)] border border-[var(--ti-warning-border)] px-3 py-2 text-sm leading-6 text-[var(--ti-warning)]"

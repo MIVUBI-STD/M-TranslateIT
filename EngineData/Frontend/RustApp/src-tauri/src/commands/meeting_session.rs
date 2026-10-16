@@ -189,6 +189,9 @@ pub struct MeetingCommittedTurnsSnapshot {
     pub session_id: Option<String>,
     pub turns: Vec<MeetingCommittedTurn>,
     pub dropped_turn_count: u64,
+    /// Nonzero means the current session's archive rejected/did not store
+    /// accepted records. It is not an ASR missed-speech counter.
+    pub archive_write_errors: u64,
     pub truncated: bool,
     pub blocker: String,
     pub note: String,
@@ -382,6 +385,7 @@ pub fn get_recent_meeting_transcript() -> MeetingCommittedTurnsSnapshot {
         session_id: None,
         turns: Vec::new(),
         dropped_turn_count: 0,
+        archive_write_errors: 0,
         truncated: false,
         blocker: String::new(),
         note: "No recently ended Meeting transcript is retained.".to_string(),
@@ -410,7 +414,7 @@ pub async fn get_saved_meeting_transcript_preview(session_id: String) -> Meeting
         .await
         .unwrap_or_else(|_| MeetingCommittedTurnsSnapshot {
             ok: false, has_session: false, session_id: None, turns: Vec::new(),
-            dropped_turn_count: 0, truncated: false,
+            dropped_turn_count: 0, archive_write_errors: 0, truncated: false,
             blocker: "transcript_archive:read_interrupted".to_string(),
             note: "Saved Meeting preview was interrupted.".to_string(),
             runtime_claim: "saved_transcript_disk_read_not_verified".to_string(),

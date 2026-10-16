@@ -11,6 +11,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
+use crate::engine::runtime_events::emit_meeting_runtime_event;
 
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
@@ -223,8 +224,15 @@ fn run_writer(
                 let result = atomic_turn_write(&dir, &record.turn);
                 queued_bytes.fetch_sub(record.reserved_bytes, Ordering::AcqRel);
                 if result.is_err() {
-                    errors.fetch_add(1, Ordering::Relaxed);
+                    let first_error = errors.fetch_add(1, Ordering::AcqRel) == 0;
                     let _ = write_marker(&dir, "storage_warning");
+                    if first_error {
+                        emit_meeting_runtime_event(
+                            "transcript_storage_error",
+                            Some(&record.turn.session_id),
+                            Some(record.turn.sequence),
+                        );
+                    }
                 }
             }
             Record::Finish(reply) => {
@@ -297,7 +305,12 @@ pub(super) fn queue_turn(turn: MeetingCommittedTurn) {
         .saturating_add(turn.translated_text.len())
         .saturating_add(PER_QUEUED_RECORD_OVERHEAD);
     if !reserve_queued_bytes(&writer.queued_bytes, reservation) {
-        writer.errors.fetch_add(1, Ordering::Relaxed);
+        let first_error = writer.errors.fetch_add(1, Ordering::AcqRel) == 0;
+        let session_id = if first_error { Some(writer.session_id.clone()) } else { None };
+        drop(guard);
+        if let Some(id) = session_id {
+            emit_meeting_runtime_event("transcript_storage_error", Some(&id), None);
+        }
         return;
     }
     // Reuse the owned source accepted before Live buffer eviction.
@@ -306,7 +319,12 @@ pub(super) fn queue_turn(turn: MeetingCommittedTurn) {
         Ok(()) => {}
         Err(TrySendError::Full(_)) | Err(TrySendError::Disconnected(_)) => {
             writer.queued_bytes.fetch_sub(reservation, Ordering::AcqRel);
-            writer.errors.fetch_add(1, Ordering::Relaxed);
+            let first_error = writer.errors.fetch_add(1, Ordering::AcqRel) == 0;
+            let session_id = if first_error { Some(writer.session_id.clone()) } else { None };
+            drop(guard);
+            if let Some(id) = session_id {
+                emit_meeting_runtime_event("transcript_storage_error", Some(&id), None);
+            }
         }
     }
 }
@@ -510,14 +528,14 @@ pub fn saved_session_preview(session_id: String) -> MeetingCommittedTurnsSnapsho
     match read_saved_turns(&session_id, Some(MAX_SAVED_PREVIEW)) {
         Ok(turns) => MeetingCommittedTurnsSnapshot {
             ok: true, has_session: false, session_id: Some(session_id),
-            turns, dropped_turn_count: 0, truncated: false,
+            turns, dropped_turn_count: 0, archive_write_errors: 0, truncated: false,
             blocker: String::new(),
             note: "Preview shows at most 240 recent saved entries. Export uses all archived entries.".to_string(),
             runtime_claim: "saved_transcript_disk_preview_source_not_windows_verified".to_string(),
         },
         Err(error) => MeetingCommittedTurnsSnapshot {
             ok: false, has_session: false, session_id: Some(session_id),
-            turns: Vec::new(), dropped_turn_count: 0, truncated: false,
+            turns: Vec::new(), dropped_turn_count: 0, archive_write_errors: 0, truncated: false,
             blocker: "transcript_archive:read_failed".to_string(), note: error,
             runtime_claim: "saved_transcript_disk_read_not_verified".to_string(),
         },

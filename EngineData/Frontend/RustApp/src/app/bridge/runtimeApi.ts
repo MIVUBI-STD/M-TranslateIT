@@ -225,6 +225,7 @@ export type MeetingCommittedTurnsSnapshot = {
   session_id: string | null;
   turns: MeetingCommittedTurn[];
   dropped_turn_count: number;
+  archive_write_errors: number;
   truncated: boolean;
   blocker: string;
   note: string;
@@ -366,6 +367,7 @@ function meetingCommittedTurnsFallback(message: string): MeetingCommittedTurnsSn
     session_id: null,
     turns: [],
     dropped_turn_count: 0,
+    archive_write_errors: 0,
     truncated: false,
     blocker: "frontend_bridge_unavailable",
     note: message,

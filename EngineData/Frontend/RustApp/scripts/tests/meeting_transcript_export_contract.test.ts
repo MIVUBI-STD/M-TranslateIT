@@ -22,7 +22,7 @@ test("persistent archive is session-bound and starts before live microphone capt
   assert.match(memory, /transcript_archive::finish_session\(session_id\)/);
   assert.match(archive, /mpsc::sync_channel\(WRITE_QUEUE_SIZE\)/);
   assert.match(archive, /writer\.sender\.try_send\(Record::Turn\(record\)\)/);
-  assert.match(archive, /errors\.fetch_add\(1, Ordering::Relaxed\)/);
+  assert.match(archive, /errors\.fetch_add\(1, Ordering::AcqRel\)/);
 });
 
 test("archive is retained across Stop, new meeting and export until explicit delete", () => {
@@ -172,7 +172,7 @@ test("archive queue has bounded record count and estimated UTF-8 payload size", 
   assert.match(archive, /current\.checked_add\(reservation\)/);
   assert.match(archive, /writer\.queued_bytes\.fetch_sub\(reservation, Ordering::AcqRel\)/);
   assert.match(archive, /queued_bytes\.fetch_sub\(record\.reserved_bytes, Ordering::AcqRel\)/);
-  assert.match(archive, /writer\.errors\.fetch_add\(1, Ordering::Relaxed\)/);
+  assert.match(archive, /writer\.errors\.fetch_add\(1, Ordering::AcqRel\)/);
   assert.match(archive, /fn queued_record_byte_budget_is_bounded_and_released\(/);
   assert.match(archive, /serde_json::to_writer\(&mut buffered, turn\)/);
   assert.match(archive, /buffered\.flush\(\)/);
@@ -243,4 +243,20 @@ test("incomplete transcript warning is shown before the first conversation entry
   assert.match(html, /body:has\(#view-id:checked\) \.print-mode-id/);
   assert.match(html, /body:has\(#view-en:checked\) \.print-mode-en/);
   assert.match(html, /@media print/);
+});
+
+test("Live transcript surfaces the first actual storage failure with existing Meeting events", () => {
+  const live = file("src/components/meeting/MeetingActivity.svelte");
+  const reader = file("src/app/runtime/meetingReconcileReader.ts");
+  const eventMonitors = file("src/app/runtime/reliabilityMonitor.ts");
+  assert.match(meeting, /pub archive_write_errors: u64/);
+  assert.match(memory, /archive_write_errors: transcript_archive::active_write_errors\(&self\.session_id\)/);
+  assert.match(archive, /let first_error = errors\.fetch_add\(1, Ordering::AcqRel\) == 0/);
+  assert.match(archive, /let first_error = writer\.errors\.fetch_add\(1, Ordering::AcqRel\) == 0/);
+  assert.match(archive, /emit_meeting_runtime_event\("transcript_storage_error"/);
+  assert.match(live, /turns\.archive_write_errors/);
+  assert.match(live, /role="alert"/);
+  assert.match(live, /saved archive/);
+  assert.match(eventMonitors, /void pollMeeting\(true\)/);
+  assert.match(reader, /if \(statusKey === previousStatusKey && !forceTurns\)/);
 });
