@@ -94,24 +94,43 @@ fn turn_name(sequence: u64) -> String {
     format!("turn_{sequence:020}.json")
 }
 
-fn stored_turn_paths(dir: &Path) -> io::Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
+struct StoredTurnScan {
+    paths: Vec<PathBuf>,
+    has_unpublished_files: bool,
+}
+
+fn scan_stored_turns(dir: &Path) -> io::Result<StoredTurnScan> {
+    let mut scan = StoredTurnScan { paths: Vec::new(), has_unpublished_files: false };
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
+        let Some(name) = name.to_str() else {
+            scan.has_unpublished_files = true;
+            continue;
+        };
         if name.starts_with("turn_") && name.ends_with(".json")
             && name[5..name.len()-5].len() == 20
             && name[5..name.len()-5].bytes().all(|b| b.is_ascii_digit())
         {
-            if !entry.file_type()?.is_file() {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Archive turn is not a regular file"));
+            if entry.file_type()?.is_file() {
+                scan.paths.push(entry.path());
+            } else {
+                // Refuse symlinks or directories as archive entries, while
+                // keeping the session visible so the user can delete it.
+                scan.has_unpublished_files = true;
             }
-            paths.push(entry.path());
+        } else if name.starts_with("turn_") || name.ends_with(".tmp") {
+            // A crash can leave a staged write without its final rename.
+            // Never silently treat that session as a fully finalized archive.
+            scan.has_unpublished_files = true;
         }
     }
-    paths.sort();
-    Ok(paths)
+    scan.paths.sort();
+    Ok(scan)
+}
+
+fn stored_turn_paths(dir: &Path) -> io::Result<Vec<PathBuf>> {
+    Ok(scan_stored_turns(dir)?.paths)
 }
 
 fn atomic_turn_write(dir: &Path, turn: &MeetingCommittedTurn) -> io::Result<()> {
@@ -134,15 +153,52 @@ fn atomic_turn_write(dir: &Path, turn: &MeetingCommittedTurn) -> io::Result<()> 
     Ok(())
 }
 
-fn write_marker(dir: &Path, marker: &str) -> io::Result<()> {
-    // Do not leave a falsely completed marker if the process dies midway.
+const FINISHED_RECEIPT_HEADER: &str = "TranslateIT Meeting archive receipt v1";
+
+fn write_atomic_marker(dir: &Path, marker: &str, contents: &[u8]) -> io::Result<()> {
+    // A final marker is visible only after writing and syncing its temporary
+    // counterpart. A crash before rename leaves an untrusted *.tmp.
     let temporary = dir.join(format!("{marker}.tmp"));
     let final_path = dir.join(marker);
     let mut file = File::create(&temporary)?;
-    file.write_all(b"TranslateIT local Meeting transcript archive\n")?;
+    file.write_all(contents)?;
     file.sync_all()?;
     drop(file);
     fs::rename(temporary, final_path)
+}
+
+fn write_marker(dir: &Path, marker: &str) -> io::Result<()> {
+    write_atomic_marker(dir, marker, b"TranslateIT local Meeting transcript archive\n")
+}
+
+fn write_finished_receipt(dir: &Path) -> io::Result<()> {
+    // This is a finalization/count receipt, NOT evidence that every spoken
+    // utterance was recognized or that all data is forensically durable.
+    let scan = scan_stored_turns(dir)?;
+    if scan.has_unpublished_files {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Unpublished archive entries remain"));
+    }
+    let body = format!("{FINISHED_RECEIPT_HEADER}\nentries={}\n", scan.paths.len());
+    write_atomic_marker(dir, "finished", body.as_bytes())
+}
+
+fn finished_receipt_count(dir: &Path) -> io::Result<Option<usize>> {
+    let body = match fs::read_to_string(dir.join("finished")) {
+        Ok(value) => value,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let mut lines = body.lines();
+    if lines.next() != Some(FINISHED_RECEIPT_HEADER) {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Unknown transcript receipt version"));
+    }
+    let count = lines.next()
+        .and_then(|line| line.strip_prefix("entries="))
+        .and_then(|value| value.parse::<usize>().ok());
+    if lines.next().is_some() {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Unexpected receipt data"));
+    }
+    count.map(Some).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid receipt count"))
 }
 
 fn run_writer(
@@ -163,7 +219,12 @@ fn run_writer(
             }
             Record::Finish(reply) => {
                 let clean = errors.load(Ordering::Acquire) == 0;
-                let marked = write_marker(&dir, if clean { "finished" } else { "storage_warning" }).is_ok();
+                let marked = if clean {
+                    write_finished_receipt(&dir).is_ok()
+                } else {
+                    write_marker(&dir, "storage_warning").is_ok()
+                };
+                if !marked { let _ = write_marker(&dir, "storage_warning"); }
                 let _ = reply.send(marked);
                 break;
             }
@@ -177,13 +238,18 @@ pub(super) fn start_session(session_id: &str) -> Result<(), String> {
     if guard.is_some() {
         return Err("Previous transcript storage is not finished. Retry Stop before starting another Meeting.".to_string());
     }
-    fs::create_dir_all(&dir).map_err(|_| "Could not create the local transcript archive folder.".to_string())?;
-    // A session ID must never silently reuse a prior archive after restart.
-    if stored_turn_paths(&dir).map_err(|_| "Could not inspect the transcript archive folder.".to_string())?.len() > 0
-        || dir.join("finished").exists() || dir.join("storage_warning").exists()
-    {
-        return Err("Meeting transcript archive identity already exists.".to_string());
-    }
+    // Never reopen any pre-existing session directory, even if a crash left
+    // ONLY a staged .tmp file and no committed JSON entry or finish marker.
+    // create_dir itself is atomic against a colliding process/session owner.
+    let root = archive_root();
+    fs::create_dir_all(&root)
+        .map_err(|_| "Could not create the local transcript archive root.".to_string())?;
+    fs::create_dir(&dir)
+        .map_err(|error| if error.kind() == io::ErrorKind::AlreadyExists {
+            "Meeting transcript archive identity already exists.".to_string()
+        } else {
+            "Could not create the local transcript archive folder.".to_string()
+        })?;
     let (sender, receiver) = mpsc::sync_channel(WRITE_QUEUE_SIZE);
     let errors = Arc::new(AtomicU64::new(0));
     let queued_bytes = Arc::new(AtomicUsize::new(0));
@@ -312,15 +378,25 @@ pub fn list_saved_sessions() -> SavedMeetingSessions {
         let Some(id) = entry.file_name().to_str().map(str::to_owned) else { continue };
         if !valid_id(&id) { continue }
         if !entry.file_type().is_ok_and(|f| f.is_dir()) { result.ok = false; continue }
-        match stored_turn_paths(&entry.path()) {
+        match scan_stored_turns(&entry.path()) {
             // Retain empty archives in History as well. They can result from
             // sessions with no recognized speech or from interrupted storage.
             // Hiding them would prevent the user's explicit Delete action.
-            Ok(turns) => {
-                let complete = entry.path().join("finished").exists();
+            Ok(scan) => {
+                let turns = &scan.paths;
+                // A finished marker alone is insufficient: after a crash or
+                // accidental deletion, compare its expected count with the
+                // actual surviving entry filenames. Old unversioned markers
+                // fail closed as unverified, never silently upgraded.
+                let count_matches = matches!(
+                    finished_receipt_count(&entry.path()),
+                    Ok(Some(expected)) if expected == turns.len()
+                );
                 let storage_warning = entry.path().join("storage_warning").exists()
-                    || !complete
+                    || scan.has_unpublished_files
+                    || !count_matches
                     || active.as_ref().is_some_and(|(current, issues)| current == &id && *issues > 0);
+                let complete = count_matches && !storage_warning;
                 result.sessions.push(SavedMeetingSession {
                     session_id: id, entry_count: turns.len(), complete, storage_warning,
                 });
@@ -363,8 +439,12 @@ pub(super) fn stream_saved_turns(
 pub(super) fn session_warning(id: &str) -> Result<bool, String> {
     let dir = session_dir(id)?;
     if !dir.is_dir() { return Err("Saved Meeting transcript was not found.".to_string()) }
+    let scan = scan_stored_turns(&dir)
+        .map_err(|_| "Could not verify saved Meeting entry count.".to_string())?;
+    let finalized = matches!(finished_receipt_count(&dir), Ok(Some(expected)) if expected == scan.paths.len());
     Ok(dir.join("storage_warning").exists()
-        || !dir.join("finished").exists()
+        || scan.has_unpublished_files
+        || !finalized
         || active_write_errors(id) > 0)
 }
 
@@ -438,7 +518,8 @@ pub fn delete_saved_session(session_id: String) -> ArchiveActionResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{turn_name, valid_id, reserve_queued_bytes, MAX_QUEUED_ESTIMATED_BYTES};
+    use super::{turn_name, valid_id, reserve_queued_bytes, finished_receipt_count,
+        stored_turn_paths, scan_stored_turns, write_finished_receipt, MAX_QUEUED_ESTIMATED_BYTES};
     use std::sync::atomic::{AtomicUsize, Ordering};
     #[test]
     fn saved_session_paths_accept_only_generated_meeting_identity() {
@@ -447,6 +528,30 @@ mod tests {
         assert!(!valid_id("meeting_../secret"));
         assert!(!valid_id("other_1760600000000_1"));
         assert_eq!(turn_name(22), "turn_00000000000000000022.json");
+    }
+
+    #[test]
+    fn finished_receipt_rejects_missing_and_legacy_metadata() {
+        let dir = std::env::temp_dir().join(format!(
+            "ti-archive-receipt-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                .unwrap().as_nanos(),
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(finished_receipt_count(&dir).unwrap().is_none());
+        write_finished_receipt(&dir).unwrap();
+        assert_eq!(finished_receipt_count(&dir).unwrap(), Some(0));
+        // The receipt no longer matches after a file appears/disappears.
+        std::fs::write(dir.join(turn_name(1)), b"{}").unwrap();
+        assert_ne!(finished_receipt_count(&dir).unwrap().unwrap(), stored_turn_paths(&dir).unwrap().len());
+        std::fs::write(dir.join("turn_00000000000000000002.tmp"), b"partial").unwrap();
+        assert!(scan_stored_turns(&dir).unwrap().has_unpublished_files);
+        assert!(write_finished_receipt(&dir).is_err(), "staged entry must block successful finalization");
+        std::fs::write(dir.join("finished"), b"legacy opaque marker").unwrap();
+        assert!(finished_receipt_count(&dir).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

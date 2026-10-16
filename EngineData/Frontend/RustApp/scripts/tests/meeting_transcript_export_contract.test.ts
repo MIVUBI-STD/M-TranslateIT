@@ -139,7 +139,7 @@ test("large transcript disk operations use Tauri blocking workers, not synchrono
 
 test("zero-entry saved sessions remain visible for deliberate deletion without empty HTML export", () => {
   assert.match(archive, /Retain empty archives in History as well/);
-  assert.match(archive, /match stored_turn_paths\(&entry\.path\(\)\) \{\s*\/\//);
+  assert.match(archive, /match scan_stored_turns\(&entry\.path\(\)\) \{\s*\/\//);
   assert.match(archive, /Ok\(turns\) => \{/);
   assert.doesNotMatch(archive, /Ok\(turns\) if !turns\.is_empty\(\)/);
   assert.match(ui, /No recognized entries/);
@@ -178,4 +178,24 @@ test("archive queue has bounded record count and estimated UTF-8 payload size", 
   assert.match(archive, /buffered\.flush\(\)/);
   assert.doesNotMatch(archive, /serde_json::to_vec\(turn\)/);
   assert.match(archive, /mpsc::sync_channel\(WRITE_QUEUE_SIZE\)/);
+});
+
+test("finished receipt counts surviving archived turns and rejects crash staging files", () => {
+  assert.match(archive, /const FINISHED_RECEIPT_HEADER: &str = "TranslateIT Meeting archive receipt v1"/);
+  assert.match(archive, /fn write_finished_receipt\(dir: &Path\)/);
+  assert.match(archive, /fn finished_receipt_count\(dir: &Path\)/);
+  assert.match(archive, /write_finished_receipt\(&dir\)\.is_ok\(\)/);
+  assert.match(archive, /expected == turns\.len\(\)/);
+  assert.match(archive, /expected == scan\.paths\.len\(\)/);
+  assert.match(archive, /scan\.has_unpublished_files/);
+  assert.match(archive, /name\.ends_with\("\.tmp"\)/);
+  assert.match(archive, /fn finished_receipt_rejects_missing_and_legacy_metadata\(/);
+  assert.match(archive, /write_finished_receipt\(&dir\)\.is_err\(\)/);
+});
+
+test("new Meeting start cannot reopen a previous archive folder with only an interrupted temp file", () => {
+  assert.match(archive, /fs::create_dir_all\(&root\)/);
+  assert.match(archive, /fs::create_dir\(&dir\)/);
+  assert.match(archive, /io::ErrorKind::AlreadyExists/);
+  assert.doesNotMatch(archive.split("#[cfg(test)]")[0], /fs::create_dir_all\(&dir\)/);
 });
