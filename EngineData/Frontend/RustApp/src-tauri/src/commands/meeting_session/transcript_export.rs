@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
-use super::transcript_archive::{session_warning, stream_saved_turns};
+use super::transcript_archive::{read_saved_turns, session_warning, stream_saved_turns};
 use super::MeetingCommittedTurn;
 
 static EXPORT_NONCE: AtomicU64 = AtomicU64::new(0);
@@ -23,6 +23,16 @@ pub struct HtmlTranscriptResult {
     pub incomplete: bool,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HtmlTranscriptPreview {
+    pub ok: bool,
+    pub html: String,
+    pub entry_count: usize,
+    pub message: String,
+}
+
+const MAX_HTML_PREVIEW_ENTRIES: usize = 12;
 
 fn unix_ms() -> u128 {
     SystemTime::now().duration_since(UNIX_EPOCH)
@@ -130,10 +140,12 @@ body:has(#view-en:checked) .version[data-language="id"] { display:none; }
 }
 "#;
 
-fn write_header<W: Write>(w: &mut W, id: &str, count: usize) -> std::io::Result<()> {
+fn write_header<W: Write>(
+    w: &mut W, id: &str, count: usize, preview: bool,
+) -> std::io::Result<()> {
     let start = id.strip_prefix("meeting_").and_then(|x| x.split('_').next())
         .and_then(|x| x.parse::<u128>().ok()).unwrap_or(0);
-    write!(w, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"dark light\"><title>Meeting Transcript · TranslateIT</title><style>{STYLE}</style></head><body><main class=\"page\"><header><div class=\"brand\"><span class=\"brandmark\" aria-hidden=\"true\">T</span><span>TranslateIT</span></div><h1>Meeting Transcript</h1><p class=\"subtitle\">Bilingual conversation · Indonesian / English</p><div class=\"summary\"><div class=\"fact\"><span>MEETING DATE (UTC)</span><strong>{}</strong></div><div class=\"fact\"><span>RECORDED ENTRIES</span><strong>{count}</strong></div><div class=\"fact\"><span>SESSION REFERENCE</span><strong>{}</strong></div></div></header><section aria-labelledby=\"conversation-heading\"><div class=\"heading\"><h2 id=\"conversation-heading\">Conversation</h2></div><div class=\"reading\" role=\"group\" aria-label=\"Read transcript in\"><span class=\"reading-title\">Read transcript in</span><div class=\"segment\"><label><input type=\"radio\" id=\"view-both\" name=\"reading-view\" checked><span>Bilingual</span></label><label><input type=\"radio\" id=\"view-id\" name=\"reading-view\"><span>Bahasa Indonesia</span></label><label><input type=\"radio\" id=\"view-en\" name=\"reading-view\"><span>English</span></label></div></div><div class=\"conversation\">", utc_date(start), html_escape(id))
+    write!(w, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"dark light\"><title>Meeting Transcript · TranslateIT</title><style>{STYLE}</style></head><body><main class=\"page\"><header><div class=\"brand\"><span class=\"brandmark\" aria-hidden=\"true\">T</span><span>TranslateIT</span></div><h1>Meeting Transcript</h1><p class=\"subtitle\">Bilingual conversation · Indonesian / English</p><div class=\"summary\"><div class=\"fact\"><span>MEETING DATE (UTC)</span><strong>{}</strong></div><div class=\"fact\"><span>{}</span><strong>{count}</strong></div><div class=\"fact\"><span>SESSION REFERENCE</span><strong>{}</strong></div></div></header><section aria-labelledby=\"conversation-heading\"><div class=\"heading\"><h2 id=\"conversation-heading\">Conversation</h2></div><div class=\"reading\" role=\"group\" aria-label=\"Read transcript in\"><span class=\"reading-title\">Read transcript in</span><div class=\"segment\"><label><input type=\"radio\" id=\"view-both\" name=\"reading-view\" checked><span>Bilingual</span></label><label><input type=\"radio\" id=\"view-id\" name=\"reading-view\"><span>Bahasa Indonesia</span></label><label><input type=\"radio\" id=\"view-en\" name=\"reading-view\"><span>English</span></label></div></div><div class=\"conversation\">", utc_date(start), if preview { "PREVIEW ENTRIES" } else { "RECORDED ENTRIES" }, html_escape(id))
 }
 
 fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Result<()> {
@@ -163,6 +175,43 @@ fn write_footer<W: Write>(w: &mut W, incomplete: bool) -> std::io::Result<()> {
         w.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Transcript storage could not be fully verified.</strong> Some entries may be missing because of a storage interruption or unclean shutdown.</aside>")?;
     }
     w.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Transcript scope.</strong> This file contains available recognized speech records, not a verified recording of every spoken sentence. Meeting audio may combine multiple speakers; individual identities are not known. Translation may be unavailable for some entries. Local playback is not proof of delivery to remote participants.</aside><footer class=\"footer\">Generated locally by TranslateIT · Self-contained offline HTML · No scripts or external resources</footer></main></body></html>")
+}
+
+pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
+    let failed = |message: String| HtmlTranscriptPreview {
+        ok: false, html: String::new(), entry_count: 0, message,
+    };
+    if !valid_id(&session_id) {
+        return failed("Invalid Meeting session identity.".to_string());
+    }
+    // Keep the HTML render path identical to the actual export, but only
+    // render a small sample. Avoid sending a huge document through the Tauri
+    // bridge or rendering thousands of transcript nodes in the app.
+    let turns = match read_saved_turns(&session_id, Some(MAX_HTML_PREVIEW_ENTRIES)) {
+        Ok(turns) if !turns.is_empty() => turns,
+        Ok(_) => return failed("No saved conversation entries are available.".to_string()),
+        Err(reason) => return failed(reason),
+    };
+    let incomplete = session_warning(&session_id).unwrap_or(true);
+    let mut buffer = Vec::new();
+    let rendered = (|| -> std::io::Result<()> {
+        write_header(&mut buffer, &session_id, turns.len(), true)?;
+        buffer.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Sample preview.</strong> Only the latest saved entries are shown here. Export HTML after stopping the Meeting to include all archived entries. This preview does not prove that all spoken audio was recognized.</aside>")?;
+        for turn in &turns {
+            write_turn(&mut buffer, turn)?;
+        }
+        write_footer(&mut buffer, incomplete)
+    })();
+    if rendered.is_err() {
+        return failed("Could not generate HTML preview.".to_string());
+    }
+    match String::from_utf8(buffer) {
+        Ok(html) => HtmlTranscriptPreview {
+            ok: true, html, entry_count: turns.len(),
+            message: "Sample preview generated using the same HTML renderer as the full export.".to_string(),
+        },
+        Err(_) => failed("HTML preview contained invalid UTF-8.".to_string()),
+    }
 }
 
 pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
@@ -200,7 +249,7 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
     let write_result = (|| -> Result<(), String> {
         let file = File::create_new(&temporary).map_err(|_| "Could not start the HTML export file.".to_string())?;
         let mut w = BufWriter::new(file);
-        write_header(&mut w, &session_id, count).map_err(|_| "Cannot write HTML header.".to_string())?;
+        write_header(&mut w, &session_id, count, false).map_err(|_| "Cannot write HTML header.".to_string())?;
         let exported = stream_saved_turns(&session_id, |turn| {
             write_turn(&mut w, turn).map_err(|_| "Cannot write a transcript entry.".to_string())
         })?;

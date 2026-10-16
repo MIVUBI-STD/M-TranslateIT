@@ -34,6 +34,7 @@ pub fn register(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wr
         crate::commands::meeting_session::get_saved_meeting_transcript_preview,
         crate::commands::meeting_session::delete_saved_meeting_transcript,
         crate::commands::meeting_session::export_saved_meeting_transcript_html,
+        crate::commands::meeting_session::preview_saved_meeting_transcript_html,
         crate::commands::meeting_session::open_saved_meeting_html,
         crate::commands::virtual_mic_route::get_virtual_mic_route_contract_status,
         crate::commands::runtime::verify_models,

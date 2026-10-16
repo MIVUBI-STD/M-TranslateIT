@@ -412,6 +412,11 @@ pub fn export_saved_meeting_transcript_html(session_id: String) -> transcript_ex
 }
 
 #[tauri::command]
+pub fn preview_saved_meeting_transcript_html(session_id: String) -> transcript_export::HtmlTranscriptPreview {
+    transcript_export::preview_saved_html(session_id)
+}
+
+#[tauri::command]
 pub fn open_saved_meeting_html(session_id: String, file_name: String, show_folder: bool)
     -> transcript_archive::ArchiveActionResult
 {

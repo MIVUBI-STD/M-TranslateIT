@@ -2,11 +2,11 @@
 
 **Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-16. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
-**Current source delivery:** Persistent per-session transcript archives and offline HTML export are the active implementation candidate. Saved records are kept across Stop, restart and HTML export until explicit user deletion. Existing bounded Live/review memory remains; a single bounded writer accepts per-turn authorized updates, stores them locally by session/sequence, and reports storage uncertainty instead of silently promising completeness. New HTML uses the TranslateIT dark visual language with Bilingual / Bahasa Indonesia / English reading controls, static CSS and print styling. Read/Export/Delete are exposed in Saved Transcripts. Summarization/Meeting Overview is explicitly out of scope.
+**Active source candidate:** Persistent local Meeting archives survive Stop, restart and manual HTML export until explicit Delete. Stop's archive-writer cleanup now retains the same Finish receipt and JoinHandle across timeouts, avoiding a repeated Stop dead end. Saved Transcripts includes a bounded actual-HTML sample preview from the canonical export renderer, displaying the latest 12 entries, with offline sandboxed iframe and Bilingual/Indonesia/English CSS reading controls. The HTML export remains written to the app-owned default folder; native Save As dialog is NOT implemented because the necessary dialog plugin/lockfile/source generation has not been integrated in this GitHub-only context.
 
-**Proof:** `STATIC_SOURCE` candidate only. No Rust compile, Svelte typecheck, frontend tests, disk fault injection, rendered HTML/browser printing, target Windows audio or runtime acceptance has executed. Do not present source inspection as successful installation or proven reliability.
+**Evidence:** `STATIC_SOURCE` only; authored frontend source-regression checks have NOT run. Rust compiler, Svelte typecheck, filesystem fault injection, Windows file-open behavior, browser print, DPI/UI rendering and multi-hour audio tests remain `UNKNOWN / NOT EXECUTED`. No unsupported claim of preview rendering, robust crash durability, browser scalability or boundless disk capacity.
 
-**Next:** Reconcile static contract/source alignment and prepare one integrated local acceptance covering restart, large sessions, disk full, write interruption, HTML escaping, CSS print and explicit Delete. Do not assert unlimited storage or successful HTML rendering without execution.
+**Next:** Recheck protocol compatibility and verify no new static blockers in this exact source candidate. Save As requires a supported native dialog integration with coherent lockfile/toolchain updates, so must not be mocked by a typed arbitrary path or unvalidated browser API. Include in one integrated local build/Windows acceptance when the source candidate is ready.
 
 ## Retained My Voice source candidate (paused)
 
@@ -215,12 +215,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Source review the persistent transcript archive, UI and HTML export contract
-at the new exact Local HEAD. Correct source-proven defects first, then keep
-Rust/frontend compilation, local disk fault tests, browser print and Windows
-audio integration as `UNKNOWN / NOT EXECUTED` until the agreed integrated
-acceptance phase. Saved archives remain until explicit Delete; no summary
-model/Meeting Overview is part of the product scope.
+Prepare a source-integrated candidate for the existing local/Windows acceptance
+gate. Source-check Rust/Tauri bridge signatures, HTML preview/export parity,
+archive Start/Stop/Retry Stop, and explicit deletion without claiming executed
+proof. Run the integrated local build/acceptance only with an authorized Windows
+environment. Native Save As remains a named unimplemented feature pending a
+proper pinned plugin/lockfile source update. Summarization stays canceled.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.

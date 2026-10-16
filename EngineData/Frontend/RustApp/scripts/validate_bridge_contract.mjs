@@ -137,6 +137,7 @@ const contractPairs = [
   ["src-tauri/src/commands/meeting_session/transcript_archive.rs", "SavedMeetingSessions", "src/app/bridge/runtimeApi.ts", "SavedMeetingSessions"],
   ["src-tauri/src/commands/meeting_session/transcript_archive.rs", "ArchiveActionResult", "src/app/bridge/runtimeApi.ts", "SavedMeetingActionResult"],
   ["src-tauri/src/commands/meeting_session/transcript_export.rs", "HtmlTranscriptResult", "src/app/bridge/runtimeApi.ts", "SavedMeetingHtmlResult"],
+  ["src-tauri/src/commands/meeting_session/transcript_export.rs", "HtmlTranscriptPreview", "src/app/bridge/runtimeApi.ts", "SavedMeetingHtmlPreview"],
   ["src-tauri/src/engine/audio/guided_take.rs", "GuidedTakeReview", "src/app/bridge/myVoiceApi.ts", "GuidedTakeReview"],
   ["src-tauri/src/commands/voice_lab_recording.rs", "GuidedLineStatus", "src/app/bridge/myVoiceApi.ts", "GuidedLineStatus"],
   ["src-tauri/src/commands/voice_lab_recording.rs", "GuidedRecordingState", "src/app/bridge/myVoiceApi.ts", "GuidedRecordingState"],

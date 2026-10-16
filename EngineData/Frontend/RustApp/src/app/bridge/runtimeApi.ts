@@ -213,6 +213,12 @@ export type SavedMeetingHtmlResult = {
   incomplete: boolean;
   message: string;
 };
+export type SavedMeetingHtmlPreview = {
+  ok: boolean;
+  html: string;
+  entry_count: number;
+  message: string;
+};
 export type MeetingCommittedTurnsSnapshot = {
   ok: boolean;
   has_session: boolean;
@@ -423,6 +429,13 @@ export const runtimeApi = {
     return invokeOr<SavedMeetingActionResult>(
       "delete_saved_meeting_transcript", { sessionId },
       { ok: false, message: "Saved transcript could not be deleted." },
+    );
+  },
+
+  async previewSavedMeetingTranscriptHtml(sessionId: string): Promise<SavedMeetingHtmlPreview> {
+    return invokeOr<SavedMeetingHtmlPreview>(
+      "preview_saved_meeting_transcript_html", { sessionId },
+      { ok: false, html: "", entry_count: 0, message: "HTML preview is unavailable." },
     );
   },
 

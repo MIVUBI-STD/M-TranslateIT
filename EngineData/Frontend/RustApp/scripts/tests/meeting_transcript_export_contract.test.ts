@@ -93,3 +93,29 @@ test("explicit Delete removes matching in-memory last-session review as well as 
   assert.match(ui, /onDeleted\?\.\(\)/);
   assert.match(ui, /Existing exported HTML files will remain/);
 });
+
+test("HTML preview uses the real offline export renderer, not a second layout", () => {
+  assert.match(html, /pub fn preview_saved_html\(session_id: String\)/);
+  assert.match(html, /MAX_HTML_PREVIEW_ENTRIES: usize = 12/);
+  assert.match(html, /write_header\(&mut buffer, &session_id, turns\.len\(\), true\)/);
+  assert.match(html, /write_turn\(&mut buffer, turn\)/);
+  assert.match(html, /write_footer\(&mut buffer, incomplete\)/);
+  assert.match(ui, /runtimeApi\.previewSavedMeetingTranscriptHtml\(sessionId\)/);
+  assert.match(ui, /Preview HTML/);
+  assert.match(ui, /srcdoc=\{htmlSample\.html\}/);
+  assert.match(ui, /sandbox=""/);
+  assert.match(ui, /const revision = \+\+htmlPreviewRevision/);
+  assert.match(ui, /if \(revision !== htmlPreviewRevision\) return/);
+  assert.match(ui, /htmlPreviewRevision \+= 1/);
+  assert.match(meeting, /preview_saved_meeting_transcript_html/);
+  assert.match(registry, /preview_saved_meeting_transcript_html/);
+});
+
+test("archive Retry Stop keeps the same finish receipt and JoinHandle on timeout", () => {
+  assert.match(archive, /finish_reply: Option<mpsc::Receiver<bool>>/);
+  assert.match(archive, /finish_acknowledged: bool/);
+  assert.match(archive, /match reply\.recv_timeout\(FINISH_WAIT\)/);
+  assert.match(archive, /RecvTimeoutError::Timeout\) => return false/);
+  assert.match(archive, /while writer\.thread\.as_ref\(\)\.is_some_and/);
+  assert.match(archive, /guard\.take\(\)\.expect\("matching archive owner retained"\)/);
+});

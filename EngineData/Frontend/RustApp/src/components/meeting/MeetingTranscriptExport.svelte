@@ -17,6 +17,9 @@
   let busy = $state(false);
   let loading = $state(false);
   let notice = $state("");
+  let htmlSample = $state<{ sessionId: string; html: string; entryCount: number } | null>(null);
+  let previewBusy = $state(false);
+  let htmlPreviewRevision = 0;
   let receipt = $state<{ sessionId: string; path: string; count: number; incomplete: boolean } | null>(null);
   let previousActive = $state<boolean | null>(null);
 
@@ -55,6 +58,32 @@
     if (!result.ok) notice = result.note || "Saved transcript could not be loaded.";
     else preview = result;
   }
+  async function toggleHtmlPreview(sessionId: string): Promise<void> {
+    if (previewBusy) return;
+    if (htmlSample?.sessionId === sessionId) {
+      htmlSample = null;
+      return;
+    }
+    previewBusy = true;
+    const revision = ++htmlPreviewRevision;
+    notice = "";
+    try {
+      const result = await runtimeApi.previewSavedMeetingTranscriptHtml(sessionId);
+      if (revision !== htmlPreviewRevision) return;
+      if (!result.ok) {
+        htmlSample = null;
+        notice = result.message || "HTML preview is unavailable.";
+        return;
+      }
+      htmlSample = { sessionId, html: result.html, entryCount: result.entry_count };
+    } catch {
+      if (revision === htmlPreviewRevision) {
+        htmlSample = null;
+        notice = "HTML preview could not be rendered.";
+      }
+    } finally { previewBusy = false; }
+  }
+
   async function exportHtml(sessionId: string): Promise<void> {
     if (busy) return;
     busy = true; notice = ""; receipt = null; confirming = null;
@@ -74,6 +103,8 @@
       const result = await runtimeApi.deleteSavedMeetingTranscript(sessionId);
       if (!result.ok) { notice = result.message; return; }
       if (expanded === sessionId) { expanded = null; preview = null; }
+      if (htmlSample?.sessionId === sessionId) htmlSample = null;
+      htmlPreviewRevision += 1;
       if (receipt?.sessionId === sessionId) receipt = null;
       confirming = null;
       onDeleted?.();
@@ -151,6 +182,11 @@
                 onclick={() => void togglePreview(session.session_id)}>
                 {expanded === session.session_id ? "Hide" : "Read"}
               </button>
+              <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs"
+                disabled={busy || previewBusy} aria-expanded={htmlSample?.sessionId === session.session_id}
+                onclick={() => void toggleHtmlPreview(session.session_id)}>
+                {htmlSample?.sessionId === session.session_id ? "Hide HTML Preview" : "Preview HTML"}
+              </button>
               <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs" disabled={busy}
                 onclick={() => void exportHtml(session.session_id)}><Download size={14}/>Export HTML</button>
               <button type="button" class="ti-button ti-button-secondary min-h-9 text-xs" disabled={busy}
@@ -168,6 +204,17 @@
                 <button type="button" class="ti-button ti-button-secondary min-h-9"
                   onclick={() => confirming = null}>Cancel</button>
               </div>
+            </div>
+          {/if}
+          {#if htmlSample?.sessionId === session.session_id}
+            <div class="grid gap-2 rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] p-3">
+              <strong class="text-sm">HTML document preview</strong>
+              <p class="m-0 text-xs text-[var(--ti-text-muted)]">
+                Sample of the latest {htmlSample.entryCount} saved entries, rendered with the HTML export template.
+                The final file includes all archived entries. Switch reading language inside the preview.
+              </p>
+              <iframe title="Offline HTML transcript document preview" sandbox=""
+                srcdoc={htmlSample.html} class="h-[480px] w-full rounded-[var(--ti-radius-md)] border border-[var(--ti-border)] bg-[var(--ti-bg)]"></iframe>
             </div>
           {/if}
           {#if expanded === session.session_id}

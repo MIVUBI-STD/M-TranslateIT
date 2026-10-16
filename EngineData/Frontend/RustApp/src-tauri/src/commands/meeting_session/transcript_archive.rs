@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
@@ -52,6 +52,8 @@ struct ArchiveWriter {
     sender: SyncSender<Record>,
     thread: Option<JoinHandle<()>>,
     errors: Arc<AtomicU64>,
+    finish_reply: Option<mpsc::Receiver<bool>>,
+    finish_acknowledged: bool,
 }
 
 static WRITER: OnceLock<Mutex<Option<ArchiveWriter>>> = OnceLock::new();
@@ -166,6 +168,7 @@ pub(super) fn start_session(session_id: &str) -> Result<(), String> {
         .map_err(|_| "Could not start local transcript storage.".to_string())?;
     *guard = Some(ArchiveWriter {
         session_id: session_id.to_string(), sender, thread: Some(handle), errors,
+        finish_reply: None, finish_acknowledged: false,
     });
     Ok(())
 }
@@ -192,25 +195,50 @@ pub(super) fn finish_session(session_id: &str) -> bool {
     let Ok(mut guard) = writer_store().lock() else { return false };
     let Some(writer) = guard.as_mut() else { return true };
     if writer.session_id != session_id { return false }
-    let (ack_tx, ack_rx) = mpsc::channel();
-    if writer.sender.try_send(Record::Finish(ack_tx)).is_err() {
-        return false;
+
+    // A Stop timeout does not mean Finish was never accepted. Keep the same
+    // receiver and JoinHandle so Retry Stop cannot enqueue a second Finish
+    // behind the now-disconnected writer and get stuck indefinitely.
+    if writer.finish_reply.is_none() && !writer.finish_acknowledged {
+        let (tx, rx) = mpsc::channel();
+        if writer.sender.try_send(Record::Finish(tx)).is_err() {
+            return false;
+        }
+        writer.finish_reply = Some(rx);
     }
-    let Ok(_marked) = ack_rx.recv_timeout(FINISH_WAIT) else { return false };
-    // Worker sent the receipt as its last action. Retain a stopped worker
-    // handle only until it can be confirmed exited without blocking Stop.
-    let owned = guard.take();
-    drop(guard);
-    if let Some(mut owned) = owned {
-        if let Some(handle) = owned.thread.take() {
-            // The last reply was sent immediately before return.
-            if handle.is_finished() { let _ = handle.join(); }
+    if !writer.finish_acknowledged {
+        let reply = writer.finish_reply.as_ref().expect("finish receiver retained");
+        match reply.recv_timeout(FINISH_WAIT) {
+            Ok(_marker_written) => {
+                // A marker-write failure is reflected by the lack of a valid
+                // finished marker, never confused with session cleanup success.
+                writer.finish_acknowledged = true;
+                writer.finish_reply = None;
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => return false,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                // An unexpectedly exited worker cannot be joined blindly.
+                // Keep its owner unless its actual thread exit is confirmed.
+                if writer.thread.as_ref().is_some_and(|t| !t.is_finished()) {
+                    return false;
+                }
+                if let Ok(dir) = session_dir(session_id) {
+                    let _ = write_marker(&dir, "storage_warning");
+                }
+                writer.finish_acknowledged = true;
+                writer.finish_reply = None;
+            }
         }
     }
-    // The worker has exited its write loop. A marker failure indicates
-    // incomplete durable evidence, not an indefinitely owned audio session.
-    // Listing treats missing "finished" as unverified after restart.
-    true
+
+    let started = Instant::now();
+    while writer.thread.as_ref().is_some_and(|thread| !thread.is_finished()) {
+        let remaining = Duration::from_millis(250).saturating_sub(started.elapsed());
+        if remaining.is_zero() { return false }
+        thread::sleep(remaining.min(Duration::from_millis(10)));
+    }
+    let mut owned = guard.take().expect("matching archive owner retained");
+    owned.thread.take().is_none_or(|handle| handle.join().is_ok())
 }
 
 pub fn list_saved_sessions() -> SavedMeetingSessions {
