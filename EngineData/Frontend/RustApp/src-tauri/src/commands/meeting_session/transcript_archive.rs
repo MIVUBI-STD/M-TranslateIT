@@ -509,12 +509,14 @@ pub(super) fn read_saved_turns(id: &str, preview_limit: Option<usize>) -> Result
         let first = paths.len().saturating_sub(limit.min(MAX_SAVED_PREVIEW));
         paths.drain(..first);
     }
+    // The session state does not change during a single bounded preview.
+    // Resolve it once rather than taking the runtime state lock per entry.
+    let active = latest_runtime_session_state().snapshot.as_ref().is_some_and(
+        |session| session.owner_id == APPLICATION_MEETING_OWNER_ID && session.session_id == id
+    );
     let mut turns = Vec::with_capacity(paths.len());
     for path in paths {
         let mut turn = read_validated_turn(&path, id)?;
-        let active = latest_runtime_session_state().snapshot.as_ref().is_some_and(
-            |session| session.owner_id == APPLICATION_MEETING_OWNER_ID && session.session_id == id
-        );
         if !active && turn.translation_state == "pending" {
             turn.translation_state = "failed".to_string();
             if turn.lane == "you" { turn.delivery_state = Some("interrupted".to_string()); }

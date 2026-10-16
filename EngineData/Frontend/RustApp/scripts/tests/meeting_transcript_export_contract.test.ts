@@ -270,3 +270,17 @@ test("saved transcript previews share the existing Delete-Export archive lock", 
   assert.match(archive, /transcript_archive:read_lock_failed/);
   assert.doesNotMatch(memory, /saved_session_operation_guard\(/);
 });
+
+test("Live HTML sample distinguishes ongoing translation from failure or interrupted archive", () => {
+  assert.match(html, /let \(message, tone\) = if turn\.translation_state == "pending"/);
+  assert.match(html, /\("Translation in progress\.", "pending"\)/);
+  assert.match(html, /\("Translation unavailable\.", "unavailable"\)/);
+  assert.match(html, /\.pending \{ color:var\(--muted\); \}/);
+  assert.match(html, /fn pending_translation_is_not_reported_as_failed_while_meeting_is_active\(/);
+  assert.match(html, /let active = latest_runtime_session_state\(\)\.snapshot\.as_ref\(\)\.is_some_and/);
+  assert.match(html, /let incomplete = if active \{\s*active_write_errors\(&session_id\) > 0/);
+  assert.match(html, /Meeting in progress\./);
+  assert.match(html, /New recognized entries and pending translations may still change/);
+  assert.match(archive, /Resolve it once rather than taking the runtime state lock per entry/);
+  assert.match(archive, /if !active && turn\.translation_state == "pending"/);
+});

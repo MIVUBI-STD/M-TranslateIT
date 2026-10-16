@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 use super::transcript_archive::{
-    read_saved_turns, saved_session_entry_count, saved_session_operation_guard,
+    active_write_errors, read_saved_turns, saved_session_entry_count, saved_session_operation_guard,
     session_warning, stream_saved_turns,
 };
 use super::MeetingCommittedTurn;
@@ -121,6 +121,7 @@ body:has(#view-en:checked) .version[data-language="id"] { display:none; }
 .lang-label { display:block; color:var(--muted); font-size:10px; letter-spacing:.05em; font-weight:650; margin-bottom:3px; }
 .body-text { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; font-size:14px; line-height:1.6; }
 .unavailable { color:var(--warning); }
+.pending { color:var(--muted); }
 .original-fallback { display:none; margin-top:9px; border-top:1px solid var(--border); padding-top:9px; }
 body:has(#view-id:checked) .original-fallback,
 body:has(#view-en:checked) .original-fallback { display:block; }
@@ -182,10 +183,17 @@ fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Resu
     if turn.translation_state == "translated" && !turn.translated_text.trim().is_empty() {
         write!(w, "<p class=\"body-text\" lang=\"{}\">{}</p>", target_code, html_escape(&turn.translated_text))?;
     } else {
+        // Pending only applies to an active preview. Saved stopped sessions
+        // are normalized to failed when read. Neither state is a translation.
+        let (message, tone) = if turn.translation_state == "pending" {
+            ("Translation in progress.", "pending")
+        } else {
+            ("Translation unavailable.", "unavailable")
+        };
         // The target-language lane must not pretend that source-language
-        // fallback text was translated. Reveal the source only in
-        // single-language reading modes, with its actual language marked.
-        write!(w, "<p class=\"body-text unavailable\">Translation unavailable.</p><div class=\"original-fallback\"><span class=\"lang-label\">ORIGINAL FALLBACK · {source_lang}</span><p class=\"body-text\" lang=\"{source_code}\">{}</p></div>", html_escape(&turn.source_text))?;
+        // fallback text was translated. Reveal original speech only in
+        // single-language reading modes with its actual language marked.
+        write!(w, "<p class=\"body-text {tone}\">{message}</p><div class=\"original-fallback\"><span class=\"lang-label\">ORIGINAL FALLBACK · {source_lang}</span><p class=\"body-text\" lang=\"{source_code}\">{}</p></div>", html_escape(&turn.source_text))?;
     }
     w.write_all(b"</div></article>")
 }
@@ -217,11 +225,25 @@ pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
         Ok(_) => return failed("No saved conversation entries are available.".to_string()),
         Err(reason) => return failed(reason),
     };
-    let incomplete = session_warning(&session_id).unwrap_or(true);
+    // An active archive has no finished receipt by design. Do not label
+    // an otherwise healthy in-progress Meeting as a storage failure merely
+    // because Stop has not finalized it.
+    let active = latest_runtime_session_state().snapshot.as_ref().is_some_and(|session|
+        session.owner_id == APPLICATION_MEETING_OWNER_ID && session.session_id == session_id
+    );
+    let incomplete = if active {
+        active_write_errors(&session_id) > 0
+    } else {
+        session_warning(&session_id).unwrap_or(true)
+    };
     let mut buffer = Vec::new();
     let rendered = (|| -> std::io::Result<()> {
         write_header(&mut buffer, &session_id, turns.len(), true, incomplete)?;
-        buffer.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Sample preview.</strong> Only the latest saved entries are shown here. Export HTML after stopping the Meeting to include all archived entries. This preview does not prove that all spoken audio was recognized.</aside>")?;
+        if active {
+            buffer.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Meeting in progress.</strong> This sample is not a final transcript. New recognized entries and pending translations may still change. Export HTML after stopping to obtain a finalized snapshot of available saved entries.</aside>")?;
+        } else {
+            buffer.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Sample preview.</strong> Only the latest saved entries are shown here. The full HTML export includes all available archived entries. This preview does not prove that all spoken audio was recognized.</aside>")?;
+        }
         for turn in &turns {
             write_turn(&mut buffer, turn)?;
         }
@@ -382,6 +404,32 @@ mod tests {
         assert!(html.contains("ORIGINAL FALLBACK · English"));
         assert!(html.contains("lang=\"en\""));
         assert!(!html.contains("Translation unavailable. Original text:"));
+    }
+
+    #[test]
+    fn pending_translation_is_not_reported_as_failed_while_meeting_is_active() {
+        let turn = MeetingCommittedTurn {
+            session_id: "meeting_1760600000000_1".to_string(),
+            sequence: 1,
+            generation: None,
+            utterance_id: 1,
+            lane: "incoming".to_string(),
+            source_language: "en".to_string(),
+            target_language: "id".to_string(),
+            source_text: "Review tomorrow.".to_string(),
+            translated_text: String::new(),
+            translation_state: "pending".to_string(),
+            delivery_state: None,
+            outbound_timing: None,
+            created_unix_ms: 1_760_600_000_000,
+            updated_unix_ms: 1_760_600_000_001,
+        };
+        let mut html = Vec::new();
+        write_turn(&mut html, &turn).unwrap();
+        let html = String::from_utf8(html).unwrap();
+        assert!(html.contains("Translation in progress."));
+        assert!(!html.contains("Translation unavailable."));
+        assert!(html.contains("ORIGINAL FALLBACK · English"));
     }
 
     #[test]
