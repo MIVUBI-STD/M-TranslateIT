@@ -295,7 +295,12 @@ impl MeetingCommittedTurnStore {
         true
     }
 
-    fn interrupt_generation_at(&mut self, generation: u64, now_unix_ms: u128) {
+    fn interrupt_generation_at(
+        &mut self,
+        generation: u64,
+        now_unix_ms: u128,
+    ) -> Vec<MeetingCommittedTurn> {
+        let mut changed = Vec::new();
         for turn in &mut self.turns {
             if turn.generation == Some(generation)
                 && !terminal_delivery_state(turn.delivery_state.as_deref())
@@ -305,8 +310,11 @@ impl MeetingCommittedTurnStore {
                     turn.translation_state = "failed".to_string();
                 }
                 turn.updated_unix_ms = now_unix_ms;
+                // Only actual changed entries need a durable update.
+                changed.push(turn.clone());
             }
         }
+        changed
     }
 
     // On-demand aggregate over already bounded committed turns. Only
@@ -610,6 +618,11 @@ pub(super) fn begin_committed_playback(
         return false;
     };
     let claimed = store.begin_playback_at(session_id, generation, sequence, utterance_id, unix_ms());
+    if claimed {
+        if let Some(turn) = store.turns.iter().find(|turn| turn.sequence == sequence) {
+            transcript_archive::queue_turn(turn.clone());
+        }
+    }
     drop(guard);
     if claimed {
         emit_meeting_runtime_event("delivery_state_changed", Some(session_id), Some(sequence));
@@ -636,6 +649,16 @@ pub(super) fn update_committed_turn_delivery_state(
         delivery_state,
         unix_ms(),
     );
+    if updated {
+        if let Some(turn) = store.turns.iter().find(|turn| {
+            turn.generation == Some(generation) && turn.utterance_id == utterance_id
+                && turn.lane == "you"
+        }) {
+            // Terminal duplicate acknowledgements can be idempotent; the
+            // single writer still replaces this exact entry, never appends.
+            transcript_archive::queue_turn(turn.clone());
+        }
+    }
     drop(guard);
     if updated {
         emit_meeting_runtime_event("delivery_state_changed", Some(session_id), None);
@@ -655,7 +678,16 @@ pub(super) fn update_committed_turn_outbound_timing(
     let Some(store) = guard.as_mut() else {
         return false;
     };
-    store.update_outbound_timing_at(session_id, generation, utterance_id, timing, unix_ms())
+    let updated = store.update_outbound_timing_at(session_id, generation, utterance_id, timing, unix_ms());
+    if updated {
+        if let Some(turn) = store.turns.iter().find(|turn| {
+            turn.generation == Some(generation) && turn.utterance_id == utterance_id
+                && turn.lane == "you"
+        }) {
+            transcript_archive::queue_turn(turn.clone());
+        }
+    }
+    updated
 }
 
 pub(super) fn interrupt_committed_turns_for_generation(session_id: &str, generation: u64) {
@@ -668,7 +700,11 @@ pub(super) fn interrupt_committed_turns_for_generation(session_id: &str, generat
     if store.session_id != session_id {
         return;
     }
-    store.interrupt_generation_at(generation, unix_ms());
+    // Stop's interruption state must reach the disk queue before the Finish
+    // record. The writer preserves exactly the enqueue order of mutations.
+    for turn in store.interrupt_generation_at(generation, unix_ms()) {
+        transcript_archive::queue_turn(turn);
+    }
 }
 
 fn empty_committed_turn_snapshot(
@@ -1090,6 +1126,51 @@ mod tests {
         assert_eq!(accepted.translated_text, oversized_translation);
         assert!(store.turns.is_empty(), "Live memory remains bounded");
         assert_eq!(store.dropped_turn_count, 1);
+    }
+
+    #[test]
+    fn stop_returns_only_newly_interrupted_turns_for_disk_update() {
+        let mut store = MeetingCommittedTurnStore::new("session-a");
+        assert!(store.commit_at(
+            "session-a", 1, Some(7), 11, "you", "id", "en",
+            "Halo", "", Some("translating"), Some(timing(100)), 100,
+        ).is_some());
+        assert!(store.commit_at(
+            "session-a", 2, Some(7), 12, "you", "id", "en",
+            "Terima kasih", "Thank you", Some("output_complete"), Some(timing(101)), 101,
+        ).is_some());
+
+        let changed = store.interrupt_generation_at(7, 200);
+        assert_eq!(changed.len(), 1);
+        assert_eq!(changed[0].sequence, 1);
+        assert_eq!(changed[0].delivery_state.as_deref(), Some("interrupted"));
+        assert_eq!(changed[0].translation_state, "failed");
+        assert_eq!(changed[0].updated_unix_ms, 200);
+        assert!(store.interrupt_generation_at(7, 300).is_empty(),
+            "Retry Stop must not enqueue a duplicate interruption");
+        let completed = store.turns.iter().find(|turn| turn.sequence == 2).unwrap();
+        assert_eq!(completed.delivery_state.as_deref(), Some("output_complete"));
+    }
+
+    #[test]
+    fn final_playback_state_and_timing_remain_attached_to_one_turn() {
+        let mut store = MeetingCommittedTurnStore::new("session-a");
+        assert!(store.commit_at(
+            "session-a", 5, Some(7), 51, "you", "id", "en",
+            "Penting", "Important", Some("preparing_voice"), Some(timing(1_000)), 1_000,
+        ).is_some());
+        assert!(store.update_delivery_state_at("session-a", 7, 51, "queued", 1_010));
+        assert!(store.begin_playback_at("session-a", 7, 5, 51, 1_020));
+        assert!(store.update_delivery_state_at("session-a", 7, 51, "output_complete", 1_030));
+        let mut measured = timing(1_000);
+        measured.first_playback_unix_ms = Some(1_025);
+        measured.outbound_latency_ms = Some(25);
+        assert!(store.update_outbound_timing_at("session-a", 7, 51, &measured, 1_040));
+        let turn = store.turns.front().unwrap();
+        assert_eq!(turn.sequence, 5);
+        assert_eq!(turn.delivery_state.as_deref(), Some("output_complete"));
+        assert_eq!(turn.outbound_timing.as_ref().and_then(|t| t.outbound_latency_ms), Some(25));
+        assert_eq!(turn.updated_unix_ms, 1_040);
     }
 
     #[test]

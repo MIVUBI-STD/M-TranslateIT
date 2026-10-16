@@ -159,7 +159,13 @@ test("accepted turn survives immediate bounded-memory eviction before disk queue
   assert.match(memory, /if let Some\(turn\) = updated \{\s*transcript_archive::queue_turn\(turn\);/);
   assert.match(memory, /fn archive_receives_new_source_even_when_memory_evicts_it_immediately\(/);
   assert.match(memory, /fn archive_receives_completed_translation_even_if_updated_turn_is_evicted\(/);
-  assert.doesNotMatch(memory, /if let Some\(turn\) = store\.turns\.iter\(\)\.find\(\|turn\| turn\.sequence == sequence\)/);
+  // Only initial recognition/translation may bypass the bounded buffer:
+  // their owned accepted records reach the queue before eviction.
+  const sourceAndTranslation = memory.slice(
+    memory.indexOf("pub(super) fn commit_meeting_turn("),
+    memory.indexOf("// Sequence + source identity and queued state"),
+  );
+  assert.doesNotMatch(sourceAndTranslation, /store\.turns\.iter\(\)\.find\(\|turn\| turn\.sequence == sequence\)/);
   assert.match(archive, /pub\(super\) fn queue_turn\(turn: MeetingCommittedTurn\)/);
   assert.match(archive, /Record::Turn\(record\)/);
 });
@@ -283,4 +289,24 @@ test("Live HTML sample distinguishes ongoing translation from failure or interru
   assert.match(html, /New recognized entries and pending translations may still change/);
   assert.match(archive, /Resolve it once rather than taking the runtime state lock per entry/);
   assert.match(archive, /if !active && turn\.translation_state == "pending"/);
+});
+
+test("committed delivery, playback timing and Stop interruption reach the same disk writer", () => {
+  const claim = memory.slice(memory.indexOf("pub(super) fn begin_committed_playback("),
+    memory.indexOf("pub(super) fn update_committed_turn_delivery_state("));
+  const delivery = memory.slice(memory.indexOf("pub(super) fn update_committed_turn_delivery_state("),
+    memory.indexOf("pub(super) fn update_committed_turn_outbound_timing("));
+  const timing = memory.slice(memory.indexOf("pub(super) fn update_committed_turn_outbound_timing("),
+    memory.indexOf("pub(super) fn interrupt_committed_turns_for_generation("));
+  const stop = memory.slice(memory.indexOf("pub(super) fn interrupt_committed_turns_for_generation("),
+    memory.indexOf("fn empty_committed_turn_snapshot("));
+  for (const section of [claim, delivery, timing, stop]) {
+    assert.match(section, /transcript_archive::queue_turn\(/);
+  }
+  assert.match(memory, /fn interrupt_generation_at\([\s\S]*?\) -> Vec<MeetingCommittedTurn>/);
+  assert.match(memory, /changed\.push\(turn\.clone\(\)\)/);
+  assert.match(stop, /for turn in store\.interrupt_generation_at\(generation, unix_ms\(\)\)/);
+  assert.match(memory, /fn stop_returns_only_newly_interrupted_turns_for_disk_update\(/);
+  assert.match(memory, /fn final_playback_state_and_timing_remain_attached_to_one_turn\(/);
+  assert.match(archive, /Record::Turn\(record\)/);
 });
