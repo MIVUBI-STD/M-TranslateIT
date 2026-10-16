@@ -525,6 +525,17 @@ pub(super) fn read_saved_turns(id: &str, preview_limit: Option<usize>) -> Result
 }
 
 pub fn saved_session_preview(session_id: String) -> MeetingCommittedTurnsSnapshot {
+    // A saved read must not race explicit Delete. This disk-only owner is not
+    // shared with the live Meeting audio, ASR, translation or writer queue.
+    let _operation = match saved_session_operation_guard() {
+        Ok(guard) => guard,
+        Err(error) => return MeetingCommittedTurnsSnapshot {
+            ok: false, has_session: false, session_id: Some(session_id),
+            turns: Vec::new(), dropped_turn_count: 0, archive_write_errors: 0, truncated: false,
+            blocker: "transcript_archive:read_lock_failed".to_string(), note: error,
+            runtime_claim: "saved_transcript_disk_read_not_verified".to_string(),
+        },
+    };
     match read_saved_turns(&session_id, Some(MAX_SAVED_PREVIEW)) {
         Ok(turns) => MeetingCommittedTurnsSnapshot {
             ok: true, has_session: false, session_id: Some(session_id),

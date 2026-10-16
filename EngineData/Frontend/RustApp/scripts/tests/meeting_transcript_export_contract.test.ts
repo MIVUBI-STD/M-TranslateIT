@@ -260,3 +260,13 @@ test("Live transcript surfaces the first actual storage failure with existing Me
   assert.match(eventMonitors, /void pollMeeting\(true\)/);
   assert.match(reader, /if \(statusKey === previousStatusKey && !forceTurns\)/);
 });
+
+test("saved transcript previews share the existing Delete-Export archive lock", () => {
+  assert.match(archive, /static SAVED_SESSION_OPERATIONS: OnceLock<Mutex<\(\)>>/);
+  assert.match(archive, /pub fn saved_session_preview\(session_id: String\)[\s\S]*?saved_session_operation_guard\(\)/);
+  assert.match(html, /pub fn preview_saved_html\(session_id: String\)[\s\S]*?saved_session_operation_guard\(\)/);
+  assert.match(html, /pub fn export_saved_html\(session_id: String\)[\s\S]*?saved_session_operation_guard\(\)/);
+  assert.match(archive, /pub fn delete_saved_session\(session_id: String\)[\s\S]*?saved_session_operation_guard\(\)/);
+  assert.match(archive, /transcript_archive:read_lock_failed/);
+  assert.doesNotMatch(memory, /saved_session_operation_guard\(/);
+});

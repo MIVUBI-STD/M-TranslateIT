@@ -202,6 +202,13 @@ pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
     if !valid_id(&session_id) {
         return failed("Invalid Meeting session identity.".to_string());
     }
+    // Match Export/Delete source-archive ownership while rendering the
+    // bounded sample. Without this, Read Preview could observe a directory
+    // halfway through explicit Delete and report a misleading partial result.
+    let _operation = match saved_session_operation_guard() {
+        Ok(guard) => guard,
+        Err(error) => return failed(error),
+    };
     // Keep the HTML render path identical to the actual export, but only
     // render a small sample. Avoid sending a huge document through the Tauri
     // bridge or rendering thousands of transcript nodes in the app.
