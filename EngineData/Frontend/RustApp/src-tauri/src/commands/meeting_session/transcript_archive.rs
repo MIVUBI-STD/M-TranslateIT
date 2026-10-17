@@ -617,8 +617,10 @@ pub fn delete_saved_session(session_id: String) -> ArchiveActionResult {
     ) {
         return ArchiveActionResult { ok: false, message: "Stop this Meeting before deleting its transcript.".to_string() };
     }
-    if writer_store().lock().ok().and_then(|g| g.as_ref().map(|w| w.session_id == session_id)).unwrap_or(false) {
-        return ArchiveActionResult { ok: false, message: "Transcript storage is still finishing. Retry after Stop.".to_string() };
+    // A poisoned writer mutex is unknown, not proof that the writer exited.
+    // Reuse the fail-closed writer ownership gate required by HTML export.
+    if ensure_saved_session_writer_finished(&session_id).is_err() {
+        return ArchiveActionResult { ok: false, message: "Cannot confirm transcript storage is finished. Retry Stop before deleting.".to_string() };
     }
     let valid_dir = dir.is_dir() && !fs::symlink_metadata(&dir).is_ok_and(|m| m.file_type().is_symlink());
     if !valid_dir {

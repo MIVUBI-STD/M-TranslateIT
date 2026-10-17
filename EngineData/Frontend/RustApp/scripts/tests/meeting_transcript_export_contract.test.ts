@@ -122,6 +122,26 @@ test("archive Retry Stop keeps the same finish receipt and JoinHandle on timeout
   assert.match(archive, /guard\.take\(\)\.expect\("matching archive owner retained"\)/);
 });
 
+test("saved transcript Delete cannot bypass an unknown or active archive writer", () => {
+  const deleteBody = archive.slice(
+    archive.indexOf("pub fn delete_saved_session("),
+    archive.indexOf("#[cfg(test)]", archive.indexOf("pub fn delete_saved_session(")),
+  );
+  assert.match(deleteBody, /saved_session_operation_guard\(\)/);
+  assert.match(deleteBody, /ensure_saved_session_writer_finished\(&session_id\)/);
+  assert.doesNotMatch(deleteBody, /writer_store\(\)\.lock\(\)\.ok\(\)/);
+  assert.ok(deleteBody.indexOf("ensure_saved_session_writer_finished(&session_id)") <
+    deleteBody.indexOf("fs::remove_dir_all(dir)"),
+    "writer must be verifiably finished before archive removal");
+  const writerGate = archive.slice(
+    archive.indexOf("pub(super) fn ensure_saved_session_writer_finished("),
+    archive.indexOf("pub(super) fn finish_session("),
+  );
+  assert.match(writerGate, /let guard = writer_store\(\)\.lock\(\)/);
+  assert.match(writerGate, /\.map_err\(\|_\|/);
+  assert.match(writerGate, /writer\.session_id == session_id/);
+});
+
 test("large transcript disk operations use Tauri blocking workers, not synchronous UI commands", () => {
   for (const command of [
     "list_saved_meeting_transcripts",
