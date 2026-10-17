@@ -1,6 +1,6 @@
 # TranslateIT — staged source repair after end-to-end audit
 
-**Active:** Meeting Start/Stop lifecycle source hardening. **Date:** 2026-10-17. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
+**Active:** Source-integrated archive lifecycle review after Meeting transcript contract reconciliation. **Date:** 2026-10-17. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; execution/native evidence `UNKNOWN / NOT EXECUTED`.
 
 **Active source candidate:** Persistent local Meeting transcript archives remain available across Stop, restart and HTML export until explicit user Delete. A versioned finalization receipt records the saved entry count; the Saved Transcripts label now explicitly distinguishes finalization **count verification** from content verification. Orphaned `.tmp` files, count mismatches and legacy markers remain unverified rather than silently accepted or deleted.
 
@@ -18,7 +18,7 @@
 
 **Save As and proof boundary:** Native Save As is NOT implemented; the source dependency lock does not contain the Tauri dialog plugin. App-owned export + Open File/Folder/Copy Location remain the only functional path in source. Rust compilation, Svelte typecheck, executed tests, crash fault injection, browser print and TARGET_WINDOWS acceptance are `UNKNOWN / NOT EXECUTED`.
 
-**Next:** Finish one integrated local/Windows acceptance covering active writer/Retry Stop vs Export, interrupted `.partial` cleanup and its failure, historical exported HTML retention, preview byte caps, large Unicode transcript export, archive disk failure, browser/print and explicit saved-session deletion. Rust/Svelte execution remains `UNKNOWN / NOT EXECUTED`. Native Save As still needs a pinned dialog plugin with coherent Cargo.lock/toolchain integration; no release claim before evidence.
+**Contract correction:** The canonical PR-100/101/103/104, D10/D11, Windows runbook and product/storage entrypoints now describe the existing Meeting-specific recognized-text archive: automatic session retention until explicit Delete, while raw audio stays temporary and manual HTML exports are separate. No archive implementation or native acceptance is implied by documentation alignment.
 
 ## Retained My Voice source candidate (paused)
 
@@ -227,12 +227,12 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Prepare a source-integrated candidate for the existing local/Windows acceptance
-gate. Source-check Rust/Tauri bridge signatures, HTML preview/export parity,
-archive Start/Stop/Retry Stop, and explicit deletion without claiming executed
-proof. Run the integrated local build/acceptance only with an authorized Windows
-environment. Native Save As remains a named unimplemented feature pending a
-proper pinned plugin/lockfile source update. Summarization stays canceled.
+Source-audit the canonical archive Start/Stop/Retry Stop path for both Original
+and TranslateIT Meeting sources, including failed archive creation, disk faults,
+writer release, HTML Preview/Export and Delete isolation across Rust/Tauri/Svelte.
+Close only demonstrable static blockers before freezing an exact-sha integrated
+Windows candidate. Native Save As remains unimplemented and summarization
+stays canceled; executable/native results remain UNKNOWN / NOT EXECUTED.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.

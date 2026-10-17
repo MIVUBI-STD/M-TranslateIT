@@ -90,10 +90,12 @@ The Svelte frontend is current architecture, not a future migration target.
 ```text
 UserData/CacheData/             temporary runtime/build data
 UserData/LogData/               minimal/redacted diagnostics
-UserData/SavedProject/VoiceLab/ approved persistent My Voice actor
+UserData/SavedProject/VoiceLab/             approved persistent My Voice actor
+UserData/SavedProject/Transcripts/Sessions/ recognized local Meeting transcript archives
+UserData/SavedProject/Transcripts/Exports/  manually exported offline HTML files
 ```
 
-`VoiceLab` in storage/protocol identifiers is a retained compatibility name; product/UI terminology is **My Voice**.
+`VoiceLab` in storage/protocol identifiers is a retained compatibility name; product/UI terminology is **My Voice**. Saved Transcripts is a Meeting-specific local text archive, not a general History service or automatic model context. Archive Delete does not remove previously exported HTML.
 
 ## Release shape
 
