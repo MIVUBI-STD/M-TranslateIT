@@ -495,6 +495,13 @@ fn read_validated_turn(path: &Path, session_id: &str) -> Result<MeetingCommitted
         || !matches!(turn.source_language.as_str(), "id" | "en")
         || !matches!(turn.target_language.as_str(), "id" | "en")
         || turn.source_language == turn.target_language
+        // Match the canonical committed-turn constructor. A saved incoming
+        // caption cannot carry outbound generation/playback ownership, and
+        // a saved outbound turn must retain all three ownership fields.
+        || (turn.lane == "you" &&
+            (turn.generation.is_none() || turn.delivery_state.is_none() || turn.outbound_timing.is_none()))
+        || (turn.lane == "incoming" &&
+            (turn.generation.is_some() || turn.delivery_state.is_some() || turn.outbound_timing.is_some()))
         || turn.source_text.trim().is_empty()
         || !matches!(turn.translation_state.as_str(), "pending" | "translated" | "failed")
         || (turn.translation_state == "translated" && turn.translated_text.trim().is_empty())
@@ -693,6 +700,26 @@ mod tests {
         });
         std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
         assert_eq!(super::read_validated_turn(&path, session).unwrap().sequence, 1);
+
+        // A valid serialized JSON turn must still obey the owner/lane
+        // invariants that were checked before the turn was first committed.
+        value["generation"] = serde_json::json!(7);
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(super::read_validated_turn(&path, session).is_err(),
+            "incoming archive cannot claim an outbound generation");
+        value["generation"] = serde_json::Value::Null;
+        value["delivery_state"] = serde_json::json!("output_complete");
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(super::read_validated_turn(&path, session).is_err(),
+            "incoming archive cannot claim an outbound delivery");
+        value["delivery_state"] = serde_json::Value::Null;
+        value["lane"] = serde_json::json!("you");
+        value["generation"] = serde_json::json!(7);
+        std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(super::read_validated_turn(&path, session).is_err(),
+            "outbound archive requires both delivery state and timing");
+        value["lane"] = serde_json::json!("incoming");
+        value["generation"] = serde_json::Value::Null;
 
         value["sequence"] = serde_json::json!(2);
         std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
