@@ -14,7 +14,6 @@ test("ordinary runtime events may reuse cached deep readiness", () => {
     "stop_mic_test",
     "select_audio_device",
     "save_settings",
-    "apply_meeting_preset",
     "start_voice_recording",
     "stop_voice_recording",
   ]) {
@@ -22,6 +21,9 @@ test("ordinary runtime events may reuse cached deep readiness", () => {
   }
   assert.match(facade, /WORKER_REUSE_SAFE_REASONS/);
   assert.match(facade, /VOICE_REUSE_SAFE_REASONS/);
+  // Meeting Presets are retired; a stale event contract must not force the
+  // feature or its previous cache-bypass reason back into production.
+  assert.doesNotMatch(facade, /"apply_meeting_preset"/);
 });
 
 test("unknown runtime event reasons fail closed into deep refresh", () => {
