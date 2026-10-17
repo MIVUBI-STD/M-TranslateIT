@@ -218,7 +218,7 @@ test("saved JSON entry identity and content validation is shared by Preview and 
   assert.equal((archive.match(/read_validated_turn\(&path, id\)/g) ?? []).length, 2);
   assert.match(archive, /fn invalid_saved_entry_never_silently_enters_preview_or_html_export\(/);
   assert.match(archive, /truncated or damaged JSON must fail closed/);
-  assert.match(html, /stream_saved_turns\(&session_id, \|turn\|/);
+  assert.match(html, /stream_saved_turns\(&session_id, &inventory\.paths, \|turn\|/);
   assert.match(html, /fs::remove_file\(&temporary\)/);
   assert.match(html, /fs::rename\(&temporary, &destination\)/);
 });
@@ -228,7 +228,7 @@ test("single-pass HTML export and Delete share a disk-only operation guard", () 
   assert.match(archive, /fn saved_session_operation_guard\(\)/);
   assert.match(archive, /pub fn delete_saved_session[\s\S]*?saved_session_operation_guard\(\)/);
   assert.match(html, /pub fn export_saved_html[\s\S]*?saved_session_operation_guard\(\)/);
-  assert.match(html, /saved_session_entry_count\(&session_id\)/);
+  assert.match(html, /saved_export_inventory\(&session_id\)/);
   assert.equal((html.match(/stream_saved_turns\(&session_id/g) ?? []).length, 1);
   assert.doesNotMatch(html, /stream_saved_turns\(&session_id, \|_\|/);
 });
@@ -340,4 +340,31 @@ test("HTML transcript escaping streams large UTF-8 text without cloned escaped s
   assert.match(html, /fn streaming_html_escape_preserves_utf8_and_rejects_markup_injection\(/);
   assert.match(html, /output\.windows\(9\)/);
   assert.doesNotMatch(html, /html_escape\(&turn\.source_text\)|html_escape\(&turn\.translated_text\)/);
+});
+
+test("full HTML export snapshots one saved-session file inventory and decodes once", () => {
+  assert.match(archive, /pub\(super\) struct SavedExportInventory/);
+  assert.match(archive, /pub\(super\) fn saved_export_inventory\(id: &str\)/);
+  assert.match(archive, /let scan = scan_stored_turns\(&dir\)/);
+  assert.match(archive, /SavedExportInventory \{ paths: scan\.paths, incomplete \}/);
+  assert.match(archive, /pub\(super\) fn stream_saved_turns\(\s*id: &str,\s*paths: &\[PathBuf\]/);
+  assert.match(html, /saved_export_inventory\(&session_id\)/);
+  assert.match(html, /let incomplete = inventory\.incomplete/);
+  assert.match(html, /let count = inventory\.paths\.len\(\)/);
+  assert.match(html, /stream_saved_turns\(&session_id, &inventory\.paths, \|turn\|/);
+  assert.doesNotMatch(html, /saved_session_entry_count\(&session_id\)/);
+  assert.equal((html.match(/stream_saved_turns\(&session_id/g) ?? []).length, 1);
+});
+
+test("desktop preview has an encoded-byte limit independently of full HTML export", () => {
+  assert.match(archive, /const MAX_SAVED_READ_BYTES: u64 = 4 \* 1024 \* 1024/);
+  assert.match(archive, /fn admitted_preview_bytes\(current: u64, next: u64, limit: u64\)/);
+  assert.match(archive, /fs::metadata\(&path\)/);
+  assert.match(archive, /admitted_preview_bytes\(encoded_bytes, file_bytes, max_encoded_bytes\)/);
+  assert.match(archive, /fn preview_encoded_byte_budget_rejects_oversized_and_overflow_entries\(/);
+  assert.match(html, /MAX_HTML_PREVIEW_ENCODED_BYTES: u64 = 512 \* 1024/);
+  assert.match(html, /MAX_HTML_PREVIEW_ENTRIES, MAX_HTML_PREVIEW_ENCODED_BYTES/);
+  assert.match(ui, /if \(!result\.ok\)/);
+  assert.match(html, /stream_saved_turns\(&session_id, &inventory\.paths/);
+  assert.doesNotMatch(html.slice(html.indexOf("pub fn export_saved_html")), /MAX_HTML_PREVIEW_ENCODED_BYTES/);
 });

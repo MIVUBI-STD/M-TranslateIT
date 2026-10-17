@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 use super::transcript_archive::{
-    active_write_errors, read_saved_turns, saved_session_entry_count, saved_session_operation_guard,
+    active_write_errors, read_saved_turns, saved_export_inventory, saved_session_operation_guard,
     session_warning, stream_saved_turns,
 };
 use super::MeetingCommittedTurn;
@@ -36,6 +36,7 @@ pub struct HtmlTranscriptPreview {
 }
 
 const MAX_HTML_PREVIEW_ENTRIES: usize = 12;
+const MAX_HTML_PREVIEW_ENCODED_BYTES: u64 = 512 * 1024;
 
 fn unix_ms() -> u128 {
     SystemTime::now().duration_since(UNIX_EPOCH)
@@ -247,7 +248,9 @@ pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
     // Keep the HTML render path identical to the actual export, but only
     // render a small sample. Avoid sending a huge document through the Tauri
     // bridge or rendering thousands of transcript nodes in the app.
-    let turns = match read_saved_turns(&session_id, Some(MAX_HTML_PREVIEW_ENTRIES)) {
+    let turns = match read_saved_turns(
+        &session_id, MAX_HTML_PREVIEW_ENTRIES, MAX_HTML_PREVIEW_ENCODED_BYTES,
+    ) {
         Ok(turns) if !turns.is_empty() => turns,
         Ok(_) => return failed("No saved conversation entries are available.".to_string()),
         Err(reason) => return failed(reason),
@@ -303,17 +306,14 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
         Ok(guard) => guard,
         Err(error) => return failure(&error),
     };
-    let incomplete = match session_warning(&session_id) {
-        Ok(value) => value,
+    let inventory = match saved_export_inventory(&session_id) {
+        Ok(inventory) => inventory,
         Err(error) => return failure(&error),
     };
-    // Listing filenames obtains the header count; the actual HTML pass
-    // validates and decodes each JSON entry exactly once. A corrupt entry
-    // aborts before publication and retains the original archive untouched.
-    let count = match saved_session_entry_count(&session_id) {
-        Ok(count) => count,
-        Err(error) => return failure(&error),
-    };
+    // One scan provides stable paths/count and the finalized receipt status.
+    // Every turn is still validated when streamed into the temporary file.
+    let incomplete = inventory.incomplete;
+    let count = inventory.paths.len();
     if count == 0 {
         return failure("No saved conversation entries are available for this Meeting.");
     }
@@ -333,7 +333,7 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
         let file = File::create_new(&temporary).map_err(|_| "Could not start the HTML export file.".to_string())?;
         let mut w = BufWriter::new(file);
         write_header(&mut w, &session_id, count, false, incomplete).map_err(|_| "Cannot write HTML header.".to_string())?;
-        let exported = stream_saved_turns(&session_id, |turn| {
+        let exported = stream_saved_turns(&session_id, &inventory.paths, |turn| {
             write_turn(&mut w, turn).map_err(|_| "Cannot write a transcript entry.".to_string())
         })?;
         if exported != count {

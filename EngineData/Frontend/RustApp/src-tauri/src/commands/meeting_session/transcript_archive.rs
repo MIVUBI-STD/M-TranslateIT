@@ -25,6 +25,9 @@ const MAX_QUEUED_ESTIMATED_BYTES: usize = 128 * 1024 * 1024;
 const PER_QUEUED_RECORD_OVERHEAD: usize = 4096;
 const FINISH_WAIT: Duration = Duration::from_secs(5);
 const MAX_SAVED_PREVIEW: usize = 240;
+// Limit the desktop bridge payload independently of the unbounded full-file
+// HTML export. Encoded JSON bytes are checked BEFORE any preview decoding.
+const MAX_SAVED_READ_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SavedMeetingSession {
@@ -439,10 +442,28 @@ pub fn list_saved_sessions() -> SavedMeetingSessions {
     result
 }
 
-pub(super) fn saved_session_entry_count(id: &str) -> Result<usize, String> {
+pub(super) struct SavedExportInventory {
+    pub(super) paths: Vec<PathBuf>,
+    pub(super) incomplete: bool,
+}
+
+pub(super) fn saved_export_inventory(id: &str) -> Result<SavedExportInventory, String> {
     let dir = session_dir(id)?;
-    Ok(stored_turn_paths(&dir)
-        .map_err(|_| "Cannot list saved transcript entries.".to_string())?.len())
+    if !dir.is_dir() {
+        return Err("Saved Meeting transcript was not found.".to_string());
+    }
+    // One authoritative directory enumeration supplies count, status and
+    // paths for this export. Export and Delete share the saved-session lock;
+    // the full writer must already be stopped.
+    let scan = scan_stored_turns(&dir)
+        .map_err(|_| "Cannot inspect saved transcript entries.".to_string())?;
+    let finalized = matches!(
+        finished_receipt_count(&dir),
+        Ok(Some(expected)) if expected == scan.paths.len()
+    );
+    let incomplete = dir.join("storage_warning").exists()
+        || scan.has_unpublished_files || !finalized || active_write_errors(id) > 0;
+    Ok(SavedExportInventory { paths: scan.paths, incomplete })
 }
 
 fn read_validated_turn(path: &Path, session_id: &str) -> Result<MeetingCommittedTurn, String> {
@@ -473,11 +494,9 @@ fn read_validated_turn(path: &Path, session_id: &str) -> Result<MeetingCommitted
 
 pub(super) fn stream_saved_turns(
     id: &str,
+    paths: &[PathBuf],
     mut accept: impl FnMut(&MeetingCommittedTurn) -> Result<(), String>,
 ) -> Result<usize, String> {
-    let dir = session_dir(id)?;
-    let paths = stored_turn_paths(&dir)
-        .map_err(|_| "Cannot list saved transcript entries.".to_string())?;
     let count = paths.len();
     for path in paths {
         let mut turn = read_validated_turn(&path, id)?;
@@ -502,20 +521,29 @@ pub(super) fn session_warning(id: &str) -> Result<bool, String> {
         || active_write_errors(id) > 0)
 }
 
-pub(super) fn read_saved_turns(id: &str, preview_limit: Option<usize>) -> Result<Vec<MeetingCommittedTurn>, String> {
+fn admitted_preview_bytes(current: u64, next: u64, limit: u64) -> Option<u64> {
+    current.checked_add(next).filter(|size| *size <= limit)
+}
+
+pub(super) fn read_saved_turns(
+    id: &str, preview_limit: usize, max_encoded_bytes: u64,
+) -> Result<Vec<MeetingCommittedTurn>, String> {
     let dir = session_dir(id)?;
     let mut paths = stored_turn_paths(&dir).map_err(|_| "Cannot read saved transcript entries.".to_string())?;
-    if let Some(limit) = preview_limit {
-        let first = paths.len().saturating_sub(limit.min(MAX_SAVED_PREVIEW));
-        paths.drain(..first);
-    }
+    let first = paths.len().saturating_sub(preview_limit.min(MAX_SAVED_PREVIEW));
+    paths.drain(..first);
     // The session state does not change during a single bounded preview.
     // Resolve it once rather than taking the runtime state lock per entry.
     let active = latest_runtime_session_state().snapshot.as_ref().is_some_and(
         |session| session.owner_id == APPLICATION_MEETING_OWNER_ID && session.session_id == id
     );
     let mut turns = Vec::with_capacity(paths.len());
+    let mut encoded_bytes = 0_u64;
     for path in paths {
+        let file_bytes = fs::metadata(&path)
+            .map_err(|_| "Cannot measure saved transcript preview entry.".to_string())?.len();
+        encoded_bytes = admitted_preview_bytes(encoded_bytes, file_bytes, max_encoded_bytes)
+            .ok_or_else(|| "Saved transcript preview is too large to display safely. Use Export HTML after Stop to include the available full transcript.".to_string())?;
         let mut turn = read_validated_turn(&path, id)?;
         if !active && turn.translation_state == "pending" {
             turn.translation_state = "failed".to_string();
@@ -538,7 +566,7 @@ pub fn saved_session_preview(session_id: String) -> MeetingCommittedTurnsSnapsho
             runtime_claim: "saved_transcript_disk_read_not_verified".to_string(),
         },
     };
-    match read_saved_turns(&session_id, Some(MAX_SAVED_PREVIEW)) {
+    match read_saved_turns(&session_id, MAX_SAVED_PREVIEW, MAX_SAVED_READ_BYTES) {
         Ok(turns) => MeetingCommittedTurnsSnapshot {
             ok: true, has_session: false, session_id: Some(session_id),
             turns, dropped_turn_count: 0, archive_write_errors: 0, truncated: false,
@@ -588,7 +616,7 @@ pub fn delete_saved_session(session_id: String) -> ArchiveActionResult {
 
 #[cfg(test)]
 mod tests {
-    use super::{turn_name, valid_id, reserve_queued_bytes, finished_receipt_count,
+    use super::{turn_name, valid_id, reserve_queued_bytes, admitted_preview_bytes, finished_receipt_count,
         stored_turn_paths, scan_stored_turns, write_finished_receipt, MAX_QUEUED_ESTIMATED_BYTES};
     use std::sync::atomic::{AtomicUsize, Ordering};
     #[test]
@@ -667,6 +695,15 @@ mod tests {
         assert!(super::read_validated_turn(&path, session).is_err(),
             "truncated or damaged JSON must fail closed");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn preview_encoded_byte_budget_rejects_oversized_and_overflow_entries() {
+        assert_eq!(admitted_preview_bytes(0, 1024, 1024), Some(1024));
+        assert_eq!(admitted_preview_bytes(512, 512, 1024), Some(1024));
+        assert_eq!(admitted_preview_bytes(513, 512, 1024), None);
+        assert_eq!(admitted_preview_bytes(u64::MAX, 1, u64::MAX), None);
+        assert_eq!(admitted_preview_bytes(0, u64::MAX, 1024), None);
     }
 
     #[test]
