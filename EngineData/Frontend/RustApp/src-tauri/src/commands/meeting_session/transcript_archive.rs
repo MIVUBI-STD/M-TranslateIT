@@ -362,6 +362,36 @@ fn acknowledge_disconnected_writer_exit(writer: &mut ArchiveWriter) -> bool {
     true
 }
 
+// Never block status refresh while an orphaned writer is finalizing.
+// Contended or poisoned ownership is conservatively treated as unfinished.
+pub(super) fn inactive_writer_may_need_stop() -> bool {
+    writer_store().try_lock().map(|guard| guard.is_some()).unwrap_or(true)
+}
+
+fn runtime_confirmed_idle(report: &crate::engine::runtime_state::RuntimeSessionStateReport) -> bool {
+    !report.has_active_session && report.snapshot.is_none()
+        && report.blocker == "runtime_session:no_active_session"
+}
+
+// Called only by Stop without a runtime snapshot. Do not discard an existing
+// transcript writer merely because application session state is now idle.
+pub(super) fn finish_writer_without_session() -> bool {
+    if !runtime_confirmed_idle(&latest_runtime_session_state()) {
+        return false;
+    }
+    let session_id = match writer_store().lock() {
+        Ok(guard) => guard.as_ref().map(|writer| writer.session_id.clone()),
+        Err(_) => return false,
+    };
+    let Some(session_id) = session_id else { return true };
+    // No writer mutex is held across this check or Finish. If a different
+    // session takes ownership, finish_session's identity fence refuses it.
+    if !runtime_confirmed_idle(&latest_runtime_session_state()) {
+        return false;
+    }
+    finish_session(&session_id)
+}
+
 pub(super) fn finish_session(session_id: &str) -> bool {
     let Ok(mut guard) = writer_store().lock() else { return false };
     let Some(writer) = guard.as_mut() else { return true };
@@ -757,6 +787,26 @@ mod tests {
         assert!(super::read_validated_turn(&path, session).is_err(),
             "truncated or damaged JSON must fail closed");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn orphan_writer_recovery_requires_verified_idle_runtime() {
+        use super::runtime_confirmed_idle;
+        use crate::engine::runtime_state::RuntimeSessionStateReport;
+        let mut report = RuntimeSessionStateReport {
+            has_active_session: false,
+            snapshot: None,
+            active_age_ms: None,
+            ready_for_stop: false,
+            blocker: "runtime_session:no_active_session".to_string(),
+            note: String::new(),
+        };
+        assert!(runtime_confirmed_idle(&report));
+        report.has_active_session = true;
+        assert!(!runtime_confirmed_idle(&report));
+        report.has_active_session = false;
+        report.blocker = "runtime_session:state_lock_failed".to_string();
+        assert!(!runtime_confirmed_idle(&report));
     }
 
     #[test]

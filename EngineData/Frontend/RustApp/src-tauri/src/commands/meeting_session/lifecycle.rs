@@ -64,7 +64,14 @@ use super::{
 static STOP_CLEANUP_PENDING: AtomicBool = AtomicBool::new(false);
 
 pub(super) fn transient_stop_cleanup_pending() -> bool {
-    STOP_CLEANUP_PENDING.load(Ordering::Acquire)
+    if STOP_CLEANUP_PENDING.load(Ordering::Acquire) {
+        return true;
+    }
+    // A normal active Meeting writer is not an orphan. An idle runtime with
+    // an unreleased or unverified writer must instead expose Retry Stop.
+    let report = latest_runtime_session_state();
+    !report.has_active_session && report.snapshot.is_none()
+        && super::transcript_archive::inactive_writer_may_need_stop()
 }
 
 // A failed Starting transaction may release session ownership only after
@@ -654,7 +661,12 @@ pub(super) fn stop_meeting_translation_impl() -> MeetingSessionActionResult {
         clear_finalized_incoming_utterance_producer();
         let deferred_cleanup = clear_deferred_incoming_queue();
         clear_finalized_meeting_sequence();
-        let transcript_cleanup_ok = clear_inactive_committed_turns();
+        // No runtime snapshot does not prove that the writer has finished.
+        // Preserve active turns while Retry Stop still owns an orphan writer.
+        let writer_finished = super::transcript_archive::finish_writer_without_session();
+        let transcript_cleanup_ok = clear_transcript_only_after_retention(
+            writer_finished, clear_inactive_committed_turns,
+        );
         clear_outbound_status();
         clear_incoming_status();
         if !incoming_capture_stop.ok || deferred_cleanup.is_err() || !transcript_cleanup_ok {

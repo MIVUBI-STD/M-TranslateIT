@@ -122,6 +122,23 @@ test("archive Retry Stop keeps the same finish receipt and JoinHandle on timeout
   assert.match(archive, /guard\.take\(\)\.expect\("matching archive owner retained"\)/);
 });
 
+test("no-session Stop preserves transcript until the orphan writer is released", () => {
+  assert.match(archive, /fn runtime_confirmed_idle\(/);
+  assert.match(archive, /fn finish_writer_without_session\(/);
+  assert.match(archive, /fn inactive_writer_may_need_stop\(/);
+  assert.match(archive, /fn orphan_writer_recovery_requires_verified_idle_runtime\(/);
+  const stopBody = lifecycle.slice(
+    lifecycle.indexOf("let Some(snapshot) = current.snapshot.as_ref() else {"),
+    lifecycle.indexOf("let generation = snapshot.generation;"),
+  );
+  assert.match(stopBody, /finish_writer_without_session\(\)/);
+  assert.match(stopBody, /clear_transcript_only_after_retention\(/);
+  assert.ok(stopBody.indexOf("finish_writer_without_session()") <
+    stopBody.indexOf("clear_transcript_only_after_retention("));
+  assert.doesNotMatch(stopBody, /let transcript_cleanup_ok = clear_inactive_committed_turns\(\)/);
+  assert.match(lifecycle, /inactive_writer_may_need_stop\(\)/);
+});
+
 test("saved transcript Delete cannot bypass an unknown or active archive writer", () => {
   const deleteBody = archive.slice(
     archive.indexOf("pub fn delete_saved_session("),
