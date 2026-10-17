@@ -350,6 +350,18 @@ pub(super) fn ensure_saved_session_writer_finished(session_id: &str) -> Result<(
     Ok(())
 }
 
+// When the Finish channel disconnects, keep the writer until its actual
+// thread has exited. This resolves a crashed receiver without pretending it
+// successfully wrote a completion receipt.
+fn acknowledge_disconnected_writer_exit(writer: &mut ArchiveWriter) -> bool {
+    if !writer.thread.as_ref().is_some_and(|handle| handle.is_finished()) {
+        return false;
+    }
+    writer.finish_acknowledged = true;
+    writer.finish_reply = None;
+    true
+}
+
 pub(super) fn finish_session(session_id: &str) -> bool {
     let Ok(mut guard) = writer_store().lock() else { return false };
     let Some(writer) = guard.as_mut() else { return true };
@@ -360,10 +372,21 @@ pub(super) fn finish_session(session_id: &str) -> bool {
     // behind the now-disconnected writer and get stuck indefinitely.
     if writer.finish_reply.is_none() && !writer.finish_acknowledged {
         let (tx, rx) = mpsc::channel();
-        if writer.sender.try_send(Record::Finish(tx)).is_err() {
-            return false;
+        match writer.sender.try_send(Record::Finish(tx)) {
+            Ok(()) => writer.finish_reply = Some(rx),
+            Err(TrySendError::Full(_)) => return false,
+            Err(TrySendError::Disconnected(_)) => {
+                // The worker receiver may have exited before Stop could send
+                // Finish. Retry Stop must be able to reap its completed thread,
+                // but a thread still running retains ownership.
+                if !acknowledge_disconnected_writer_exit(writer) {
+                    return false;
+                }
+                if let Ok(dir) = session_dir(session_id) {
+                    let _ = write_marker(&dir, "storage_warning");
+                }
+            }
         }
-        writer.finish_reply = Some(rx);
     }
     if !writer.finish_acknowledged {
         let reply = writer.finish_reply.as_ref().expect("finish receiver retained");
@@ -378,14 +401,12 @@ pub(super) fn finish_session(session_id: &str) -> bool {
             Err(mpsc::RecvTimeoutError::Disconnected) => {
                 // An unexpectedly exited worker cannot be joined blindly.
                 // Keep its owner unless its actual thread exit is confirmed.
-                if writer.thread.as_ref().is_some_and(|t| !t.is_finished()) {
+                if !acknowledge_disconnected_writer_exit(writer) {
                     return false;
                 }
                 if let Ok(dir) = session_dir(session_id) {
                     let _ = write_marker(&dir, "storage_warning");
                 }
-                writer.finish_acknowledged = true;
-                writer.finish_reply = None;
             }
         }
     }
@@ -736,6 +757,55 @@ mod tests {
         assert!(super::read_validated_turn(&path, session).is_err(),
             "truncated or damaged JSON must fail closed");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn disconnected_finish_requires_thread_exit_before_releasing_owner() {
+        use super::{acknowledge_disconnected_writer_exit, ArchiveWriter, Record};
+        use std::sync::{mpsc, Arc};
+        use std::sync::atomic::AtomicU64;
+        use std::thread;
+        use std::time::{Duration, Instant};
+
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        let (started_tx, started_rx) = mpsc::channel::<()>();
+        let thread = thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+        });
+        started_rx.recv().unwrap();
+        let (sender, receiver) = mpsc::sync_channel::<Record>(1);
+        drop(receiver);
+        let mut writer = ArchiveWriter {
+            session_id: "meeting_disconnected_test".to_string(),
+            sender,
+            thread: Some(thread),
+            errors: Arc::new(AtomicU64::new(0)),
+            queued_bytes: Arc::new(AtomicUsize::new(0)),
+            finish_reply: None,
+            finish_acknowledged: false,
+        };
+        let (finish_tx, _) = mpsc::channel();
+        assert!(matches!(
+            writer.sender.try_send(Record::Finish(finish_tx)),
+            Err(mpsc::TrySendError::Disconnected(_))
+        ));
+        assert!(!acknowledge_disconnected_writer_exit(&mut writer),
+            "disconnected receiver does not prove the worker thread stopped");
+        assert!(!writer.finish_acknowledged);
+        assert!(writer.thread.is_some(), "retain the owned JoinHandle");
+
+        release_tx.send(()).unwrap();
+        let started = Instant::now();
+        while !writer.thread.as_ref().unwrap().is_finished()
+            && started.elapsed() < Duration::from_secs(2) {
+            thread::yield_now();
+        }
+        assert!(acknowledge_disconnected_writer_exit(&mut writer),
+            "a disconnected channel with an exited thread is recoverable");
+        assert!(writer.finish_acknowledged);
+        assert!(writer.finish_reply.is_none());
+        assert!(writer.thread.take().unwrap().join().is_ok());
     }
 
     #[test]
