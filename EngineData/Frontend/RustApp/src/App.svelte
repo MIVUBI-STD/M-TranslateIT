@@ -120,6 +120,9 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   ): void {
     applicationState = applicationController.read();
     if (!result.applied) return;
+    // A canonical application snapshot supersedes an earlier Meeting-only
+    // poll. Do not let that poll reapply stale Live/cleanup or caption state.
+    meetingViewState = meetingLiveController.invalidate();
 
     if (result.setupRequired) {
       meetingViewState = meetingLiveController.reset();
@@ -214,6 +217,10 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
     const action = startOriginal ? "start" : control.action;
     if (!action) return;
 
+    // Fence an in-flight Meeting-only poll before this action changes native
+    // ownership. Application events may still reconcile a newer state first.
+    const actionControllerRevision = applicationController.read().revision;
+    meetingViewState = meetingLiveController.invalidate();
     meetingActionBusy = true;
     setNotice(action === "start"
       ? source === "original" ? "Starting original microphone..." : "Starting translation..."
@@ -229,6 +236,12 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
             : result.ok && action === "stop" && !result.meeting.hasSession && result.meeting.lifecycle === "idle"
               ? "Meeting microphone stopped."
               : result.meeting.message;
+      if (applicationController.read().revision !== actionControllerRevision) {
+        // A native application event or newer refresh won the race. The
+        // action receipt has no application revision and cannot overwrite it.
+        await refreshSnapshot();
+        return;
+      }
       applyMeetingStatus(result.status, resultNotice);
       if (!result.status.has_session || action === "start") {
         meetingViewState = meetingLiveController.reset();
@@ -305,6 +318,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
   }
 
   async function pollMeeting(forceTurns = false): Promise<void> {
+    const pollControllerRevision = applicationController.read().revision;
     try {
       meetingViewState = await meetingLiveController.reconcile(
         {
@@ -314,7 +328,15 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
           closeAfterExistingStop: closeState.closeAfterExistingStop,
         },
         {
-          onStatus: (status) => applyMeetingStatus(status),
+          onStatus: (status) => {
+            if (applicationController.read().revision !== pollControllerRevision) {
+              // The observed Meeting response is older than a committed
+              // application/action update; reject its status and overlay.
+              meetingViewState = meetingLiveController.invalidate();
+              return;
+            }
+            applyMeetingStatus(status);
+          },
           onNotice: setNotice,
           onStoppedForClose: async () => {
             closeState = await closeController.closeWindow();

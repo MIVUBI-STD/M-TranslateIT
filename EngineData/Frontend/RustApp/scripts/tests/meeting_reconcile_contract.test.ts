@@ -19,6 +19,19 @@ test("reconciliation ignores non-Meeting runtime owners before transcript reads"
   assert.ok(ownerGuard >= 0 && transcriptRead > ownerGuard);
 });
 
+test("newer action/application snapshot invalidates stale Meeting-only reads", () => {
+  const app = readFileSync(
+    new URL("../../src/App.svelte", import.meta.url),
+    "utf8",
+  );
+  assert.match(app, /if \(!result\.applied\) return;[\s\S]*meetingViewState = meetingLiveController\.invalidate\(\)/);
+  assert.match(app, /const actionControllerRevision = applicationController\.read\(\)\.revision/);
+  assert.match(app, /if \(applicationController\.read\(\)\.revision !== actionControllerRevision\)/);
+  assert.match(app, /const pollControllerRevision = applicationController\.read\(\)\.revision/);
+  assert.match(app, /if \(applicationController\.read\(\)\.revision !== pollControllerRevision\)/);
+  assert.match(controller, /callbacks\.onStatus\(result\.status\);\s*\/\/[^\n]*[\s\S]*?if \(revision !== state\.revision\) return publish\(\);\s*const overlayRevision/);
+});
+
 test("event reconciliation can bypass unchanged status-key shortcut", () => {
   assert.match(reader, /forceTurns = false/);
   assert.match(reader, /statusKey === previousStatusKey && !forceTurns/);

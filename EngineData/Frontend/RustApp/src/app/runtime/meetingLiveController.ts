@@ -85,6 +85,9 @@ export function createMeetingLiveController(): {
         if (!result || revision !== state.revision) return publish();
 
         callbacks.onStatus(result.status);
+        // The callback may reject a stale Meeting-only status and invalidate
+        // this poll. Never publish its older private captions afterward.
+        if (revision !== state.revision) return publish();
         const overlayRevision = await publishLatestMeetingOverlay(
           result.turns,
           state.overlayRevision,
