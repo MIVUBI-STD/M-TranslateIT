@@ -32,6 +32,17 @@ test("newer action/application snapshot invalidates stale Meeting-only reads", (
   assert.match(controller, /callbacks\.onStatus\(result\.status\);\s*\/\/[^\n]*[\s\S]*?if \(revision !== state\.revision\) return publish\(\);\s*const overlayRevision/);
 });
 
+test("session-scoped transcript fallback never reuses foreign or failed turns", () => {
+  assert.match(reader, /currentTurns\?\.ok && currentTurns\.has_session/);
+  assert.match(reader, /currentTurns\.session_id === status\.session_id \? currentTurns : null/);
+  assert.match(reader, /statusKey === previousStatusKey && !forceTurns && retainedTurns/);
+  assert.match(reader, /nextTurns\.ok && nextTurns\.has_session && nextTurns\.session_id === status\.session_id/);
+  assert.match(reader, /turns: retainedTurns,/);
+  assert.match(reader, /transcriptStatusKey: retainedTurns \? previousStatusKey : ""/);
+  assert.doesNotMatch(reader, /currentTurns \?\? nextTurns/);
+  assert.match(controller, /publishLatestMeetingOverlay\(\s*result\.turns,/);
+});
+
 test("event reconciliation can bypass unchanged status-key shortcut", () => {
   assert.match(reader, /forceTurns = false/);
   assert.match(reader, /statusKey === previousStatusKey && !forceTurns/);

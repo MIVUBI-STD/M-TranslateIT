@@ -37,8 +37,12 @@ export async function readMeetingReconciliation(
     }
 
     const statusKey = transcriptStatusKey(status);
-    if (statusKey === previousStatusKey && !forceTurns) {
-      return { status, turns: currentTurns, transcriptStatusKey: previousStatusKey, unavailable: false };
+    // A stale or failed transcript snapshot must never cross session identity.
+    // This also covers an unchanged status key after a previously failed read.
+    const retainedTurns = currentTurns?.ok && currentTurns.has_session
+      && currentTurns.session_id === status.session_id ? currentTurns : null;
+    if (statusKey === previousStatusKey && !forceTurns && retainedTurns) {
+      return { status, turns: retainedTurns, transcriptStatusKey: previousStatusKey, unavailable: false };
     }
 
     const nextTurns = await runtimeApi.getMeetingCommittedTurns();
@@ -48,8 +52,10 @@ export async function readMeetingReconciliation(
 
     return {
       status,
-      turns: currentTurns ?? nextTurns,
-      transcriptStatusKey: previousStatusKey,
+      // Do not fall back to another session's turns or an unverified bridge
+      // response. Retry on the next reconciliation when no valid turns remain.
+      turns: retainedTurns,
+      transcriptStatusKey: retainedTurns ? previousStatusKey : "",
       unavailable: false,
     };
   } catch {
