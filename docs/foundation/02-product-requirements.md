@@ -292,32 +292,32 @@ Neither TranslateIT's Meeting Sound selector nor its virtual microphone route ch
 
 ## 11. Privacy and storage
 
-### PR-100 — No general persistence dependency
-**MUST NOT:** General History/Saved persistence be required for Meeting/Text.
+### PR-100 — Meeting archive scope
+**MUST:** Text remains independent of general History/Saved persistence. Meeting uses a session-specific local archive for recognized transcript entries, not a general conversation History service or automatic translation context.
 
-### PR-101 — Temporary data
-**DEFAULT:** Raw mic/Meeting Sound/generated Meeting TTS/live transcripts and unfinished My Voice review drafts/build intermediates are temporary. My Voice **explicitly accepted** guided takes are separately retained locally for future improvement under PR-106; this exception never turns Meeting audio or transcripts into durable history.
+**MUST:** Original Microphone and TranslateIT Audio each create a session archive before microphone capture. If archive creation or the writer cannot begin, native Meeting Start must reject Live and perform bounded rollback; Original does not require ASR, translation or TTS.
+
+### PR-101 — Temporary audio and retained recognized text
+**DEFAULT:** Microphone/Meeting Sound audio, generated TTS, transient Live/review buffers and unfinished My Voice work remain temporary. Do not treat saved recognized text as a raw-audio recording.
+
+**EXCEPTIONS:** Recognized Meeting turns and their translation/delivery/timing updates are saved automatically in an isolated local archive. Archives persist across Stop, restart and HTML export until explicit saved-session Delete. Explicitly accepted guided My Voice recordings have separate retention under PR-106. No cloud history, background microphone recording or use of saved turns as AI prompt history is authorized.
 
 ### PR-102 — Diagnostics privacy
 **MUST:** Diagnostics remain minimal/redacted; no full conversation/raw audio logging by default.
 
 ### PR-103 — Storage roots
-**MUST:** Preserve `CacheData` as temporary workspace and legacy current-take compatibility, `LogData` redacted diagnostics, and `SavedProject/VoiceLab` as the existing approved actor location plus protected copies of explicitly accepted My Voice recordings. `VoiceLab` is storage compatibility vocabulary only. Do not delete legacy takes during migration.
+**MUST:** Preserve `CacheData` as temporary workspace, `LogData` as redacted diagnostics, `SavedProject/VoiceLab` as approved personal voice/accepted recording storage, and `SavedProject/Transcripts/Sessions` for recognized Meeting archives. Explicit offline HTML exports use `SavedProject/Transcripts/Exports`. Retain legacy take compatibility; `VoiceLab` remains storage vocabulary only.
 
-### PR-104 — Temporary session review
-**MAY:** Retain only the most recently ended Meeting transcript in memory for explicit review/copy/export until a new Meeting starts or the app exits.
+### PR-104 — Saved Meeting archives and bounded review
+**MUST:** Each Meeting has one unique archive, including a Meeting without recognized entries. Both output-source choices must fail closed if required archive creation fails. Live and Last Meeting remain bounded in-memory views (up to 240 displayed entries; at most 4,096 turns or 8 MiB in the active store) and do not define archive completeness.
 
-**MUST NOT:** Turn this into general persistent History.
+**MUST:** Archive writes use the existing bounded background queue (256 records, 128 MiB estimated pending bytes). This is a producer-memory budget, not a disk quota or unlimited retention guarantee. Source-first recognized entries and subsequent translation/delivery/timing states are retained locally; failure or dropped records must be disclosed where observable. A finish receipt checks the count of saved entries, not whether all speech was recognized or whether stored content is tamper-authentic.
 
-**MUST:** Each new Meeting starts with a unique session identity; the next Meeting must not append to the last Meeting's transcript. The last unexported transcript is replaced when the next session starts or the app closes.
+**MUST:** Saved Transcripts explains automatic local retention and explicit deletion. Only explicit Delete removes the selected archive and its matching last-session in-memory review; previous completed HTML exports remain separate. New Meeting, Stop, app restart and manual HTML export must not erase earlier saved archives. Raw microphone audio is not retained in these archives.
 
-**MUST:** Export remains explicitly user-triggered. Saved transcript files live under separate session-scoped folders; no automatic permanent save. Live and Last Meeting views are limited to 240 recent phrases, while full-session manual export retains up to 4,096 turns or 8 MiB of source/translation text in RAM (whichever bound is reached first). Any actual evictions must be indicated honestly as incomplete. No unlimited archive or automatic disk spool is implied.
+**MUST:** Saved Read Preview is capped at 240 entries/4 MiB encoded JSON and HTML Preview at 12 entries/512 KiB encoded JSON. Oversized previews must fail clearly, not silently truncate additional records. Full user-triggered HTML export reads all available validated disk entries, only after active session ownership is revoked and that session's writer has finished. Interrupted storage and partial HTML output must be reported truthfully; stale app-created unpublished HTML partials may be cleaned on a subsequent explicit export without deleting source archives or completed HTML files.
 
-**SHOULD:** Future full-session capture, if approved, use a bounded temporary store with explicit cleanup and privacy; do not silently convert manual export into persistent background recording.
-
-**MUST:** Record the immutable recognized source turn before translation begins. Keep `translation_state` independent of outbound `delivery_state`. On translation failure, retain the source and show an explicit unavailable state; an empty result is never a successful translation.
-
-**MUST:** Reject late translation completion after Stop or a session/generation change. Deferred incoming translation that expires or is evicted must mark an already-recognized source as failed without affecting outbound. Pending turns may not remain "Translating" after Meeting ends.
+**MUST:** Preserve immutable recognized source before translation, independently track translation and delivery, and show failed or stopped translation as unavailable instead of inventing translated text or audio. Reject stale post-Stop completions. Pending turns already evicted from memory may remain pending in raw saved JSON; the stopped reader presents those as unavailable rather than mislabeling their persisted status.
 
 ### PR-105 — Translation feedback
 **MAY:** Store opt-in local translation issue reports for quality review.
