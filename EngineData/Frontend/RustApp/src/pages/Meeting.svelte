@@ -30,12 +30,13 @@
     }
   });
   async function selectSource(source: "original" | "translateit"): Promise<void> {
-    if (sourceChanging || currentSource === source) return;
+    // Keep Stop/Retry Stop as the only control while cleanup is pending.
+    if (sourceChanging || currentSource === source || !sourceChangeAllowed) return;
     sourceChanging = true;
     try {
       const result = meeting.live
         ? await runtimeApi.selectMeetingAudioSource(source)
-        : !meeting.hasSession
+        : !meeting.hasSession && meeting.lifecycle === "idle"
           ? await runtimeApi.selectMeetingPreferredAudioSource(source)
           : null;
       if (result?.ok) {
@@ -49,6 +50,7 @@
     } finally { sourceChanging = false; }
   }
   const meeting = $derived(snapshot.meeting);
+  const sourceChangeAllowed = $derived(meeting.live || (!meeting.hasSession && meeting.lifecycle === "idle"));
   const needsSetup = $derived(!meeting.hasSession && !meeting.canStop
     && ["new", "deferred"].includes(snapshot.settings.meeting_setup_state));
   const needsVoice = $derived(!needsSetup && !meeting.hasSession && !meeting.canStop
@@ -160,11 +162,11 @@
       <button type="button" class={"ti-button min-w-44 " + (primaryControl.action === "stop" ? "ti-button-danger" : "")}
         disabled={!actionEnabled} onclick={handlePrimary}>{primaryLabel}</button>
     </footer>
-    {#if !meeting.busy && (!meeting.hasSession || activityVisible) && meetingStatus}
+    {#if sourceChangeAllowed && meetingStatus}
       <div class="border-t border-[var(--ti-border)] px-6 py-4">
         <label for="meeting-audio-source" class="ti-field-label">Microphone output</label>
         <select id="meeting-audio-source" class="ti-field mt-2 min-h-11 px-3"
-          value={currentSource} disabled={sourceChanging || actionBusy}
+          value={currentSource} disabled={sourceChanging || actionBusy || !sourceChangeAllowed}
           onchange={(event) => void selectSource(event.currentTarget.value === "original" ? "original" : "translateit")}
         >
           <option value="translateit">TranslateIT Audio</option>

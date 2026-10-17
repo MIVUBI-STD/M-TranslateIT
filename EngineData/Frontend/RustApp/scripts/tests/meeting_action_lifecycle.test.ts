@@ -99,6 +99,23 @@ test("Rust preserves no-session cleanup until Stop succeeds and blocks Start mea
   assert.match(rustPreflight, /"cleanup_incomplete"\.to_string\(\)/);
 });
 
+test("source changes are disabled during cleanup and unknown Meeting ownership", () => {
+  assert.ok(page.includes('const sourceChangeAllowed = $derived(meeting.live || (!meeting.hasSession && meeting.lifecycle === "idle"))'));
+  assert.ok(page.includes('currentSource === source || !sourceChangeAllowed) return'));
+  assert.ok(page.includes('{#if sourceChangeAllowed && meetingStatus}'));
+  assert.ok(page.includes('disabled={sourceChanging || actionBusy || !sourceChangeAllowed}'));
+  assert.ok(quickAccess.includes('const canSelectSource = $derived(Boolean(meeting'));
+  assert.ok(quickAccess.includes('if (busy || !canSelectSource || !meeting || choice === requested) return'));
+  assert.equal(quickAccess.split('disabled={busy || !canSelectSource || !snapshot || snapshot.revision <= 0}').length - 1, 2);
+});
+
+test("Quick Access Retry Stop belongs only to Meeting and requires an available bridge", () => {
+  assert.ok(quickAccess.includes('const needsStop = $derived(Boolean(meeting?.lifecycle === "cleanup_incomplete"'));
+  assert.ok(quickAccess.includes('&& (!meeting?.has_session || owned)'));
+  assert.ok(quickAccess.includes('const canStop = $derived(Boolean(meeting && !stopping && !foreignOwner'));
+  assert.ok(quickAccess.includes('meeting.runtime_claim !== "frontend_bridge_unavailable"'));
+});
+
 test("Meeting page and Quick Access use the same native Meeting actions", () => {
   assert.match(page, /const primaryControl = \$derived\(meetingControlState\(/);
   assert.match(page, /disabled=\{!actionEnabled\}/);

@@ -26,14 +26,20 @@
   const owned = $derived(meeting?.owner_id === APPLICATION_MEETING_OWNER_ID);
   const live = $derived(Boolean(owned && meeting?.authority_active && meeting?.lifecycle === "live"));
   const stopping = $derived(meeting?.lifecycle === "starting" || meeting?.lifecycle === "stopping");
-  const needsStop = $derived(meeting?.lifecycle === "cleanup_incomplete");
   const foreignOwner = $derived(Boolean(meeting?.has_session && !owned));
+  // Foreign-owned runtime resources must be handled by their own feature.
+  const needsStop = $derived(Boolean(meeting?.lifecycle === "cleanup_incomplete"
+    && (!meeting?.has_session || owned)));
+  const canSelectSource = $derived(Boolean(meeting && !stopping && !needsStop
+    && !foreignOwner && (live || (!meeting.has_session && meeting.lifecycle === "idle"))));
   const canStart = $derived(Boolean(snapshot && snapshot.revision > 0
     && meeting && !meeting.has_session && meeting.lifecycle === "idle"
     && !snapshot.resources.audio_locked
     && meeting.preflight.microphone_ready && meeting.preflight.meeting_route_ready
     && (choice === "original" || meeting.preflight.start_eligible)));
-  const canStop = $derived(Boolean(meeting && !stopping
+  const canStop = $derived(Boolean(meeting && !stopping && !foreignOwner
+    && meeting.lifecycle !== "unavailable"
+    && meeting.runtime_claim !== "frontend_bridge_unavailable"
     && ((meeting.has_session && owned) || needsStop)));
   const sourceLabel = $derived(live
     ? meeting?.audio_source === "original" ? "Original Voice" : "TranslateIT Voice"
@@ -98,7 +104,7 @@
   }
 
   async function selectSource(requested: Source): Promise<void> {
-    if (busy || stopping || needsStop || foreignOwner || !meeting || choice === requested) return;
+    if (busy || !canSelectSource || !meeting || choice === requested) return;
     cancelAutoClose();
     busy = true;
     errorMessage = "";
@@ -294,13 +300,13 @@
       <p class="m-0 mb-3 text-[10px] font-semibold tracking-wide text-[var(--ti-text-muted)]">VOICE SOURCE</p>
       <div class="grid grid-cols-2 gap-2">
         <button type="button" class="qa-choice" aria-pressed={choice === "original"}
-          disabled={busy || stopping || needsStop || foreignOwner || !snapshot || snapshot.revision <= 0}
+          disabled={busy || !canSelectSource || !snapshot || snapshot.revision <= 0}
           onclick={() => void selectSource("original")}>
           <Mic size={18} aria-hidden="true" />
           <span>Original Voice</span>
         </button>
         <button type="button" class="qa-choice" aria-pressed={choice === "translateit"}
-          disabled={busy || stopping || needsStop || foreignOwner || !snapshot || snapshot.revision <= 0}
+          disabled={busy || !canSelectSource || !snapshot || snapshot.revision <= 0}
           onclick={() => void selectSource("translateit")}>
           <Languages size={18} aria-hidden="true" />
           <span>TranslateIT Voice</span>
