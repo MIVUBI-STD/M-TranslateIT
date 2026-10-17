@@ -338,6 +338,18 @@ pub(super) fn active_write_errors(session_id: &str) -> u64 {
         .map(|w| w.errors.load(Ordering::Acquire))).unwrap_or(0)
 }
 
+pub(super) fn ensure_saved_session_writer_finished(session_id: &str) -> Result<(), String> {
+    // Runtime authority may already be revoked while Stop is still draining
+    // transcript writes. An unverified *stopped* archive may be exported with
+    // a warning, but never export a moving archive still owned by its writer.
+    let guard = writer_store().lock()
+        .map_err(|_| "Cannot verify transcript writer state. Retry Stop before export.".to_string())?;
+    if guard.as_ref().is_some_and(|writer| writer.session_id == session_id) {
+        return Err("Transcript storage is still finishing. Retry Stop before exporting HTML.".to_string());
+    }
+    Ok(())
+}
+
 pub(super) fn finish_session(session_id: &str) -> bool {
     let Ok(mut guard) = writer_store().lock() else { return false };
     let Some(writer) = guard.as_mut() else { return true };

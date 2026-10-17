@@ -368,3 +368,37 @@ test("desktop preview has an encoded-byte limit independently of full HTML expor
   assert.match(html, /stream_saved_turns\(&session_id, &inventory\.paths/);
   assert.doesNotMatch(html.slice(html.indexOf("pub fn export_saved_html")), /MAX_HTML_PREVIEW_ENCODED_BYTES/);
 });
+
+test("stable HTML export rejects a still-owned archive writer after Stop starts", () => {
+  assert.match(archive, /pub\(super\) fn ensure_saved_session_writer_finished\(session_id: &str\)/);
+  assert.match(archive, /let guard = writer_store\(\)\.lock\(\)/);
+  assert.match(archive, /writer\.session_id == session_id/);
+  assert.match(archive, /Transcript storage is still finishing\. Retry Stop before exporting HTML/);
+  const exportBody = html.slice(html.indexOf("pub fn export_saved_html("),
+    html.indexOf("pub fn open_saved_html("));
+  assert.match(exportBody, /saved_session_operation_guard\(\)/);
+  assert.match(exportBody, /ensure_saved_session_writer_finished\(&session_id\)/);
+  assert.ok(exportBody.indexOf("ensure_saved_session_writer_finished(&session_id)") <
+    exportBody.indexOf("saved_export_inventory(&session_id)"),
+    "writer must be confirmed stopped before acquiring its export inventory");
+  const previewBody = html.slice(html.indexOf("pub fn preview_saved_html("),
+    html.indexOf("pub fn export_saved_html("));
+  assert.doesNotMatch(previewBody, /ensure_saved_session_writer_finished/);
+});
+
+test("explicit HTML export cleans only app-owned interrupted temporary output", () => {
+  assert.match(html, /fn is_owned_partial_html\(name: &str\)/);
+  assert.match(html, /fn clean_abandoned_html_partials\(root: &Path\)/);
+  assert.match(html, /strip_prefix\("Transcript_"\)/);
+  assert.match(html, /strip_suffix\("\.html\.partial"\)/);
+  assert.match(html, /entry\.file_type\(\)\.is_ok_and\(\|kind\| kind\.is_file\(\)\)/);
+  assert.match(html, /fs::remove_file\(entry\.path\(\)\)/);
+  assert.match(html, /clean_abandoned_html_partials\(&root\)/);
+  assert.match(html, /fn interrupted_html_cleanup_only_removes_generated_partial_files\(/);
+  assert.match(html, /Cleaned \{removed_partials\} abandoned unfinished HTML export file/);
+  assert.match(html, /fs::remove_file\(&temporary\)/);
+  assert.match(html, /fs::rename\(&temporary, &destination\)/);
+  assert.match(html, /An unfinished HTML file may remain in the export folder/);
+  assert.match(html, /The saved transcript source was preserved/);
+  assert.doesNotMatch(html, /remove_dir_all\(/);
+});

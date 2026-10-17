@@ -2,7 +2,7 @@
 // web resources or speaker inference. Data remains in the user-owned archive.
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -11,8 +11,8 @@ use serde::Serialize;
 use crate::engine::paths::ProjectPaths;
 use crate::engine::runtime_state::{latest_runtime_session_state, APPLICATION_MEETING_OWNER_ID};
 use super::transcript_archive::{
-    active_write_errors, read_saved_turns, saved_export_inventory, saved_session_operation_guard,
-    session_warning, stream_saved_turns,
+    active_write_errors, ensure_saved_session_writer_finished, read_saved_turns,
+    saved_export_inventory, saved_session_operation_guard, session_warning, stream_saved_turns,
 };
 use super::MeetingCommittedTurn;
 
@@ -291,6 +291,42 @@ pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
     }
 }
 
+fn is_owned_partial_html(name: &str) -> bool {
+    let Some(stem) = name.strip_prefix("Transcript_")
+        .and_then(|name| name.strip_suffix(".html.partial")) else {
+        return false;
+    };
+    let mut parts = stem.split('_');
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some(timestamp), Some(nonce), None) =>
+            !timestamp.is_empty() && !nonce.is_empty()
+                && timestamp.bytes().all(|ch| ch.is_ascii_digit())
+                && nonce.bytes().all(|ch| ch.is_ascii_digit()),
+        _ => false,
+    }
+}
+
+fn clean_abandoned_html_partials(root: &Path) -> Result<usize, String> {
+    // Only the app's generated, *unpublished* export temp names are eligible,
+    // and only during a new user-requested export. Keep finalized .html and
+    // every saved transcript source file, including damaged ones, untouched.
+    let entries = fs::read_dir(root)
+        .map_err(|_| "Could not inspect unfinished HTML exports.".to_string())?;
+    let mut removed = 0;
+    for entry in entries {
+        let entry = entry.map_err(|_| "Could not inspect unfinished HTML exports.".to_string())?;
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
+        if !is_owned_partial_html(&name) { continue; }
+        if !entry.file_type().is_ok_and(|kind| kind.is_file()) {
+            return Err("An unfinished HTML export is not a regular file. No file was removed.".to_string());
+        }
+        fs::remove_file(entry.path())
+            .map_err(|_| "Could not remove a previous unfinished HTML export. Source transcripts were preserved.".to_string())?;
+        removed += 1;
+    }
+    Ok(removed)
+}
+
 pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
     if !valid_id(&session_id) {
         return failure("Invalid Meeting session identity.");
@@ -306,6 +342,9 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
         Ok(guard) => guard,
         Err(error) => return failure(&error),
     };
+    if let Err(error) = ensure_saved_session_writer_finished(&session_id) {
+        return failure(&error);
+    }
     let inventory = match saved_export_inventory(&session_id) {
         Ok(inventory) => inventory,
         Err(error) => return failure(&error),
@@ -322,6 +361,13 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
     if fs::create_dir_all(&root).is_err() {
         return failure("Cannot create the HTML export folder.");
     }
+    // A crash can leave confidential but unpublished .html.partial output.
+    // Clean only our generated temp files on a subsequent explicit export;
+    // never touch the saved source archive or finalized HTML.
+    let removed_partials = match clean_abandoned_html_partials(&root) {
+        Ok(count) => count,
+        Err(error) => return failure(&error),
+    };
     let nonce = EXPORT_NONCE.fetch_add(1, Ordering::Relaxed);
     let filename = format!("Transcript_{}_{}.html", unix_ms(), nonce);
     let destination = root.join(&filename);
@@ -347,17 +393,29 @@ pub fn export_saved_html(session_id: String) -> HtmlTranscriptResult {
         Ok(())
     })();
     if let Err(message) = write_result {
-        let _ = fs::remove_file(&temporary);
-        return failure(&message);
+        // A failed partial-file cleanup is a privacy-relevant residual state.
+        // Never claim that unfinished meeting text was removed if it remains.
+        return match fs::remove_file(&temporary) {
+            Ok(()) => failure(&message),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => failure(&message),
+            Err(_) => failure(&format!(
+                "{message} An unfinished HTML file may remain in the export folder; inspect it before retrying. The saved transcript source was preserved."
+            )),
+        };
+    }
+    let mut message = if incomplete {
+        "HTML transcript saved. Storage completeness could not be verified; review its warning.".to_string()
+    } else {
+        format!("HTML transcript saved with {count} available entries.")
+    };
+    if removed_partials > 0 {
+        message.push_str(&format!(
+            " Cleaned {removed_partials} abandoned unfinished HTML export file(s); saved transcript data was preserved."
+        ));
     }
     HtmlTranscriptResult {
         ok: true, file_path: Some(destination.to_string_lossy().replace('\\', "/")),
-        turn_count: count, incomplete,
-        message: if incomplete {
-            "HTML transcript saved. Storage completeness could not be verified; review its warning.".to_string()
-        } else {
-            format!("HTML transcript saved with {count} available entries.")
-        },
+        turn_count: count, incomplete, message,
     }
 }
 
@@ -398,8 +456,42 @@ pub fn open_saved_html(session_id: String, file_name: String, show_folder: bool)
 
 #[cfg(test)]
 mod tests {
-    use super::{html_escape, utc_date, utc_clock, write_header, write_turn, write_html_escaped};
+    use super::{clean_abandoned_html_partials, html_escape, is_owned_partial_html,
+        utc_date, utc_clock, write_header, write_turn, write_html_escaped};
     use super::super::MeetingCommittedTurn;
+    #[test]
+    fn interrupted_html_cleanup_only_removes_generated_partial_files() {
+        assert!(is_owned_partial_html("Transcript_1760000000000_3.html.partial"));
+        for unrelated in [
+            "Transcript_1760000000000_3.html",
+            "Transcript_1760_text.html.partial",
+            "Transcript_1760_3.html.partial.backup",
+            "Meeting_1760_3.html.partial",
+            "Transcript_1760_3_4.html.partial",
+            "Transcript_1760_3.html",
+        ] {
+            assert!(!is_owned_partial_html(unrelated));
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "translateit-export-partials-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let partial = dir.join("Transcript_1760000000000_3.html.partial");
+        let final_html = dir.join("Transcript_1760000000000_3.html");
+        let unrelated = dir.join("personal_notes.html.partial");
+        std::fs::write(&partial, b"unfinished confidential text").unwrap();
+        std::fs::write(&final_html, b"finished HTML").unwrap();
+        std::fs::write(&unrelated, b"unowned partial").unwrap();
+        assert_eq!(clean_abandoned_html_partials(&dir).unwrap(), 1);
+        assert!(!partial.exists());
+        assert_eq!(std::fs::read(&final_html).unwrap(), b"finished HTML".to_vec());
+        assert_eq!(std::fs::read(&unrelated).unwrap(), b"unowned partial".to_vec());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     #[test]
     fn export_escapes_untrusted_speech_in_html() {
         assert_eq!(html_escape("<script>alert('x') & \"q\"</script>"),
