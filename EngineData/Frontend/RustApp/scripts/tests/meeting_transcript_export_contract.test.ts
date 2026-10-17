@@ -40,8 +40,10 @@ test("archive is retained across Stop, new meeting and export until explicit del
 
 test("HTML is offline, escaped, same-session and written as a complete file", () => {
   assert.match(html, /fn html_escape\(/);
-  assert.match(html, /html_escape\(&turn\.source_text\)/);
-  assert.match(html, /html_escape\(&turn\.translated_text\)/);
+  assert.match(html, /write_html_escaped\(w, &turn\.source_text\)/);
+  assert.match(html, /write_html_escaped\(w, &turn\.translated_text\)/);
+  assert.match(html, /fn write_html_escaped<W: Write>\(w: &mut W, text: &str\)/);
+  assert.doesNotMatch(html, /html_escape\(&turn\.(?:source_text|translated_text)\)/);
   assert.match(html, /stream_saved_turns\(&session_id/);
   assert.match(html, /File::create_new\(&temporary\)/);
   assert.match(html, /w\.get_ref\(\)\.sync_all\(\)/);
@@ -326,4 +328,16 @@ test("Stop persists unfinished incoming translations without fabricating playbac
   assert.match(memory, /Retry Stop must not produce a second pending-incoming update/);
   assert.match(memory, /for turn in store\.interrupt_generation_at\(generation, unix_ms\(\)\)/);
   assert.match(archive, /Record::Finish\(reply\)/);
+});
+
+test("HTML transcript escaping streams large UTF-8 text without cloned escaped strings", () => {
+  assert.match(html, /for \(index, c\) in text\.char_indices\(\)/);
+  assert.match(html, /w\.write_all\(text\[start\.\.index\]\.as_bytes\(\)\)/);
+  assert.match(html, /w\.write_all\(replacement\.as_bytes\(\)\)/);
+  assert.match(html, /w\.write_all\(text\[start\.\.\]\.as_bytes\(\)\)/);
+  assert.match(html, /write_html_escaped\(w, &turn\.source_text\)/);
+  assert.match(html, /write_html_escaped\(w, &turn\.translated_text\)/);
+  assert.match(html, /fn streaming_html_escape_preserves_utf8_and_rejects_markup_injection\(/);
+  assert.match(html, /output\.windows\(9\)/);
+  assert.doesNotMatch(html, /html_escape\(&turn\.source_text\)|html_escape\(&turn\.translated_text\)/);
 });

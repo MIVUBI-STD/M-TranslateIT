@@ -42,8 +42,31 @@ fn unix_ms() -> u128 {
         .map(|value| value.as_millis()).unwrap_or(0)
 }
 fn html_escape(text: &str) -> String {
+    // Session references are short and bounded; large transcript text must
+    // instead use write_html_escaped to avoid allocating escaped copies.
     text.replace('&', "&amp;").replace('<', "&lt;")
         .replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+}
+
+fn write_html_escaped<W: Write>(w: &mut W, text: &str) -> std::io::Result<()> {
+    // Emit unmodified UTF-8 slices directly to the output writer, replacing
+    // only reserved HTML characters. No proportional escaped String is made,
+    // even for one unusually long recognized utterance.
+    let mut start = 0;
+    for (index, c) in text.char_indices() {
+        let replacement = match c {
+            '&' => "&amp;",
+            '<' => "&lt;",
+            '>' => "&gt;",
+            '"' => "&quot;",
+            '\'' => "&#39;",
+            _ => continue,
+        };
+        w.write_all(text[start..index].as_bytes())?;
+        w.write_all(replacement.as_bytes())?;
+        start = index + c.len_utf8();
+    }
+    w.write_all(text[start..].as_bytes())
 }
 fn valid_id(id: &str) -> bool {
     id.starts_with("meeting_") && id.len() <= 96
@@ -176,12 +199,14 @@ fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Resu
     let target_code = if turn.target_language == "id" { "id" } else { "en" };
     let source_lang = if source_code == "id" { "Indonesian" } else { "English" };
     let target_lang = if target_code == "id" { "Indonesian" } else { "English" };
-    write!(w, "<div class=\"version\" data-language=\"{}\" data-role=\"original\"><span class=\"lang-label\">ORIGINAL · {source_lang}</span><p class=\"body-text\" lang=\"{}\">{}</p></div>",
-        source_code, source_code, html_escape(&turn.source_text))?;
-    write!(w, "<div class=\"version\" data-language=\"{}\" data-role=\"translation\"><span class=\"lang-label\">TRANSLATION · {target_lang}</span>",
-        target_code)?;
+    write!(w, "<div class=\"version\" data-language=\"{source_code}\" data-role=\"original\"><span class=\"lang-label\">ORIGINAL · {source_lang}</span><p class=\"body-text\" lang=\"{source_code}\">")?;
+    write_html_escaped(w, &turn.source_text)?;
+    w.write_all(b"</p></div>")?;
+    write!(w, "<div class=\"version\" data-language=\"{target_code}\" data-role=\"translation\"><span class=\"lang-label\">TRANSLATION · {target_lang}</span>")?;
     if turn.translation_state == "translated" && !turn.translated_text.trim().is_empty() {
-        write!(w, "<p class=\"body-text\" lang=\"{}\">{}</p>", target_code, html_escape(&turn.translated_text))?;
+        write!(w, "<p class=\"body-text\" lang=\"{target_code}\">")?;
+        write_html_escaped(w, &turn.translated_text)?;
+        w.write_all(b"</p>")?;
     } else {
         // Pending only applies to an active preview. Saved stopped sessions
         // are normalized to failed when read. Neither state is a translation.
@@ -193,7 +218,9 @@ fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Resu
         // The target-language lane must not pretend that source-language
         // fallback text was translated. Reveal original speech only in
         // single-language reading modes with its actual language marked.
-        write!(w, "<p class=\"body-text {tone}\">{message}</p><div class=\"original-fallback\"><span class=\"lang-label\">ORIGINAL FALLBACK · {source_lang}</span><p class=\"body-text\" lang=\"{source_code}\">{}</p></div>", html_escape(&turn.source_text))?;
+        write!(w, "<p class=\"body-text {tone}\">{message}</p><div class=\"original-fallback\"><span class=\"lang-label\">ORIGINAL FALLBACK · {source_lang}</span><p class=\"body-text\" lang=\"{source_code}\">")?;
+        write_html_escaped(w, &turn.source_text)?;
+        w.write_all(b"</p></div>")?;
     }
     w.write_all(b"</div></article>")
 }
@@ -371,13 +398,26 @@ pub fn open_saved_html(session_id: String, file_name: String, show_folder: bool)
 
 #[cfg(test)]
 mod tests {
-    use super::{html_escape, utc_date, utc_clock, write_header, write_turn};
+    use super::{html_escape, utc_date, utc_clock, write_header, write_turn, write_html_escaped};
     use super::super::MeetingCommittedTurn;
     #[test]
     fn export_escapes_untrusted_speech_in_html() {
         assert_eq!(html_escape("<script>alert('x') & \"q\"</script>"),
             "&lt;script&gt;alert(&#39;x&#39;) &amp; &quot;q&quot;&lt;/script&gt;");
     }
+    #[test]
+    fn streaming_html_escape_preserves_utf8_and_rejects_markup_injection() {
+        let payload = "Halo 🌿 & <script>\"quoted\" 'single' — selesai";
+        let mut html = Vec::new();
+        write_html_escaped(&mut html, payload).unwrap();
+        assert_eq!(String::from_utf8(html).unwrap(), html_escape(payload));
+        let large = "A".repeat(2 * 1024 * 1024) + "<&" + &"Z".repeat(2 * 1024 * 1024);
+        let mut output = Vec::new();
+        write_html_escaped(&mut output, &large).unwrap();
+        assert_eq!(output.len(), large.len() + 7);
+        assert!(output.windows(9).any(|slice| slice == b"&lt;&amp;"));
+    }
+
     #[test]
     fn language_mode_never_labels_untranslated_source_as_target_language() {
         let turn = MeetingCommittedTurn {
