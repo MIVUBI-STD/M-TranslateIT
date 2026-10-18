@@ -1,0 +1,30 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const source = (path: string) =>
+  readFileSync(new URL("../../" + path, import.meta.url), "utf8");
+
+test("retired Meeting Presets and Quick Translation are not required bridge response types", () => {
+  const validator = source("scripts/validate_bridge_contract.mjs");
+  const settingsRust = source("src-tauri/src/commands/settings.rs");
+  const translationRust = source("src-tauri/src/commands/text_translation.rs");
+  const frontend = source("src/app/bridge/runtimeApi.ts");
+
+  // A retired feature must not force its deleted DTO back into native code.
+  for (const name of ["MeetingPresetApplyResult", "QuickTranslationResult", "QuickTranslationCommandResult"]) {
+    assert.equal(validator.includes(`"${name}"`), false, `retired contract: ${name}`);
+  }
+  assert.equal(settingsRust.includes("pub struct MeetingPresetApplyResult"), false);
+  assert.equal(translationRust.includes("pub struct QuickTranslationResult"), false);
+  assert.equal(frontend.includes("export type MeetingPresetApplyResult"), false);
+  assert.equal(frontend.includes("export type QuickTranslationCommandResult"), false);
+
+  // Preserve parity checks for the active device-selection and Text APIs.
+  assert.ok(validator.includes('"AudioDeviceSelectionResult"'));
+  assert.ok(validator.includes('"TextTranslationResult"'));
+  assert.ok(settingsRust.includes("pub struct AudioDeviceSelectionResult"));
+  assert.ok(translationRust.includes("pub struct TextTranslationResult"));
+  assert.ok(frontend.includes("export type AudioDeviceSelectionCommandResult"));
+  assert.ok(frontend.includes("export type TextTranslationCommandResult"));
+});
