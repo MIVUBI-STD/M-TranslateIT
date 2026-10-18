@@ -49,10 +49,10 @@ TARGET_WINDOWS = LOCAL_CODE + installed TranslateIT + real Windows GPU/audio/dev
 
 A label is intent, not proof.
 
-- `REMOTE_GITHUB` may implement source changes and source/static review only.
+- `REMOTE_GITHUB` may implement source changes and source/static review only; the separately authorized manual Actions run is a distinct hosted source-test context, never native evidence.
 - `LOCAL_CODE` additionally owns local generators, dependency/toolchain execution, filesystem-sensitive builds and tests.
 - `TARGET_WINDOWS` is required for physical microphone, actual GPU practicality, VB-CABLE/device behavior, installed-runtime, meeting-app delivery, end-to-end latency, speaker-quality, and clean-machine claims.
-- Hosted CI is not used; old run logs are historical evidence, never a current PASS.
+- Hosted CI is prohibited by default. Exception approved on 2026-10-18: the single manual-only `.github/workflows/translateit-windows-local-validation.yml` Windows **source** gate, dispatched for `Local` with a matching exact SHA. Successful hosted source steps do not prove target-Windows hardware, GPU, audio, user-installed models or release eligibility; older logs never count as current PASS.
 
 ### GitHub-first execution partition
 
@@ -84,7 +84,7 @@ Rules:
 
 Missing execution proof is not a user-PC to-do; retain it as unexecuted until the authorized integrated acceptance phase.
 
-For ChatGPT-owned TranslateIT work, `Local` is the **GitHub source/version-control branch only**, not an application execution platform or a user-PC folder. **No cloud computing, cloud inference, hosted CI or hosted builds.** Use GitHub to read, edit and version source. Never ask the user to clone/download source, install tools, run incremental tests, supply private audio/data or operate Windows/GPU/meeting apps as a workaround for repository tooling limitations.
+For ChatGPT-owned TranslateIT work, `Local` is the **GitHub source/version-control branch only**, not an application execution platform or a user-PC folder. **No cloud inference, automatic hosted CI or general hosted builds.** The owner has specifically approved only the manual Windows hosted source/contract gate above; this is not model/GPU execution or a target-PC test. Use GitHub to read, edit and version source. Never ask the user to clone/download source, install tools, run incremental tests, supply private audio/data or operate Windows/GPU/meeting apps as a workaround for repository tooling limitations.
 
 Complete GitHub-source-verifiable changes and record their exact revision-scoped evidence. Checks requiring a compiler, package toolchain, running models or devices remain `UNKNOWN / NOT EXECUTED`; do not invent PASS or assign incremental user-PC tasks. Local AI/audio/GPU and installed-package acceptance require actual execution later. Developer-initiated local work is optional, never a prerequisite to repository changes.
 

@@ -7,14 +7,14 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 **Local-only development model:** `Local` owns current development, source, verification planning, governance, and continuation. The GitHub default branch `main` is reserved for finalized outcomes only; it must not be modified or used as development/CI fallback before explicit release approval.
 
 - Material GitHub work follows root `GITHUB_RULES.md`.
-- Existing GitHub Actions definitions remain manual-only and **inactive**: do not dispatch hosted CI under the no-cloud policy. Review source and historical run evidence only. Never change `main` or default-branch settings to enable CI. Windows/device proof is deferred to integrated acceptance.
+- GitHub Actions remains manual-only by default and all prior hosted CI is inactive. **Owner-approved exception (2026-10-18):** only `.github/workflows/translateit-windows-local-validation.yml` may be explicitly dispatched for `Local` with its matching 40-character candidate SHA to obtain hosted Windows **source/contract** evidence. The registration copy in `main` is a workflow-discovery exception, not application promotion or a new default source authority. No automatic runs, hosted model inference, physical-device claims or release packaging are authorized.
 - Do not fall back to `main` or another branch for current source, proof, or continuation.
 - Do not create alternate development branches as part of the normal method.
 - Historical branches/reports are recovery evidence only and are not current task or product authority.
 
 ## ChatGPT source boundary
 
-ChatGPT uses GitHub `Local` for **source/version control only**. No cloud computing, cloud AI, hosted CI, or remote build runner. Do not request the user's PC for incremental testing. Unexecuted checks remain `UNKNOWN / NOT EXECUTED` until one integrated local build-and-acceptance phase. See `GITHUB_RULES.md`.
+ChatGPT uses GitHub `Local` for **source/version control only**. Cloud AI, remote model inference and automated hosted CI remain prohibited; the single manual hosted Windows source-test exception above is explicitly authorized and cannot prove target-PC behavior. Do not request the user's PC for incremental testing. Unexecuted checks remain `UNKNOWN / NOT EXECUTED` until one integrated local build-and-acceptance phase. See `GITHUB_RULES.md`.
 
 ## Capability Gate
 
@@ -24,12 +24,12 @@ Resolve actual capability before choosing execution mechanics. Capability descri
 REPO_READ       = inspect current repository source/history/docs
 REPO_WRITE      = mutate the authoritative Local ref
 LOCAL_SHELL     = execute commands against an exact local checkout/toolchain
-CI_CONTROL      = inspect workflow source/history; hosted dispatch denied
+CI_CONTROL      = inspect source/history; owner-approved manual Windows source gate only; no general hosted dispatch
 ARTIFACT_ACCESS = inspect/download exact build or proof artifacts
 NATIVE_HOST     = exercise installed TranslateIT on the target Windows machine
 ```
 
-Capabilities are additive: `REPO_WRITE` does not imply local execution. Hosted CI is not used. Finish GitHub source work before recording execution gaps.
+Capabilities are additive: `REPO_WRITE` does not imply local execution. Hosted CI is prohibited except for the narrowly approved manual Windows source gate above. Finish GitHub source work before recording execution gaps.
 
 ## Execution Context Gate
 
@@ -261,7 +261,7 @@ UNKNOWN             = evidence cannot yet separate the owner; name the next sepa
 UNSUPPORTED         = required capability is unavailable
 ```
 
-Build success is not runtime success. No hosted Windows execution is authorized. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
+Build success is not runtime success. Only the explicit owner-approved manual Windows hosted **source** workflow may execute; GPU/audio/device/installed-app Windows acceptance is not authorized on hosted runners. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
 
 ## User-facing reporting
 

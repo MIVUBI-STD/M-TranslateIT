@@ -1,6 +1,6 @@
 # TranslateIT — staged source repair after end-to-end audit
 
-**Active:** First integrated Windows local-build candidate after bounded cross-subsystem source admission. **Date:** 2026-10-18. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; frontend/Rust/Python/Windows execution `UNKNOWN / NOT EXECUTED`. This is permission to attempt the grouped exact-SHA build, **not** a compiler/runtime PASS or a release.
+**Active:** Owner-approved manual Windows hosted source validation preceding the first integrated local Windows acceptance. **Date:** 2026-10-18. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only until a completed matching workflow run exists; frontend/Rust/Python/native execution `UNKNOWN / NOT EXECUTED`. This is workflow configuration, **not** a compiler/runtime PASS or release.
 
 **Active source candidate:** Persistent local Meeting transcript archives remain available across Stop, restart and HTML export until explicit user Delete. A versioned finalization receipt records the saved entry count; the Saved Transcripts label now explicitly distinguishes finalization **count verification** from content verification. Orphaned `.tmp` files, count mismatches and legacy markers remain unverified rather than silently accepted or deleted.
 
@@ -231,22 +231,23 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-**Freeze the exact 40-character `Local` HEAD of this source-candidate commit**
-for the existing one-phase local acceptance; do not combine proofs from ancestor
-commits. On an authorized clean Windows checkout, use the already-owned
-`docs/knowledge/operations/target-windows-performance.md` sequence: locked
-Node 22/Python 3.12.10/Rust 1.88+ source contracts and frontend/worker tests,
-then exact-SHA Tauri/Cargo compile, then native functional checks. STOP at the
-first compiler/contract failure before hardware acceptance. Within that same
-integrated test, specifically verify D3 orphan-cleanup gates, D6 delayed Swap,
-D10/D11 archive failures and A9 voice status recovery. Only after an actual
-build PASS may runtime/GPU/audio/Meeting/voice quality evidence be evaluated.
+On GitHub **Actions**, manually select **TranslateIT Windows Local Validation**,
+choose branch `Local`, and provide the exact current 40-character `Local`
+SHA as `expected_sha`. This is the **only** owner-approved hosted workflow
+exception, registration-only on `main`; it cannot execute on the `main` ref
+and does not promote application code. Do not dispatch automatically or on a
+newer ref using an old expected SHA. Record actual run/job IDs and the first
+failing source stage. Only completed successful steps of that exact SHA count
+as hosted Windows **source** evidence. Windows Server runners are not the
+user's Windows desktop and have no required private GPU, model, VB-CABLE,
+microphone or meeting-app receiver proof.
 
-Until a test environment is authorized, preserve `UNKNOWN / NOT EXECUTED`.
-No incremental user-PC tests, hosted CI, dependency/engine migrations or release
-packaging are implied. Native Save As and summarization remain outside this
-baseline. When source changes are needed after a real failure, capture its first
-wrong owner and treat the next commit as a **new** candidate.
+Then retain the existing one-session target-Windows developer build and
+acceptance in `docs/knowledge/operations/target-windows-performance.md`
+for native D3, D6, D10/D11, A9 and model/device/inference proof. Any required
+source repair creates a new candidate SHA; no cross-SHA PASS combination.
+Native Save As and summarization remain outside the baseline.
 
-**STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
-Windows audio/GPU tests, or native performance claims in this source-only phase.
+**STOP boundary:** No automatic CI, hosted inference/model downloads, hosted
+packaging or release; no incremental user-PC tests. Native results remain
+`UNKNOWN / NOT EXECUTED` until performed in the integrated local phase.
