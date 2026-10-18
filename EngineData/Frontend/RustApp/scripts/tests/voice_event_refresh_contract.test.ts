@@ -46,7 +46,7 @@ test("unknown My Voice selection responses never invite repeated writes", () => 
     assert.match(action, /nativeSelectionConfirmed\s*\?/);
     assert.doesNotMatch(action, /Could not switch to your saved My Voice\. Try again\./);
   }
-  assert.match(source, /onRetry=\{refreshVoiceSelection\}/);
+  assert.match(source, /onRetry=\{\(\) => \{ void refreshVoiceSelection\(\); \}\}/);
 });
 
 test("native voice selection remains locked while Meeting Retry Stop owns orphan cleanup", () => {

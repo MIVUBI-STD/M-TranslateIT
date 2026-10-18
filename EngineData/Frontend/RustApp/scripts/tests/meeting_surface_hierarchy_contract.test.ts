@@ -78,10 +78,10 @@ test("Live transcript stays minimal while preserving reading position and copy e
   assert.match(bubble, /lang=\{turn\.translation_state === "translated" \? turn\.target_language : undefined\}/);
 });
 
-test("global notices remain keyboard-scrollable and expose full text instead of one-line truncation", () => {
+test("global notices expose full text without noninteractive keyboard tabindex", () => {
   assert.doesNotMatch(header, /flex-1 truncate text-right/);
   assert.match(header, /max-h-16 flex-1 overflow-y-auto break-words/);
-  assert.match(header, /role="status" aria-live="polite" tabindex="0" title=\{notice\}/);
+  assert.match(header, /role="status" aria-live="polite" title=\{notice\}/);
 });
 
 test("Last-session transcript is private-by-default and export remains explicit", () => {

@@ -47,6 +47,9 @@ test("worker deep-refresh policy covers every emitted ApplicationRuntime reason"
   const safe = stringSetFromConst("WORKER_REUSE_SAFE_REASONS");
   const expectedDeep = new Set([
     "start_meeting",
+    "start_original_meeting",
+    "select_voice_version",
+    "start_voice_improvement",
     "fix_setup",
     "check_readiness",
     "ensure_runtime_ready",
@@ -70,6 +73,8 @@ test("voice deep-refresh policy covers every emitted ApplicationRuntime reason",
     "approve_voice_candidate",
     "select_builtin_voice",
     "select_saved_personal_voice",
+    "select_voice_version",
+    "start_voice_improvement",
     // Emitted terminal build events must refresh voice readiness, not reuse stale proof.
     "voice_build_completed",
     "voice_build_cancelled",

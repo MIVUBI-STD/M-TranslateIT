@@ -235,6 +235,8 @@ mod tests {
             active_age_ms: Some(1),
             capture_active: true,
             owner_id: Some(APPLICATION_MEETING_OWNER_ID.to_string()),
+            audio_source: "translateit".to_string(),
+            muted: false,
             blocker: String::new(),
             note: String::new(),
             preflight: MeetingSessionPreflightStatus {

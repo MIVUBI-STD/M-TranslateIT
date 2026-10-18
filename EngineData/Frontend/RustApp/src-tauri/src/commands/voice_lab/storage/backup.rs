@@ -832,7 +832,7 @@ mod tests {
             let relative = format!("TrainingLineage/{id}.json");
             let path = root.join(&relative);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(path, &bytes).unwrap();
+            fs::write(&path, &bytes).unwrap();
             let (sha256, size) = hash_regular_file(&path, MAX_FILE_BYTES).unwrap();
             let entry = BackupEntry { path: relative, bytes: size, sha256 };
             assert_eq!(
