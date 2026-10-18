@@ -30,6 +30,25 @@ test("Voice selection and approval refresh the canonical runtime snapshot", () =
   assert.doesNotMatch(body, /setNotice\(/);
 });
 
+test("unknown My Voice selection responses never invite repeated writes", () => {
+  const source = readFileSync(new URL("../../src/pages/MyVoice.svelte", import.meta.url), "utf8");
+  for (const name of ["selectBuiltin", "selectStoredPersonalVoice"]) {
+    const start = source.indexOf(`async function ${name}(`);
+    const end = source.indexOf("\n  }", start);
+    assert.ok(start >= 0 && end > start);
+    const action = source.slice(start, end);
+    assert.match(action, /!selectedVoiceVerified/);
+    assert.match(action, /let nativeSelectionConfirmed = false/);
+    assert.match(action, /result\.state === "frontend_bridge_error" \|\| result\.build\.phase === "unavailable"/);
+    assert.match(action, /selectedVoiceVerified = false/);
+    assert.match(action, /nativeSelectionConfirmed = true/);
+    assert.match(action, /if \(!await refreshVoiceSelection\(\)\)/);
+    assert.match(action, /nativeSelectionConfirmed\s*\?/);
+    assert.doesNotMatch(action, /Could not switch to your saved My Voice\. Try again\./);
+  }
+  assert.match(source, /onRetry=\{refreshVoiceSelection\}/);
+});
+
 test("background Voice build completion uses a global backend event", () => {
   assert.match(runtimeEvents, /translateit:\/\/voice-build-runtime/);
   assert.match(voiceApi, /subscribeRuntime/);

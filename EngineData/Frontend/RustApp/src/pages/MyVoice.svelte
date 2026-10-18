@@ -352,8 +352,9 @@
   }
 
   async function selectBuiltin(voiceId: BuiltinVoiceId, confirmed = false): Promise<void> {
-    if (busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
+    if (busy || !selectedVoiceVerified || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
+    let nativeSelectionConfirmed = false;
     try {
       const result = await myVoiceBuildApi.selectBuiltin(voiceId, confirmed);
       if (disposed) return;
@@ -363,15 +364,29 @@
         return;
       }
       builtinPendingId = null;
+      if (result.state === "frontend_bridge_error" || result.build.phase === "unavailable") {
+        selectedVoiceVerified = false;
+        onNotice("Couldn't verify whether the voice selection changed. Retry status before another selection.");
+        return;
+      }
       if (result.ok) {
+        nativeSelectionConfirmed = true;
         buildRefreshRevision++;
-        await refreshVoiceSelection();
+        if (!await refreshVoiceSelection()) {
+          onNotice("Voice selection was acknowledged, but its current status is unavailable. Retry status.");
+          return;
+        }
         await onMeetingVoiceChanged(result.message);
       } else {
         onNotice(result.message);
       }
     } catch {
-      if (!disposed) onNotice("Couldn't change the Meeting voice. Check My Voice status and try again.");
+      if (!disposed) {
+        selectedVoiceVerified = false;
+        onNotice(nativeSelectionConfirmed
+          ? "Voice selection was acknowledged, but the display could not refresh. Retry status."
+          : "Couldn't verify whether the voice selection changed. Retry status before another selection.");
+      }
     } finally {
       busy = false;
     }
@@ -384,20 +399,35 @@
   }
 
   async function selectStoredPersonalVoice(): Promise<void> {
-    if (busy || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
+    if (busy || !selectedVoiceVerified || voiceChangesLocked || buildStatusUnavailable || buildSnapshot?.active || buildSnapshot?.preview_active || recordingStatusUnknown || isRecording || pendingLineId !== null) return;
     busy = true;
+    let nativeSelectionConfirmed = false;
     try {
       const result = await myVoiceBuildApi.selectSavedPersonalVoice();
       if (disposed) return;
+      if (result.state === "frontend_bridge_error" || result.build.phase === "unavailable") {
+        selectedVoiceVerified = false;
+        onNotice("Couldn't verify whether the saved My Voice was selected. Retry status before trying again.");
+        return;
+      }
       if (result.ok) {
+        nativeSelectionConfirmed = true;
         buildRefreshRevision++;
-        await refreshVoiceSelection();
+        if (!await refreshVoiceSelection()) {
+          onNotice("Saved My Voice selection was acknowledged, but its current status is unavailable. Retry status.");
+          return;
+        }
         await onMeetingVoiceChanged(result.message);
       } else {
         onNotice(result.message);
       }
     } catch {
-      if (!disposed) onNotice("Could not switch to your saved My Voice. Try again.");
+      if (!disposed) {
+        selectedVoiceVerified = false;
+        onNotice(nativeSelectionConfirmed
+          ? "Saved My Voice selection was acknowledged, but the display could not refresh. Retry status."
+          : "Couldn't verify whether the saved My Voice selection changed. Retry status before trying again.");
+      }
     } finally {
       busy = false;
     }
