@@ -176,6 +176,12 @@ test("saved listing and preview fail closed when writer health cannot be read", 
   assert.match(listing, /Err\(_\) => return SavedMeetingSessions/);
   assert.match(listing, /ok: false,/);
   assert.doesNotMatch(listing, /writer_store\(\)\.lock\(\)\.ok\(\)/);
+  // Missing archive root is the sole benign empty state. Access failures are
+  // surfaced as errors, not a fabricated empty saved transcript history.
+  assert.match(listing, /let dir_entries = match fs::read_dir\(&root\)/);
+  assert.match(listing, /Err\(error\) if error\.kind\(\) == io::ErrorKind::NotFound => return result/);
+  assert.match(listing, /Err\(_\) => return SavedMeetingSessions \{/);
+  assert.doesNotMatch(listing, /if !root\.exists\(\)/);
   assert.match(archive, /active_write_errors\(id\)\? > 0/);
   assert.match(html, /active_write_errors\(&session_id\)\.map_or\(true, \|errors\| errors > 0\)/);
 });

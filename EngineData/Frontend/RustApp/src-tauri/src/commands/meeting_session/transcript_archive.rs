@@ -469,12 +469,17 @@ pub fn list_saved_sessions() -> SavedMeetingSessions {
         },
     };
     if let Some((_, errors)) = active.as_ref() { result.active_write_errors = *errors; }
-    if !root.exists() {
-        return result;
-    }
-    let dir_entries = match fs::read_dir(root) {
+    // A missing archive root means no sessions have been saved yet. Do not
+    // mistake a permission/IO failure for a genuinely empty saved history:
+    // Path::exists() can silently fold filesystem errors into false.
+    let dir_entries = match fs::read_dir(&root) {
         Ok(entries) => entries,
-        Err(_) => return SavedMeetingSessions { ok: false, message: "Saved transcripts could not be listed.".to_string(), ..result },
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return result,
+        Err(_) => return SavedMeetingSessions {
+            ok: false,
+            message: "Saved transcripts could not be listed.".to_string(),
+            ..result
+        },
     };
     for entry in dir_entries {
         let Ok(entry) = entry else { result.ok = false; continue };
