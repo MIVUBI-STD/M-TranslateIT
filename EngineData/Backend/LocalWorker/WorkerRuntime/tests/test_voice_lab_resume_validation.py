@@ -11,8 +11,8 @@ from pathlib import Path
 from voice_lab_gpt_sovits import ENGINE_REVISION, GPT_EPOCHS, SOVITS_EPOCHS
 from voice_lab_resume_validation import (
     ResumeAuditError,
-    _training_state_blockers,
     _checkpoint_progress,
+    _training_state_blockers,
     audit_archive,
 )
 

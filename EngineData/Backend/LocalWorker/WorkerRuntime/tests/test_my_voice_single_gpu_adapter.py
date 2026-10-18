@@ -1,6 +1,6 @@
 """Static source-contract fixtures only; no GPU, training or validation run."""
 from pathlib import Path
-from unittest.mock import patch
+
 import pytest
 
 from my_voice_single_gpu_adapter import _replace_one, single_gpu_source

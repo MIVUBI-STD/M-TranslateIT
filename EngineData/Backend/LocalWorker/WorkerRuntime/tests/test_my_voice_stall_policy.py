@@ -1,4 +1,5 @@
 """Authored only. Uses fictitious times, never runs real GPU training."""
+
 from my_voice_stall_policy import EpochStallObserver
 
 def test_device_specific_baseline_no_false_slow_gpu_kill():

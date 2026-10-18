@@ -205,7 +205,9 @@ def install_preflight_allocator_budget(relative_script: Path) -> None:
     if not budget_raw.isdecimal():
         raise RuntimeError("my_voice:gpu_stage_budget_missing")
     import torch
+
     from my_voice_gpu_identity import cuda_device_uuid, normalize_uuid
+
     if not torch.cuda.is_available():
         raise RuntimeError("my_voice:gpu_stage_cuda_unavailable")
     expected_uuid = normalize_uuid(os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", ""))
@@ -258,7 +260,7 @@ def run_upstream_script(source_root: Path, script: Path, script_args: list[str])
         if (relative_script.as_posix() != "GPT_SoVITS/s1_train.py"
                 or len(script_args) != 2):
             raise RuntimeError("voice_lab:strict_gpt_probe_wrong_stage_or_arguments")
-        from voice_lab_resume_gpt_probe import install_opt_in_gpt_lightning_probe, GptWorkerPlan
+        from voice_lab_resume_gpt_probe import GptWorkerPlan, install_opt_in_gpt_lightning_probe
         plan = GptWorkerPlan.read(Path(script_args[1]))
         install_opt_in_gpt_lightning_probe(source_root, Path(script_args[1]))
         script_args = ["--config_file", plan.config_path]

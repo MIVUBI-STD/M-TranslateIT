@@ -1,5 +1,6 @@
-from my_voice_gpu_policy import MIB, assess_memory, check_stage_budget
 import pytest
+
+from my_voice_gpu_policy import MIB, assess_memory, check_stage_budget
 
 
 def test_3070_8gb_can_be_admitted_with_free_headroom() -> None:

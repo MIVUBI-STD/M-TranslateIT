@@ -5,6 +5,7 @@ checkpoint boundary. It does NOT prove optimizer resume, model validity,
 or successful generation. The existing Rust recovery archive remains owner.
 """
 from __future__ import annotations
+
 import json
 import os
 from pathlib import Path

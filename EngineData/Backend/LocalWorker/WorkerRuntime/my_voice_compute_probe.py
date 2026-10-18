@@ -13,8 +13,11 @@ import platform
 from typing import Any, Callable
 
 from my_voice_gpu_identity import (
-    MAX_VISIBLE_CUDA_DEVICES, DeviceIdentityError, cuda_device_uuid,
-    normalize_uuid, sensor_inventory_mib,
+    MAX_VISIBLE_CUDA_DEVICES,
+    DeviceIdentityError,
+    cuda_device_uuid,
+    normalize_uuid,
+    sensor_inventory_mib,
 )
 from my_voice_gpu_policy import PROFILE, assess_memory
 from my_voice_precision_policy import device_precision_policy
@@ -65,7 +68,10 @@ def detect_compute(
         # One NVIDIA inventory call regardless of the number of CUDA cards.
         if sensor_reader is None:
             inventory = sensor_inventory_mib()
-            sensor_reader = lambda uuid: inventory[uuid]
+            def read_sensor(uuid: str) -> int:
+                return inventory[uuid]
+
+            sensor_reader = read_sensor
         candidates: list[dict[str, Any]] = []
         seen: set[str] = set()
         for index in range(count):

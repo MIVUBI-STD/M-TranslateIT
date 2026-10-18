@@ -13,12 +13,12 @@ Neither this probe nor GPT/SoVITS checkpoints prove AMP/scaler continuity.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from voice_lab_gpt_sovits import ENGINE_REVISION, GPT_EPOCHS
@@ -285,8 +285,8 @@ def install_opt_in_gpt_lightning_probe(source_root: Path, plan_file: Path) -> No
         raise GptProbeError("gpt_checkpoint_checksum_invalid")
     if _digest(Path(plan.config_path)) != plan.config_sha256:
         raise GptProbeError("gpt_config_checksum_invalid")
-    import torch
     import pytorch_lightning as pl
+    import torch
     from pytorch_lightning.callbacks import Callback
 
     # One GPU only: do not create unobserved ranks or DDP child processes.

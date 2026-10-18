@@ -1,7 +1,8 @@
 """Source-only arithmetic fixtures; intentionally NOT executed."""
 from voice_lab_gpt_sovits_build import (
-    optimizer_checkpoint_interval, MAX_FULL_SOVITS_PAIR_SAVES,
     MAX_FULL_GPT_SAVE_EPOCHS,
+    MAX_FULL_SOVITS_PAIR_SAVES,
+    optimizer_checkpoint_interval,
 )
 
 def test_fixed_release_epoch_cadence_bounds_optimizer_saves():

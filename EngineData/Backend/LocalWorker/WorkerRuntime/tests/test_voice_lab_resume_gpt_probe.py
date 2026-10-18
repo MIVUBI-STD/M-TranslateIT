@@ -1,11 +1,12 @@
 """Pure GPT worker witness fixtures. No Lightning, GPU or model execution."""
+
 from __future__ import annotations
 
-from dataclasses import replace
 import hashlib
-from pathlib import Path
 import tempfile
 import unittest
+from dataclasses import replace
+from pathlib import Path
 
 from voice_lab_resume_gpt_probe import GptProbeError, GptWorkerPlan, GptWorkerWitness, _same_state
 

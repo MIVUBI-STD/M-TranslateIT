@@ -7,12 +7,14 @@ The tests replace the hard worker exit with a throwing sentinel.
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from voice_lab_resume_child_probe import (
-    SoVITSChildPlan, StrictChildLoadError, StrictSoVITSChildMonitor,
+    SoVITSChildPlan,
+    StrictChildLoadError,
+    StrictSoVITSChildMonitor,
 )
 
 

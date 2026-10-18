@@ -4,8 +4,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from my_voice_cooperative import (
-    requested, sovits_epoch_boundary, gpt_epoch_boundary,
-    REQUEST_ENV, ACK_ENV, TOKEN_ENV, STAGE_ENV,
+    ACK_ENV,
+    REQUEST_ENV,
+    STAGE_ENV,
+    TOKEN_ENV,
+    gpt_epoch_boundary,
+    requested,
+    sovits_epoch_boundary,
 )
 
 def configure(monkeypatch, tmp_path: Path, stage: str):
@@ -47,6 +52,7 @@ def test_gpt_boundary_only_after_checkpoint_candidate(tmp_path, monkeypatch):
     ckpts.mkdir()
     trainer = SimpleNamespace(current_epoch=4, should_stop=False)
     import pytest
+
     with pytest.raises(RuntimeError, match="gpt_current_epoch_checkpoint_missing"):
         gpt_epoch_boundary(trainer, 5, str(ckpts))
     assert not trainer.should_stop and not ack.exists()
@@ -67,7 +73,7 @@ def test_mismatched_run_token_rejected_not_silently_ignored(tmp_path, monkeypatc
 
 
 def test_manual_cancel_is_run_and_generation_bound(tmp_path, monkeypatch):
-    from my_voice_cooperative import manual_stop_requested, MANUAL_STOP_ENV, GENERATION_ENV
+    from my_voice_cooperative import GENERATION_ENV, MANUAL_STOP_ENV, manual_stop_requested
     token = "a" * 64
     file = tmp_path / "manual-stop.json"
     monkeypatch.setenv(TOKEN_ENV, token)
@@ -80,14 +86,16 @@ def test_manual_cancel_is_run_and_generation_bound(tmp_path, monkeypatch):
     assert manual_stop_requested()
     monkeypatch.setenv(GENERATION_ENV, "8")
     import pytest
+
     with pytest.raises(RuntimeError, match="manual_stop_identity_mismatch"):
         manual_stop_requested()
 
 
 
 def test_manual_stop_rejects_malformed_signal(tmp_path, monkeypatch):
-    from my_voice_cooperative import manual_stop_requested, MANUAL_STOP_ENV, GENERATION_ENV
+    from my_voice_cooperative import GENERATION_ENV, MANUAL_STOP_ENV, manual_stop_requested
     import pytest
+
     signal = tmp_path / "stop.json"
     monkeypatch.setenv(TOKEN_ENV, "a" * 64)
     monkeypatch.setenv(GENERATION_ENV, "3")

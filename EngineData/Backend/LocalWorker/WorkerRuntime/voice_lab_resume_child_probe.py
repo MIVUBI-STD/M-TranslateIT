@@ -17,13 +17,12 @@ still mandatory, and the end-user Resume control remains disabled.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
-import sys
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 from voice_lab_gpt_sovits import ENGINE_REVISION
@@ -265,9 +264,10 @@ def sovits_child_entry(rank: int, n_gpus: int, hps: Any, raw_plan: dict[str, Any
         os._exit(_EXIT_LOAD_FAILED)
     # Re-import the same pinned module only in the child. No parent-only hook
     # can silently claim that spawn's fresh interpreter loaded the checkpoint.
+    import torch
+
     import s2_train
     import utils
-    import torch
     from voice_lab_resume_validation import _engine_source
     expected_script = (Path(plan.source_root) / "GPT_SoVITS" / "s2_train.py").resolve()
     if Path(s2_train.__file__).resolve() != expected_script:

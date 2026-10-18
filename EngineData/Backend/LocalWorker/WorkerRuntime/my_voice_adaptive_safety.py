@@ -5,6 +5,7 @@ A critical reading is an emergency signal, not permission to change weights.
 Thresholds are initial design values, not experimentally validated limits.
 """
 from __future__ import annotations
+
 from collections import deque
 from dataclasses import dataclass
 

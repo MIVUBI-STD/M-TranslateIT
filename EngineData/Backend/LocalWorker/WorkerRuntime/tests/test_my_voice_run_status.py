@@ -1,6 +1,7 @@
 """Unexecuted source regression: exact run identity and sequence status."""
 import json
 from pathlib import Path
+
 from voice_lab_build import write_status
 
 def test_status_receipt_binds_to_run(tmp_path: Path):

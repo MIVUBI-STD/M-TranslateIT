@@ -3,8 +3,9 @@ import os
 from unittest.mock import Mock, patch
 
 import pytest
-from my_voice_stage_supervisor import OwnedStageTree, StageGuardError, gpu_free_mib
+
 from my_voice_gpu_identity import DeviceIdentityError
+from my_voice_stage_supervisor import OwnedStageTree, StageGuardError, gpu_free_mib
 
 UUID = "GPU-11111111-2222-3333-4444-555555555555"
 

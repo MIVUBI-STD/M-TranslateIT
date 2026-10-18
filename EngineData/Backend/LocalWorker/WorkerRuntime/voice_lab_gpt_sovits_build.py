@@ -214,8 +214,8 @@ def stage_gpu_budget() -> int:
 
     A passed check is not a VRAM reservation or protection against DDP spawn.
     """
-    from my_voice_gpu_policy import check_stage_budget
     from my_voice_gpu_identity import DeviceIdentityError, normalize_uuid
+    from my_voice_gpu_policy import check_stage_budget
 
     try:
         expected_uuid = normalize_uuid(os.environ.get("TRANSLATEIT_MYVOICE_GPU_UUID", ""))

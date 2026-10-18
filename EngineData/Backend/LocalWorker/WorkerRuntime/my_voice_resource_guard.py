@@ -9,7 +9,8 @@ import ctypes
 import os
 import shutil
 from pathlib import Path
-from my_voice_adaptive_safety import CRITICAL_RAM_MIB, CRITICAL_DISK_MIB
+
+from my_voice_adaptive_safety import CRITICAL_DISK_MIB, CRITICAL_RAM_MIB
 
 MIB = 1024 * 1024
 START_RAM_MIB = 3072

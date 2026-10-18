@@ -14,10 +14,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from typing import Any, Callable
 
 from voice_lab_gpt_sovits import ENGINE_REVISION, GPT_EPOCHS, SOVITS_EPOCHS
@@ -318,7 +317,10 @@ def audit_archive(
                 import torch
                 # No fallback to unsafe weights_only=False, even if an
                 # otherwise legitimate Lightning checkpoint is rejected.
-                tensor_loader = lambda p: torch.load(p, map_location="cpu", weights_only=True)
+                def strict_tensor_loader(path: Path):
+                    return torch.load(path, map_location="cpu", weights_only=True)
+
+                tensor_loader = strict_tensor_loader
             parsed: dict[str, Any] = {
                 label: tensor_loader(labels[label])
                 for label in (gpts[-1], gens[-1], discs[-1])

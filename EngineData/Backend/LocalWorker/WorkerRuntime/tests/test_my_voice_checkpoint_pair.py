@@ -1,9 +1,11 @@
 """Authored filesystem evidence tests; not run or GPU-validated."""
 import json
 from pathlib import Path
+
 import pytest
+
 from my_voice_checkpoint_pair import publish_pair, verified_pair_for_epoch
-from my_voice_cooperative import TOKEN_ENV, GENERATION_ENV, STAGE_ENV
+from my_voice_cooperative import GENERATION_ENV, STAGE_ENV, TOKEN_ENV
 
 @pytest.fixture(autouse=True)
 def set_checkpoint_progress_identity(monkeypatch, tmp_path: Path):
@@ -43,6 +45,7 @@ def test_missing_discriminator_never_publishes_pair(tmp_path: Path):
 
 def test_pair_lookup_hashes_only_the_target_epoch(tmp_path, monkeypatch):
     from unittest.mock import patch
+
     import my_voice_checkpoint_pair as pair
     checkpoints(tmp_path, 120)
     publish_pair(tmp_path, 120, 2)
@@ -55,7 +58,6 @@ def test_pair_lookup_hashes_only_the_target_epoch(tmp_path, monkeypatch):
 
 
 def test_modified_checkpoint_rejected_without_loading_tensor(tmp_path):
-    import os
     checkpoints(tmp_path, 120)
     publish_pair(tmp_path, 120, 2)
     (tmp_path / "D_120.pth").write_bytes(b"z" * 8192)

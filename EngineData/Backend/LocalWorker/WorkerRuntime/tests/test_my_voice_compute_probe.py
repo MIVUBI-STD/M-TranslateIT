@@ -1,5 +1,6 @@
 """Authored contract examples only; not executed on the user's device."""
 from types import SimpleNamespace
+
 from my_voice_compute_probe import detect_compute
 from my_voice_gpu_identity import normalize_uuid, parse_sensor_row
 
@@ -82,17 +83,20 @@ def test_bad_gpu_sensor_identity_blocks_admission():
 
 def test_nvidia_sensor_row_checks_uuid_not_ordinal():
     assert parse_sensor_row(UUID_B + ", 12288, 10500", UUID_B) == (12288, 10500)
-    from my_voice_gpu_identity import DeviceIdentityError
     import pytest
+
+    from my_voice_gpu_identity import DeviceIdentityError
+
     with pytest.raises(DeviceIdentityError):
         parse_sensor_row(UUID_B + ", 12288, 10500", UUID_A)
     assert normalize_uuid(UUID_A) == UUID_A
 
 
 def test_inventory_reader_matches_exact_requested_device():
-    from my_voice_gpu_identity import sensor_inventory_mib
-    from unittest.mock import patch
     from subprocess import CompletedProcess
+    from unittest.mock import patch
+
+    from my_voice_gpu_identity import sensor_inventory_mib
     rows = UUID_A + ", 8192, 7100\n" + UUID_B + ", 12288, 9500\n"
     with patch("my_voice_gpu_identity.sensor_executable", return_value="nvidia-smi"):
         with patch("my_voice_gpu_identity.subprocess.run",

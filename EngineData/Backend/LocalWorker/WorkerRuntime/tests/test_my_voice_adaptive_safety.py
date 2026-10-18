@@ -1,4 +1,5 @@
 """Authored policy examples; not executed or measured on real hardware."""
+
 from my_voice_adaptive_safety import PressureObserver, SafetySample
 
 def sample(gpu: int, ram: int = 4096, cache: int = 16384, saved: int = 12288):

@@ -1,10 +1,11 @@
 """Unexecuted filesystem fixtures: no CUDA or training invoked."""
-import json
 import os
-import pytest
 from pathlib import Path
+
+import pytest
+
+from my_voice_cooperative import GENERATION_ENV, STAGE_ENV, TOKEN_ENV
 from my_voice_epoch_progress import publish_progress, read_progress
-from my_voice_cooperative import TOKEN_ENV, GENERATION_ENV, STAGE_ENV
 
 def setup(monkeypatch, tmp_path: Path):
     monkeypatch.setenv(TOKEN_ENV, "a" * 64)
