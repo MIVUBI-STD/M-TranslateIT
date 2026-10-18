@@ -1,3 +1,12 @@
+---
+id: document.knowledge.proposals.meeting-audio-source-switching
+class: DOCUMENT
+domain: knowledge
+role: GUIDE
+authority: REFERENCE
+lifecycle: ACTIVE
+---
+
 # Meeting Audio Source Switching — implementation contract (2026-10-15)
 
 Status: SOURCE INTEGRATED (including Original-first Meeting) / COMPILATION AND TARGET_WINDOWS NOT EXECUTED.

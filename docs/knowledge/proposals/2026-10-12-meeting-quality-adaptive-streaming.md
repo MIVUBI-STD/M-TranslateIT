@@ -1,3 +1,12 @@
+---
+id: document.knowledge.proposals.meeting-quality-adaptive-streaming
+class: DOCUMENT
+domain: knowledge
+role: GUIDE
+authority: HISTORICAL
+lifecycle: ACTIVE
+---
+
 # RFC — Meeting Quality-First Adaptive Streaming (RTX 3070 / i7-14700 / 32 GB)
 
 **Status:** PROPOSED ARCHITECTURE; instrumentation-only source candidate started 2026-10-12, target Windows runtime not proven. No model/streaming-mode changes authorized by this RFC.

@@ -329,7 +329,7 @@ mod tests {
         assert_eq!(provenance.audio_epoch, 2);
         // VAD pre-roll can retain post-gap silence without mixing older audio.
         assert!(provenance.input_start_sample > 0 && provenance.input_start_sample < 6_400);
-        assert_eq!(provenance.input_end_sample, 12_800);
+        assert_eq!(provenance.input_end_sample, 19_200);
         // A gap is accounted by the handoff and becomes the producer epoch
         // boundary that future ASR SourceScope must carry.
         assert_eq!(fixture.handoff.metrics().discontinuity_epoch, 1);

@@ -155,12 +155,25 @@ jobs:
         continue-on-error: true
         working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
         run: |
-          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python","nltk","scipy","torch"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
+          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python","nltk","scipy"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
           $requirements = @(python -c $pinScript)
-          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 8) {
+          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 7) {
             throw 'Could not resolve all worker test dependencies from the canonical uv.lock.'
           }
           python -m pip install @requirements
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install locked Windows PyTorch worker test runtime
+        id: python_torch
+        continue-on-error: true
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: |
+          $pinScript = 'import tomllib;from pathlib import Path;lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));matches=[p for p in lock["package"] if p["name"]=="torch" and p["version"]=="2.11.0+cu126" and "download.pytorch.org/whl/cu126" in str(p["source"])];assert len(matches)==1,"Missing exact locked Windows CUDA torch package";print("torch=="+matches[0]["version"])'
+          $torchPin = (python -c $pinScript).Trim()
+          if ($LASTEXITCODE -ne 0 -or $torchPin -ne "torch==2.11.0+cu126") {
+            throw 'Locked Windows torch wheel source/version was not verified.'
+          }
+          python -m pip install --extra-index-url https://download.pytorch.org/whl/cu126 $torchPin
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Python syntax compilation
@@ -185,7 +198,7 @@ jobs:
 
       - name: Python worker unit tests
         id: python_tests
-        if: always() && steps.python_deps.outcome == 'success'
+        if: always() && steps.python_deps.outcome == 'success' && steps.python_torch.outcome == 'success'
         continue-on-error: true
         working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
         run: python -m pytest -q
@@ -221,6 +234,7 @@ jobs:
           FRONTEND_TESTS: ${{ steps.frontend_tests.outcome }}
           FRONTEND_BUNDLE: ${{ steps.frontend_bundle.outcome }}
           PYTHON_DEPS: ${{ steps.python_deps.outcome }}
+          PYTHON_TORCH: ${{ steps.python_torch.outcome }}
           PYTHON_SYNTAX: ${{ steps.python_syntax.outcome }}
           PYTHON_LINT: ${{ steps.python_lint.outcome }}
           PYTHON_FORMAT: ${{ steps.python_format.outcome }}
@@ -245,6 +259,7 @@ jobs:
             'Frontend regression tests' = $env:FRONTEND_TESTS
             'Frontend bundle' = $env:FRONTEND_BUNDLE
             'Python pinned test tools' = $env:PYTHON_DEPS
+            'Python locked CUDA torch dependency' = $env:PYTHON_TORCH
             'Python compileall' = $env:PYTHON_SYNTAX
             'Python Ruff lint' = $env:PYTHON_LINT
             'Python Ruff formatting' = $env:PYTHON_FORMAT

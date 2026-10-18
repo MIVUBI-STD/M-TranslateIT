@@ -587,7 +587,15 @@ mod tests {
         write_actor(&paths.saved_root.join(".PersonalVoice.previous"), b"old-custom");
         fs::create_dir_all(paths.saved_root.join(".PersonalVoice.next")).unwrap();
         fs::write(paths.saved_root.join(".PersonalVoice.next").join("partial"), b"temp").unwrap();
-        archive_selected_personal_voice(&paths).expect("recover before overwrite");
+        // Incomplete .next is not silently discarded: restore the valid prior
+        // actor and retain the questionable staging tree for investigation.
+        let error = archive_selected_personal_voice(&paths).unwrap_err();
+        assert!(error.contains("actor_manifest_missing"), "{error}");
+        assert_eq!(fs::read(paths.stored_personal_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"old-custom");
+        assert!(paths.saved_root.join(".PersonalVoice.next").exists());
+        // Explicit test-fixture cleanup permits the safe archive transaction.
+        fs::remove_dir_all(paths.saved_root.join(".PersonalVoice.next")).unwrap();
+        archive_selected_personal_voice(&paths).expect("archive after explicit staging cleanup");
         assert_eq!(fs::read(paths.stored_personal_actor_dir.join(GPT_WEIGHT_FILE)).unwrap(), b"latest-custom");
         assert!(!paths.saved_root.join(".PersonalVoice.previous").exists());
         assert!(!paths.saved_root.join(".PersonalVoice.next").exists());

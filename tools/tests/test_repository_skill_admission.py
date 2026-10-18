@@ -76,6 +76,7 @@ class SkillAdmissionTests(unittest.TestCase):
             self.skipTest("filesystem does not permit symlinks")
         self.assert_rejected("symlink inside skill package")
 
+    @unittest.skipIf(sys.platform == "win32", "Windows cannot represent POSIX executable permission bits")
     def test_executable_bit_is_denied(self):
         before = self.skill_file.stat().st_mode
         self.skill_file.chmod(before | stat.S_IXUSR)

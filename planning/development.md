@@ -1,5 +1,17 @@
 # TranslateIT — staged source repair after end-to-end audit
 
+## Current Status
+
+Source verification on the exact `Local` SHA is authoritative only after all matching Windows source CI checks finish successfully; a failed or running job is not acceptance. The GitHub default branch `main` remains reserved for explicitly approved final releases. This is not target-PC acceptance.
+
+## Active Boundary
+
+The owner-approved single hosted Windows source CI is permitted; it cannot exercise CUDA hardware, private models, live microphone, VB-CABLE, native audio, or installed application behavior. No per-change tests on the user's PC: all native checks belong in one planned, integrated Windows session after source admission.
+
+## Next Step
+
+Fix failing source checks and rerun the matching `Local` CI workflow. Once the exact candidate passes, prepare a single integrated test-ready candidate for developer-mode local Windows testing, keeping release packaging and signing separate from developer acceptance.
+
 **Active:** Owner-approved manual Windows hosted source validation preceding the first integrated local Windows acceptance. **Date:** 2026-10-18. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only until a completed matching workflow run exists; frontend/Rust/Python/native execution `UNKNOWN / NOT EXECUTED`. This is workflow configuration, **not** a compiler/runtime PASS or release.
 
 **Active source candidate:** Persistent local Meeting transcript archives remain available across Stop, restart and HTML export until explicit user Delete. A versioned finalization receipt records the saved entry count; the Saved Transcripts label now explicitly distinguishes finalization **count verification** from content verification. Orphaned `.tmp` files, count mismatches and legacy markers remain unverified rather than silently accepted or deleted.

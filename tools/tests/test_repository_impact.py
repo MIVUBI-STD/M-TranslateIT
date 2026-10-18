@@ -50,8 +50,8 @@ class ImpactPlanningTests(unittest.TestCase):
             FRONT + "src/app/runtime/applicationController.ts",
             plan["sourceDependencyGraph"]["affectedSourceConsumers"],
         )
-        self.assertEqual(plan["dependencyCoverage"],
-                         "REGISTERED_BOUNDARY_PLUS_PARTIAL_IMPORTS")
+        self.assertEqual(plan["dependencyCoverage"], "CONSERVATIVE")
+        self.assertTrue(plan["unprovenClosures"])
         self.assertIn("code-health.yml", plan["manualWorkflowCandidates"])
         self.assertFalse(plan["ciTriggered"])
 

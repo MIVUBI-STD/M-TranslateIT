@@ -83,7 +83,11 @@ class ReaBoundaryTests(unittest.TestCase):
                             "--target-authorized", "--execute",
                         ]):
                             self.assertEqual(main(), 0)
-                        analyze.assert_called_once_with(["rea"], target, output)
+                        analyze.assert_called_once()
+                        actual = analyze.call_args.args
+                        self.assertEqual(actual[0], ["rea"])
+                        self.assertEqual(actual[1].resolve(), target.resolve())
+                        self.assertEqual(actual[2].resolve(), output.resolve())
 
     def test_invalid_success_json_is_rejected_and_cleaned_up(self):
         with tempfile.TemporaryDirectory() as private:
@@ -125,7 +129,7 @@ class ReaBoundaryTests(unittest.TestCase):
                 encoding="utf-8"
             )
             with patch("repository_rea.shutil.which", return_value="/approved/node"):
-                self.assertEqual(_command(str(entry))[1], str(entry))
+                self.assertEqual(Path(_command(str(entry))[1]).resolve(), entry.resolve())
 
     def test_analysis_retains_only_private_digest_and_removes_failed_output(self):
         with tempfile.TemporaryDirectory() as private:

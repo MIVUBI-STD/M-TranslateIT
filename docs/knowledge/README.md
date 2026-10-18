@@ -20,4 +20,12 @@ Current procedures and rationale remain with their existing canonical owners; th
 - [Agent skills](./skills/README.md) — selection guide; procedures remain in `.agents/`
 - [Legacy decisions pointer](./decision-log.md) — historical only
 
+Historical and bounded design proposals (reference only, not current product authority):
+
+- [Meeting adaptive streaming RFC](./proposals/2026-10-12-meeting-quality-adaptive-streaming.md)
+- [My Voice persistent training architecture](./proposals/2026-10-13-my-voice-persistent-training-architecture.md)
+- [My Voice UI implementation](./proposals/2026-10-13-my-voice-ui-implementation.md)
+- [My Voice safe 8 GB training](./proposals/2026-10-14-my-voice-safe-8gb-training.md)
+- [Meeting audio source switching](./proposals/2026-10-15-meeting-audio-source-switching.md)
+
 **Current next action:** [planning/development.md](../../planning/development.md), outside the document Catalog. Current behavior is the exact `Local` source with matching proof.

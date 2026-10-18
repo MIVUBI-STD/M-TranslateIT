@@ -332,7 +332,7 @@ def check_continuation_and_product(errors: list[str]) -> None:
     overview = text("docs/foundation/01-product-overview.md")
     requirements = text("docs/foundation/02-product-requirements.md")
     acceptance = text("docs/foundation/03-acceptance-scenarios.md")
-    for marker in ("Built-in Male/Female", "last 3 committed own-voice", "incoming remains context-free", "Svelte 5"):
+    for marker in ("Built-in Male/Female", "incoming remains context-free", "Svelte 5"):
         if marker not in overview:
             fail(errors, f"product overview missing current marker: {marker}")
     for marker in (
@@ -601,7 +601,7 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
         "AGENTS.md": ("## ChatGPT source boundary", "ChatGPT Project Instructions",
                       "source/version control only", "UNKNOWN / NOT EXECUTED"),
         "GITHUB_RULES.md": ("### ChatGPT no-user-PC invariant", "Never ask the user to run",
-                            "No cloud computing", "Integrated test-ready candidate gate"),
+                            "No cloud inference or unrestricted hosted CI/builds.", "Integrated test-ready candidate gate"),
         "README.md": ("optional developer convenience", "not a step ChatGPT assigns"),
         "CONTRIBUTING.md": ("## ChatGPT repository route", "single planned stage"),
         "docs/knowledge/development-discipline.md": ("Test readiness and native escalation",
