@@ -49,6 +49,21 @@ test("unknown My Voice selection responses never invite repeated writes", () => 
   assert.match(source, /onRetry=\{refreshVoiceSelection\}/);
 });
 
+test("native voice selection remains locked while Meeting Retry Stop owns orphan cleanup", () => {
+  const builtin = readFileSync(new URL("../../src-tauri/src/commands/builtin_voice.rs", import.meta.url), "utf8");
+  const meeting = readFileSync(new URL("../../src-tauri/src/commands/meeting_session.rs", import.meta.url), "utf8");
+  const build = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_build.rs", import.meta.url), "utf8");
+  const resources = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/resources.rs", import.meta.url), "utf8");
+  const predicate = builtin.slice(builtin.indexOf("pub fn meeting_blocks_voice_change()"),
+    builtin.indexOf("pub fn install_builtin_voice("));
+  assert.match(predicate, /super::meeting_session::meeting_stop_cleanup_pending\(\)/);
+  assert.match(predicate, /return true;/);
+  assert.match(predicate, /latest_runtime_session_state\(\)/);
+  assert.match(meeting, /fn meeting_stop_cleanup_pending\(\) -> bool/);
+  assert.match(build, /if meeting_blocks_voice_change\(\)/);
+  assert.match(resources, /let audio_locked = meeting\.has_session \|\| orphan_cleanup/);
+});
+
 test("background Voice build completion uses a global backend event", () => {
   assert.match(runtimeEvents, /translateit:\/\/voice-build-runtime/);
   assert.match(voiceApi, /subscribeRuntime/);

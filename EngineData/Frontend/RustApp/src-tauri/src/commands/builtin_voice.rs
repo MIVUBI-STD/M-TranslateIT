@@ -23,6 +23,12 @@ pub fn is_supported_builtin_voice(voice_id: &str) -> bool {
 }
 
 pub fn meeting_blocks_voice_change() -> bool {
+    // A Meeting can still own Stop/Retry Stop cleanup after its session
+    // snapshot is gone. Voice actor selection/training must not bypass that
+    // same canonical native fence used for audio device preferences.
+    if super::meeting_session::meeting_stop_cleanup_pending() {
+        return true;
+    }
     let report = latest_runtime_session_state();
     match report.snapshot {
         Some(snapshot) => snapshot.owner_id == APPLICATION_MEETING_OWNER_ID,
