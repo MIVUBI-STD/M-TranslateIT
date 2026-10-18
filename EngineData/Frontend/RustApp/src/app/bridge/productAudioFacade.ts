@@ -70,7 +70,7 @@ export async function selectProductAudioDevice(
       kind,
       deviceId: normalizedDeviceId,
       deviceName: normalizedDeviceId ?? "Windows Default",
-      message: "Audio settings are unavailable right now. The previous device preference was kept.",
+      message: "Audio settings could not be verified. Check the current device preference before trying again.",
       settings: currentSettings,
     };
   }

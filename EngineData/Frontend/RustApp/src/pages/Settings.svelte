@@ -123,17 +123,23 @@
 
     deviceSaving = true;
     deviceMessage = "Checking device...";
+    // Only a confirmed native success proves persistence. A later display
+    // refresh failure must never be described as a failed device change.
+    let savedByNative = false;
     try {
       const result = await runtimeProductFacade.selectProductAudioDevice(kind, candidate, settings);
       deviceMessage = result.message;
       onNotice(result.message);
       if (!result.ok) return;
+      savedByNative = true;
       await onSettingsChange(result.settings);
       await onRefresh(result.message);
       await loadDevices();
       await loadRouteStatus();
     } catch {
-      deviceMessage = "The device wasn't changed. Try again or check Diagnostics.";
+      deviceMessage = savedByNative
+        ? "Device preference was saved, but the display could not be refreshed. Check Again to verify it."
+        : "Could not verify whether the device preference changed. Check current Settings before trying again.";
       onNotice(deviceMessage);
     } finally {
       deviceSaving = false;

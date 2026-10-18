@@ -60,6 +60,25 @@ test("core RuntimeSettings defaults remain aligned", () => {
   assert.match(state, /output_device_id:\s*null/);
 });
 
+test("device preference mutations distinguish native save from an uncertain display refresh", () => {
+  const settings = readFileSync(new URL("../../src/pages/Settings.svelte", import.meta.url), "utf8");
+  const audio = readFileSync(new URL("../../src/app/bridge/productAudioFacade.ts", import.meta.url), "utf8");
+  const native = readFileSync(new URL("../../src-tauri/src/commands/settings.rs", import.meta.url), "utf8");
+  const change = settings.slice(settings.indexOf("async function changeDevice("),
+    settings.indexOf("async function runSetupRepair("));
+  assert.match(change, /let savedByNative = false/);
+  assert.match(change, /if \(!result\.ok\) return;\s*savedByNative = true;/);
+  assert.match(change, /deviceMessage = savedByNative/);
+  assert.match(change, /Device preference was saved, but the display could not be refreshed/);
+  assert.match(change, /Could not verify whether the device preference changed/);
+  assert.doesNotMatch(change, /The device wasn't changed\. Try again/);
+  assert.match(audio, /if \(!result\) \{/);
+  assert.match(audio, /Audio settings could not be verified/);
+  assert.doesNotMatch(audio, /The previous device preference was kept/);
+  assert.match(native, /if !save\.ok \{/);
+  assert.match(native, /let saved = engine::load_settings\(\)/);
+});
+
 test("settings sanitizers keep product enum-like values bounded", () => {
   assert.match(rust, /"formal" => "formal"/);
   assert.match(rust, /"off" => "off"/);
