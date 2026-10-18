@@ -1,14 +1,17 @@
 name: TranslateIT Windows Local Validation
 
 on:
+  push:
+    branches:
+      - Local
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: translateit-windows-local-manual
-  cancel-in-progress: false
+  group: translateit-windows-local-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows-source-validation:
@@ -27,7 +30,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - name: Require manual Local ref and exact candidate identity
+      - name: Require Local ref and exact candidate identity
         run: |
           if ($env:GITHUB_REF -cne 'refs/heads/Local') {
             throw 'Only the Local branch is eligible. Do not run this against main.'
