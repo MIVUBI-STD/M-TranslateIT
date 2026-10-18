@@ -2,11 +2,6 @@ name: TranslateIT Windows Local Validation
 
 on:
   workflow_dispatch:
-    inputs:
-      expected_sha:
-        description: "Exact 40-character Local commit SHA to test (never main)"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -21,7 +16,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 65
     env:
-      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      EXPECTED_SHA: ${{ github.sha }}
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
       HF_DATASETS_OFFLINE: "1"
@@ -37,12 +32,117 @@ jobs:
           if ($env:GITHUB_REF -cne 'refs/heads/Local') {
             throw 'Only the Local branch is eligible. Do not run this against main.'
           }
-          if ($env:EXPECTED_SHA -cnotmatch '^[0-9a-f]{40}$') {
-            throw 'Provide the lowercase 40-character Local candidate SHA.'
+          if ($env:EXPECTED_SHA -cnotmatch '^[0-9a-f]{40}
+
+      - name: Checkout exact dispatched source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Confirm clean tracked source and required lockfiles
+        run: |
+          if ((git rev-parse HEAD).Trim() -cne $env:EXPECTED_SHA) {
+            throw 'Checked-out source is not the requested candidate.'
           }
-          if ($env:GITHUB_SHA -cne $env:EXPECTED_SHA) {
-            throw "Candidate changed: selected $env:GITHUB_SHA, expected $env:EXPECTED_SHA."
+          if (git status --porcelain --untracked-files=no) {
+            throw 'Tracked source is not clean.'
           }
+          foreach ($file in @(
+            'EngineData/Frontend/RustApp/package-lock.json',
+            'EngineData/Frontend/RustApp/src-tauri/Cargo.lock',
+            'EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock',
+            'toolchain.json'
+          )) {
+            if (-not (Test-Path $file -PathType Leaf)) {
+              throw "Required candidate input missing: $file"
+            }
+          }
+          Write-Host "Source verified: $env:EXPECTED_SHA"
+
+      - name: Use locked frontend Node version
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+
+      - name: Use declared Windows Python version
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+
+      - name: Record Windows runner and toolchain
+        run: |
+          Write-Host "Runner OS: $env:RUNNER_OS"
+          Write-Host "Runner image: $env:ImageOS / $env:ImageVersion"
+          node --version
+          python --version
+          rustc --version
+          cargo --version
+
+      - name: Install pinned frontend dependencies
+        working-directory: EngineData/Frontend/RustApp
+        run: npm ci
+
+      - name: Frontend and cross-language source contracts
+        working-directory: EngineData/Frontend/RustApp
+        run: npm run validate:source-contracts
+
+      - name: TypeScript and Svelte diagnostics
+        working-directory: EngineData/Frontend/RustApp
+        run: npm run typecheck
+
+      - name: Frontend runtime and regression tests
+        working-directory: EngineData/Frontend/RustApp
+        run: npm run test:frontend-runtime
+
+      - name: Build production frontend bundle
+        working-directory: EngineData/Frontend/RustApp
+        run: npm run build:frontend
+
+      - name: Python worker static checks and source tests
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: |
+          python -m compileall -q .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
+          $requirements = @(python -c $pinScript)
+          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 5) {
+            throw 'Could not resolve all worker test dependencies from the canonical uv.lock.'
+          }
+          python -m pip install @requirements
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m ruff check . --select E4,E7,E9,F,I
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m ruff format --check .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pytest -q
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Rust and Tauri Windows compiler gate
+        working-directory: EngineData/Frontend/RustApp/src-tauri
+        run: cargo check --locked
+
+      - name: Rust correctness gate
+        working-directory: EngineData/Frontend/RustApp/src-tauri
+        run: cargo clippy --locked --all-targets -- -D clippy::correctness
+
+      - name: Rust Windows unit tests
+        working-directory: EngineData/Frontend/RustApp/src-tauri
+        run: cargo test --locked -- --test-threads=1
+
+      - name: State exact-source and hardware proof boundary
+        if: always()
+        run: |
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '## TranslateIT Windows Local source validation'
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Workflow ref: $env:GITHUB_REF"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "- Source SHA: $env:GITHUB_SHA"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '- Runner: windows-2025 (hosted Windows Server, not the user PC)'
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '- Only completed successful individual steps provide source/test proof.'
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '- GPU, private models, physical microphone, VB-CABLE, meeting-app reception, and native latency: NOT EXECUTED.'
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '- This is not an installer, release approval, or TARGET_WINDOWS acceptance.'
+) {
+            throw 'GitHub supplied an invalid commit SHA.'
+          }
+          Write-Host "Exact selected Local commit: $env:EXPECTED_SHA"
 
       - name: Checkout exact dispatched source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
