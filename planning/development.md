@@ -1,6 +1,6 @@
 # TranslateIT — staged source repair after end-to-end audit
 
-**Active:** Cross-subsystem source admission before the first integrated Windows localtest. **Date:** 2026-10-18. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; executed frontend/Rust/Python/native evidence `UNKNOWN / NOT EXECUTED`.
+**Active:** First integrated Windows local-build candidate after bounded cross-subsystem source admission. **Date:** 2026-10-18. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only; frontend/Rust/Python/Windows execution `UNKNOWN / NOT EXECUTED`. This is permission to attempt the grouped exact-SHA build, **not** a compiler/runtime PASS or a release.
 
 **Active source candidate:** Persistent local Meeting transcript archives remain available across Stop, restart and HTML export until explicit user Delete. A versioned finalization receipt records the saved entry count; the Saved Transcripts label now explicitly distinguishes finalization **count verification** from content verification. Orphaned `.tmp` files, count mismatches and legacy markers remain unverified rather than silently accepted or deleted.
 
@@ -20,7 +20,9 @@
 
 **Contract correction:** PR-100/101/103/104, D10/D11, Windows runbook and product/storage entrypoints now agree on the Meeting-specific recognized-text archive: automatic local session retention until explicit Delete, temporary raw audio and separate manual HTML export. Static patches since that alignment additionally tightened writer Stop/Retry Stop ownership, archive listing/error truth, cross-session caption isolation and UI Start/Stop action fencing; none has executed compiler or Windows proof.
 
-**Current cross-subsystem source observation:** Text Swap could previously overwrite source/result edits made while async settings persistence was pending. The current Text source candidate tracks user edit revisions for both panes and preserves later edits after a confirmed direction save; D6/U1 now require a delayed-save native UI scenario. My Voice preserves uncertain recording state and exposes status retry; Rust Settings persistence blocks device-preference changes while a runtime session owns audio. These are source observations, not proof of native multi-feature behavior.
+**Current cross-subsystem source observation:** Text Swap previously could overwrite source/result edits made during async settings persistence; edit revisions now preserve the later drafts. My Voice recording/build/selection use read-only verification and status retry on unknown bridge responses. Settings distinguishes confirmed device persistence from failed display refresh. Source-only review also closed the no-snapshot Meeting cleanup gap: ApplicationRuntime audio lock, Settings native persistence, Built-in/Saved Voice selection and build, Mic Test Start and Guided Recording Start now reuse the canonical Retry Stop admission fact. D3/U2 and A9/U3 require real native fault cases; none has executed yet.
+
+**Admission boundary:** Source and test contracts for the currently scoped Meeting, Text, My Voice and Settings workflows were inspected at the `Local` head following these patches. No new parallel subsystem owner, cloud CI, engine swap or dependency was introduced. Available pinned lockfiles/toolchain definitions are not compiler/model evidence. Known unproven areas include >60-second uninterrupted-speech loss/segmentation, disk/permission faults, actor training/voice quality, GPU pressure, actual virtual-mic reception and Windows layout. Native Save As is not in the developer-mode baseline. Preserve these limitations as explicit native acceptance questions; never silently promote them to PASS.
 
 ## Retained My Voice source candidate (paused)
 
@@ -229,15 +231,22 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-Finish one bounded cross-subsystem source-admission check on the latest `Local`
-SHA: trace Text direction persistence, My Voice recording/build/selection
-unknown-state recovery, Settings resource locks and the existing Rust/Tauri/Svelte
-contracts against D1/D3/D5/D6/A9. Repair only demonstrable static blockers.
-Then pin one exact clean `Local` candidate for the already-defined integrated
-Windows build and target-host acceptance, including delayed Text Swap, archive
-disk failure and Meeting Retry Stop. Native Save As remains an unimplemented
-separate choice; summarization stays canceled. All compilation/model/device
-results remain UNKNOWN / NOT EXECUTED until actually run.
+**Freeze the exact 40-character `Local` HEAD of this source-candidate commit**
+for the existing one-phase local acceptance; do not combine proofs from ancestor
+commits. On an authorized clean Windows checkout, use the already-owned
+`docs/knowledge/operations/target-windows-performance.md` sequence: locked
+Node 22/Python 3.12.10/Rust 1.88+ source contracts and frontend/worker tests,
+then exact-SHA Tauri/Cargo compile, then native functional checks. STOP at the
+first compiler/contract failure before hardware acceptance. Within that same
+integrated test, specifically verify D3 orphan-cleanup gates, D6 delayed Swap,
+D10/D11 archive failures and A9 voice status recovery. Only after an actual
+build PASS may runtime/GPU/audio/Meeting/voice quality evidence be evaluated.
+
+Until a test environment is authorized, preserve `UNKNOWN / NOT EXECUTED`.
+No incremental user-PC tests, hosted CI, dependency/engine migrations or release
+packaging are implied. Native Save As and summarization remain outside this
+baseline. When source changes are needed after a real failure, capture its first
+wrong owner and treat the next commit as a **new** candidate.
 
 **STOP boundary:** No hosted CI, cloud build, local Python/Node/Cargo execution,
 Windows audio/GPU tests, or native performance claims in this source-only phase.
