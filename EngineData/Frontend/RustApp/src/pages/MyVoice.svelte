@@ -99,6 +99,10 @@
   let recordActionButton: HTMLButtonElement | undefined;
   let reviewReplayButton: HTMLButtonElement | undefined;
 
+  // Declare recording ownership before derivations that consume it.
+  const isRecording = $derived(recordingState.recording_line_id !== null);
+  const pendingLineId = $derived(recordingState.pending_review?.line_id ?? null);
+
   const activeStage = $derived(
     recordingStatusUnknown || isRecording || pendingLineId !== null
       ? "record"
@@ -301,8 +305,6 @@
   }
 
   const currentLine = $derived(recordingState.lines.find((line) => line.line_id === selectedLineId) ?? null);
-  const isRecording = $derived(recordingState.recording_line_id !== null);
-  const pendingLineId = $derived(recordingState.pending_review?.line_id ?? null);
   // Keep the creator mounted while hidden: its build status owns Stop/Review recovery.
   const creatorNeedsAttention = $derived(Boolean(
     recordingStatusUnknown || isRecording || pendingLineId !== null
@@ -814,7 +816,7 @@
     onSelectPersonal={selectStoredPersonalVoice}
     onConfirm={confirmPendingBuiltin}
     onCancel={() => { builtinPendingId = null; }}
-    onRetry={refreshVoiceSelection}
+    onRetry={() => { void refreshVoiceSelection(); }}
   />
   {#if recordingStatusUnknown}
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--ti-radius-md)] border border-[var(--ti-warning-border)] p-4" role="alert">

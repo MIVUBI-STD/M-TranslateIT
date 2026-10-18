@@ -142,7 +142,11 @@ mod detailed;
 mod phonetic_inventory;
 #[path = "guided_phonetic_guidance.rs"]
 mod phonetic_guidance;
-pub(super) use phonetic_guidance::recommend_lines;
+pub(super) fn recommend_lines(
+    accepted_line_ids: &[u32], required_coverage: Option<&str>, limit: usize,
+) -> Vec<RecordingSuggestion> {
+    phonetic_guidance::recommend_lines(accepted_line_ids, required_coverage, limit)
+}
 pub(crate) use phonetic_guidance::RecordingSuggestion;
 
 use std::sync::OnceLock;

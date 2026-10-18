@@ -480,7 +480,7 @@ mod incoming_status_terminal_tests {
         live.authority_active = false;
         assert!(!incoming_status_update_allowed(&status, "session-a", Some(&live)));
         live.authority_active = true;
-        live.owner_id = "translateit_mic_test".to_string();
+        live.owner_id = crate::engine::runtime_state::MIC_TEST_OWNER_ID.to_string();
         assert!(!incoming_status_update_allowed(&status, "session-a", Some(&live)));
         live.owner_id = APPLICATION_MEETING_OWNER_ID.to_string();
         assert!(!incoming_status_update_allowed(&status, "session-other", Some(&live)));

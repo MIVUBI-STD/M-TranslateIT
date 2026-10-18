@@ -81,7 +81,7 @@ fn write_new_synced(path: &Path, data: &[u8]) -> Result<(), String> {
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)
         .map_err(|_| "my_voice:run_receipt_create_failed")?;
     file.write_all(data).and_then(|_| file.sync_all())
-        .map_err(|_| "my_voice:run_receipt_sync_failed")
+        .map_err(|_| "my_voice:run_receipt_sync_failed".to_string())
 }
 
 pub(super) fn create_identity(paths: &VoiceLabStoragePaths, generation: u64) -> Result<RunIdentity, String> {

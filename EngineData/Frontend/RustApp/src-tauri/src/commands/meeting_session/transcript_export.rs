@@ -228,7 +228,7 @@ fn write_turn<W: Write>(w: &mut W, turn: &MeetingCommittedTurn) -> std::io::Resu
 
 fn write_footer<W: Write>(w: &mut W) -> std::io::Result<()> {
     w.write_all(b"</div></section>")?;
-    w.write_all(b"<aside class=\"notice\" role=\"note\"><strong>Transcript scope.</strong> This file contains available recognized speech records, not a verified recording of every spoken sentence. Meeting audio may combine multiple speakers; individual identities are not known. Translation may be unavailable for some entries. Local playback is not proof of delivery to remote participants.</aside><footer class=\"footer\">Generated locally by TranslateIT · Self-contained offline HTML · No scripts or external resources</footer></main></body></html>")
+    w.write_all("<aside class=\"notice\" role=\"note\"><strong>Transcript scope.</strong> This file contains available recognized speech records, not a verified recording of every spoken sentence. Meeting audio may combine multiple speakers; individual identities are not known. Translation may be unavailable for some entries. Local playback is not proof of delivery to remote participants.</aside><footer class=\"footer\">Generated locally by TranslateIT · Self-contained offline HTML · No scripts or external resources</footer></main></body></html>".as_bytes())
 }
 
 pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {

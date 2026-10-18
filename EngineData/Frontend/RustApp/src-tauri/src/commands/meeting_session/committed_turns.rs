@@ -346,16 +346,22 @@ impl MeetingCommittedTurnStore {
 
     fn snapshot_for_export(&self) -> MeetingCommittedTurnsSnapshot {
         // Stored turns are already ordered by shared sequence; no re-sort needed.
+        let archive_errors = transcript_archive::active_write_errors(&self.session_id);
+        let archive_unverified = archive_errors.is_err();
         MeetingCommittedTurnsSnapshot {
-            ok: true,
+            ok: !archive_unverified,
             has_session: true,
             session_id: Some(self.session_id.clone()),
             turns: self.turns.iter().cloned().collect(),
             dropped_turn_count: self.dropped_turn_count,
-            archive_write_errors: transcript_archive::active_write_errors(&self.session_id),
+            archive_write_errors: archive_errors.unwrap_or(0),
             truncated: self.dropped_turn_count > 0,
-            blocker: String::new(),
-            note: if self.dropped_turn_count > 0 {
+            blocker: if archive_unverified {
+                "transcript_archive:writer_state_unavailable".to_string()
+            } else { String::new() },
+            note: if archive_unverified {
+                "Saved transcript writer status is unavailable; refresh after Retry Stop.".to_string()
+            } else if self.dropped_turn_count > 0 {
                 format!(
                     "The Live-memory buffer released {} earlier turns. The saved disk archive may retain them if each write succeeded.",
                     self.dropped_turn_count,
@@ -373,16 +379,22 @@ impl MeetingCommittedTurnStore {
         let mut turns: Vec<_> = self.turns.iter().rev()
             .take(MAX_LIVE_COMMITTED_TURNS).cloned().collect();
         turns.reverse();
+        let archive_errors = transcript_archive::active_write_errors(&self.session_id);
+        let archive_unverified = archive_errors.is_err();
         MeetingCommittedTurnsSnapshot {
-            ok: true,
+            ok: !archive_unverified,
             has_session: true,
             session_id: Some(self.session_id.clone()),
             turns,
             dropped_turn_count: self.dropped_turn_count,
-            archive_write_errors: transcript_archive::active_write_errors(&self.session_id),
+            archive_write_errors: archive_errors.unwrap_or(0),
             truncated: self.dropped_turn_count > 0,
-            blocker: String::new(),
-            note: if self.dropped_turn_count > 0 {
+            blocker: if archive_unverified {
+                "transcript_archive:writer_state_unavailable".to_string()
+            } else { String::new() },
+            note: if archive_unverified {
+                "Saved transcript writer status is unavailable; refresh after Retry Stop.".to_string()
+            } else if self.dropped_turn_count > 0 {
                 format!("{} earlier phrases left the bounded Live memory buffer; saved disk entries may still be available.", self.dropped_turn_count)
             } else if self.turns.len() > MAX_LIVE_COMMITTED_TURNS {
                 "Showing the latest 240 phrases. Earlier phrases remain available for manual export.".to_string()

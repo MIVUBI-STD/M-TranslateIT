@@ -12,6 +12,7 @@ use crate::engine::runtime_state::runtime_generation_is_authoritative;
 
 #[path = "meeting_output_runtime/audio_format.rs"]
 mod audio_format;
+#[path = "meeting_output_runtime/original.rs"]
 mod original;
 
 pub use original::{start_original_voice_output, stop_original_voice_output, original_voice_output_healthy};

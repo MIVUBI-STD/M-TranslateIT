@@ -51,14 +51,14 @@ pub(super) fn hash_regular_file(path: &Path, cap: u64) -> Result<(String, u64), 
     if bytes != meta.len() {
         return Err("voice_lab:history_source_changed".into());
     }
-    Ok((format!("{digest:x}"), bytes))
+    Ok((format!("{:x}", digest.finalize()), bytes))
 }
 
 pub(super) fn write_new_synced(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)
         .map_err(|_| "voice_lab:history_stage_create_failed")?;
     file.write_all(bytes).map_err(|_| "voice_lab:history_stage_write_failed")?;
-    file.sync_all().map_err(|_| "voice_lab:history_stage_sync_failed")
+    file.sync_all().map_err(|_| "voice_lab:history_stage_sync_failed".to_string())
 }
 
 /// Content-addressed, atomic metadata save. A mismatched existing or pending

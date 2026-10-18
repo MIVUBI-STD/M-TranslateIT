@@ -234,7 +234,7 @@ import { discardLegacyOverlayCaption } from "./app/runtime/translationOverlaySta
           : result.ok && action === "start" && result.meeting.live
             ? source === "original" ? "Original microphone is live." : "Translation is live."
             : result.ok && action === "stop" && !result.meeting.hasSession && result.meeting.lifecycle === "idle"
-              ? "Meeting microphone stopped."
+              ? "Meeting audio stopped."
               : result.meeting.message;
       if (applicationController.read().revision !== actionControllerRevision) {
         // A native application event or newer refresh won the race. The
