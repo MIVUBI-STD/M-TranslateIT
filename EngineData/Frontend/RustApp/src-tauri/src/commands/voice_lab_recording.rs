@@ -220,6 +220,12 @@ pub fn start_voice_lab_guided_take(
         return result(false, "review_pending", "Replay, retry, or accept the current take before recording another line.");
     }
 
+    // A missing runtime session snapshot does not prove Meeting audio cleanup
+    // released the physical microphone. The user must finish Retry Stop first.
+    if super::meeting_session::meeting_stop_cleanup_pending() {
+        return result(false, "meeting_cleanup_incomplete",
+            "Retry Stop Meeting before recording a My Voice line.");
+    }
     let session = begin_voice_recording_session();
     let Some(snapshot) = session.snapshot.as_ref() else {
         return result(false, "runtime_unavailable", "VoiceLab cannot verify microphone ownership right now.");

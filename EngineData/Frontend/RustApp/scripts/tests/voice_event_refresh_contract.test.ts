@@ -64,6 +64,22 @@ test("native voice selection remains locked while Meeting Retry Stop owns orphan
   assert.match(resources, /let audio_locked = meeting\.has_session \|\| orphan_cleanup/);
 });
 
+test("no-session Meeting cleanup gates Mic Test and My Voice recording native entrypoints", () => {
+  const mic = readFileSync(new URL("../../src-tauri/src/commands/mic_test.rs", import.meta.url), "utf8");
+  const record = readFileSync(new URL("../../src-tauri/src/commands/voice_lab_recording.rs", import.meta.url), "utf8");
+  const meeting = readFileSync(new URL("../../src-tauri/src/commands/meeting_session.rs", import.meta.url), "utf8");
+  const micStart = mic.slice(mic.indexOf("pub fn start_capture()"), mic.indexOf("pub fn stop_capture()"));
+  const voiceStart = record.slice(record.indexOf("pub fn start_voice_lab_guided_take("),
+    record.indexOf("pub fn stop_voice_lab_guided_take("));
+  assert.match(meeting, /fn meeting_stop_cleanup_pending\(\) -> bool/);
+  assert.match(micStart, /meeting_stop_cleanup_pending\(\)/);
+  assert.match(micStart, /CommandResult::blocked\(/);
+  assert.ok(micStart.indexOf("meeting_stop_cleanup_pending()") < micStart.indexOf("engine::start_capture()"));
+  assert.match(voiceStart, /meeting_stop_cleanup_pending\(\)/);
+  assert.match(voiceStart, /"meeting_cleanup_incomplete"/);
+  assert.ok(voiceStart.indexOf("meeting_stop_cleanup_pending()") < voiceStart.indexOf("begin_voice_recording_session()"));
+});
+
 test("background Voice build completion uses a global backend event", () => {
   assert.match(runtimeEvents, /translateit:\/\/voice-build-runtime/);
   assert.match(voiceApi, /subscribeRuntime/);
