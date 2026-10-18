@@ -55,6 +55,7 @@ from voice_lab_speaker_consistency import inspect_speaker_embeddings
 MAX_FULL_SOVITS_PAIR_SAVES = 4
 MAX_FULL_GPT_SAVE_EPOCHS = 5
 
+
 def optimizer_checkpoint_interval(total_epochs: int, max_saves: int) -> int:
     if type(total_epochs) is not int or total_epochs <= 0:
         raise VoiceLabProviderError("checkpoint_epoch_count_invalid")
@@ -178,9 +179,7 @@ def select_reference(
         )
         for take in eligible
     ]
-    compare_quiet_edges = reference_quiet_context_available(
-        [frames for _, _, frames in evidence]
-    )
+    compare_quiet_edges = reference_quiet_context_available([frames for _, _, frames in evidence])
     ranked: list[tuple[tuple[float, ...], dict[str, Any]]] = []
     for take, metrics, frames in evidence:
         edge_floor = frames["edge_floor_rms_pcm16"]
@@ -231,8 +230,10 @@ def stage_gpu_budget() -> int:
     completed = subprocess.run(
         [sys.executable, "-s", str(probe_path)],
         cwd=str(Path(__file__).resolve().parent),
-        stdin=subprocess.DEVNULL, capture_output=True,
-        timeout=20, check=False,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=20,
+        check=False,
     )
     if completed.returncode != 0 or not completed.stdout or len(completed.stdout) > 4096:
         raise VoiceLabProviderError("gpu_recheck_unavailable")
@@ -244,10 +245,14 @@ def stage_gpu_budget() -> int:
 
 
 def run_stage(
-    source_root: Path, script: Path, env: dict[str, str], *args: str,
+    source_root: Path,
+    script: Path,
+    env: dict[str, str],
+    *args: str,
     status_writer: Callable[[str, str], None] | None = None,
 ) -> None:
     from my_voice_cooperative import manual_stop_requested
+
     try:
         stop_requested = manual_stop_requested()
     except RuntimeError as exc:
@@ -273,8 +278,10 @@ def run_stage(
         if status_writer is None:
             return
         stage = (
-            "SoVITS training stage" if script.name == "s2_train.py"
-            else "GPT training stage" if script.name == "s1_train.py"
+            "SoVITS training stage"
+            if script.name == "s2_train.py"
+            else "GPT training stage"
+            if script.name == "s1_train.py"
             else script.name
         )
         if state == "watch":
@@ -307,23 +314,28 @@ def run_stage(
         stall_warning = None
         if status_writer is not None:
             name = "SoVITS" if stage == "sovits" else "GPT"
-            status_writer("training",
-                          f"{name} epoch {epoch} completed (checkpoint/resume not implied).")
+            status_writer(
+                "training", f"{name} epoch {epoch} completed (checkpoint/resume not implied)."
+            )
 
     def stall_alert(stage: str, reason: str) -> None:
         nonlocal stall_warning
         stall_warning = reason
         if status_writer is not None:
             name = "SoVITS" if stage == "sovits" else "GPT"
-            status_writer("training",
-                          f"{name}: progress observation warning ({reason}). "
-                          "No automatic termination; current checkpoint remains protected.")
+            status_writer(
+                "training",
+                f"{name}: progress observation warning ({reason}). "
+                "No automatic termination; current checkpoint remains protected.",
+            )
 
     def heartbeat(state: str) -> None:
         if status_writer is not None:
             stage_name = (
-                "SoVITS training stage" if script.name == "s2_train.py"
-                else "GPT training stage" if script.name == "s1_train.py"
+                "SoVITS training stage"
+                if script.name == "s2_train.py"
+                else "GPT training stage"
+                if script.name == "s1_train.py"
                 else script.name
             )
             # This heartbeat proves the supervisor loop is responsive,
@@ -335,24 +347,32 @@ def run_stage(
             )
             completed = (
                 f" Last completed epoch: {last_completed_epoch}."
-                if last_completed_epoch is not None else " No completed epoch reported yet."
+                if last_completed_epoch is not None
+                else " No completed epoch reported yet."
             )
             warning = (
                 f" Progress needs attention: {stall_warning}; training not automatically stopped."
-                if stall_warning is not None else ""
+                if stall_warning is not None
+                else ""
             )
-            status_writer("training",
+            status_writer(
+                "training",
                 f"{stage_name}: safety supervisor responsive ({state})."
-                f"{completed}{milestone}{warning}")
+                f"{completed}{milestone}{warning}",
+            )
 
     try:
         run_supervised_stage(
             [sys.executable, "-s", str(runner), str(source_root), str(script), *args],
-            cwd=str(source_root), env=child_env,
+            cwd=str(source_root),
+            env=child_env,
             gpu_stage=script.name != "1-get-text.py",
             cooperative_stage=(
-                "sovits" if script.name == "s2_train.py"
-                else "gpt" if script.name == "s1_train.py" else None
+                "sovits"
+                if script.name == "s2_train.py"
+                else "gpt"
+                if script.name == "s1_train.py"
+                else None
             ),
             on_safety_change=safety_change if status_writer is not None else None,
             on_heartbeat=heartbeat if status_writer is not None else None,
@@ -430,6 +450,7 @@ def batch_and_half() -> tuple[int, bool]:
     if not torch.cuda.is_available():
         raise VoiceLabProviderError("safe_cuda_requires_supported_gpu")
     from my_voice_precision_policy import device_precision_policy
+
     _cc, precision = device_precision_policy(torch.cuda, 0)
     if precision != "mixed_fp16":
         raise VoiceLabProviderError("safe_cuda_pinned_mixed_precision_unsupported")
@@ -444,6 +465,7 @@ def training_configs(
     import yaml
 
     from my_voice_gpu_identity import DeviceIdentityError, normalize_uuid
+
     try:
         physical_uuid = normalize_uuid(os.environ["TRANSLATEIT_MYVOICE_GPU_UUID"])
     except (KeyError, DeviceIdentityError) as exc:
@@ -451,12 +473,8 @@ def training_configs(
     if os.environ.get("CUDA_VISIBLE_DEVICES") != physical_uuid:
         raise VoiceLabProviderError("gpu_uuid_changed_before_training")
     batch, half = batch_and_half()
-    sovits_save_every = optimizer_checkpoint_interval(
-        SOVITS_EPOCHS, MAX_FULL_SOVITS_PAIR_SAVES
-    )
-    gpt_save_every = optimizer_checkpoint_interval(
-        GPT_EPOCHS, MAX_FULL_GPT_SAVE_EPOCHS
-    )
+    sovits_save_every = optimizer_checkpoint_interval(SOVITS_EPOCHS, MAX_FULL_SOVITS_PAIR_SAVES)
+    gpt_save_every = optimizer_checkpoint_interval(GPT_EPOCHS, MAX_FULL_GPT_SAVE_EPOCHS)
 
     s2 = json.loads(assets["s2_config"].read_text(encoding="utf-8"))
     s2["train"].update(
@@ -598,11 +616,13 @@ def train(
     # The headless runner applies the pinned single-GPU adapter. No upstream
     # source files are edited and source-hash drift blocks training.
     status_writer("training", "Learning voice characteristics (SoVITS training stage).")
-    run_stage(source_root, assets["sovits_train"], env, "--config", str(s2),
-              status_writer=status_writer)
+    run_stage(
+        source_root, assets["sovits_train"], env, "--config", str(s2), status_writer=status_writer
+    )
     status_writer("training", "Learning speech generation (GPT training stage).")
-    run_stage(source_root, assets["gpt_train"], env, "--config_file", str(s1),
-              status_writer=status_writer)
+    run_stage(
+        source_root, assets["gpt_train"], env, "--config_file", str(s1), status_writer=status_writer
+    )
     return select_training_candidates(sovits_dir, gpt_dir)
 
 
@@ -989,8 +1009,10 @@ def build_candidate(
         # A previous model's CUDA allocations are released when its child exits.
         # Never retry the same candidate automatically after a VRAM or native failure.
         safe_id = str(candidate["candidate_id"])
-        candidate_data = {key: str(value) if isinstance(value, Path) else value
-                          for key, value in candidate.items()}
+        candidate_data = {
+            key: str(value) if isinstance(value, Path) else value
+            for key, value in candidate.items()
+        }
         child_request = {
             "source_root": str(source_root),
             "asr_model_root": str(asr_model_root),
@@ -1005,20 +1027,34 @@ def build_candidate(
             raise VoiceLabProviderError("evaluation_child_input_collision")
         request_path.write_text(
             json.dumps(child_request, ensure_ascii=True, separators=(",", ":")),
-            encoding="utf-8", newline="\n",
+            encoding="utf-8",
+            newline="\n",
         )
         budget = stage_gpu_budget()
         env = os.environ.copy()
         env["TRANSLATEIT_MYVOICE_STAGE_GPU_BUDGET_MIB"] = str(budget)
         try:
             run_supervised_stage(
-                [sys.executable, "-s", str(evaluator),
-                 "--request", str(request_path), "--result", str(report_path)],
-                cwd=str(Path(__file__).resolve().parent), env=env, gpu_stage=True,
+                [
+                    sys.executable,
+                    "-s",
+                    str(evaluator),
+                    "--request",
+                    str(request_path),
+                    "--result",
+                    str(report_path),
+                ],
+                cwd=str(Path(__file__).resolve().parent),
+                env=env,
+                gpu_stage=True,
             )
         except StageGuardError as exc:
             raise VoiceLabProviderError(f"evaluation_child_guard:{safe_id}:{exc}") from exc
-        if report_path.is_symlink() or not report_path.is_file() or report_path.stat().st_size > 96 * 1024:
+        if (
+            report_path.is_symlink()
+            or not report_path.is_file()
+            or report_path.stat().st_size > 96 * 1024
+        ):
             raise VoiceLabProviderError("evaluation_evidence_missing")
         try:
             item = json.loads(report_path.read_text(encoding="utf-8"))
@@ -1037,10 +1073,13 @@ def build_candidate(
         for sample, expected in zip(samples, held_out):
             line_id = int(expected["line_id"])
             wav = candidate_evaluation_root / safe_id / f"held_out_{line_id}.wav"
-            if (not isinstance(sample, dict) or sample.get("line_id") != line_id
+            if (
+                not isinstance(sample, dict)
+                or sample.get("line_id") != line_id
                 or sample.get("exact_text") != expected["exact_text"]
                 or sample.get("sha256") != sha256_file(wav)
-                or wav.is_symlink()):
+                or wav.is_symlink()
+            ):
                 raise VoiceLabProviderError("evaluation_sample_identity_invalid")
             sample["_wav_path"] = wav
         item["gpt_path"] = Path(candidate["gpt_path"])
@@ -1063,8 +1102,7 @@ def build_candidate(
         "selection_method": selection_method,
         "candidate_id": str(selected["candidate_id"]),
         "audio": [
-            [int(sample["line_id"]), str(sample["sha256"])]
-            for sample in selected["samples"]
+            [int(sample["line_id"]), str(sample["sha256"])] for sample in selected["samples"]
         ],
     }
     review_id = hashlib.sha256(

@@ -52,6 +52,7 @@ class ResumeExpectation:
     The recovery archive, dataset, checkpoint hashes and expected epochs must
     already have passed the separate strict read-only archive audit.
     """
+
     run_token: str
     recovery_id: str
     dataset_id: str
@@ -86,6 +87,7 @@ class StrictResumeAcknowledgments:
     the missing worker events. A complete sequence is not sufficient to enable
     exact resume because SoVITS scheduler/AMP continuity remains unproven.
     """
+
     expected: ResumeExpectation
     _loaded: dict[str, dict[str, Any]] = field(default_factory=dict)
     _started: set[str] = field(default_factory=set)
@@ -107,8 +109,16 @@ class StrictResumeAcknowledgments:
     def _validate_event(self, event: dict[str, Any]) -> None:
         if not isinstance(event, dict):
             raise ResumeAckError("event_not_object")
-        required = {"schema_version", "run_token", "recovery_id", "dataset_id",
-                    "engine_revision", "worker_pid", "sequence", "kind"}
+        required = {
+            "schema_version",
+            "run_token",
+            "recovery_id",
+            "dataset_id",
+            "engine_revision",
+            "worker_pid",
+            "sequence",
+            "kind",
+        }
         if not required <= event.keys():
             raise ResumeAckError("acknowledgment_fields_missing")
         if event["schema_version"] != 1:
@@ -142,11 +152,11 @@ class StrictResumeAcknowledgments:
             raise ResumeAckError("checkpoint_role_missing_or_duplicate")
         if event.get("checkpoint_sha256") != self.expected.checkpoint_sha256[role]:
             raise ResumeAckError("loaded_checkpoint_identity_mismatch")
-        if (event.get("model_loaded") is not True
-                or event.get("optimizer_loaded") is not True):
+        if event.get("model_loaded") is not True or event.get("optimizer_loaded") is not True:
             raise ResumeAckError("model_or_optimizer_load_unconfirmed")
-        epoch = _positive_int(event.get("checkpoint_epoch"), "checkpoint_epoch",
-                              allow_zero=(role == "gpt"))
+        epoch = _positive_int(
+            event.get("checkpoint_epoch"), "checkpoint_epoch", allow_zero=(role == "gpt")
+        )
         if epoch != (self.expected.gpt_epoch if role == "gpt" else self.expected.sovits_epoch):
             raise ResumeAckError("checkpoint_epoch_mismatch")
         if role == "gpt":
@@ -178,18 +188,22 @@ class StrictResumeAcknowledgments:
                 raise ResumeAckError("gpt_training_start_without_load")
             if pid != self._loaded["gpt"]["worker_pid"]:
                 raise ResumeAckError("gpt_training_worker_mismatch")
-            if (type(event.get("current_epoch")) is not int
-                    or event["current_epoch"] < self.expected.gpt_epoch
-                    or event.get("global_step") != self.expected.gpt_global_step):
+            if (
+                type(event.get("current_epoch")) is not int
+                or event["current_epoch"] < self.expected.gpt_epoch
+                or event.get("global_step") != self.expected.gpt_global_step
+            ):
                 raise ResumeAckError("gpt_training_start_state_invalid")
         else:
             raise ResumeAckError("training_start_role_unknown")
         self._started.add(role)
 
     def summary(self) -> dict[str, Any]:
-        sequence_complete = (not self._failed
-                             and set(self._loaded) == set(_ROLES)
-                             and self._started == {"gpt", "sovits"})
+        sequence_complete = (
+            not self._failed
+            and set(self._loaded) == set(_ROLES)
+            and self._started == {"gpt", "sovits"}
+        )
         blockers = []
         if self._failed:
             blockers.append("worker_resume_acknowledgment_rejected")
@@ -197,8 +211,12 @@ class StrictResumeAcknowledgments:
             blockers.append("worker_training_load_evidence_incomplete")
         # Deliberate gate: no promoted training-run resume until actual native
         # validation, non-silent G/D loading and AMP/scheduler requirements.
-        blockers.extend(("sovits_amp_scheduler_continuity_not_proven",
-                         "native_resume_reproducibility_not_tested"))
+        blockers.extend(
+            (
+                "sovits_amp_scheduler_continuity_not_proven",
+                "native_resume_reproducibility_not_tested",
+            )
+        )
         return {
             "schema_version": 1,
             "recovery_id": self.expected.recovery_id,

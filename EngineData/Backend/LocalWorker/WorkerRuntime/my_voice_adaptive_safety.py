@@ -4,6 +4,7 @@ WATCH tolerates high *stable* VRAM use. PRESSURE requires a downward trend.
 A critical reading is an emergency signal, not permission to change weights.
 Thresholds are initial design values, not experimentally validated limits.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -26,8 +27,12 @@ SOFT_PRESSURE_SAMPLES = 3
 
 
 def soft_stop_ready(state: str, elapsed_seconds: float, consecutive_pressure: int) -> bool:
-    return (state == "pressure" and elapsed_seconds >= STAGE_WARMUP_SECONDS
-            and consecutive_pressure >= SOFT_PRESSURE_SAMPLES)
+    return (
+        state == "pressure"
+        and elapsed_seconds >= STAGE_WARMUP_SECONDS
+        and consecutive_pressure >= SOFT_PRESSURE_SAMPLES
+    )
+
 
 @dataclass(frozen=True)
 class SafetySample:
@@ -41,16 +46,18 @@ class SafetySample:
         return (
             all(type(v) is int and 0 <= v < 1048576 for v in values)
             and (not require_gpu or type(self.gpu_free_mib) is int)
-            and (self.gpu_free_mib is None or (
-                type(self.gpu_free_mib) is int
-                and 0 <= self.gpu_free_mib < 1048576
-            ))
+            and (
+                self.gpu_free_mib is None
+                or (type(self.gpu_free_mib) is int and 0 <= self.gpu_free_mib < 1048576)
+            )
         )
+
 
 @dataclass(frozen=True)
 class SafetyDecision:
     state: str
     reason: str
+
 
 class PressureObserver:
     def __init__(self, *, require_gpu: bool) -> None:
@@ -76,14 +83,21 @@ class PressureObserver:
         )
         if len(self.history) == 3:
             start = self.history[0]
-            if (g is not None and start.gpu_free_mib is not None
-                    and g < WATCH_GPU_MIB and start.gpu_free_mib - g >= TREND_GPU_MIB):
+            if (
+                g is not None
+                and start.gpu_free_mib is not None
+                and g < WATCH_GPU_MIB
+                and start.gpu_free_mib - g >= TREND_GPU_MIB
+            ):
                 return SafetyDecision("pressure", "gpu_free_declining")
-            if (sample.ram_free_mib < WATCH_RAM_MIB
-                    and start.ram_free_mib - sample.ram_free_mib >= TREND_RAM_MIB):
+            if (
+                sample.ram_free_mib < WATCH_RAM_MIB
+                and start.ram_free_mib - sample.ram_free_mib >= TREND_RAM_MIB
+            ):
                 return SafetyDecision("pressure", "system_ram_declining")
-            if (min(sample.cache_free_mib, sample.saved_free_mib) < WATCH_DISK_MIB
-                    and (start.cache_free_mib - sample.cache_free_mib >= TREND_DISK_MIB
-                         or start.saved_free_mib - sample.saved_free_mib >= TREND_DISK_MIB)):
+            if min(sample.cache_free_mib, sample.saved_free_mib) < WATCH_DISK_MIB and (
+                start.cache_free_mib - sample.cache_free_mib >= TREND_DISK_MIB
+                or start.saved_free_mib - sample.saved_free_mib >= TREND_DISK_MIB
+            ):
                 return SafetyDecision("pressure", "disk_space_declining")
         return SafetyDecision("watch" if watching else "normal", "stable_or_sufficient")

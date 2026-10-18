@@ -216,6 +216,7 @@ def install_preflight_allocator_budget(relative_script: Path) -> None:
     if torch.cuda.device_count() != 1 or cuda_device_uuid(torch.cuda, 0) != expected_uuid:
         raise RuntimeError("my_voice:gpu_stage_wrong_physical_device")
     from my_voice_precision_policy import device_precision_policy
+
     _capability, precision = device_precision_policy(torch.cuda, 0)
     if precision != "mixed_fp16":
         raise RuntimeError("my_voice:pinned_cuda_precision_not_supported")
@@ -250,26 +251,28 @@ def run_upstream_script(source_root: Path, script: Path, script_args: list[str])
     # Developer-only explicit CLI gate. Production run_stage() passes no
     # script args and retains its original pinned GPT-SoVITS behavior.
     if script_args[:1] == ["--translateit-dev-strict-sovits-probe"]:
-        if (relative_script.as_posix() != "GPT_SoVITS/s2_train.py"
-                or len(script_args) != 2):
+        if relative_script.as_posix() != "GPT_SoVITS/s2_train.py" or len(script_args) != 2:
             raise RuntimeError("voice_lab:strict_probe_wrong_stage_or_arguments")
         from voice_lab_resume_child_probe import install_opt_in_sovits_spawn_probe
+
         install_opt_in_sovits_spawn_probe(source_root, Path(script_args[1]))
         script_args = []
     elif script_args[:1] == ["--translateit-dev-strict-gpt-probe"]:
-        if (relative_script.as_posix() != "GPT_SoVITS/s1_train.py"
-                or len(script_args) != 2):
+        if relative_script.as_posix() != "GPT_SoVITS/s1_train.py" or len(script_args) != 2:
             raise RuntimeError("voice_lab:strict_gpt_probe_wrong_stage_or_arguments")
         from voice_lab_resume_gpt_probe import GptWorkerPlan, install_opt_in_gpt_lightning_probe
+
         plan = GptWorkerPlan.read(Path(script_args[1]))
         install_opt_in_gpt_lightning_probe(source_root, Path(script_args[1]))
         script_args = ["--config_file", plan.config_path]
 
     sys.argv = [str(script), *script_args]
-    if (not strict_developer_probe and relative_script.as_posix() in (
-        "GPT_SoVITS/s2_train.py", "GPT_SoVITS/s1_train.py"
-    )):
+    if not strict_developer_probe and relative_script.as_posix() in (
+        "GPT_SoVITS/s2_train.py",
+        "GPT_SoVITS/s1_train.py",
+    ):
         from my_voice_single_gpu_adapter import single_gpu_source
+
         revised_source = single_gpu_source(script, relative_script.as_posix())
         exec(
             compile(revised_source, str(script), "exec"),

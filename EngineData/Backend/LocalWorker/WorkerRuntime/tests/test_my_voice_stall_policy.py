@@ -2,6 +2,7 @@
 
 from my_voice_stall_policy import EpochStallObserver
 
+
 def test_device_specific_baseline_no_false_slow_gpu_kill():
     obs = EpochStallObserver()
     obs.observe_epoch(1, 600.0)
@@ -11,12 +12,14 @@ def test_device_specific_baseline_no_false_slow_gpu_kill():
     assert obs.possible_stall(15001.0) == "epoch_duration_exceeds_measured_device_baseline"
     assert obs.possible_stall(15002.0) is None
 
+
 def test_no_training_epoch_warns_once_but_never_proves_hang():
     obs = EpochStallObserver()
     obs.begin(0.0)
     assert obs.possible_stall(60.0) is None
     assert obs.possible_stall(3600.0) == "first_epoch_not_observed_no_baseline"
     assert obs.possible_stall(7200.0) is None
+
 
 def test_new_epoch_resets_previous_warning():
     obs = EpochStallObserver()

@@ -1,4 +1,5 @@
 """Static source-contract fixtures only; no GPU, training or validation run."""
+
 from pathlib import Path
 
 import pytest

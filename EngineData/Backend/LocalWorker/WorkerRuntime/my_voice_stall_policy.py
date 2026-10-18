@@ -4,6 +4,7 @@ Training epoch duration depends on dataset, GPU, I/O and checkpoint writes.
 A missing epoch alone cannot prove a hang, especially before learning timings.
 Warnings only. Resource emergencies and explicit Stop remain separately owned.
 """
+
 from __future__ import annotations
 
 import math
@@ -30,8 +31,7 @@ class EpochStallObserver:
             self.started_at = when
 
     def observe_epoch(self, epoch: int, when: float) -> None:
-        if (type(epoch) is not int or epoch <= self.last_epoch
-            or not math.isfinite(when)):
+        if type(epoch) is not int or epoch <= self.last_epoch or not math.isfinite(when):
             raise ValueError("my_voice:epoch_stall_observation_invalid")
         if self.last_at is not None:
             elapsed = when - self.last_at
@@ -52,9 +52,11 @@ class EpochStallObserver:
         # Before at least two complete epoch intervals, the local hardware
         # performance baseline is unknown. No automatic timeout is justified.
         if self.last_at is None:
-            if (self.started_at is not None
+            if (
+                self.started_at is not None
                 and when - self.started_at >= EARLY_OBSERVATION_SECONDS
-                and self.warned_for_epoch != 0):
+                and self.warned_for_epoch != 0
+            ):
                 self.warned_for_epoch = 0
                 return "first_epoch_not_observed_no_baseline"
             return None
@@ -68,8 +70,7 @@ class EpochStallObserver:
                 return None
             kind = "epoch_not_seen_for_45_minutes_no_baseline"
         else:
-            limit = max(MIN_ADAPTIVE_STALL_SECONDS,
-                        ADAPTIVE_SLOWDOWN_FACTOR * max(self.intervals))
+            limit = max(MIN_ADAPTIVE_STALL_SECONDS, ADAPTIVE_SLOWDOWN_FACTOR * max(self.intervals))
             if since < limit:
                 return None
             kind = "epoch_duration_exceeds_measured_device_baseline"

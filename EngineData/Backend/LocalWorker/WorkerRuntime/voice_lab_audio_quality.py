@@ -45,10 +45,7 @@ def inspect_take_frames(path: Path) -> dict[str, float | int | None]:
                 raw = reader.readframes(n)
                 if len(raw) != n * 2:
                     raise ValueError("incomplete_audio")
-                square_sum = sum(
-                    value * value
-                    for (value,) in struct.iter_unpack("<h", raw)
-                )
+                square_sum = sum(value * value for (value,) in struct.iter_unpack("<h", raw))
                 energies.append(math.sqrt(square_sum / n))
                 remaining -= n
     except (OSError, EOFError, wave.Error) as exc:
@@ -69,14 +66,14 @@ def inspect_take_frames(path: Path) -> dict[str, float | int | None]:
         trailing.append(energy)
 
     quiet_regions = [
-        region for region in (leading, trailing)
-        if len(region) >= QUIET_CONTEXT_MIN_FRAMES
+        region for region in (leading, trailing) if len(region) >= QUIET_CONTEXT_MIN_FRAMES
     ]
     # A quiet boundary can reveal a comparative noise proxy. It cannot
     # identify whether the energy is fan noise, room tone, or quiet speech.
     edge_floor = (
         round(statistics.median(energy for region in quiet_regions for energy in region), 3)
-        if quiet_regions else None
+        if quiet_regions
+        else None
     )
 
     longest_low = current_low = 0
@@ -103,9 +100,7 @@ def inspect_take_frames(path: Path) -> dict[str, float | int | None]:
 
 def reference_quiet_context_available(reports: list[dict[str, float | int | None]]) -> bool:
     """Compare the quiet-edge proxy only if ALL candidates have that evidence."""
-    return bool(reports) and all(
-        report["edge_floor_rms_pcm16"] is not None for report in reports
-    )
+    return bool(reports) and all(report["edge_floor_rms_pcm16"] is not None for report in reports)
 
 
 def attach_speaker_evidence(

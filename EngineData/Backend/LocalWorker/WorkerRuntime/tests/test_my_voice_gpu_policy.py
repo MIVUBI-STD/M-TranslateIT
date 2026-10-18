@@ -24,14 +24,22 @@ def test_invalid_telemetry_is_unknown() -> None:
 
 def test_recheck_never_expands_original_admission() -> None:
     from my_voice_gpu_policy import PROFILE
+
     uuid = "GPU-11111111-2222-3333-4444-555555555555"
-    report = {"state": "cuda_detected", "admission_state": "admitted", "safe_budget_mib": 4500,
-              "gpu_uuid": uuid, "profile": PROFILE}
+    report = {
+        "state": "cuda_detected",
+        "admission_state": "admitted",
+        "safe_budget_mib": 4500,
+        "gpu_uuid": uuid,
+        "profile": PROFILE,
+    }
     assert check_stage_budget(report, 4000, uuid) == 4000
     with pytest.raises(RuntimeError):
         check_stage_budget(report, 4000, "GPU-99999999-2222-3333-4444-555555555555")
     with pytest.raises(RuntimeError):
-        check_stage_budget({"state": "cuda_detected", "admission_state": "blocked_gpu_headroom"}, 4000, uuid)
+        check_stage_budget(
+            {"state": "cuda_detected", "admission_state": "blocked_gpu_headroom"}, 4000, uuid
+        )
 
 
 def test_other_cuda_capacity_profiles_use_the_same_dynamic_policy() -> None:

@@ -5,6 +5,7 @@ Windows children start CREATE_SUSPENDED and only resume after Job admission.
 A native worker/driver crash can still happen after resume.
 CUDA stages require a UUID-matched nvidia-smi sensor; missing data fails closed.
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -46,8 +47,10 @@ MAX_BAD_SAMPLES = 2
 MANUAL_COOPERATIVE_MAX_SECONDS = 300
 HEARTBEAT_INTERVAL_SECONDS = 30
 
+
 class StageGuardError(RuntimeError):
     pass
+
 
 if os.name == "nt":
     from ctypes import wintypes
@@ -66,10 +69,17 @@ if os.name == "nt":
         ]
 
     class _IoCounters(ctypes.Structure):
-        _fields_ = [(name, ctypes.c_uint64) for name in (
-            "ReadOperationCount", "WriteOperationCount", "OtherOperationCount",
-            "ReadTransferCount", "WriteTransferCount", "OtherTransferCount"
-        )]
+        _fields_ = [
+            (name, ctypes.c_uint64)
+            for name in (
+                "ReadOperationCount",
+                "WriteOperationCount",
+                "OtherOperationCount",
+                "ReadTransferCount",
+                "WriteTransferCount",
+                "OtherTransferCount",
+            )
+        ]
 
     class _ExtendedLimit(ctypes.Structure):
         _fields_ = [
@@ -96,7 +106,12 @@ if os.name == "nt":
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.CreateJobObjectW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
     kernel.CreateJobObjectW.restype = ctypes.c_void_p
-    kernel.SetInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    kernel.SetInformationJobObject.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
     kernel.SetInformationJobObject.restype = wintypes.BOOL
     kernel.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     kernel.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
@@ -110,7 +125,13 @@ if os.name == "nt":
     kernel.ResumeThread.argtypes = [ctypes.c_void_p]
     kernel.ResumeThread.restype = wintypes.DWORD
     kernel.AssignProcessToJobObject.restype = wintypes.BOOL
-    kernel.QueryInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p]
+    kernel.QueryInformationJobObject.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+    ]
     kernel.QueryInformationJobObject.restype = wintypes.BOOL
     kernel.TerminateJobObject.argtypes = [ctypes.c_void_p, wintypes.UINT]
     kernel.TerminateJobObject.restype = wintypes.BOOL
@@ -157,6 +178,7 @@ if os.name == "nt":
         if prior != 1:
             raise StageGuardError("my_voice:suspended_thread_resume_failed")
 
+
 class OwnedStageTree:
     def __init__(self) -> None:
         self.handle: int | None = None
@@ -168,7 +190,9 @@ class OwnedStageTree:
             self.handle = int(handle)
             info = _ExtendedLimit()
             info.BasicLimitInformation.LimitFlags = 0x2000
-            if not kernel.SetInformationJobObject(self.handle, 9, ctypes.byref(info), ctypes.sizeof(info)):
+            if not kernel.SetInformationJobObject(
+                self.handle, 9, ctypes.byref(info), ctypes.sizeof(info)
+            ):
                 self.close()
                 raise StageGuardError("my_voice:job_limit_failed")
 
@@ -176,7 +200,11 @@ class OwnedStageTree:
         self.process = proc
         if os.name == "nt":
             handle = getattr(proc, "_handle", None)
-            if not handle or not self.handle or not kernel.AssignProcessToJobObject(self.handle, int(handle)):
+            if (
+                not handle
+                or not self.handle
+                or not kernel.AssignProcessToJobObject(self.handle, int(handle))
+            ):
                 # This suspended process was NEVER assigned to our Job.
                 # TerminateJobObject cannot kill an unassigned root. Use only
                 # the exact freshly-created Popen handle; no PID-wide scan.
@@ -278,8 +306,7 @@ class OwnedStageTree:
         try:
             if self.process is not None:
                 should_cleanup = (
-                    self.process.poll() is None if os.name == "nt"
-                    else self.remaining() != 0
+                    self.process.poll() is None if os.name == "nt" else self.remaining() != 0
                 )
                 if should_cleanup:
                     # Windows assignment failures may leave an unassigned
@@ -294,13 +321,12 @@ class OwnedStageTree:
                     try:
                         self.process.wait(timeout=8)
                     except subprocess.TimeoutExpired as exc:
-                        raise StageGuardError(
-                            "my_voice:stage_cleanup_not_confirmed"
-                        ) from exc
+                        raise StageGuardError("my_voice:stage_cleanup_not_confirmed") from exc
                     if os.name != "nt":
                         self.confirm_posix_group_cleanup()
         finally:
             self.close()
+
 
 def locate_sensor() -> str:
     try:
@@ -318,15 +344,25 @@ def gpu_free_mib(sensor: str, uuid: str) -> int:
 
 
 def _create_cooperative_request(
-    directory: Path, token: str, stage: str, reason: str,
-    writer_pid: int, stage_nonce: str,
+    directory: Path,
+    token: str,
+    stage: str,
+    reason: str,
+    writer_pid: int,
+    stage_nonce: str,
 ) -> None:
     # New temporary stage-scoped file; a stale signal from a previous run
     # cannot affect a new build. This is not an authentication boundary.
-    data = json.dumps({
-        "run_token": token, "stage": stage, "reason": reason,
-        "writer_pid": writer_pid, "stage_nonce": stage_nonce,
-    }, sort_keys=True).encode("utf-8")
+    data = json.dumps(
+        {
+            "run_token": token,
+            "stage": stage,
+            "reason": reason,
+            "writer_pid": writer_pid,
+            "stage_nonce": stage_nonce,
+        },
+        sort_keys=True,
+    ).encode("utf-8")
     with (directory / "request.json").open("xb") as stream:
         stream.write(data)
         stream.flush()
@@ -345,20 +381,27 @@ def _acknowledged(
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise StageGuardError("my_voice:cooperative_ack_unreadable") from exc
-    if (not isinstance(value, dict)
+    if (
+        not isinstance(value, dict)
         or value.get("run_token") != token
         or value.get("stage") != stage
         or type(value.get("writer_pid")) is not int
         or value.get("writer_pid") != writer_pid
         or value.get("stage_nonce") != stage_nonce
         or value.get("kind") != "checkpoint_candidate_not_resume_verified"
-        or type(value.get("epoch")) is not int or value["epoch"] < 1):
+        or type(value.get("epoch")) is not int
+        or value["epoch"] < 1
+    ):
         raise StageGuardError("my_voice:cooperative_ack_mismatch")
     return True
 
 
 def run_supervised_stage(
-    argv: list[str], *, cwd: str, env: dict[str, str], gpu_stage: bool,
+    argv: list[str],
+    *,
+    cwd: str,
+    env: dict[str, str],
+    gpu_stage: bool,
     cooperative_stage: str | None = None,
     on_safety_change: Callable[[str, str], None] | None = None,
     on_heartbeat: Callable[[str], None] | None = None,
@@ -422,8 +465,13 @@ def run_supervised_stage(
         with OwnedStageTree() as tree:
             try:
                 proc = subprocess.Popen(
-                    argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                    creationflags=(subprocess.CREATE_NO_WINDOW | 0x00000004) if os.name == "nt" else 0,
+                    argv,
+                    cwd=cwd,
+                    env=env,
+                    stdin=subprocess.DEVNULL,
+                    creationflags=(subprocess.CREATE_NO_WINDOW | 0x00000004)
+                    if os.name == "nt"
+                    else 0,
                     start_new_session=os.name != "nt",
                 )
             except OSError as exc:
@@ -465,8 +513,12 @@ def run_supervised_stage(
                         manual_requested_at = time.monotonic()
                     if not request_sent:
                         _create_cooperative_request(
-                            Path(temporary), token, cooperative_stage, "manual_stop",
-                            proc.pid, stage_nonce
+                            Path(temporary),
+                            token,
+                            cooperative_stage,
+                            "manual_stop",
+                            proc.pid,
+                            stage_nonce,
                         )
                         request_sent = True
                     if time.monotonic() - manual_requested_at >= MANUAL_COOPERATIVE_MAX_SECONDS:
@@ -487,7 +539,8 @@ def run_supervised_stage(
                     result.state, now - stage_started, pressure_samples
                 )
                 effective_state = (
-                    "watch" if result.state == "pressure" and not actionable_pressure
+                    "watch"
+                    if result.state == "pressure" and not actionable_pressure
                     else result.state
                 )
                 if effective_state != previous_state:
@@ -497,9 +550,13 @@ def run_supervised_stage(
                 if temporary:
                     try:
                         completed = read_epoch_activity(
-                            Path(temporary), token, int(generation_raw),
-                            cooperative_stage, last_completed_epoch,
-                            proc.pid, stage_nonce,
+                            Path(temporary),
+                            token,
+                            int(generation_raw),
+                            cooperative_stage,
+                            last_completed_epoch,
+                            proc.pid,
+                            stage_nonce,
                         )
                     except RuntimeError as exc:
                         tree.terminate()
@@ -515,9 +572,13 @@ def run_supervised_stage(
                         on_stall_warning(cooperative_stage, stalled_reason)
                     try:
                         epoch = read_progress(
-                            Path(temporary), token, int(generation_raw),
-                            cooperative_stage, last_checkpoint_epoch,
-                            proc.pid, stage_nonce,
+                            Path(temporary),
+                            token,
+                            int(generation_raw),
+                            cooperative_stage,
+                            last_checkpoint_epoch,
+                            proc.pid,
+                            stage_nonce,
                         )
                     except RuntimeError as exc:
                         tree.terminate()
@@ -540,8 +601,12 @@ def run_supervised_stage(
                     raise StageGuardError("my_voice:emergency_resource_or_telemetry_failure")
                 if actionable_pressure and temporary and not request_sent:
                     _create_cooperative_request(
-                        Path(temporary), token, cooperative_stage, result.reason,
-                        proc.pid, stage_nonce
+                        Path(temporary),
+                        token,
+                        cooperative_stage,
+                        result.reason,
+                        proc.pid,
+                        stage_nonce,
                     )
                     request_sent = True
                 try:
@@ -567,9 +632,13 @@ def run_supervised_stage(
             if temporary:
                 try:
                     final_completed = read_epoch_activity(
-                        Path(temporary), token, int(generation_raw),
-                        cooperative_stage, last_completed_epoch,
-                        proc.pid, stage_nonce,
+                        Path(temporary),
+                        token,
+                        int(generation_raw),
+                        cooperative_stage,
+                        last_completed_epoch,
+                        proc.pid,
+                        stage_nonce,
                     )
                 except RuntimeError as exc:
                     raise StageGuardError(str(exc)) from exc
@@ -580,9 +649,13 @@ def run_supervised_stage(
                         on_epoch(cooperative_stage, final_completed)
                 try:
                     final_epoch = read_progress(
-                        Path(temporary), token, int(generation_raw),
-                        cooperative_stage, last_checkpoint_epoch,
-                        proc.pid, stage_nonce,
+                        Path(temporary),
+                        token,
+                        int(generation_raw),
+                        cooperative_stage,
+                        last_checkpoint_epoch,
+                        proc.pid,
+                        stage_nonce,
                     )
                 except RuntimeError as exc:
                     raise StageGuardError(str(exc)) from exc

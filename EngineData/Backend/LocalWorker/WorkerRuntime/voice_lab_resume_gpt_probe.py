@@ -70,14 +70,22 @@ class GptWorkerPlan:
         return plan
 
     def validate(self) -> None:
-        for name in ("run_token", "recovery_id", "dataset_id", "checkpoint_sha256", "config_sha256"):
+        for name in (
+            "run_token",
+            "recovery_id",
+            "dataset_id",
+            "checkpoint_sha256",
+            "config_sha256",
+        ):
             item = getattr(self, name)
             if not isinstance(item, str) or not _HEX.fullmatch(item):
                 raise GptProbeError(f"gpt_{name}_invalid")
-        if (type(self.expected_epoch) is not int
-                or not 0 <= self.expected_epoch < GPT_EPOCHS
-                or type(self.expected_global_step) is not int
-                or self.expected_global_step < 1):
+        if (
+            type(self.expected_epoch) is not int
+            or not 0 <= self.expected_epoch < GPT_EPOCHS
+            or type(self.expected_global_step) is not int
+            or self.expected_global_step < 1
+        ):
             raise GptProbeError("gpt_saved_progress_invalid")
         for name in ("source_root", "checkpoint_path", "config_path", "event_dir"):
             path = Path(getattr(self, name))
@@ -93,14 +101,18 @@ class GptWorkerPlan:
 
 
 def _optimizer_ok(data: Any) -> bool:
-    return (isinstance(data, dict)
-            and isinstance(data.get("state"), dict) and bool(data["state"])
-            and isinstance(data.get("param_groups"), list)
-            and bool(data["param_groups"]))
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("state"), dict)
+        and bool(data["state"])
+        and isinstance(data.get("param_groups"), list)
+        and bool(data["param_groups"])
+    )
 
 
-def _same_state(saved: Any, current: Any, *, depth: int = 0,
-                budget: list[int] | None = None) -> bool:
+def _same_state(
+    saved: Any, current: Any, *, depth: int = 0, budget: list[int] | None = None
+) -> bool:
     """Exact, bounded developer-only comparison; any unsupported type fails."""
     if budget is None:
         budget = [200_000]
@@ -110,6 +122,7 @@ def _same_state(saved: Any, current: Any, *, depth: int = 0,
     if hasattr(saved, "detach") or hasattr(current, "detach"):
         try:
             import torch
+
             if not (isinstance(saved, torch.Tensor) and isinstance(current, torch.Tensor)):
                 return False
             if tuple(saved.shape) != tuple(current.shape):
@@ -118,13 +131,13 @@ def _same_state(saved: Any, current: Any, *, depth: int = 0,
         except (ImportError, RuntimeError, TypeError):
             return False
     if isinstance(saved, dict) and isinstance(current, dict):
-        return (saved.keys() == current.keys()
-                and all(_same_state(saved[k], current[k], depth=depth+1, budget=budget)
-                        for k in saved))
+        return saved.keys() == current.keys() and all(
+            _same_state(saved[k], current[k], depth=depth + 1, budget=budget) for k in saved
+        )
     if isinstance(saved, (list, tuple)) and isinstance(current, (list, tuple)):
-        return (len(saved) == len(current)
-                and all(_same_state(a, b, depth=depth+1, budget=budget)
-                        for a, b in zip(saved, current)))
+        return len(saved) == len(current) and all(
+            _same_state(a, b, depth=depth + 1, budget=budget) for a, b in zip(saved, current)
+        )
     if type(saved) in (str, int, bool, float, type(None)) and type(saved) is type(current):
         return saved == current
     return False
@@ -138,7 +151,10 @@ class GptWorkerWitness:
     """
 
     def __init__(
-        self, plan: GptWorkerPlan, *, pid: int,
+        self,
+        plan: GptWorkerPlan,
+        *,
+        pid: int,
         emit: Callable[[dict[str, Any]], None],
         abort: Callable[[int], None],
         decode: Callable[[Path], dict[str, Any]],
@@ -158,12 +174,20 @@ class GptWorkerWitness:
 
     def _emit(self, kind: str, **extra: Any) -> None:
         self.sequence += 1
-        self.emit({
-            "schema_version": 1, "run_token": self.plan.run_token,
-            "recovery_id": self.plan.recovery_id, "dataset_id": self.plan.dataset_id,
-            "engine_revision": ENGINE_REVISION, "worker_pid": self.pid,
-            "sequence": self.sequence, "kind": kind, "role": "gpt", **extra,
-        })
+        self.emit(
+            {
+                "schema_version": 1,
+                "run_token": self.plan.run_token,
+                "recovery_id": self.plan.recovery_id,
+                "dataset_id": self.plan.dataset_id,
+                "engine_revision": ENGINE_REVISION,
+                "worker_pid": self.pid,
+                "sequence": self.sequence,
+                "kind": kind,
+                "role": "gpt",
+                **extra,
+            }
+        )
 
     def _fail(self, reason: str) -> None:
         try:
@@ -177,23 +201,27 @@ class GptWorkerWitness:
             if not isinstance(ckpt_path, (str, Path)):
                 raise GptProbeError("gpt_explicit_checkpoint_required")
             selected = Path(ckpt_path)
-            if (selected.is_symlink()
-                    or not os.path.samefile(selected, self.plan.checkpoint_path)
-                    or _digest(selected) != self.plan.checkpoint_sha256
-                    or _digest(Path(self.plan.config_path)) != self.plan.config_sha256):
+            if (
+                selected.is_symlink()
+                or not os.path.samefile(selected, self.plan.checkpoint_path)
+                or _digest(selected) != self.plan.checkpoint_sha256
+                or _digest(Path(self.plan.config_path)) != self.plan.config_sha256
+            ):
                 raise GptProbeError("gpt_checkpoint_or_config_identity_mismatch")
             saved = self.decode(selected)
             if not isinstance(saved, dict):
                 raise GptProbeError("gpt_checkpoint_payload_invalid")
-            if (saved.get("epoch") != self.plan.expected_epoch
-                    or saved.get("global_step") != self.plan.expected_global_step
-                    or not isinstance(saved.get("state_dict"), dict)
-                    or not saved["state_dict"]
-                    or not isinstance(saved.get("optimizer_states"), list)
-                    or not saved["optimizer_states"]
-                    or not all(_optimizer_ok(x) for x in saved["optimizer_states"])
-                    or not isinstance(saved.get("lr_schedulers"), list)
-                    or not saved["lr_schedulers"]):
+            if (
+                saved.get("epoch") != self.plan.expected_epoch
+                or saved.get("global_step") != self.plan.expected_global_step
+                or not isinstance(saved.get("state_dict"), dict)
+                or not saved["state_dict"]
+                or not isinstance(saved.get("optimizer_states"), list)
+                or not saved["optimizer_states"]
+                or not all(_optimizer_ok(x) for x in saved["optimizer_states"])
+                or not isinstance(saved.get("lr_schedulers"), list)
+                or not saved["lr_schedulers"]
+            ):
                 raise GptProbeError("gpt_checkpoint_training_state_invalid")
             if _digest(selected) != self.plan.checkpoint_sha256:
                 raise GptProbeError("gpt_checkpoint_changed_during_preflight")
@@ -206,9 +234,13 @@ class GptWorkerWitness:
         try:
             if self.loaded:
                 raise GptProbeError("gpt_duplicate_restore_acknowledgment")
-            if (getattr(trainer, "global_step", None) != self.plan.expected_global_step
-                    or type(getattr(trainer, "current_epoch", None)) is not int
-                    or not self.plan.expected_epoch <= trainer.current_epoch <= self.plan.expected_epoch + 1):
+            if (
+                getattr(trainer, "global_step", None) != self.plan.expected_global_step
+                or type(getattr(trainer, "current_epoch", None)) is not int
+                or not self.plan.expected_epoch
+                <= trainer.current_epoch
+                <= self.plan.expected_epoch + 1
+            ):
                 raise GptProbeError("gpt_trainer_progress_not_restored")
             if not _same_state(saved["state_dict"], model.state_dict()):
                 raise GptProbeError("gpt_model_state_not_restored")
@@ -231,7 +263,9 @@ class GptWorkerWitness:
                 checkpoint_sha256=self.plan.checkpoint_sha256,
                 checkpoint_epoch=self.plan.expected_epoch,
                 global_step=self.plan.expected_global_step,
-                model_loaded=True, optimizer_loaded=True, scheduler_loaded=True,
+                model_loaded=True,
+                optimizer_loaded=True,
+                scheduler_loaded=True,
             )
         except Exception as exc:
             self._fail(type(exc).__name__)
@@ -247,12 +281,17 @@ class GptWorkerWitness:
             return
         step = getattr(trainer, "global_step", None)
         epoch = getattr(trainer, "current_epoch", None)
-        if (type(step) is not int or step <= self.plan.expected_global_step
-                or type(epoch) is not int or epoch < self.plan.expected_epoch):
+        if (
+            type(step) is not int
+            or step <= self.plan.expected_global_step
+            or type(epoch) is not int
+            or epoch < self.plan.expected_epoch
+        ):
             self._fail("gpt_first_optimizer_step_did_not_advance_global_step")
         self.started = True
         self._emit(
-            "training_started", current_epoch=epoch,
+            "training_started",
+            current_epoch=epoch,
             # Expected *restored* global_step, as required by existing protocol.
             global_step=self.plan.expected_global_step,
             observed_global_step=step,
@@ -296,7 +335,8 @@ def install_opt_in_gpt_lightning_probe(source_root: Path, plan_file: Path) -> No
     original_trainer = pl.Trainer
     filename = Path(plan.event_dir) / f"gpt-worker-{os.getpid()}-{plan.run_token[:12]}.jsonl"
     witness = GptWorkerWitness(
-        plan, pid=os.getpid(),
+        plan,
+        pid=os.getpid(),
         emit=lambda event: _record(filename, event),
         abort=os._exit,
         decode=lambda path: torch.load(path, map_location="cpu", weights_only=True),
@@ -326,8 +366,9 @@ def install_opt_in_gpt_lightning_probe(source_root: Path, plan_file: Path) -> No
                 optimizer.step = stepped
                 self.original_step.append((optimizer, original_step))
 
-        def on_train_batch_end(self, trainer: Any, pl_module: Any,
-                               outputs: Any, batch: Any, batch_idx: int) -> None:
+        def on_train_batch_end(
+            self, trainer: Any, pl_module: Any, outputs: Any, batch: Any, batch_idx: int
+        ) -> None:
             witness.after_batch(trainer)
 
         def on_train_end(self, trainer: Any, pl_module: Any) -> None:
@@ -346,8 +387,7 @@ def install_opt_in_gpt_lightning_probe(source_root: Path, plan_file: Path) -> No
             callbacks.append(hook)
             super().__init__(*args, callbacks=callbacks, **kwargs)
 
-        def fit(self, model: Any, *args: Any, ckpt_path: Any = None,
-                **kwargs: Any) -> Any:
+        def fit(self, model: Any, *args: Any, ckpt_path: Any = None, **kwargs: Any) -> Any:
             hook.set_checkpoint(ckpt_path)
             try:
                 result = super().fit(model, *args, ckpt_path=ckpt_path, **kwargs)

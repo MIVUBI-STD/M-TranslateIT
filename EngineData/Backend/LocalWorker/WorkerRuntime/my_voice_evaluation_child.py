@@ -4,6 +4,7 @@ A short-lived GPU process isolates the TTS model from the other candidates.
 Output is evidence, not an approved actor. Caller verifies all held-out WAV
 SHA-256 values and exact identities before accepting this result.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,7 +32,9 @@ def read_request(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise RuntimeError("my_voice:evaluation_request_invalid")
-    if not isinstance(payload.get("candidate"), dict) or not isinstance(payload.get("reference"), dict):
+    if not isinstance(payload.get("candidate"), dict) or not isinstance(
+        payload.get("reference"), dict
+    ):
         raise RuntimeError("my_voice:evaluation_request_invalid")
     if not isinstance(payload.get("manifest"), dict):
         raise RuntimeError("my_voice:evaluation_request_invalid")
@@ -58,15 +61,24 @@ def run_once(request: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(held, list) or len(held) != 8:
         raise RuntimeError("my_voice:evaluation_held_out_invalid")
     candidate_id = str(candidate.get("candidate_id", ""))
-    if not candidate_id or len(candidate_id) > 48 or not all(c.isalnum() or c == "-" for c in candidate_id):
+    if (
+        not candidate_id
+        or len(candidate_id) > 48
+        or not all(c.isalnum() or c == "-" for c in candidate_id)
+    ):
         raise RuntimeError("my_voice:evaluation_candidate_invalid")
     paths = (str(candidate.get("gpt_path", "")), str(candidate.get("sovits_path", "")))
     if not all(Path(p).is_file() and not Path(p).is_symlink() for p in paths):
         raise RuntimeError("my_voice:evaluation_weights_missing")
     model = create_evaluation_asr_runtime(asr_root)
     evidence = evaluate_candidate(
-        source_root, source_assets(source_root), candidate,
-        evaluation_root, manifest, reference, model,
+        source_root,
+        source_assets(source_root),
+        candidate,
+        evaluation_root,
+        manifest,
+        reference,
+        model,
     )
     del model
     return evidence
@@ -82,7 +94,9 @@ def main() -> int:
         raise RuntimeError("my_voice:evaluation_result_exists")
     evidence = run_once(read_request(Path(args.request)))
     target.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(evidence, default=str, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(evidence, default=str, ensure_ascii=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
     if len(encoded) > MAX_RESULT_BYTES:
         raise RuntimeError("my_voice:evaluation_result_too_large")
     # Single-writer create-only report. Failure cannot yield a valid result file.

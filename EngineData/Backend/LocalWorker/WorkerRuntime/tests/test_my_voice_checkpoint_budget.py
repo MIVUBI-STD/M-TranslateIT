@@ -1,9 +1,11 @@
 """Source-only arithmetic fixtures; intentionally NOT executed."""
+
 from voice_lab_gpt_sovits_build import (
     MAX_FULL_GPT_SAVE_EPOCHS,
     MAX_FULL_SOVITS_PAIR_SAVES,
     optimizer_checkpoint_interval,
 )
+
 
 def test_fixed_release_epoch_cadence_bounds_optimizer_saves():
     assert optimizer_checkpoint_interval(8, MAX_FULL_SOVITS_PAIR_SAVES) == 2
@@ -13,6 +15,7 @@ def test_fixed_release_epoch_cadence_bounds_optimizer_saves():
     # Each SoVITS save is G + D + pair receipt. GPT may keep both
     # epoch-specific and last-version checkpoint per scheduled save.
     assert sovits_pairs * 3 + gpt_saves * 2 + 2 <= 28
+
 
 def test_nonuniform_epochs_do_not_exceed_configured_save_budget():
     for epochs in range(1, 65):

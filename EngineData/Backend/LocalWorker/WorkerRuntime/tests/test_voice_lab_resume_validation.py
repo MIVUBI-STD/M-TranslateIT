@@ -25,8 +25,11 @@ def save_json(path: Path, data: dict) -> str:
 
 
 def fixture(
-    root: Path, *, omit_discriminator: bool = False,
-    paired: bool = False, incorrect_pair_sha: bool = False,
+    root: Path,
+    *,
+    omit_discriminator: bool = False,
+    paired: bool = False,
+    incorrect_pair_sha: bool = False,
 ) -> str:
     saved = root / "VoiceLab"
     audio = b"RIFF" + b"\0" * 100
@@ -43,10 +46,14 @@ def fixture(
     save_json(take_dir / "take.json", receipt)
     (take_dir / "canonical.wav").write_bytes(audio)
     snapshot = {
-        "schema_version": 1, "engine_revision": ENGINE_REVISION,
+        "schema_version": 1,
+        "engine_revision": ENGINE_REVISION,
         "source_manifest": {
-            "schema_version": 1, "authorized_voice_confirmed": True,
-            "takes": [{"line_id": 1, "exact_text": "Good morning, everyone.", "wav_file": "take_0001.wav"}],
+            "schema_version": 1,
+            "authorized_voice_confirmed": True,
+            "takes": [
+                {"line_id": 1, "exact_text": "Good morning, everyone.", "wav_file": "take_0001.wav"}
+            ],
             "held_out_lines": [],
         },
         "audio": [{"line_id": 1, "wav_file": "take_0001.wav", "archive_id": take_id}],
@@ -69,25 +76,35 @@ def fixture(
     if paired:
         g_bytes, d_bytes = b"G" * 8192, b"D" * 8192
         archive_parts = [
-            (name, "G_120.pth", g_bytes) if name == "sovits-G-0.pth"
-            else (name, "D_120.pth", d_bytes) if name == "sovits-D-0.pth"
+            (name, "G_120.pth", g_bytes)
+            if name == "sovits-G-0.pth"
+            else (name, "D_120.pth", d_bytes)
+            if name == "sovits-D-0.pth"
             else (name, original, content)
             for name, original, content in archive_parts
         ]
         pair_receipt = {
-            "format": 1, "epoch": 2, "global_step": 120,
-            "generator": {"name": "G_120.pth", "bytes": len(g_bytes),
-                          "sha256": hashlib.sha256(g_bytes).hexdigest()},
-            "discriminator": {"name": "D_120.pth", "bytes": len(d_bytes),
-                              "sha256": ("0" * 64 if incorrect_pair_sha
-                                         else hashlib.sha256(d_bytes).hexdigest())},
+            "format": 1,
+            "epoch": 2,
+            "global_step": 120,
+            "generator": {
+                "name": "G_120.pth",
+                "bytes": len(g_bytes),
+                "sha256": hashlib.sha256(g_bytes).hexdigest(),
+            },
+            "discriminator": {
+                "name": "D_120.pth",
+                "bytes": len(d_bytes),
+                "sha256": ("0" * 64 if incorrect_pair_sha else hashlib.sha256(d_bytes).hexdigest()),
+            },
         }
         pair_raw = json.dumps(pair_receipt, separators=(",", ":"), sort_keys=True).encode()
         archive_parts.append(("sovits-pair-0.json", "pair_120.json", pair_raw))
     archive_parts.sort(key=lambda part: part[0])
     parts = [
         {
-            "label": name, "original_filename": original,
+            "label": name,
+            "original_filename": original,
             "sha256": hashlib.sha256(content).hexdigest(),
             "bytes": len(content),
         }
@@ -185,19 +202,30 @@ class RecoveryAuditContractTests(unittest.TestCase):
         optimizer = {"state": {0: {"step": 10}}, "param_groups": [{"lr": 0.0001}]}
         gpt = {
             "state_dict": {"layer": object()},
-            "epoch": 7, "global_step": 42,
+            "epoch": 7,
+            "global_step": 42,
             "optimizer_states": [optimizer],
             "lr_schedulers": [{"last_epoch": 7}],
         }
-        g = {"model": {"net": object()}, "iteration": 3,
-             "learning_rate": 0.0001, "optimizer": optimizer}
-        d = {"model": {"net": object()}, "iteration": 4,
-             "learning_rate": 0.0001, "optimizer": optimizer}
-        cfg = ({"train": {"epochs": GPT_EPOCHS, "precision": "16-mixed",
-                          "if_save_latest": False}},
-               {"train": {"epochs": SOVITS_EPOCHS, "fp16_run": True,
-                          "if_save_latest": False},
-                "model": {"version": "v2ProPlus"}})
+        g = {
+            "model": {"net": object()},
+            "iteration": 3,
+            "learning_rate": 0.0001,
+            "optimizer": optimizer,
+        }
+        d = {
+            "model": {"net": object()},
+            "iteration": 4,
+            "learning_rate": 0.0001,
+            "optimizer": optimizer,
+        }
+        cfg = (
+            {"train": {"epochs": GPT_EPOCHS, "precision": "16-mixed", "if_save_latest": False}},
+            {
+                "train": {"epochs": SOVITS_EPOCHS, "fp16_run": True, "if_save_latest": False},
+                "model": {"version": "v2ProPlus"},
+            },
+        )
         issues = _training_state_blockers(gpt, g, d, cfg)
         self.assertIn("sovits_generator_discriminator_epoch_mismatch", issues)
         self.assertIn("sovits_amp_scaler_state_absent_upstream", issues)
@@ -207,25 +235,37 @@ class RecoveryAuditContractTests(unittest.TestCase):
         self.assertEqual(_training_state_blockers(gpt, g, d, cfg), [])
 
     def test_legacy_checkpoint_config_is_recognized_but_not_resume_proven(self) -> None:
-        gpt = {"state_dict": {"x": 1}, "epoch": 3, "global_step": 4,
-               "optimizer_states": [{"state": {1: "x"}, "param_groups": [{"lr": 0.01}]}],
-               "lr_schedulers": [{"step": 2}]}
-        sov = {"model": {"x": 1}, "iteration": 2,
-               "optimizer": {"state": {1: "x"}, "param_groups": [{"lr": 0.01}]}}
-        config = ({"train": {"epochs": GPT_EPOCHS, "precision": "32",
-                             "if_save_latest": True}},
-                  {"train": {"epochs": SOVITS_EPOCHS, "fp16_run": False,
-                             "if_save_latest": True},
-                   "model": {"version": "v2ProPlus"}})
-        self.assertNotIn("training_configuration_mismatch",
-                         _training_state_blockers(gpt, sov, sov, config))
+        gpt = {
+            "state_dict": {"x": 1},
+            "epoch": 3,
+            "global_step": 4,
+            "optimizer_states": [{"state": {1: "x"}, "param_groups": [{"lr": 0.01}]}],
+            "lr_schedulers": [{"step": 2}],
+        }
+        sov = {
+            "model": {"x": 1},
+            "iteration": 2,
+            "optimizer": {"state": {1: "x"}, "param_groups": [{"lr": 0.01}]},
+        }
+        config = (
+            {"train": {"epochs": GPT_EPOCHS, "precision": "32", "if_save_latest": True}},
+            {
+                "train": {"epochs": SOVITS_EPOCHS, "fp16_run": False, "if_save_latest": True},
+                "model": {"version": "v2ProPlus"},
+            },
+        )
+        self.assertNotIn(
+            "training_configuration_mismatch", _training_state_blockers(gpt, sov, sov, config)
+        )
 
     def test_missing_optimizer_state_is_not_obscured(self) -> None:
-        cfg = ({"train": {"epochs": GPT_EPOCHS, "precision": "32",
-                           "if_save_latest": True}},
-               {"train": {"epochs": SOVITS_EPOCHS, "fp16_run": False,
-                          "if_save_latest": True},
-                "model": {"version": "v2ProPlus"}})
+        cfg = (
+            {"train": {"epochs": GPT_EPOCHS, "precision": "32", "if_save_latest": True}},
+            {
+                "train": {"epochs": SOVITS_EPOCHS, "fp16_run": False, "if_save_latest": True},
+                "model": {"version": "v2ProPlus"},
+            },
+        )
         issues = _training_state_blockers({}, {}, {}, cfg)
         self.assertIn("gpt_optimizer_state_missing", issues)
         self.assertIn("sovits_generator_optimizer_missing", issues)
@@ -238,6 +278,7 @@ if __name__ == "__main__":
 
 def test_updated_checkpoint_counts_and_legacy_resume_remains_disabled():
     from voice_lab_resume_validation import MAX_PARTS, PART_LABEL
+
     assert MAX_PARTS == 28
     assert PART_LABEL.fullmatch("sovits-pair-11.json")
     assert PART_LABEL.fullmatch("gpt-11.ckpt")

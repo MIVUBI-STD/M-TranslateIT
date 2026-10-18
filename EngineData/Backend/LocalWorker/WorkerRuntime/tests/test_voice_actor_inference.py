@@ -151,9 +151,7 @@ def test_voice_wav_writer_preserves_float_quantization(tmp_path: Path) -> None:
     import numpy as np
 
     provider = load_provider_module()
-    samples = np.array(
-        [[-1.5, -1.0, -0.5, 0.0], [0.5, 1.0, 1.5, 0.25]], dtype=np.float32
-    )
+    samples = np.array([[-1.5, -1.0, -0.5, 0.0], [0.5, 1.0, 1.5, 0.25]], dtype=np.float32)
     expected = (np.clip(samples.reshape(-1), -1.0, 1.0) * 32767.0).astype(np.int16)
     output = tmp_path / "voice-float.wav"
     provider.write_wav(output, 32_000, samples)
@@ -185,9 +183,7 @@ def test_voice_wav_writer_rejects_nonfinite_float_audio_before_creating_file(
 
 
 @pytest.mark.parametrize("sample_rate", [0, 7_999, 192_001])
-def test_voice_wav_writer_rejects_unplayable_sample_rates(
-    tmp_path: Path, sample_rate: int
-) -> None:
+def test_voice_wav_writer_rejects_unplayable_sample_rates(tmp_path: Path, sample_rate: int) -> None:
     import numpy as np
 
     provider = load_provider_module()

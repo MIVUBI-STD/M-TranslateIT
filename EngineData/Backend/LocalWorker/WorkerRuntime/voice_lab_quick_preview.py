@@ -4,6 +4,7 @@ No Meeting command, actor approval, model selector, or alternative voice engine.
 The future Rust owner must exclusively lock the existing VoiceLab resource
 before launching this child and must manage process cancellation.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -58,9 +59,13 @@ def validate_preview_wav(path: Path, expected_rate: int) -> None:
         with wave.open(str(path), "rb") as wav:
             frames = wav.getnframes()
             rate = wav.getframerate()
-            if (wav.getnchannels() != 1 or wav.getsampwidth() != 2
-                    or rate != expected_rate or not 16_000 <= rate <= 48_000
-                    or not rate // 10 <= frames <= rate * 30):
+            if (
+                wav.getnchannels() != 1
+                or wav.getsampwidth() != 2
+                or rate != expected_rate
+                or not 16_000 <= rate <= 48_000
+                or not rate // 10 <= frames <= rate * 30
+            ):
                 raise VoiceLabProviderError("preview_audio_invalid")
             audio = wav.readframes(frames)
             if len(audio) != frames * 2:
@@ -87,10 +92,16 @@ def choose_reference(candidates: list[dict[str, object]]) -> tuple[Path, str]:
             line_id = item["line_id"]
             exact_text = item["exact_text"]
             path_value = item["wav_path"]
-            if (type(line_id) is not int or line_id <= 0 or line_id in seen_ids
-                    or not isinstance(exact_text, str) or not exact_text.strip()
-                    or len(exact_text) > MAX_REFERENCE_TEXT_CHARS
-                    or not isinstance(path_value, str) or not path_value):
+            if (
+                type(line_id) is not int
+                or line_id <= 0
+                or line_id in seen_ids
+                or not isinstance(exact_text, str)
+                or not exact_text.strip()
+                or len(exact_text) > MAX_REFERENCE_TEXT_CHARS
+                or not isinstance(path_value, str)
+                or not path_value
+            ):
                 raise ValueError("invalid candidate fields")
             path = Path(path_value)
             if path.is_symlink():
@@ -106,12 +117,14 @@ def choose_reference(candidates: list[dict[str, object]]) -> tuple[Path, str]:
             metrics = validate_take_signal(path)
         except BuildError:
             continue
-        takes.append({
-            "line_id": line_id,
-            "exact_text": exact_text.strip(),
-            "wav_path": path,
-            "duration_ms": int(metrics["duration_ms"]),
-        })
+        takes.append(
+            {
+                "line_id": line_id,
+                "exact_text": exact_text.strip(),
+                "wav_path": path,
+                "duration_ms": int(metrics["duration_ms"]),
+            }
+        )
     if not takes:
         raise VoiceLabProviderError("preview_reference_unusable")
     selected = select_reference(takes)
@@ -168,15 +181,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         reference_wav, reference_text = choose_reference(read_reference_candidates())
-        response = preview_once(
-            args.source_root, reference_wav, args.output_dir, reference_text
-        )
+        response = preview_once(args.source_root, reference_wav, args.output_dir, reference_text)
     except Exception as exc:
         response = {
             "ok": False,
             "stage": "quick_voice_preview",
             "preview_only": True,
-            "blocker": str(exc) if isinstance(exc, VoiceLabProviderError) else "preview_unexpected_failure",
+            "blocker": str(exc)
+            if isinstance(exc, VoiceLabProviderError)
+            else "preview_unexpected_failure",
         }
     serialized = json.dumps(response, ensure_ascii=True)
     if len(serialized.encode("utf-8")) > MAX_STATUS_BYTES:

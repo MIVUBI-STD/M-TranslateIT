@@ -4,6 +4,7 @@ Pair receipts are published only after BOTH complete distinct optimizer files
 exist at the same global step. They prove matching filenames and on-disk byte
 hashes, not tensor loadability, AMP state or safe optimizer resume.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -38,7 +39,9 @@ def file_identity(path: Path) -> dict[str, Any]:
         with os.fdopen(handle, "rb") as stream:
             opened = os.fstat(stream.fileno())
             if (opened.st_dev, opened.st_ino, opened.st_size) != (
-                before.st_dev, before.st_ino, before.st_size
+                before.st_dev,
+                before.st_ino,
+                before.st_size,
             ):
                 raise RuntimeError("my_voice:pair_file_changed_during_read")
             while True:
@@ -53,8 +56,10 @@ def file_identity(path: Path) -> dict[str, Any]:
     except OSError as exc:
         raise RuntimeError("my_voice:pair_file_unavailable") from exc
     after = path.lstat()
+
     def identity(meta: Any) -> tuple[int, int, int, int, int]:
         return (meta.st_dev, meta.st_ino, meta.st_size, meta.st_mtime_ns, meta.st_ctime_ns)
+
     if (
         not stat.S_ISREG(after.st_mode)
         or identity(before) != identity(after)
@@ -72,7 +77,9 @@ def pair_receipt(directory: Path, step: int, epoch: int) -> dict[str, Any]:
     if type(step) is not int or step < 1 or type(epoch) is not int or epoch < 1:
         raise RuntimeError("my_voice:pair_step_invalid")
     return {
-        "format": 1, "global_step": step, "epoch": epoch,
+        "format": 1,
+        "global_step": step,
+        "epoch": epoch,
         "generator": file_identity(directory / f"G_{step}.pth"),
         "discriminator": file_identity(directory / f"D_{step}.pth"),
     }
@@ -87,7 +94,9 @@ def publish_pair(directory: Path, step: int, epoch: int) -> None:
     if len(payload) > MAX_RECEIPT_BYTES:
         raise RuntimeError("my_voice:pair_receipt_too_large")
     fd, name = tempfile.mkstemp(
-        prefix=".pending-pair-", suffix=".partial", dir=str(directory),
+        prefix=".pending-pair-",
+        suffix=".partial",
+        dir=str(directory),
     )
     staged = Path(name)
     try:
@@ -101,6 +110,7 @@ def publish_pair(directory: Path, step: int, epoch: int) -> None:
         # Use the already-computed G/D hash receipt; never hash both
         # multi-gigabyte checkpoints again simply to update UI progress.
         from my_voice_epoch_progress import publish_progress
+
         publish_progress("sovits", epoch, target.name)
     finally:
         # Crash/interrupted writes leave a .pending file for recovery to
@@ -119,8 +129,11 @@ def verified_pair_for_epoch(directory: Path, epoch: int) -> bool:
             return False
         matching: list[tuple[int, dict[str, Any]]] = []
         for path in entries:
-            if (path.is_symlink() or not path.is_file()
-                or not 0 < path.stat().st_size <= MAX_RECEIPT_BYTES):
+            if (
+                path.is_symlink()
+                or not path.is_file()
+                or not 0 < path.stat().st_size <= MAX_RECEIPT_BYTES
+            ):
                 return False
             match = re.fullmatch(r"pair_([0-9]+)\.json", path.name)
             if not match:
@@ -128,7 +141,8 @@ def verified_pair_for_epoch(directory: Path, epoch: int) -> bool:
             value = json.loads(path.read_text(encoding="utf-8"))
             step = int(match.group(1))
             if (
-                type(value) is not dict or value.get("format") != 1
+                type(value) is not dict
+                or value.get("format") != 1
                 or type(value.get("global_step")) is not int
                 or value["global_step"] != step
                 or type(value.get("epoch")) is not int

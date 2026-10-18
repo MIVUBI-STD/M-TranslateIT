@@ -125,7 +125,6 @@ def handle_asr_preload(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
 
-
 def _alignment_probe_frame_count(path: Path) -> int:
     """Validate the exact untrimmed PCM source before trusting model-relative times."""
     try:
@@ -187,11 +186,13 @@ def _alignment_probe_candidate(segments: list[Any], transcript: str, frames: int
                 or upper_sample > frames
             ):
                 raise ValueError("asr:alignment_word_range_invalid")
-            words.append({
-                "text": value,
-                "start_sample": lower_sample,
-                "end_sample": upper_sample,
-            })
+            words.append(
+                {
+                    "text": value,
+                    "start_sample": lower_sample,
+                    "end_sample": upper_sample,
+                }
+            )
             preceding_end = upper_sample
     if not words:
         raise ValueError("asr:alignment_words_missing")
@@ -284,9 +285,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
         # A partial ASR transcript must never be treated as complete Meeting
         # speech; compact without truncating, then fail closed above the bound.
         text = " ".join(
-            " ".join(segment.text.strip() for segment in segments)
-            .replace("\x00", "")
-            .split()
+            " ".join(segment.text.strip() for segment in segments).replace("\x00", "").split()
         )
         if len(text) > common.MAX_TRANSCRIPT_TEXT_CHARS:
             return {
@@ -312,9 +311,7 @@ def handle_transcribe(payload: dict[str, Any]) -> dict[str, Any]:
         }
         if alignment_probe and text:
             # This evidence is never consumed by the production Meeting path.
-            result["asr_alignment"] = _alignment_probe_candidate(
-                segments, text, probe_frames
-            )
+            result["asr_alignment"] = _alignment_probe_candidate(segments, text, probe_frames)
         return result
     except Exception as exc:
         return {

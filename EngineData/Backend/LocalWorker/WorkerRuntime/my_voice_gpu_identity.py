@@ -4,6 +4,7 @@ NVIDIA UUID is the immutable per-run device locator. A CUDA ordinal or a
 friendly model name is not enough on multi-GPU systems. No GPU is accepted
 when UUID cannot be read and matched to NVIDIA sensor data.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,9 +38,7 @@ def normalize_uuid(raw: Any) -> str:
     if not re.fullmatch(r"[0-9A-Fa-f]{32}", value):
         raise DeviceIdentityError("my_voice:cuda_uuid_missing_or_invalid")
     value = value.lower()
-    result = "GPU-" + "-".join((
-        value[:8], value[8:12], value[12:16], value[16:20], value[20:]
-    ))
+    result = "GPU-" + "-".join((value[:8], value[8:12], value[12:16], value[16:20], value[20:]))
     if not _UUID.fullmatch(result):
         raise DeviceIdentityError("my_voice:cuda_uuid_invalid")
     return result
@@ -92,10 +91,12 @@ def sensor_inventory_mib() -> dict[str, tuple[int, int]]:
     program = sensor_executable()
     try:
         response = subprocess.run(
-            [program, "--query-gpu=uuid,memory.total,memory.free",
-             "--format=csv,noheader,nounits"],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, text=True, check=False,
+            [program, "--query-gpu=uuid,memory.total,memory.free", "--format=csv,noheader,nounits"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
             timeout=SENSOR_TIMEOUT,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -123,12 +124,16 @@ def sensor_memory_mib(uuid: str, executable: str | None = None) -> tuple[int, in
     try:
         response = subprocess.run(
             [
-                executable, "--id=" + selected,
+                executable,
+                "--id=" + selected,
                 "--query-gpu=uuid,memory.total,memory.free",
                 "--format=csv,noheader,nounits",
             ],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, text=True, check=False,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
             timeout=SENSOR_TIMEOUT,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:

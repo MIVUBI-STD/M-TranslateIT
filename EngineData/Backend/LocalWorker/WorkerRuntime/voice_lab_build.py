@@ -70,8 +70,12 @@ def atomic_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def write_status(
-    path: Path, phase: str, message: str,
-    run_token: str, run_generation: int, sequence: int,
+    path: Path,
+    phase: str,
+    message: str,
+    run_token: str,
+    run_generation: int,
+    sequence: int,
 ) -> None:
     atomic_json(
         path,
@@ -141,13 +145,15 @@ def validate_dataset_signal(dataset_dir: Path, manifest: dict[str, Any]) -> None
             frames = inspect_take_frames(path)
         except ValueError as exc:
             raise BuildError(f"take_frame_analysis_failed:{wav_file}:{exc}") from exc
-        reports.append({
-            "wav_file": wav_file,
-            **frames,
-            "source_pair": inspect_frozen_source_pair(
-                path, dataset_dir / "NativeRate" / wav_file
-            ),
-        })
+        reports.append(
+            {
+                "wav_file": wav_file,
+                **frames,
+                "source_pair": inspect_frozen_source_pair(
+                    path, dataset_dir / "NativeRate" / wav_file
+                ),
+            }
+        )
 
     active_rms_values = [item["active_rms"] for item in metrics]
     if len(active_rms_values) >= 2:
@@ -197,6 +203,7 @@ def main() -> int:
 
     try:
         from my_voice_gpu_policy import MIN_STAGE_BUDGET_MIB
+
         if args.gpu_budget_mib < MIN_STAGE_BUDGET_MIB or args.gpu_budget_mib > 1024 * 1024:
             raise BuildError("gpu_budget_invalid")
         # Available to short-lived stage children. No implicit CPU fallback.
@@ -207,6 +214,7 @@ def main() -> int:
         manifest = validate_manifest(dataset_dir)
         validate_dataset_signal(dataset_dir, manifest)
         from my_voice_cooperative import manual_stop_requested
+
         if manual_stop_requested():
             raise BuildError("manual_stop_before_preparing")
         status("preparing", "Preparing VoiceLab training data.")
@@ -221,6 +229,7 @@ def main() -> int:
             status_writer=status,
         )
         from my_voice_cooperative import manual_stop_requested
+
         if manual_stop_requested():
             raise BuildError("manual_stop_before_review")
         status("ready_for_review", "Voice Actor samples are ready for review.")

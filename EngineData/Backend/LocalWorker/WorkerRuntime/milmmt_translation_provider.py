@@ -329,7 +329,9 @@ def handle_translate(payload: dict[str, Any]) -> dict[str, Any]:
         # GPU completion. This is not an isolated CUDA kernel-duration metric.
         # No additional per-utterance device-wide synchronization is added.
         try:
-            completion = _continuation(generated, prompt_tokens, tokenizer, model, generation_budget)
+            completion = _continuation(
+                generated, prompt_tokens, tokenizer, model, generation_budget
+            )
         finally:
             # Preserve failure telemetry even if token materialization or
             # terminal EOS validation raises.

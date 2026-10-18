@@ -17,7 +17,9 @@ from voice_lab_build import validate_dataset_signal
 from voice_lab_gpt_sovits_build import select_reference, training_takes
 
 
-def write_take(path: Path, *, edge_level: int, edge_ms: int = 300, speech_level: int = 8_000) -> None:
+def write_take(
+    path: Path, *, edge_level: int, edge_ms: int = 300, speech_level: int = 8_000
+) -> None:
     count = 32_000 * 5
     edge = 32_000 * edge_ms // 1_000
     samples = [
@@ -70,9 +72,7 @@ class VoiceLabAudioQualityTests(unittest.TestCase):
                     }
                     for line_id in (1, 2)
                 ],
-                "held_out_lines": [
-                    {"line_id": 1001, "exact_text": "unseen reference text"}
-                ],
+                "held_out_lines": [{"line_id": 1001, "exact_text": "unseen reference text"}],
             }
             selected = select_reference(training_takes(root, manifest))
             self.assertEqual(selected["line_id"], 2)
@@ -90,7 +90,11 @@ class VoiceLabAudioQualityTests(unittest.TestCase):
             manifest = {
                 "takes": [
                     {"line_id": 1, "exact_text": "first example", "wav_file": quiet_but_weak.name},
-                    {"line_id": 2, "exact_text": "second example", "wav_file": stronger_speech.name},
+                    {
+                        "line_id": 2,
+                        "exact_text": "second example",
+                        "wav_file": stronger_speech.name,
+                    },
                 ],
                 "held_out_lines": [{"line_id": 1001, "exact_text": "unseen words"}],
             }
@@ -102,9 +106,7 @@ class VoiceLabAudioQualityTests(unittest.TestCase):
             )
             selected = select_reference(training_takes(root, manifest))
             self.assertEqual(selected["line_id"], 2)
-            self.assertEqual(
-                (quiet_but_weak.read_bytes(), stronger_speech.read_bytes()), original
-            )
+            self.assertEqual((quiet_but_weak.read_bytes(), stronger_speech.read_bytes()), original)
 
     def test_reference_selection_keeps_existing_clipping_priority(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -125,7 +127,11 @@ class VoiceLabAudioQualityTests(unittest.TestCase):
             manifest = {
                 "takes": [
                     {"line_id": 1, "exact_text": "clean example", "wav_file": clean.name},
-                    {"line_id": 2, "exact_text": "clipped example", "wav_file": lightly_clipped.name},
+                    {
+                        "line_id": 2,
+                        "exact_text": "clipped example",
+                        "wav_file": lightly_clipped.name,
+                    },
                 ],
                 "held_out_lines": [{"line_id": 1001, "exact_text": "unseen words"}],
             }

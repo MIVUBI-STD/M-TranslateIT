@@ -56,20 +56,27 @@ class VoiceLabBuildContractTests(unittest.TestCase):
             selected = {
                 "gpt_path": gpt,
                 "sovits_path": sovits,
-                "samples": [{
-                    "line_id": 1001,
-                    "exact_text": "Hello",
-                    "speaker_similarity": 0.9,
-                    "intelligibility_text": "Hello",
-                    "intelligibility_wer": 0.0,
-                    "artifact_flags": [],
-                    "sha256": expected_hash,
-                    "_wav_path": wav,
-                }],
+                "samples": [
+                    {
+                        "line_id": 1001,
+                        "exact_text": "Hello",
+                        "speaker_similarity": 0.9,
+                        "intelligibility_text": "Hello",
+                        "intelligibility_wer": 0.0,
+                        "artifact_flags": [],
+                        "sha256": expected_hash,
+                        "_wav_path": wav,
+                    }
+                ],
             }
-            samples = promote_selected_candidate(selected, candidate, evaluation, {"wav_path": reference})
+            samples = promote_selected_candidate(
+                selected, candidate, evaluation, {"wav_path": reference}
+            )
             self.assertEqual(samples[0]["sha256"], expected_hash)
-            self.assertEqual(hashlib.sha256((evaluation / "held_out_1001.wav").read_bytes()).hexdigest(), expected_hash)
+            self.assertEqual(
+                hashlib.sha256((evaluation / "held_out_1001.wav").read_bytes()).hexdigest(),
+                expected_hash,
+            )
 
     def test_training_epoch_contract_is_explicit_and_importable(self) -> None:
         self.assertEqual(SOVITS_EPOCHS, 8)

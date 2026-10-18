@@ -41,7 +41,8 @@ class FakeOptimizer:
     def __init__(self):
         self.loaded = False
         self.state = {
-            "state": {}, "param_groups": [{"params": [0]}],
+            "state": {},
+            "param_groups": [{"params": [0]}],
         }
 
     def state_dict(self):
@@ -74,15 +75,21 @@ class SoVITSWorkerChildProbeTests(unittest.TestCase):
         }
         for role, path in self.files.items():
             path.write_bytes(role.encode())
+
         def checksum(path):
             return hashlib.sha256(path.read_bytes()).hexdigest()
+
         self.plan = SoVITSChildPlan(
-            run_token="a"*64, recovery_id="b"*64, dataset_id="c"*64,
+            run_token="a" * 64,
+            recovery_id="b" * 64,
+            dataset_id="c" * 64,
             g_sha=checksum(self.files["sovits_G"]),
             d_sha=checksum(self.files["sovits_D"]),
-            g_path=str(self.files["sovits_G"]), d_path=str(self.files["sovits_D"]),
+            g_path=str(self.files["sovits_G"]),
+            d_path=str(self.files["sovits_D"]),
             expected_epoch=4,
-            event_dir=str(root), source_root=str(root),
+            event_dir=str(root),
+            source_root=str(root),
         )
         self.events = []
         self.exits = []
@@ -94,10 +101,13 @@ class SoVITSWorkerChildProbeTests(unittest.TestCase):
         def fail(code):
             self.exits.append(code)
             raise StrictChildLoadError("hard_abort_would_exit")
+
         return StrictSoVITSChildMonitor(
-            self.plan, pid=1234,
+            self.plan,
+            pid=1234,
             decode=decode if decode is not None else lambda _: sample_data(),
-            emit=self.events.append, hard_abort=fail,
+            emit=self.events.append,
+            hard_abort=fail,
         )
 
     def test_valid_D_G_load_and_real_first_optimizer_step_signal(self):
@@ -132,10 +142,11 @@ class SoVITSWorkerChildProbeTests(unittest.TestCase):
     def test_invalid_optimizer_or_model_layout_fails_before_success_ack(self):
         for modify in [
             lambda p: p.update(optimizer={"state": {}, "param_groups": [{"params": [0]}]}),
-            lambda p: p.update(model={"other": FakeTensor((2,3))}),
-            lambda p: p.update(model={"layer": FakeTensor((999,3))}),
-            lambda p: p.update(optimizer={"state": {0: {"step": 20}},
-                                          "param_groups": [{"params": [0, 1]}]}),
+            lambda p: p.update(model={"other": FakeTensor((2, 3))}),
+            lambda p: p.update(model={"layer": FakeTensor((999, 3))}),
+            lambda p: p.update(
+                optimizer={"state": {0: {"step": 20}}, "param_groups": [{"params": [0, 1]}]}
+            ),
         ]:
             self.events.clear()
             self.exits.clear()
@@ -164,14 +175,13 @@ class SoVITSWorkerChildProbeTests(unittest.TestCase):
 
     def test_gd_events_reach_protocol_but_never_become_verified_resume(self):
         from voice_lab_strict_resume_ack import StrictResumeAcknowledgments
+
         protocol = StrictResumeAcknowledgments(
             self.plan.expectation("0" * 64, gpt_epoch=7, gpt_step=42)
         )
         monitor = self.monitor()
-        monitor.load("sovits_D", str(self.files["sovits_D"]),
-                     FakeModel(), FakeOptimizer())
-        monitor.load("sovits_G", str(self.files["sovits_G"]),
-                     FakeModel(), FakeOptimizer())
+        monitor.load("sovits_D", str(self.files["sovits_D"]), FakeModel(), FakeOptimizer())
+        monitor.load("sovits_G", str(self.files["sovits_G"]), FakeModel(), FakeOptimizer())
         monitor.mark_epoch(5)
         monitor.after_first_generator_optimizer_step()
         for event in self.events:
@@ -182,14 +192,14 @@ class SoVITSWorkerChildProbeTests(unittest.TestCase):
         self.assertFalse(status["resume_available"])
 
     def test_dev_spawn_hook_remains_explicitly_gated_in_normal_stage(self):
-        stage_file = (Path(__file__).resolve().parents[1]
-                      / "voice_lab_upstream_stage.py")
+        stage_file = Path(__file__).resolve().parents[1] / "voice_lab_upstream_stage.py"
         stage = stage_file.read_text(encoding="utf-8")
         self.assertIn("--translateit-dev-strict-sovits-probe", stage)
         self.assertIn("len(script_args) != 2", stage)
         self.assertIn("script_args = []", stage)
-        build = (Path(__file__).resolve().parents[1]
-                 / "voice_lab_gpt_sovits_build.py").read_text(encoding="utf-8")
+        build = (Path(__file__).resolve().parents[1] / "voice_lab_gpt_sovits_build.py").read_text(
+            encoding="utf-8"
+        )
         self.assertNotIn("--translateit-dev-strict-sovits-probe", build)
 
     def test_plan_rejects_mismatched_paths_and_epoch(self):

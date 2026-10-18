@@ -1,4 +1,5 @@
 """Authored filesystem evidence tests; not run or GPU-validated."""
+
 import json
 from pathlib import Path
 
@@ -6,6 +7,7 @@ import pytest
 
 from my_voice_checkpoint_pair import publish_pair, verified_pair_for_epoch
 from my_voice_cooperative import GENERATION_ENV, STAGE_ENV, TOKEN_ENV
+
 
 @pytest.fixture(autouse=True)
 def set_checkpoint_progress_identity(monkeypatch, tmp_path: Path):
@@ -18,9 +20,11 @@ def set_checkpoint_progress_identity(monkeypatch, tmp_path: Path):
         str(tmp_path / "epoch_progress.json"),
     )
 
+
 def checkpoints(tmp_path: Path, step: int):
     (tmp_path / f"G_{step}.pth").write_bytes(b"G" * 8192)
     (tmp_path / f"D_{step}.pth").write_bytes(b"D" * 8192)
+
 
 def test_matching_pair_manifest_published(tmp_path: Path):
     checkpoints(tmp_path, 120)
@@ -30,11 +34,13 @@ def test_matching_pair_manifest_published(tmp_path: Path):
     assert receipt["global_step"] == 120
     assert receipt["generator"]["sha256"] != receipt["discriminator"]["sha256"]
 
+
 def test_changed_generator_invalidates_pair(tmp_path: Path):
     checkpoints(tmp_path, 120)
     publish_pair(tmp_path, 120, 2)
     (tmp_path / "G_120.pth").write_bytes(b"Z" * 8192)
     assert not verified_pair_for_epoch(tmp_path, 2)
+
 
 def test_missing_discriminator_never_publishes_pair(tmp_path: Path):
     (tmp_path / "G_120.pth").write_bytes(b"G" * 8192)
@@ -47,6 +53,7 @@ def test_pair_lookup_hashes_only_the_target_epoch(tmp_path, monkeypatch):
     from unittest.mock import patch
 
     import my_voice_checkpoint_pair as pair
+
     checkpoints(tmp_path, 120)
     publish_pair(tmp_path, 120, 2)
     checkpoints(tmp_path, 250)
@@ -66,6 +73,7 @@ def test_modified_checkpoint_rejected_without_loading_tensor(tmp_path):
 
 def test_pair_file_lstat_rejects_symlink_without_loading_payload(tmp_path):
     from my_voice_checkpoint_pair import file_identity
+
     original = tmp_path / "G_101.pth"
     original.write_bytes(b"G" * 8192)
     link = tmp_path / "G_102.pth"

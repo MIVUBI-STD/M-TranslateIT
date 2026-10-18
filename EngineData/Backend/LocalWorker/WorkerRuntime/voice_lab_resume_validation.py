@@ -108,8 +108,17 @@ def _snapshot(saved_root: Path, snapshot_id: str) -> None:
     if record.get("engine_revision") != ENGINE_REVISION:
         raise ResumeAuditError("dataset_engine_mismatch")
     links = record.get("audio")
-    takes = record.get("source_manifest", {}).get("takes") if isinstance(record.get("source_manifest"), dict) else None
-    if not isinstance(links, list) or not isinstance(takes, list) or not 1 <= len(links) <= 128 or len(links) != len(takes):
+    takes = (
+        record.get("source_manifest", {}).get("takes")
+        if isinstance(record.get("source_manifest"), dict)
+        else None
+    )
+    if (
+        not isinstance(links, list)
+        or not isinstance(takes, list)
+        or not 1 <= len(links) <= 128
+        or len(links) != len(takes)
+    ):
         raise ResumeAuditError("dataset_audio_links_missing_or_mismatched")
     # Read the saved archive's identity and referenced WAV bytes, not arbitrary
     # source paths. This explicit developer audit may stream all selected WAVs.
@@ -119,11 +128,15 @@ def _snapshot(saved_root: Path, snapshot_id: str) -> None:
         line_id = take.get("line_id")
         transcript = take.get("exact_text")
         wav_name = take.get("wav_file")
-        if (type(line_id) is not int or not 1 <= line_id <= 600
-                or not isinstance(transcript, str) or not transcript.strip()
-                or wav_name != f"take_{line_id:04}.wav"
-                or link.get("line_id") != line_id
-                or link.get("wav_file") != wav_name):
+        if (
+            type(line_id) is not int
+            or not 1 <= line_id <= 600
+            or not isinstance(transcript, str)
+            or not transcript.strip()
+            or wav_name != f"take_{line_id:04}.wav"
+            or link.get("line_id") != line_id
+            or link.get("wav_file") != wav_name
+        ):
             raise ResumeAuditError("dataset_link_identity_mismatch")
         archive_id = link.get("archive_id")
         if not isinstance(archive_id, str) or not HEX64.fullmatch(archive_id):
@@ -137,7 +150,9 @@ def _snapshot(saved_root: Path, snapshot_id: str) -> None:
         if _hash(take_path) != archive_id:
             raise ResumeAuditError("source_take_receipt_hash_mismatch")
         metadata = _json(take_path, 16 * 1024)
-        if metadata.get("line_id") != take["line_id"] or metadata.get("exact_text") != take.get("exact_text"):
+        if metadata.get("line_id") != take["line_id"] or metadata.get("exact_text") != take.get(
+            "exact_text"
+        ):
             raise ResumeAuditError("source_take_transcript_mismatch")
         canonical_hash = metadata.get("canonical_sha256")
         if not isinstance(canonical_hash, str) or not HEX64.fullmatch(canonical_hash):
@@ -192,9 +207,11 @@ def audit_archive(
     receipt = _json(receipt_path, MAX_RECEIPT_BYTES)
     if _hash(receipt_path) != recovery_id:
         raise ResumeAuditError("recovery_receipt_hash_mismatch")
-    if (receipt.get("format") != 1
-            or receipt.get("engine_revision") != ENGINE_REVISION
-            or receipt.get("status") != SUPPORTED_STATUS):
+    if (
+        receipt.get("format") != 1
+        or receipt.get("engine_revision") != ENGINE_REVISION
+        or receipt.get("status") != SUPPORTED_STATUS
+    ):
         raise ResumeAuditError("unsupported_recovery_contract")
     snapshot = receipt.get("dataset_snapshot_id")
     if not isinstance(snapshot, str):
@@ -212,19 +229,27 @@ def audit_archive(
         if not isinstance(part, dict):
             raise ResumeAuditError("part_not_object")
         label, sha, length, original = (
-            part.get("label"), part.get("sha256"), part.get("bytes"),
+            part.get("label"),
+            part.get("sha256"),
+            part.get("bytes"),
             part.get("original_filename"),
         )
-        if not (isinstance(label, str)
-                and (PART_LABEL.fullmatch(label)
-                     or label in ("gpt-config.yaml", "sovits-config.json"))):
+        if not (
+            isinstance(label, str)
+            and (PART_LABEL.fullmatch(label) or label in ("gpt-config.yaml", "sovits-config.json"))
+        ):
             raise ResumeAuditError("part_label_invalid")
         if label in labels:
             raise ResumeAuditError("duplicate_part")
-        if not (isinstance(sha, str) and HEX64.fullmatch(sha)
-                and type(length) is int and 0 < length <= MAX_CHECKPOINT_BYTES
-                and isinstance(original, str) and 1 <= len(original) <= 128
-                and re.fullmatch(r"[A-Za-z0-9_.=-]+", original)):
+        if not (
+            isinstance(sha, str)
+            and HEX64.fullmatch(sha)
+            and type(length) is int
+            and 0 < length <= MAX_CHECKPOINT_BYTES
+            and isinstance(original, str)
+            and 1 <= len(original) <= 128
+            and re.fullmatch(r"[A-Za-z0-9_.=-]+", original)
+        ):
             raise ResumeAuditError("part_metadata_invalid")
         path = folder / label
         _regular(path, max_bytes=MAX_CHECKPOINT_BYTES)
@@ -260,9 +285,11 @@ def audit_archive(
         if d_label not in originals:
             continue
         g_name, d_name = originals[g_label], originals[d_label]
-        if (not re.fullmatch(r"G_\d+\.pth", g_name)
-                or not re.fullmatch(r"D_\d+\.pth", d_name)
-                or g_name[2:] != d_name[2:]):
+        if (
+            not re.fullmatch(r"G_\d+\.pth", g_name)
+            or not re.fullmatch(r"D_\d+\.pth", d_name)
+            or g_name[2:] != d_name[2:]
+        ):
             blockers.append("sovits_original_checkpoint_pair_mismatch")
     for label in gpts:
         if not originals[label].endswith(".ckpt"):
@@ -278,15 +305,19 @@ def audit_archive(
         if not match or type(receipt.get("global_step")) is not int:
             raise ResumeAuditError("sovits_pair_receipt_identity_invalid")
         step = int(match.group(1))
-        if (receipt.get("format") != 1 or step < 1
+        if (
+            receipt.get("format") != 1
+            or step < 1
             or receipt["global_step"] != step
             or type(receipt.get("epoch")) is not int
-            or not 1 <= receipt["epoch"] <= SOVITS_EPOCHS):
+            or not 1 <= receipt["epoch"] <= SOVITS_EPOCHS
+        ):
             raise ResumeAuditError("sovits_pair_receipt_schema_invalid")
         for role, key in (("G", "generator"), ("D", "discriminator")):
             member = receipt.get(key)
             matching = [
-                item for item in (gens if role == "G" else discs)
+                item
+                for item in (gens if role == "G" else discs)
                 if originals[item] == f"{role}_{step}.pth"
             ]
             if len(matching) != 1 or not isinstance(member, dict):
@@ -294,9 +325,11 @@ def audit_archive(
             component = matching[0]
             # Recovery source receipt hashes are already checked above.
             record = next(p for p in parts if p["label"] == component)
-            if (member.get("name") != originals[component]
+            if (
+                member.get("name") != originals[component]
                 or member.get("sha256") != record["sha256"]
-                or member.get("bytes") != record["bytes"]):
+                or member.get("bytes") != record["bytes"]
+            ):
                 raise ResumeAuditError("sovits_pair_receipt_hash_mismatch")
         if step in paired_steps:
             raise ResumeAuditError("sovits_pair_duplicate_step")
@@ -315,6 +348,7 @@ def audit_archive(
             configs = _configs(labels)
             if tensor_loader is None:
                 import torch
+
                 # No fallback to unsafe weights_only=False, even if an
                 # otherwise legitimate Lightning checkpoint is rejected.
                 def strict_tensor_loader(path: Path):
@@ -322,8 +356,7 @@ def audit_archive(
 
                 tensor_loader = strict_tensor_loader
             parsed: dict[str, Any] = {
-                label: tensor_loader(labels[label])
-                for label in (gpts[-1], gens[-1], discs[-1])
+                label: tensor_loader(labels[label]) for label in (gpts[-1], gens[-1], discs[-1])
             }
         except Exception:
             # A safe-deserialization limitation is not proof that preserved
@@ -331,9 +364,14 @@ def audit_archive(
             blockers.append("checkpoint_tensor_inspection_unavailable")
         else:
             tensor_inspected = True
-            blockers.extend(_training_state_blockers(
-                parsed[gpts[-1]], parsed[gens[-1]], parsed[discs[-1]], configs,
-            ))
+            blockers.extend(
+                _training_state_blockers(
+                    parsed[gpts[-1]],
+                    parsed[gens[-1]],
+                    parsed[discs[-1]],
+                    configs,
+                )
+            )
     elif not inspect_tensors:
         blockers.append("optimizer_state_not_inspected")
 
@@ -368,43 +406,69 @@ def _configs(labels: dict[str, Path]) -> tuple[dict[str, Any], dict[str, Any]]:
 
 
 def _has_optimizer(value: Any) -> bool:
-    return (isinstance(value, dict)
-            and isinstance(value.get("state"), dict) and bool(value["state"])
-            and isinstance(value.get("param_groups"), list)
-            and bool(value["param_groups"]))
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("state"), dict)
+        and bool(value["state"])
+        and isinstance(value.get("param_groups"), list)
+        and bool(value["param_groups"])
+    )
 
 
 def _training_state_blockers(
-    gpt: Any, g: Any, d: Any, configs: tuple[dict[str, Any], dict[str, Any]],
+    gpt: Any,
+    g: Any,
+    d: Any,
+    configs: tuple[dict[str, Any], dict[str, Any]],
 ) -> list[str]:
     blockers = []
     s1, s2 = configs
     s1_train = s1.get("train") if isinstance(s1.get("train"), dict) else {}
     s2_train = s2.get("train") if isinstance(s2.get("train"), dict) else {}
     s2_model = s2.get("model") if isinstance(s2.get("model"), dict) else {}
-    if (s1_train.get("epochs") != GPT_EPOCHS
-            or s2_train.get("epochs") != SOVITS_EPOCHS
-            or s1_train.get("precision") not in ("16-mixed", "32")
-            or s2_train.get("fp16_run") not in (True, False)
-            or type(s1_train.get("if_save_latest")) is not bool
-            or type(s2_train.get("if_save_latest")) is not bool
-            or s2_model.get("version") != "v2ProPlus"):
+    if (
+        s1_train.get("epochs") != GPT_EPOCHS
+        or s2_train.get("epochs") != SOVITS_EPOCHS
+        or s1_train.get("precision") not in ("16-mixed", "32")
+        or s2_train.get("fp16_run") not in (True, False)
+        or type(s1_train.get("if_save_latest")) is not bool
+        or type(s2_train.get("if_save_latest")) is not bool
+        or s2_model.get("version") != "v2ProPlus"
+    ):
         blockers.append("training_configuration_mismatch")
-    if not isinstance(gpt, dict) or not isinstance(gpt.get("state_dict"), dict) or not gpt["state_dict"]:
+    if (
+        not isinstance(gpt, dict)
+        or not isinstance(gpt.get("state_dict"), dict)
+        or not gpt["state_dict"]
+    ):
         blockers.append("gpt_model_state_missing")
     if not isinstance(gpt, dict) or type(gpt.get("epoch")) is not int or gpt["epoch"] < 0:
         blockers.append("gpt_epoch_invalid")
-    if not isinstance(gpt, dict) or type(gpt.get("global_step")) is not int or gpt["global_step"] <= 0:
+    if (
+        not isinstance(gpt, dict)
+        or type(gpt.get("global_step")) is not int
+        or gpt["global_step"] <= 0
+    ):
         blockers.append("gpt_global_step_invalid")
-    if (not isinstance(gpt, dict)
-            or not isinstance(gpt.get("optimizer_states"), list)
-            or not any(_has_optimizer(state) for state in gpt["optimizer_states"])):
+    if (
+        not isinstance(gpt, dict)
+        or not isinstance(gpt.get("optimizer_states"), list)
+        or not any(_has_optimizer(state) for state in gpt["optimizer_states"])
+    ):
         blockers.append("gpt_optimizer_state_missing")
-    if not isinstance(gpt, dict) or not isinstance(gpt.get("lr_schedulers"), list) or not gpt["lr_schedulers"]:
+    if (
+        not isinstance(gpt, dict)
+        or not isinstance(gpt.get("lr_schedulers"), list)
+        or not gpt["lr_schedulers"]
+    ):
         blockers.append("gpt_scheduler_state_missing")
     iterations = []
     for label, value in (("generator", g), ("discriminator", d)):
-        if not isinstance(value, dict) or not isinstance(value.get("model"), dict) or not value["model"]:
+        if (
+            not isinstance(value, dict)
+            or not isinstance(value.get("model"), dict)
+            or not value["model"]
+        ):
             blockers.append(f"sovits_{label}_model_missing")
         if not isinstance(value, dict) or not _has_optimizer(value.get("optimizer")):
             blockers.append(f"sovits_{label}_optimizer_missing")
@@ -425,16 +489,26 @@ def main() -> int:
     parser.add_argument("--saved-root", type=Path, required=True)
     parser.add_argument("--recovery-id", required=True)
     parser.add_argument("--source-root", type=Path)
-    parser.add_argument("--inspect-tensors", action="store_true",
-                        help="Explicit trusted-file-only safe deserialization; never automatic")
+    parser.add_argument(
+        "--inspect-tensors",
+        action="store_true",
+        help="Explicit trusted-file-only safe deserialization; never automatic",
+    )
     args = parser.parse_args()
     try:
-        report = audit_archive(args.saved_root, args.recovery_id,
-                               source_root=args.source_root,
-                               inspect_tensors=args.inspect_tensors)
+        report = audit_archive(
+            args.saved_root,
+            args.recovery_id,
+            source_root=args.source_root,
+            inspect_tensors=args.inspect_tensors,
+        )
     except ResumeAuditError as exc:
-        print(json.dumps({"integrity_verified": False, "resume_available": False,
-                          "blockers": [str(exc)]}, sort_keys=True))
+        print(
+            json.dumps(
+                {"integrity_verified": False, "resume_available": False, "blockers": [str(exc)]},
+                sort_keys=True,
+            )
+        )
         return 2
     print(json.dumps(report, sort_keys=True))
     return 0

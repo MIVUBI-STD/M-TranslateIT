@@ -400,9 +400,7 @@ def pretrained_voice_preview_assets(source_root: Path) -> dict[str, Path]:
     assets = inference_source_assets(source_root)
     gsv = assets["gsv"]
     assets["pretrained_gpt"] = gsv / "pretrained_models" / "s1v3.ckpt"
-    assets["pretrained_sovits"] = (
-        gsv / "pretrained_models" / "v2Pro" / "s2Gv2ProPlus.pth"
-    )
+    assets["pretrained_sovits"] = gsv / "pretrained_models" / "v2Pro" / "s2Gv2ProPlus.pth"
     require_file(assets["pretrained_gpt"], "pretrained_gpt")
     require_file(assets["pretrained_sovits"], "pretrained_sovits")
     return assets
@@ -425,10 +423,12 @@ def prepare_pretrained_voice_preview(
     metrics = wav_signal_metrics_pcm16(reference_wav)
     if not REFERENCE_MIN_MS <= metrics["duration_ms"] <= REFERENCE_MAX_MS:
         raise VoiceLabProviderError("preview_reference_duration_invalid")
-    if (metrics["silence_fraction"] >= 0.90
+    if (
+        metrics["silence_fraction"] >= 0.90
         or metrics["clipping_fraction"] >= 0.05
         or metrics["active_rms"] < 256.0
-        or metrics["dc_offset"] >= 2_048.0):
+        or metrics["dc_offset"] >= 2_048.0
+    ):
         raise VoiceLabProviderError("preview_reference_quality_invalid")
     assets = pretrained_voice_preview_assets(source_root)
     runtime = create_tts_runtime(
@@ -444,7 +444,9 @@ def prepare_pretrained_voice_preview(
 
 
 def synthesize_pretrained_voice_preview(
-    runtime: dict[str, Any], text: str, output_path: Path,
+    runtime: dict[str, Any],
+    text: str,
+    output_path: Path,
 ) -> dict[str, Any]:
     """One local WAV preview; explicitly not a Meeting voice or trained actor."""
     if runtime.get("preview_only") is not True:

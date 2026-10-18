@@ -354,11 +354,13 @@ def main() -> int:
             or not request_id.isascii()
             or not all(char.isalnum() or char in "-_" for char in request_id)
         ):
-            _respond_protocol({
-                "ok": False,
-                "stage": "worker_request",
-                "blocker": "worker:invalid_request_id",
-            })
+            _respond_protocol(
+                {
+                    "ok": False,
+                    "stage": "worker_request",
+                    "blocker": "worker:invalid_request_id",
+                }
+            )
             continue
 
         command = runtime.safe_command_name(request.get("command", "status"))

@@ -82,6 +82,7 @@ class DeepFilterTrialContracts(unittest.TestCase):
             self.assertEqual(metadata["source_rate_hz"], 32_000)
             self.assertEqual(original, source.read_bytes())
             import wave
+
             with wave.open(str(out_file), "rb") as reader:
                 self.assertEqual(reader.getframerate(), 48_000)
                 self.assertEqual(reader.getsampwidth(), 2)
@@ -94,14 +95,25 @@ class DeepFilterTrialContracts(unittest.TestCase):
         target = np.rint(resample_poly(s.astype(np.float64) / 32768, 2, 3) * 32767)
         wav(canonical, target.astype(np.int16), 32_000)
         evidence = inspect_frozen_source_pair(canonical, native)
-        (root / "dataset.json").write_text(json.dumps({
-            "schema_version": 1, "authorized_voice_confirmed": True,
-            "takes": [{"line_id": 1, "wav_file": canonical.name, "exact_text": "private"}],
-        }), encoding="utf-8")
-        (root / "audio_quality.json").write_text(json.dumps({
-            "schema": "voice_lab.audio_quality.v1",
-            "takes": [{"wav_file": canonical.name, "source_pair": evidence}],
-        }), encoding="utf-8")
+        (root / "dataset.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "authorized_voice_confirmed": True,
+                    "takes": [{"line_id": 1, "wav_file": canonical.name, "exact_text": "private"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (root / "audio_quality.json").write_text(
+            json.dumps(
+                {
+                    "schema": "voice_lab.audio_quality.v1",
+                    "takes": [{"wav_file": canonical.name, "source_pair": evidence}],
+                }
+            ),
+            encoding="utf-8",
+        )
         return native
 
     def test_frozen_pair_is_required_and_hash_change_is_rejected(self):

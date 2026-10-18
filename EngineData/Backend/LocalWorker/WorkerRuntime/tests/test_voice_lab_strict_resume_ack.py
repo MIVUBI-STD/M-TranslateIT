@@ -24,36 +24,65 @@ DISC_SHA = "f" * 64
 
 def expectation() -> ResumeExpectation:
     return ResumeExpectation(
-        run_token=TOKEN, recovery_id=RECOVERY, dataset_id=DATASET,
+        run_token=TOKEN,
+        recovery_id=RECOVERY,
+        dataset_id=DATASET,
         checkpoint_sha256={"gpt": GPT_SHA, "sovits_G": GEN_SHA, "sovits_D": DISC_SHA},
-        gpt_epoch=7, gpt_global_step=400, sovits_epoch=4,
+        gpt_epoch=7,
+        gpt_global_step=400,
+        sovits_epoch=4,
     )
 
 
 def event(number: int, kind: str, role: str, *, pid: int = 410, **extra) -> dict:
     return {
-        "schema_version": 1, "run_token": TOKEN,
-        "recovery_id": RECOVERY, "dataset_id": DATASET,
+        "schema_version": 1,
+        "run_token": TOKEN,
+        "recovery_id": RECOVERY,
+        "dataset_id": DATASET,
         "engine_revision": expectation().engine_revision,
-        "worker_pid": pid, "sequence": number,
-        "kind": kind, "role": role, **extra,
+        "worker_pid": pid,
+        "sequence": number,
+        "kind": kind,
+        "role": role,
+        **extra,
     }
 
 
 def full_trace() -> list[dict]:
     return [
-        event(1, "checkpoint_loaded", "sovits_D",
-              checkpoint_sha256=DISC_SHA, model_loaded=True, optimizer_loaded=True,
-              checkpoint_epoch=4),
-        event(2, "checkpoint_loaded", "sovits_G",
-              checkpoint_sha256=GEN_SHA, model_loaded=True, optimizer_loaded=True,
-              checkpoint_epoch=4),
+        event(
+            1,
+            "checkpoint_loaded",
+            "sovits_D",
+            checkpoint_sha256=DISC_SHA,
+            model_loaded=True,
+            optimizer_loaded=True,
+            checkpoint_epoch=4,
+        ),
+        event(
+            2,
+            "checkpoint_loaded",
+            "sovits_G",
+            checkpoint_sha256=GEN_SHA,
+            model_loaded=True,
+            optimizer_loaded=True,
+            checkpoint_epoch=4,
+        ),
         event(3, "training_started", "sovits", next_epoch=5),
-        event(4, "checkpoint_loaded", "gpt", pid=412,
-              checkpoint_sha256=GPT_SHA, model_loaded=True, optimizer_loaded=True,
-              scheduler_loaded=True, checkpoint_epoch=7, global_step=400),
-        event(5, "training_started", "gpt", pid=412,
-              current_epoch=7, global_step=400),
+        event(
+            4,
+            "checkpoint_loaded",
+            "gpt",
+            pid=412,
+            checkpoint_sha256=GPT_SHA,
+            model_loaded=True,
+            optimizer_loaded=True,
+            scheduler_loaded=True,
+            checkpoint_epoch=7,
+            global_step=400,
+        ),
+        event(5, "training_started", "gpt", pid=412, current_epoch=7, global_step=400),
     ]
 
 
@@ -77,7 +106,9 @@ class StrictWorkerAcknowledgmentContractTests(unittest.TestCase):
     def test_missing_discriminator_prevents_train_start(self):
         session = StrictResumeAcknowledgments(expectation())
         trace = full_trace()
-        with self.assertRaisesRegex(ResumeAckError, "sovits_training_started_without_checkpoint_pair"):
+        with self.assertRaisesRegex(
+            ResumeAckError, "sovits_training_started_without_checkpoint_pair"
+        ):
             session.observe(trace[0])
             session.observe({**trace[2], "sequence": 2})
         self.assertFalse(session.summary()["acknowledgment_sequence_complete"])
@@ -125,8 +156,9 @@ class StrictWorkerAcknowledgmentContractTests(unittest.TestCase):
     def test_read_only_bounded_jsonl_verifier(self):
         with tempfile.TemporaryDirectory() as raw:
             path = Path(raw) / "worker-ack.jsonl"
-            path.write_text("".join(json.dumps(item) + "\n" for item in full_trace()),
-                            encoding="utf-8")
+            path.write_text(
+                "".join(json.dumps(item) + "\n" for item in full_trace()), encoding="utf-8"
+            )
             original = path.read_bytes()
             result = verify_worker_event_log(path, expectation())
             self.assertTrue(result["acknowledgment_sequence_complete"])
@@ -139,10 +171,12 @@ class StrictWorkerAcknowledgmentContractTests(unittest.TestCase):
     def test_invalid_expectation_never_admitted(self):
         with self.assertRaisesRegex(ResumeAckError, "run_token_invalid"):
             StrictResumeAcknowledgments(
-                ResumeExpectation(**{**vars(expectation()), "run_token": "../bad"}))
+                ResumeExpectation(**{**vars(expectation()), "run_token": "../bad"})
+            )
         with self.assertRaisesRegex(ResumeAckError, "checkpoint_roles_invalid"):
             StrictResumeAcknowledgments(
-                ResumeExpectation(**{**vars(expectation()), "checkpoint_sha256": {"gpt": GPT_SHA}}))
+                ResumeExpectation(**{**vars(expectation()), "checkpoint_sha256": {"gpt": GPT_SHA}})
+            )
 
 
 if __name__ == "__main__":

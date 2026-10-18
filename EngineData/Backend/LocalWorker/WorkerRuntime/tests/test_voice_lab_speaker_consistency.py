@@ -34,11 +34,13 @@ class VoiceLabSpeakerConsistencyTests(unittest.TestCase):
         for line_id in (1, 2, 3):
             name = f"take_{line_id:04}.wav"
             write_take(root / name)
-            takes.append({
-                "line_id": line_id,
-                "exact_text": f"unique sentence {line_id}",
-                "wav_file": name,
-            })
+            takes.append(
+                {
+                    "line_id": line_id,
+                    "exact_text": f"unique sentence {line_id}",
+                    "wav_file": name,
+                }
+            )
         return takes, folder
 
     @staticmethod
@@ -72,23 +74,24 @@ class VoiceLabSpeakerConsistencyTests(unittest.TestCase):
                 inspect_speaker_embeddings(folder, takes)
             self.save_vectors(folder, [[1.0, 0.0], [0.9, 0.1], [-1.0, 0.0]])
             torch.save(torch.tensor([[1.0, 0.0, 0.0]]), folder / "take_0003.wav.pt")
-            with self.assertRaisesRegex(VoiceLabProviderError, "speaker_embedding_dimension_mismatch:3"):
+            with self.assertRaisesRegex(
+                VoiceLabProviderError, "speaker_embedding_dimension_mismatch:3"
+            ):
                 inspect_speaker_embeddings(folder, takes)
 
     def test_reference_identity_breaks_only_equal_signal_ties(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             takes, _ = self.make_fixture(root)
-            normalized = training_takes(root, {
-                "takes": takes,
-                "held_out_lines": [
-                    {"line_id": 1001, "exact_text": "unseen held out"}
-                ],
-            })
-            self.assertEqual(select_reference(normalized)["line_id"], 1)
-            selected = select_reference(
-                normalized, peer_cosines={1: 0.1, 2: 0.95, 3: 0.2}
+            normalized = training_takes(
+                root,
+                {
+                    "takes": takes,
+                    "held_out_lines": [{"line_id": 1001, "exact_text": "unseen held out"}],
+                },
             )
+            self.assertEqual(select_reference(normalized)["line_id"], 1)
+            selected = select_reference(normalized, peer_cosines={1: 0.1, 2: 0.95, 3: 0.2})
             self.assertEqual(selected["line_id"], 2)
 
     def test_report_stays_in_existing_frozen_dataset_and_does_not_touch_audio(self) -> None:
@@ -97,15 +100,18 @@ class VoiceLabSpeakerConsistencyTests(unittest.TestCase):
             takes, _ = self.make_fixture(root)
             original = [(root / take["wav_file"]).read_bytes() for take in takes]
             report = root / "audio_quality.json"
-            report.write_text(json.dumps({
-                "schema": "voice_lab.audio_quality.v1",
-                "method": "non_destructive_frame_energy",
-                "takes": [{"wav_file": take["wav_file"]} for take in takes],
-            }))
+            report.write_text(
+                json.dumps(
+                    {
+                        "schema": "voice_lab.audio_quality.v1",
+                        "method": "non_destructive_frame_energy",
+                        "takes": [{"wav_file": take["wav_file"]} for take in takes],
+                    }
+                )
+            )
             evidence = {
                 "per_take": [
-                    {"line_id": take["line_id"], "median_peer_cosine": 0.9}
-                    for take in takes
+                    {"line_id": take["line_id"], "median_peer_cosine": 0.9} for take in takes
                 ]
             }
             attach_speaker_evidence(report, takes, evidence)
@@ -119,10 +125,14 @@ class VoiceLabSpeakerConsistencyTests(unittest.TestCase):
     def test_report_rejects_wrong_frozen_dataset(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             report = Path(temp) / "audio_quality.json"
-            report.write_text(json.dumps({
-                "schema": "voice_lab.audio_quality.v1",
-                "takes": [{"wav_file": "take_0010.wav"}],
-            }))
+            report.write_text(
+                json.dumps(
+                    {
+                        "schema": "voice_lab.audio_quality.v1",
+                        "takes": [{"wav_file": "take_0010.wav"}],
+                    }
+                )
+            )
             with self.assertRaisesRegex(ValueError, "audio_quality_report_dataset_mismatch"):
                 attach_speaker_evidence(
                     report,

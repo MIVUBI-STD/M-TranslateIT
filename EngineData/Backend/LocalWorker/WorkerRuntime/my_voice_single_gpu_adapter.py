@@ -4,6 +4,7 @@ The original GPT-SoVITS V2ProPlus sources stay immutable. This adapter can
 only transform the exact reviewed Git blob revisions; drift is a hard error.
 No claim of Windows training success, performance or memory safety is made.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -106,24 +107,30 @@ install_sovits_inference_writer(process_ckpt)""",
             "sovits_ddp_wrap",
         )
         source = _replace_one(
-            source, "net_g.module.load_state_dict(", "net_g.load_state_dict(",
+            source,
+            "net_g.module.load_state_dict(",
+            "net_g.load_state_dict(",
             "sovits_pretrained_g",
         )
         source = _replace_one(
-            source, "net_d.module.load_state_dict(", "net_d.load_state_dict(",
+            source,
+            "net_d.module.load_state_dict(",
+            "net_d.load_state_dict(",
             "sovits_pretrained_d",
         )
         source = _replace_one(
-            source, "generator.module.infer(", "generator.infer(",
+            source,
+            "generator.module.infer(",
+            "generator.infer(",
             "sovits_optional_eval",
         )
         # Full G/D optimizer checkpoints use distinct step filenames and a
         # paired SHA-256 receipt published *after* both saves complete.
         source = _replace_one(
             source,
-            '''    if rank == 0:
-        logger.info("====> Epoch: {}".format(epoch))''',
-            '''    if rank == 0 and epoch % hps.train.save_every_epoch == 0:
+            """    if rank == 0:
+        logger.info("====> Epoch: {}".format(epoch))""",
+            """    if rank == 0 and epoch % hps.train.save_every_epoch == 0:
         from my_voice_checkpoint_pair import publish_pair
         from pathlib import Path
         publish_pair(
@@ -131,17 +138,17 @@ install_sovits_inference_writer(process_ckpt)""",
             global_step, epoch,
         )
     if rank == 0:
-        logger.info("====> Epoch: {}".format(epoch))''',
+        logger.info("====> Epoch: {}".format(epoch))""",
             "sovits_paired_optimizer_receipt",
         )
         # Only yield AFTER the configured SoVITS epoch checkpoint save. It
         # remains an UNVERIFIED recovery checkpoint, never an optimizer resume.
         source = _replace_one(
             source,
-            '''        scheduler_g.step()
+            """        scheduler_g.step()
         scheduler_d.step()
-    print("training done")''',
-            '''        scheduler_g.step()
+    print("training done")""",
+            """        scheduler_g.step()
         scheduler_d.step()
         from my_voice_epoch_progress import publish_epoch_activity
         publish_epoch_activity("sovits", epoch)
@@ -150,27 +157,27 @@ install_sovits_inference_writer(process_ckpt)""",
                                  hps.data.exp_dir, hps.model.version):
             print("my_voice:cooperative_checkpoint_boundary:sovits", flush=True)
             return
-    print("training done")''',
+    print("training done")""",
             "sovits_cooperative_epoch_boundary",
         )
     elif relative == "GPT_SoVITS/s1_train.py":
         source = _replace_one(
             source,
-            'from process_ckpt import my_save',
-            'from my_voice_checkpoint_atomic import atomic_gpt_inference_save as my_save',
+            "from process_ckpt import my_save",
+            "from my_voice_checkpoint_atomic import atomic_gpt_inference_save as my_save",
             "gpt_atomic_inference_weights",
         )
         source = _replace_one(
             source,
-            '        devices=-1 if torch.cuda.is_available() else 1,',
-            '        devices=1,',
+            "        devices=-1 if torch.cuda.is_available() else 1,",
+            "        devices=1,",
             "gpt_device_count",
         )
         source = _replace_one(
             source,
-            '''        strategy=DDPStrategy(process_group_backend="nccl" if platform.system() != "Windows" else "gloo")
+            """        strategy=DDPStrategy(process_group_backend="nccl" if platform.system() != "Windows" else "gloo")
         if torch.cuda.is_available()
-        else "auto",''',
+        else "auto",""",
             '        strategy="auto",',
             "gpt_ddp_strategy",
         )
@@ -192,23 +199,23 @@ install_sovits_inference_writer(process_ckpt)""",
         )
         source = _replace_one(
             source,
-            '''    trainer: Trainer = Trainer(''',
-            '''    from my_voice_checkpoint_io import create_atomic_lightning_checkpoint_io
+            """    trainer: Trainer = Trainer(""",
+            """    from my_voice_checkpoint_io import create_atomic_lightning_checkpoint_io
 
-    trainer: Trainer = Trainer(''',
+    trainer: Trainer = Trainer(""",
             "gpt_local_checkpoint_io_import",
         )
         source = _replace_one(
             source,
             '        monitor="top_3_acc",',
-            '        monitor=None,',
+            "        monitor=None,",
             "gpt_full_checkpoint_not_metric_dependent",
         )
         source = _replace_one(
             source,
-            '''        save_on_train_epoch_end=True,''',
-            '''        save_on_train_epoch_end=True,
-        save_last=False,''',
+            """        save_on_train_epoch_end=True,""",
+            """        save_on_train_epoch_end=True,
+        save_last=False,""",
             "gpt_no_redundant_last_checkpoint",
         )
         source = _replace_one(

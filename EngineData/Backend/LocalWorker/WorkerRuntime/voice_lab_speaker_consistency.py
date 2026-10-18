@@ -17,9 +17,7 @@ MAX_EMBEDDING_BYTES = 2 * 1024 * 1024
 MAX_EMBEDDING_DIMENSION = 65_536
 
 
-def inspect_speaker_embeddings(
-    embedding_dir: Path, takes: list[dict[str, Any]]
-) -> dict[str, Any]:
+def inspect_speaker_embeddings(embedding_dir: Path, takes: list[dict[str, Any]]) -> dict[str, Any]:
     if not 2 <= len(takes) <= MAX_TAKES:
         raise VoiceLabProviderError("speaker_consistency_invalid_take_count")
 
@@ -62,22 +60,16 @@ def inspect_speaker_embeddings(
     pairwise = matrix @ matrix.T
     per_take = []
     for row, take in enumerate(takes):
-        peers = sorted(
-            float(pairwise[row, peer])
-            for peer in range(len(takes))
-            if peer != row
-        )
+        peers = sorted(float(pairwise[row, peer]) for peer in range(len(takes)) if peer != row)
         midpoint = len(peers) // 2
-        median = (
-            peers[midpoint]
-            if len(peers) % 2
-            else (peers[midpoint - 1] + peers[midpoint]) / 2
+        median = peers[midpoint] if len(peers) % 2 else (peers[midpoint - 1] + peers[midpoint]) / 2
+        per_take.append(
+            {
+                "line_id": int(take["line_id"]),
+                "median_peer_cosine": round(median, 6),
+                "minimum_peer_cosine": round(peers[0], 6),
+            }
         )
-        per_take.append({
-            "line_id": int(take["line_id"]),
-            "median_peer_cosine": round(median, 6),
-            "minimum_peer_cosine": round(peers[0], 6),
-        })
     return {
         "method": "pinned_gpt_sovits_peer_embedding_cosine",
         "advisory_only": True,

@@ -3,6 +3,7 @@
 Do not delete files, checkpoint evidence or any user data on pressure.
 All thresholds are provisional and must be native-validated before release.
 """
+
 from __future__ import annotations
 
 import ctypes
@@ -17,10 +18,13 @@ START_RAM_MIB = 3072
 START_CACHE_MIB = 12 * 1024
 START_SAVED_MIB = 8 * 1024
 
+
 class ResourceGuardError(RuntimeError):
     pass
 
+
 if os.name == "nt":
+
     class _MemoryStatus(ctypes.Structure):
         _fields_ = [
             ("dwLength", ctypes.c_uint32),
@@ -33,9 +37,11 @@ if os.name == "nt":
             ("ullAvailVirtual", ctypes.c_uint64),
             ("ullAvailExtendedVirtual", ctypes.c_uint64),
         ]
+
     _kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     _kernel.GlobalMemoryStatusEx.argtypes = [ctypes.POINTER(_MemoryStatus)]
     _kernel.GlobalMemoryStatusEx.restype = ctypes.c_int
+
 
 def ram_available_mib() -> int:
     if os.name == "nt":
@@ -57,6 +63,7 @@ def ram_available_mib() -> int:
     except (OSError, ValueError, StopIteration, IndexError) as exc:
         raise ResourceGuardError("my_voice:ram_read_unavailable") from exc
 
+
 def _existing_volume(path_value: str) -> Path:
     if not path_value:
         raise ResourceGuardError("my_voice:resource_root_missing")
@@ -74,6 +81,7 @@ def _existing_volume(path_value: str) -> Path:
         raise ResourceGuardError("my_voice:resource_root_symlink")
     return current
 
+
 def disk_free_mib(path_value: str) -> int:
     try:
         disk = shutil.disk_usage(_existing_volume(path_value))
@@ -82,6 +90,7 @@ def disk_free_mib(path_value: str) -> int:
     if disk.total <= 0 or disk.free < 0 or disk.free > disk.total:
         raise ResourceGuardError("my_voice:disk_read_invalid")
     return disk.free // MIB
+
 
 def snapshot() -> tuple[int, int, int]:
     cache_root = os.environ.get("TRANSLATEIT_MYVOICE_CACHE_ROOT", "")
@@ -92,6 +101,7 @@ def snapshot() -> tuple[int, int, int]:
         disk_free_mib(saved_root),
     )
 
+
 def check_start() -> None:
     ram, cache, saved = snapshot()
     if ram < START_RAM_MIB:
@@ -100,6 +110,7 @@ def check_start() -> None:
         raise ResourceGuardError("my_voice:low_temporary_disk_before_stage")
     if saved < START_SAVED_MIB:
         raise ResourceGuardError("my_voice:low_saved_disk_before_stage")
+
 
 def critical() -> str | None:
     ram, cache, saved = snapshot()

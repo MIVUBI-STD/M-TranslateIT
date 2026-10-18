@@ -70,11 +70,13 @@ def inspect_frozen_source_pair(canonical: Path, native: Path) -> dict[str, Any]:
         result["status"] = "invalid_audio"
         return result
 
-    result.update({
-        "canonical_sha256": target_hash,
-        "native_sha256": source_hash,
-        "native_sample_rate_hz": source_rate,
-    })
+    result.update(
+        {
+            "canonical_sha256": target_hash,
+            "native_sha256": source_hash,
+            "native_sample_rate_hz": source_rate,
+        }
+    )
     if target_rate != TARGET_RATE:
         result["status"] = "invalid_canonical_rate"
         return result
@@ -95,16 +97,17 @@ def inspect_frozen_source_pair(canonical: Path, native: Path) -> dict[str, Any]:
     if length - trim * 2 < 1_600:
         result["status"] = "too_short_to_compare"
         return result
-    target_slice = target[trim:length - trim]
-    native_slice = adjusted[trim:length - trim]
-    target_rms = float(np.sqrt(np.mean(target_slice ** 2)))
-    native_rms = float(np.sqrt(np.mean(native_slice ** 2)))
+    target_slice = target[trim : length - trim]
+    native_slice = adjusted[trim : length - trim]
+    target_rms = float(np.sqrt(np.mean(target_slice**2)))
+    native_rms = float(np.sqrt(np.mean(native_slice**2)))
     if min(target_rms, native_rms) < 0.005:
         result["status"] = "insufficient_signal"
         return result
-    similarity = float(np.dot(target_slice, native_slice) / (
-        np.linalg.norm(target_slice) * np.linalg.norm(native_slice)
-    ))
+    similarity = float(
+        np.dot(target_slice, native_slice)
+        / (np.linalg.norm(target_slice) * np.linalg.norm(native_slice))
+    )
     gain_difference_db = abs(20.0 * math.log10(native_rms / target_rms))
     if not math.isfinite(similarity) or not math.isfinite(gain_difference_db):
         result["status"] = "invalid_comparison"

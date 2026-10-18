@@ -3,6 +3,7 @@
 The test uses fake ASR words, not actual Whisper inference. These fixtures
 cannot certify word alignment, translation quality, or live streaming.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -51,12 +52,13 @@ def make_runtime(tmp_path: Path, monkeypatch, *, words=None, transcript="Saya ti
     class FakeModel:
         def transcribe(self, _audio_path, **kwargs):
             observed.update(kwargs)
-            return [
-                types.SimpleNamespace(text=transcript, words=words)
-            ], types.SimpleNamespace(language="id", language_probability=0.99)
+            return [types.SimpleNamespace(text=transcript, words=words)], types.SimpleNamespace(
+                language="id", language_probability=0.99
+            )
 
     monkeypatch.setattr(
-        worker.io_runtime.common, "resolve_worker_path",
+        worker.io_runtime.common,
+        "resolve_worker_path",
         lambda *_args, **_kwargs: source_wav,
     )
     monkeypatch.setattr(worker.io_runtime, "get_asr_runtime", lambda _payload=None: FakeModel())
@@ -74,9 +76,13 @@ def test_default_asr_path_does_not_request_or_expose_alignment(tmp_path, monkeyp
 
 def test_probe_returns_bounded_model_estimates_not_verified_alignment(tmp_path, monkeypatch):
     worker, observed, source = make_runtime(tmp_path, monkeypatch)
-    result = worker.handle_transcribe({
-        "audio_path": str(source), "alignment_probe": True, "vad_filter": False,
-    })
+    result = worker.handle_transcribe(
+        {
+            "audio_path": str(source),
+            "alignment_probe": True,
+            "vad_filter": False,
+        }
+    )
     assert result["ok"] is True
     assert observed["word_timestamps"] is True
     assert observed["vad_filter"] is False
@@ -124,9 +130,13 @@ def test_probe_rejects_worker_vad_before_inference(tmp_path, monkeypatch):
 def test_probe_rejects_noncanonical_audio_before_inference(tmp_path, monkeypatch):
     worker, observed, source = make_runtime(tmp_path, monkeypatch)
     write_probe_wav(source, rate=48_000)
-    result = worker.handle_transcribe({
-        "audio_path": str(source), "alignment_probe": True, "vad_filter": False,
-    })
+    result = worker.handle_transcribe(
+        {
+            "audio_path": str(source),
+            "alignment_probe": True,
+            "vad_filter": False,
+        }
+    )
     assert result["ok"] is False
     assert result["blocker"] == "asr:alignment_requires_pcm16_mono_16k_wav"
     assert observed == {}
@@ -135,37 +145,52 @@ def test_probe_rejects_noncanonical_audio_before_inference(tmp_path, monkeypatch
 def test_probe_rejects_truncated_wav_payload_before_inference(tmp_path, monkeypatch):
     worker, observed, source = make_runtime(tmp_path, monkeypatch)
     source.write_bytes(source.read_bytes()[:-10])
-    result = worker.handle_transcribe({
-        "audio_path": str(source), "alignment_probe": True, "vad_filter": False,
-    })
+    result = worker.handle_transcribe(
+        {
+            "audio_path": str(source),
+            "alignment_probe": True,
+            "vad_filter": False,
+        }
+    )
     assert result["ok"] is False
     assert result["blocker"] == "asr:alignment_wav_data_truncated"
     assert observed == {}
 
 
-@pytest.mark.parametrize("words,blocker", [
-    ([model_word(" Saya", 0.2, 0.1)], "asr:alignment_word_invalid"),
-    ([model_word(" Saya", -0.1, 0.1)], "asr:alignment_word_invalid"),
-    ([model_word(" Saya", math.nan, 0.1)], "asr:alignment_word_invalid"),
-    ([model_word(" Saya", 0.0, math.inf)], "asr:alignment_word_invalid"),
-    ([model_word(" Saya", 0.8, 1.1)], "asr:alignment_word_range_invalid"),
-    ([
-        model_word(" Saya", 0.1, 0.4),
-        model_word(" tidak", 0.3, 0.5),
-    ], "asr:alignment_word_range_invalid"),
-    ([
-        model_word(" Saya", 0.1, 0.2),
-        model_word(" bukan", 0.3, 0.4),
-        model_word(" setuju.", 0.5, 0.6),
-    ], "asr:alignment_transcript_mismatch"),
-])
-def test_invalid_or_inconsistent_alignment_fails_closed(
-    tmp_path, monkeypatch, words, blocker
-):
+@pytest.mark.parametrize(
+    "words,blocker",
+    [
+        ([model_word(" Saya", 0.2, 0.1)], "asr:alignment_word_invalid"),
+        ([model_word(" Saya", -0.1, 0.1)], "asr:alignment_word_invalid"),
+        ([model_word(" Saya", math.nan, 0.1)], "asr:alignment_word_invalid"),
+        ([model_word(" Saya", 0.0, math.inf)], "asr:alignment_word_invalid"),
+        ([model_word(" Saya", 0.8, 1.1)], "asr:alignment_word_range_invalid"),
+        (
+            [
+                model_word(" Saya", 0.1, 0.4),
+                model_word(" tidak", 0.3, 0.5),
+            ],
+            "asr:alignment_word_range_invalid",
+        ),
+        (
+            [
+                model_word(" Saya", 0.1, 0.2),
+                model_word(" bukan", 0.3, 0.4),
+                model_word(" setuju.", 0.5, 0.6),
+            ],
+            "asr:alignment_transcript_mismatch",
+        ),
+    ],
+)
+def test_invalid_or_inconsistent_alignment_fails_closed(tmp_path, monkeypatch, words, blocker):
     worker, observed, source = make_runtime(tmp_path, monkeypatch, words=words)
-    result = worker.handle_transcribe({
-        "audio_path": str(source), "alignment_probe": True, "vad_filter": False,
-    })
+    result = worker.handle_transcribe(
+        {
+            "audio_path": str(source),
+            "alignment_probe": True,
+            "vad_filter": False,
+        }
+    )
     assert observed["word_timestamps"] is True
     assert result["ok"] is False
     assert result["blocker"] == blocker
@@ -173,14 +198,15 @@ def test_invalid_or_inconsistent_alignment_fails_closed(
 
 
 def test_probe_rejects_too_many_model_words(tmp_path, monkeypatch):
-    words = [
-        model_word(" a", index / 1_000, (index + 0.4) / 1_000)
-        for index in range(513)
-    ]
+    words = [model_word(" a", index / 1_000, (index + 0.4) / 1_000) for index in range(513)]
     worker, observed, source = make_runtime(tmp_path, monkeypatch, words=words)
-    result = worker.handle_transcribe({
-        "audio_path": str(source), "alignment_probe": True, "vad_filter": False,
-    })
+    result = worker.handle_transcribe(
+        {
+            "audio_path": str(source),
+            "alignment_probe": True,
+            "vad_filter": False,
+        }
+    )
     assert observed["word_timestamps"] is True
     assert result["ok"] is False
     assert result["blocker"] == "asr:alignment_word_limit_exceeded"

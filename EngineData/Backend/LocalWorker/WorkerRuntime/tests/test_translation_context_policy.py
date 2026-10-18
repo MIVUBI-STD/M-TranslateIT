@@ -92,8 +92,12 @@ def test_legacy_meeting_options_never_change_translation_prompt(monkeypatch) -> 
     prompt = prompts[-1]
     assert "Indonesian: Coba lagi" in prompt
     for forbidden in [
-        "OLD_INSTRUCTION", "OLD_TRANSLATION", "UNTRUSTED_DICTIONARY",
-        "OLD_ALTERNATIVE", "formal, professional", "Preferred terminology",
+        "OLD_INSTRUCTION",
+        "OLD_TRANSLATION",
+        "UNTRUSTED_DICTIONARY",
+        "OLD_ALTERNATIVE",
+        "formal, professional",
+        "Preferred terminology",
     ]:
         assert forbidden not in prompt
     for retired in ("context_pairs_used", "terminology_entries_used", "translation_style"):
@@ -107,12 +111,16 @@ def test_stored_preferences_are_inert_in_both_directions(monkeypatch) -> None:
         ("en", "id", "Hi please confirm this one", "English:", "Indonesian:"),
     ]
     for src, tgt, text, src_label, tgt_label in cases:
-        response = worker.handle_translate({
-            "text": text, "source_language": src, "target_language": tgt,
-            "context_pairs": [["LEAK_SOURCE", "LEAK_TARGET"]],
-            "terminology": [{"indonesian": "foo", "english": "BAR"}],
-            "translation_style": "formal",
-        })
+        response = worker.handle_translate(
+            {
+                "text": text,
+                "source_language": src,
+                "target_language": tgt,
+                "context_pairs": [["LEAK_SOURCE", "LEAK_TARGET"]],
+                "terminology": [{"indonesian": "foo", "english": "BAR"}],
+                "translation_style": "formal",
+            }
+        )
         assert response["ok"] is True
         prompt = prompts[-1]
         assert f"{src_label} {text}" in prompt
@@ -125,10 +133,15 @@ def test_stored_preferences_are_inert_in_both_directions(monkeypatch) -> None:
 def test_incoming_prompt_uses_only_the_current_utterance(monkeypatch) -> None:
     worker, prompts = _install_fake_worker(monkeypatch)
     for i in range(25):
-        response = worker.handle_translate({
-            "text": f"Sentence {i}", "source_language": "en", "target_language": "id",
-            "meeting_lane": "incoming", "context_pairs": [[f"old-{i}", "ignore"]],
-        })
+        response = worker.handle_translate(
+            {
+                "text": f"Sentence {i}",
+                "source_language": "en",
+                "target_language": "id",
+                "meeting_lane": "incoming",
+                "context_pairs": [[f"old-{i}", "ignore"]],
+            }
+        )
         assert response["ok"] is True
         assert prompts[-1].count(f"Sentence {i}") == 1
         assert f"old-{i}" not in prompts[-1]

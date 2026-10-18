@@ -58,11 +58,16 @@ class GptWorkerProbeTests(unittest.TestCase):
         self.config = root / "config.yaml"
         self.config.write_bytes(b"train: {epochs: 15}\n")
         self.plan = GptWorkerPlan(
-            run_token="a"*64, recovery_id="b"*64, dataset_id="c"*64,
+            run_token="a" * 64,
+            recovery_id="b" * 64,
+            dataset_id="c" * 64,
             source_root=str(root),
-            checkpoint_path=str(self.checkpoint), checkpoint_sha256=sha(self.checkpoint.read_bytes()),
-            config_path=str(self.config), config_sha256=sha(self.config.read_bytes()),
-            expected_epoch=7, expected_global_step=42,
+            checkpoint_path=str(self.checkpoint),
+            checkpoint_sha256=sha(self.checkpoint.read_bytes()),
+            config_path=str(self.config),
+            config_sha256=sha(self.config.read_bytes()),
+            expected_epoch=7,
+            expected_global_step=42,
             event_dir=str(root),
         )
         self.events = []
@@ -73,7 +78,8 @@ class GptWorkerProbeTests(unittest.TestCase):
 
     def payload(self):
         return {
-            "epoch": 7, "global_step": 42,
+            "epoch": 7,
+            "global_step": 42,
             "state_dict": FakeModule().state_dict(),
             "optimizer_states": [FakeOptimizer().state_dict()],
             "lr_schedulers": [FakeScheduler().state_dict()],
@@ -83,8 +89,12 @@ class GptWorkerProbeTests(unittest.TestCase):
         def fail(code):
             self.aborts.append(code)
             raise GptProbeError("hard_abort_fixture")
+
         return GptWorkerWitness(
-            self.plan, pid=1234, emit=self.events.append, abort=fail,
+            self.plan,
+            pid=1234,
+            emit=self.events.append,
+            abort=fail,
             decode=lambda _: payload if payload is not None else self.payload(),
         )
 
@@ -113,8 +123,9 @@ class GptWorkerProbeTests(unittest.TestCase):
         trainer.global_step += 1
         witness.after_batch(trainer)
         self.assertTrue(witness.started)
-        self.assertEqual([x["kind"] for x in self.events],
-                         ["checkpoint_loaded", "training_started"])
+        self.assertEqual(
+            [x["kind"] for x in self.events], ["checkpoint_loaded", "training_started"]
+        )
         self.assertEqual(self.events[1]["global_step"], 42)
         self.assertEqual(self.events[1]["observed_global_step"], 43)
         witness.after_batch(trainer)
@@ -166,7 +177,10 @@ class GptWorkerProbeTests(unittest.TestCase):
             elif kind == "optimizer":
                 trainer.optimizers[0].state["state"][0]["step"] = 12
             elif kind == "scheduler":
-                trainer.lr_scheduler_configs[0].scheduler.state_dict = lambda: {"last_epoch": 6, "gamma": 0.99}
+                trainer.lr_scheduler_configs[0].scheduler.state_dict = lambda: {
+                    "last_epoch": 6,
+                    "gamma": 0.99,
+                }
             else:
                 trainer.global_step = 4
             with self.assertRaisesRegex(GptProbeError, "hard_abort_fixture"):

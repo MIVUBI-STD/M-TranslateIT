@@ -135,11 +135,16 @@ def frozen_sources(dataset: Path, line_ids: list[int]) -> list[dict[str, Any]]:
             or current.get("native_sha256") != recorded.get("native_sha256")
         ):
             raise ValueError(f"source_pair_not_verified:{line_id}")
-        selected.append({
-            "line_id": line_id, "name": name, "native": native, "canonical": canonical,
-            "native_sha256": current["native_sha256"],
-            "canonical_sha256": current["canonical_sha256"],
-        })
+        selected.append(
+            {
+                "line_id": line_id,
+                "name": name,
+                "native": native,
+                "canonical": canonical,
+                "native_sha256": current["native_sha256"],
+                "canonical_sha256": current["canonical_sha256"],
+            }
+        )
     return selected
 
 
@@ -189,8 +194,14 @@ def deepfilter_command(binary: Path, model: Path, out_dir: Path, in_files: list[
     if any(not re.fullmatch(r"take_[0-9]{4,}\.wav", item.name) for item in in_files):
         raise ValueError("trial_filename_invalid")
     return [
-        str(binary), "--model", str(model), "--atten-lim-db", str(ATTENUATION_DB),
-        "--out-dir", str(out_dir), *map(str, in_files),
+        str(binary),
+        "--model",
+        str(model),
+        "--atten-lim-db",
+        str(ATTENUATION_DB),
+        "--out-dir",
+        str(out_dir),
+        *map(str, in_files),
     ]
 
 
@@ -221,8 +232,13 @@ def inspect_enhanced(raw_file: Path, output: Path, derived_32k: Path) -> dict[st
 
 
 def run_trial(
-    dataset: Path, trial_dir: Path, binary: Path, model: Path,
-    binary_sha256: str, model_sha256: str, line_ids: list[int],
+    dataset: Path,
+    trial_dir: Path,
+    binary: Path,
+    model: Path,
+    binary_sha256: str,
+    model_sha256: str,
+    line_ids: list[int],
 ) -> dict[str, Any]:
     if os.name != "nt":
         raise ValueError("trial_windows_only")
@@ -250,18 +266,29 @@ def run_trial(
         record = prepare_48k(take["native"], inputs / take["name"])
         if record["native_sha256"] != take["native_sha256"]:
             raise ValueError("native_changed_while_preparing")
-        staged.append({
-            **take, **record,
-            "original_32k_sha256": original_hash,
-            "input_48k_sha256": sha256_file(inputs / take["name"]),
-        })
-    cmd = deepfilter_command(binary.resolve(strict=True), model.resolve(strict=True),
-                             outputs, [inputs / take["name"] for take in staged])
+        staged.append(
+            {
+                **take,
+                **record,
+                "original_32k_sha256": original_hash,
+                "input_48k_sha256": sha256_file(inputs / take["name"]),
+            }
+        )
+    cmd = deepfilter_command(
+        binary.resolve(strict=True),
+        model.resolve(strict=True),
+        outputs,
+        [inputs / take["name"] for take in staged],
+    )
     try:
         completed = subprocess.run(
-            cmd, cwd=str(root), stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            timeout=300, check=False,
+            cmd,
+            cwd=str(root),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=300,
+            check=False,
         )
     except subprocess.TimeoutExpired as exc:
         raise ValueError("denoiser_timeout") from exc
@@ -284,15 +311,18 @@ def run_trial(
         result = inspect_enhanced(
             inputs / take["name"], outputs / take["name"], candidates / take["name"]
         )
-        rows.append({
-            "line_id": take["line_id"], "native_sha256": take["native_sha256"],
-            "canonical_sha256": take["canonical_sha256"],
-            "input_48k_sha256": take["input_48k_sha256"],
-            "original_32k": f"originals_32k/{take['name']}",
-            "candidate_32k": f"candidates_32k/{take['name']}",
-            "original_32k_sha256": take["original_32k_sha256"],
-            **result,
-        })
+        rows.append(
+            {
+                "line_id": take["line_id"],
+                "native_sha256": take["native_sha256"],
+                "canonical_sha256": take["canonical_sha256"],
+                "input_48k_sha256": take["input_48k_sha256"],
+                "original_32k": f"originals_32k/{take['name']}",
+                "candidate_32k": f"candidates_32k/{take['name']}",
+                "original_32k_sha256": take["original_32k_sha256"],
+                **result,
+            }
+        )
 
     result = {
         "schema": "translateit.voice_lab_deepfilter_trial.v1",
@@ -322,8 +352,15 @@ def main() -> int:
     parser.add_argument("--line-ids", type=int, nargs="+", required=True)
     args = parser.parse_args()
     try:
-        run_trial(args.dataset, args.trial_dir, args.binary, args.model,
-                  args.binary_sha256, args.model_sha256, args.line_ids)
+        run_trial(
+            args.dataset,
+            args.trial_dir,
+            args.binary,
+            args.model,
+            args.binary_sha256,
+            args.model_sha256,
+            args.line_ids,
+        )
     except (OSError, ValueError):
         # Deliberately no speech, filenames, or user device paths in logs.
         print("voice_lab:offline_denoiser_trial_failed", file=sys.stderr)

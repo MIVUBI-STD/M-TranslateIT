@@ -15,9 +15,10 @@ from voice_lab_source_pair import inspect_frozen_source_pair
 def tone(rate: int, freq: int = 440) -> np.ndarray:
     t = np.arange(rate, dtype=np.float64)
     fade = np.minimum(1.0, t / 2_000) * np.minimum(1.0, (rate - 1 - t) / 2_000)
-    s = fade * 0.18 * (
-        np.sin(2 * math.pi * freq * t / rate)
-        + 0.3 * np.sin(2 * math.pi * 1_300 * t / rate)
+    s = (
+        fade
+        * 0.18
+        * (np.sin(2 * math.pi * freq * t / rate) + 0.3 * np.sin(2 * math.pi * 1_300 * t / rate))
     )
     return np.rint(s * 32767).astype(np.int16)
 

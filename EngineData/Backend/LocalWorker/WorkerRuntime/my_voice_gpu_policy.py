@@ -3,6 +3,7 @@
 All thresholds are initial safety policy, not a benchmark or performance proof.
 Checking headroom is not a reservation of GPU memory. No silent CPU fallback.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -17,8 +18,11 @@ RESERVE_TOTAL_FRACTION_PERMILLE = 200
 
 def assess_memory(total_bytes: int, free_bytes: int) -> dict[str, Any]:
     if (
-        type(total_bytes) is not int or type(free_bytes) is not int
-        or total_bytes <= 0 or free_bytes <= 0 or free_bytes > total_bytes
+        type(total_bytes) is not int
+        or type(free_bytes) is not int
+        or total_bytes <= 0
+        or free_bytes <= 0
+        or free_bytes > total_bytes
     ):
         return {"state": "unknown", "reserve_mib": None, "safe_budget_mib": None}
     total_mib = total_bytes // MIB
@@ -39,7 +43,9 @@ def assess_memory(total_bytes: int, free_bytes: int) -> dict[str, Any]:
 
 
 def check_stage_budget(
-    status: dict[str, Any], originally_admitted_mib: int, expected_gpu_uuid: str,
+    status: dict[str, Any],
+    originally_admitted_mib: int,
+    expected_gpu_uuid: str,
 ) -> int:
     """Fail closed if free memory changed; never increase the original budget."""
     if (

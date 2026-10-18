@@ -6,6 +6,7 @@ replaced. We never delete previously saved full checkpoints on this path.
 A partially written .pending file is intentionally preserved as
 attention evidence; it is never considered an optimizer-resumable artifact.
 """
+
 from __future__ import annotations
 
 import os
@@ -34,6 +35,7 @@ def create_atomic_lightning_checkpoint_io() -> Any:
     # Enforce the version already locked in WorkerRuntime/uv.lock; future
     # Lightning checkpoint API changes need an explicit adapter revision.
     from importlib.metadata import version
+
     try:
         installed = version("pytorch-lightning")
     except Exception as exc:
@@ -45,7 +47,9 @@ def create_atomic_lightning_checkpoint_io() -> Any:
 
     class AtomicLocalGPTCheckpointIO(TorchCheckpointIO):
         def save_checkpoint(
-            self, checkpoint: dict[str, Any], path: str | Path,
+            self,
+            checkpoint: dict[str, Any],
+            path: str | Path,
             storage_options: Any = None,
         ) -> None:
             if storage_options is not None:

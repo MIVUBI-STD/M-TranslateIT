@@ -5,6 +5,7 @@ training. Each checkpoint is written to a uniquely named pending file on the
 same filesystem, synced and atomically published. SoVITS G/D pair is NOT one
 atomic transaction; they remain recovery candidates until verified together.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,12 +22,16 @@ def atomic_gpt_inference_save(payload: Any, path: str) -> None:
 
     target = Path(path)
     if (
-        target.suffix != ".ckpt" or not target.parent.is_dir()
-        or target.parent.is_symlink() or target.exists() or target.is_symlink()
+        target.suffix != ".ckpt"
+        or not target.parent.is_dir()
+        or target.parent.is_symlink()
+        or target.exists()
+        or target.is_symlink()
     ):
         raise RuntimeError("my_voice:gpt_inference_checkpoint_unsafe")
     fd, staged_name = tempfile.mkstemp(
-        prefix=".pending-gpt-weights-", suffix=".partial",
+        prefix=".pending-gpt-weights-",
+        suffix=".partial",
         dir=str(target.parent),
     )
     os.close(fd)
@@ -43,7 +48,6 @@ def atomic_gpt_inference_save(payload: Any, path: str) -> None:
     os.replace(staged, target)
 
 
-
 def atomic_sovits_save(payload: Any, path: str, torch_module: Any) -> None:
     target = Path(path)
     if (
@@ -52,11 +56,13 @@ def atomic_sovits_save(payload: Any, path: str, torch_module: Any) -> None:
         or not target.name[2:-4].isdecimal()
         or not target.parent.is_dir()
         or target.parent.is_symlink()
-        or target.exists() or target.is_symlink()
+        or target.exists()
+        or target.is_symlink()
     ):
         raise RuntimeError("my_voice:optimizer_checkpoint_target_unsafe")
     fd, name = tempfile.mkstemp(
-        prefix=".pending-" + target.stem + "-", suffix=".partial",
+        prefix=".pending-" + target.stem + "-",
+        suffix=".partial",
         dir=str(target.parent),
     )
     staged = Path(name)
@@ -84,7 +90,9 @@ def atomic_sovits_save(payload: Any, path: str, torch_module: Any) -> None:
 
 
 def atomic_sovits_inference_save(
-    payload: Any, destination: str, model_version: str,
+    payload: Any,
+    destination: str,
+    model_version: str,
     original_save: Any,
 ) -> None:
     """Preserve GPT-SoVITS's version-prefixed SoVITS inference serialization.
@@ -94,14 +102,18 @@ def atomic_sovits_inference_save(
     """
     target = Path(destination)
     if (
-        target.suffix != ".pth" or not target.parent.is_dir()
-        or target.parent.is_symlink() or target.is_symlink()
-        or target.exists() or not target.stem.startswith("translateit_myvoice_e")
+        target.suffix != ".pth"
+        or not target.parent.is_dir()
+        or target.parent.is_symlink()
+        or target.is_symlink()
+        or target.exists()
+        or not target.stem.startswith("translateit_myvoice_e")
         or model_version not in ("v2Pro", "v2ProPlus")
     ):
         raise RuntimeError("my_voice:sovits_inference_checkpoint_unsafe")
     fd, staged_name = tempfile.mkstemp(
-        prefix=".pending-sovits-weights-", suffix=".partial",
+        prefix=".pending-sovits-weights-",
+        suffix=".partial",
         dir=str(target.parent),
     )
     os.close(fd)
