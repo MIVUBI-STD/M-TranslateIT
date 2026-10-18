@@ -16,8 +16,14 @@ fn owner_kind(owner: Option<&str>) -> &'static str {
 
 pub fn resolve_resources(summaries: &ApplicationSubsystemSummaries) -> ResourceArbitration {
     let meeting = &summaries.meeting;
-    let audio_locked = meeting.has_session;
-    let blocker = if audio_locked {
+    // A no-session Retry Stop still owns cleanup authority. Do not advertise
+    // audio device selection or Mic Test while an orphaned Meeting writer or
+    // transient audio resource has not been verified as released.
+    let orphan_cleanup = !meeting.has_session && meeting.lifecycle == "cleanup_incomplete";
+    let audio_locked = meeting.has_session || orphan_cleanup;
+    let blocker = if orphan_cleanup {
+        "resource:meeting_cleanup_incomplete".to_string()
+    } else if audio_locked {
         match meeting.owner_id.as_deref() {
             Some(owner) if !owner.is_empty() => format!("resource:audio_owned_by:{owner}"),
             _ => "resource:audio_owned_by_active_session".to_string(),

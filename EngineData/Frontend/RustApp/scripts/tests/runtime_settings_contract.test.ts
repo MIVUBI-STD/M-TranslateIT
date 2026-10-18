@@ -79,6 +79,21 @@ test("device preference mutations distinguish native save from an uncertain disp
   assert.match(native, /let saved = engine::load_settings\(\)/);
 });
 
+test("Settings and ApplicationRuntime block device rebind during no-session Meeting Retry Stop", () => {
+  const settings = readFileSync(new URL("../../src-tauri/src/commands/settings.rs", import.meta.url), "utf8");
+  const meeting = readFileSync(new URL("../../src-tauri/src/commands/meeting_session.rs", import.meta.url), "utf8");
+  const resources = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/resources.rs", import.meta.url), "utf8");
+  const ui = readFileSync(new URL("../../src/pages/Settings.svelte", import.meta.url), "utf8");
+  assert.match(meeting, /fn meeting_stop_cleanup_pending\(\) -> bool/);
+  assert.match(meeting, /lifecycle::transient_stop_cleanup_pending\(\)/);
+  assert.match(settings, /fn runtime_session_owns_audio_resources\(\) -> bool \{[\s\S]*super::meeting_session::meeting_stop_cleanup_pending\(\)/);
+  assert.match(settings, /if runtime_session_owns_audio_resources\(\) \{/);
+  assert.match(resources, /let orphan_cleanup = !meeting\.has_session && meeting\.lifecycle == "cleanup_incomplete"/);
+  assert.match(resources, /let audio_locked = meeting\.has_session \|\| orphan_cleanup/);
+  assert.match(resources, /resource:meeting_cleanup_incomplete/);
+  assert.match(ui, /const meetingResourcesLocked = \$derived\(snapshot\.resources\.audio_locked\)/);
+});
+
 test("settings sanitizers keep product enum-like values bounded", () => {
   assert.match(rust, /"formal" => "formal"/);
   assert.match(rust, /"off" => "off"/);

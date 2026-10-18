@@ -60,9 +60,11 @@ fn persist_runtime_settings(settings: RuntimeSettings) -> CommandResult {
 }
 
 fn runtime_session_owns_audio_resources() -> bool {
-    // `has_active_session` is deliberately fail-closed: an unreadable authority
-    // store is treated as potentially owned rather than as safe-to-rebind idle state.
+    // The runtime store is fail-closed on unreadable session authority.
+    // An orphaned Meeting writer/audio cleanup can remain after the session
+    // snapshot was cleared, so an idle snapshot alone is NOT rebind approval.
     latest_runtime_session_state().has_active_session
+        || super::meeting_session::meeting_stop_cleanup_pending()
 }
 
 fn audio_resource_lock_message(action: &str) -> String {

@@ -472,6 +472,12 @@ pub fn stop_meeting_translation() -> MeetingSessionActionResult {
     lifecycle::stop_meeting_translation_impl()
 }
 
+// Expose only the existing Meeting cleanup admission fact to Settings.
+// Resource arbitration must not create a competing Meeting session owner.
+pub(super) fn meeting_stop_cleanup_pending() -> bool {
+    lifecycle::transient_stop_cleanup_pending()
+}
+
 #[cfg(test)]
 mod b3_preflight_snapshot_tests {
     use super::MeetingSessionPreflightStatus;
