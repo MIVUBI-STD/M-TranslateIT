@@ -232,13 +232,14 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 ## Single next step
 
 On GitHub **Actions**, manually select **TranslateIT Windows Local Validation**,
-choose branch `Local`, and provide the exact current 40-character `Local`
-SHA as `expected_sha`. This is the **only** owner-approved hosted workflow
-exception, registration-only on `main`; it cannot execute on the `main` ref
-and does not promote application code. Do not dispatch automatically or on a
-newer ref using an old expected SHA. Record actual run/job IDs and the first
-failing source stage. Only completed successful steps of that exact SHA count
-as hosted Windows **source** evidence. Windows Server runners are not the
+choose branch `Local`, then click **Run workflow**. No SHA text entry is needed:
+the dispatched GitHub `github.sha` is pinned automatically for that selected
+`Local` commit, and checkout must match it exactly. This is the **only**
+owner-approved hosted workflow exception, registered on `main` solely for
+discovery; it refuses runs on the `main` ref and does not promote application
+code. Do not dispatch automatically. Record the actual run/job IDs, source
+SHA and first failing source stage. Only completed successful steps of that
+SHA count as hosted Windows **source** evidence. Windows Server runners are not the
 user's Windows desktop and have no required private GPU, model, VB-CABLE,
 microphone or meeting-app receiver proof.
 

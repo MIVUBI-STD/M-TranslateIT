@@ -2,11 +2,6 @@ name: TranslateIT Windows Local Validation
 
 on:
   workflow_dispatch:
-    inputs:
-      expected_sha:
-        description: "Exact 40-character Local commit SHA to test (never main)"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -21,7 +16,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 65
     env:
-      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      EXPECTED_SHA: ${{ github.sha }}
       HF_HUB_OFFLINE: "1"
       TRANSFORMERS_OFFLINE: "1"
       HF_DATASETS_OFFLINE: "1"
@@ -38,11 +33,9 @@ jobs:
             throw 'Only the Local branch is eligible. Do not run this against main.'
           }
           if ($env:EXPECTED_SHA -cnotmatch '^[0-9a-f]{40}$') {
-            throw 'Provide the lowercase 40-character Local candidate SHA.'
+            throw 'GitHub supplied an invalid commit SHA.'
           }
-          if ($env:GITHUB_SHA -cne $env:EXPECTED_SHA) {
-            throw "Candidate changed: selected $env:GITHUB_SHA, expected $env:EXPECTED_SHA."
-          }
+          Write-Host "Exact selected Local commit: $env:EXPECTED_SHA"
 
       - name: Checkout exact dispatched source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
