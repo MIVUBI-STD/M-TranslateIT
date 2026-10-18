@@ -95,9 +95,9 @@
   const browseVisible = $derived(browseFiltered.slice(browsePage * browsePageSize, (browsePage + 1) * browsePageSize));
   // Focus targets are used only after explicit recording or line-selection actions.
   // Polling and background status reconciliation never move keyboard focus.
-  let lineHeading: HTMLHeadingElement | undefined;
-  let recordActionButton: HTMLButtonElement | undefined;
-  let reviewReplayButton: HTMLButtonElement | undefined;
+  let lineHeading = $state<HTMLHeadingElement | undefined>(undefined);
+  let recordActionButton = $state<HTMLButtonElement | undefined>(undefined);
+  let reviewReplayButton = $state<HTMLButtonElement | undefined>(undefined);
 
   // Declare recording ownership before derivations that consume it.
   const isRecording = $derived(recordingState.recording_line_id !== null);
