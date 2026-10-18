@@ -25,6 +25,8 @@
   let lastTranslatedSource = $state<string | null>(null);
   let lastTranslatedSettingsKey = $state<string | null>(null);
   let targetRevision = 0;
+  // Track user edits separately from programmatic swaps and translation fills.
+  let sourceEditRevision = 0;
   let copied = $state(false);
 
   const sourceLanguageName = $derived(languageName(settings.source_language));
@@ -45,6 +47,7 @@
   });
 
   function sourceChanged(): void {
+    sourceEditRevision += 1;
     copied = false;
     if (lastTranslatedSource !== null && (sourceText.trim() !== lastTranslatedSource
       || lastTranslatedSettingsKey !== currentTextSettingsKey)) {
@@ -148,6 +151,8 @@
     settingsSaving = true;
     const originalInput = sourceText;
     const originalOutput = targetText;
+    const sourceRevisionAtSwap = sourceEditRevision;
+    const targetRevisionAtSwap = targetRevision;
     // Swap preserves both editable panes. A source-only draft stays intact.
     const nextInput = originalOutput.trim() ? originalOutput : originalInput;
     const nextTarget = originalOutput.trim() ? originalInput : "";
@@ -160,11 +165,21 @@
       if (!result.ok) throw new Error("save failed");
       const saved = (await runtimeApi.loadSettings()) ?? candidate;
       await onSettingsChange(saved);
-      sourceText = nextInput; targetText = nextTarget;
+      const textEditedDuringSwap = sourceEditRevision !== sourceRevisionAtSwap
+        || targetRevision !== targetRevisionAtSwap;
+      // Saving a direction must not replace a draft edited while the async
+      // save/reload was in flight. The new direction still becomes current.
+      if (!textEditedDuringSwap) {
+        sourceText = nextInput; targetText = nextTarget;
+        resultState = "idle";
+        resultMessage = "Type or paste text to translate.";
+      } else {
+        resultState = "stale";
+        resultMessage = "Language direction saved. Your newer text edits were kept; translate again.";
+      }
       reviewHints = [];
       lastTranslatedSource = null; lastTranslatedSettingsKey = null;
-      targetRevision += 1; copied = false; resultState = "idle";
-      resultMessage = "Type or paste text to translate.";
+      targetRevision += 1; copied = false;
     } catch { onNotice("Couldn't change language direction."); }
     finally { settingsSaving = false; }
   }

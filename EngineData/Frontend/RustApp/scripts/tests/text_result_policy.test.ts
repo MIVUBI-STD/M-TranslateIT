@@ -63,6 +63,21 @@ test("Text maps fresh and cached review metadata into one visible review state",
   assert.match(ui, /sourceText = nextInput; targetText = nextTarget;[\s\S]*?reviewHints = \[\]/);
 });
 
+test("async Swap preserves newer edits while persisting the selected direction", () => {
+  assert.match(ui, /let sourceEditRevision = 0/);
+  assert.match(ui, /function sourceChanged\(\): void \{\s*sourceEditRevision \+= 1/);
+  const swap = ui.slice(ui.indexOf("async function swapLanguages()"), ui.indexOf("function keydown("));
+  assert.match(swap, /const sourceRevisionAtSwap = sourceEditRevision/);
+  assert.match(swap, /const targetRevisionAtSwap = targetRevision/);
+  assert.match(swap, /if \(!result\.ok\) throw new Error\("save failed"\)/);
+  assert.match(swap, /await onSettingsChange\(saved\)/);
+  assert.match(swap, /sourceEditRevision !== sourceRevisionAtSwap/);
+  assert.match(swap, /targetRevision !== targetRevisionAtSwap/);
+  assert.match(swap, /if \(!textEditedDuringSwap\) \{\s*sourceText = nextInput; targetText = nextTarget/);
+  assert.match(swap, /Your newer text edits were kept/);
+  assert.match(swap, /lastTranslatedSource = null; lastTranslatedSettingsKey = null/);
+});
+
 test("minimal Text guards Copy and preserves source during Swap", () => {
   assert.match(ui, /const currentResultUsable = \$derived\(canUseCurrentTextResult\(/);
   assert.match(ui, /async function copyTranslation\(\)/);
