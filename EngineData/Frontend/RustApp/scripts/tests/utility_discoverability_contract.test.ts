@@ -1,27 +1,30 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildProductCommands } from "../../src/app/runtime/productCommandRegistry.ts";
 
-const read = (relative: string): string => readFileSync(new URL(`../../src/${relative}`, import.meta.url), "utf8");
-const commandsSource = read("app/runtime/productCommandRegistry.ts");
+// Command Palette and its registry were retired; Quick Access is the current
+// single-window owner, not a second command/navigation implementation.
+const read = (path: string) =>
+  readFileSync(new URL("../../src/" + path, import.meta.url), "utf8");
+
+const app = read("App.svelte");
+const quick = read("pages/QuickAccess.svelte");
+const header = read("components/layout/AppHeader.svelte");
 const settings = read("pages/Settings.svelte");
 const meeting = read("pages/Meeting.svelte");
-const palette = read("components/runtime/CommandPalette.svelte");
 
-function commands(start: boolean, stop: boolean, label: string) {
-  return buildProductCommands({
-    meetingCanStart: start, meetingCanStop: stop, meetingActionLabel: label,
-    navigationLocked: false, navigate: () => {}, openUtility: () => {}, toggleMeeting: () => {},
-  });
-}
+test("the one Quick Access entry is discoverable without retired command palette", () => {
+  assert.match(header, /aria-label="Open Quick Access"/);
+  assert.match(header, /toggleQuickAccess/);
+  assert.match(app, /toggleQuickAccess/);
+  assert.match(app, /event\.key\.toLowerCase\(\) === "k"/);
+  assert.match(quick, /applicationRuntimeApi\.dispatchIntent/);
+  assert.match(quick, /stop_meeting/);
+  assert.doesNotMatch(app, /CommandPalette|productCommandRegistry/);
+  assert.doesNotMatch(quick, /quickTranslateClipboard|meeting-presets/);
+});
 
-test("keyboard command palette contains only navigation, Meeting, and Settings utilities", () => {
-  assert.deepEqual(commands(true, false, "Start Translation").map(x => x.id), [
-    "navigate-meeting", "navigate-text", "navigate-my-voice", "navigate-settings",
-    "meeting-toggle", "meeting-microphone", "meeting-captions", "diagnostics",
-  ]);
-  assert.doesNotMatch(commandsSource, /meeting-presets|spoken-terms|preferred-words|quick-translate-clipboard/);
+test("current Settings and Meeting use their canonical task surfaces", () => {
   assert.match(settings, /aria-label="Settings categories"/);
   assert.match(settings, /Voice &amp; Audio/);
   assert.match(settings, /Meeting Captions/);
@@ -29,23 +32,10 @@ test("keyboard command palette contains only navigation, Meeting, and Settings u
   assert.doesNotMatch(meeting, /<MeetingPresetPanel/);
 });
 
-test("meeting start and stop intent cannot invert through keyboard commands", () => {
-  for (const [start, stop, label, expected, forbidden] of [
-    [true, false, "Start Translation", "start", "stop"],
-    [false, true, "Stop Translation", "stop", "start"],
-    [false, false, "Stopping...", "status", "start"],
-  ] as const) {
-    const action = commands(start, stop, label).find(x => x.id === "meeting-toggle");
-    assert.ok(action);
-    assert.equal(action.keywords.includes(expected), true);
-    assert.equal(action.keywords.includes(forbidden), false);
-    assert.equal(Boolean(action.disabled), !start && !stop);
-  }
-});
-
-test("keyboard search remains dismissible and restores focus", () => {
-  for (const token of ["onInputKeydown", "onResultKeydown", "onDialogKeydown", "previousFocus",
-    "command.handsOffFocus", "restore.focus()", "event.key === \"Escape\""]) {
-    assert.ok(palette.includes(token), token);
-  }
+test("Quick Access respects native action ownership and explicit Stop confirmation", () => {
+  assert.match(quick, /const canStart = \$derived/);
+  assert.match(quick, /const canStop = \$derived/);
+  assert.match(quick, /const needsStop = \$derived/);
+  assert.match(quick, /if \(stop && !confirmingStop\)/);
+  assert.match(quick, /const foreignOwner = \$derived/);
 });

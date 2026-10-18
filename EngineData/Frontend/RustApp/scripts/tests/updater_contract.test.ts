@@ -36,7 +36,6 @@ test("updater remains one-shot and begins from the app root", () => {
 test("native updater is signed, GitHub-release based, and activity-safe", () => {
   const source = read("src-tauri/src/commands/app_update.rs");
   const header = read("src/components/layout/AppHeader.svelte");
-  const productivity = read("src/components/runtime/ProductivityActions.svelte");
   const action = read("src/components/runtime/UpdateAction.svelte");
 
   assert.match(source, /option_env!\("TRANSLATEIT_UPDATER_PUBLIC_KEY"\)/);
@@ -47,8 +46,11 @@ test("native updater is signed, GitHub-release based, and activity-safe", () => 
   assert.match(header, /audioLocked=\{snapshot\.resources\.audio_locked\}/);
   assert.match(header, /audioOwnerKind=\{snapshot\.resources\.owner_kind\}/);
   assert.match(header, /voiceBuildActive=\{snapshot\.voiceBuildActive\}/);
-  assert.match(productivity, /audioOwnerKind/);
-  assert.match(productivity, /<UpdateAction \{audioLocked\} \{audioOwnerKind\} \{voiceBuildActive\} \{myVoiceRecording\}/);
+  assert.match(header, /<UpdateAction/);
+  assert.match(header, /audioLocked=\{snapshot\.resources\.audio_locked\}/);
+  assert.match(header, /audioOwnerKind=\{snapshot\.resources\.owner_kind\}/);
+  assert.match(header, /voiceBuildActive=\{snapshot\.voiceBuildActive\}/);
+  assert.match(header, /\{myVoiceRecording\}/);
   assert.match(action, /audioLocked/);
   assert.match(action, /audioOwnerKind/);
   assert.match(action, /voiceBuildActive/);

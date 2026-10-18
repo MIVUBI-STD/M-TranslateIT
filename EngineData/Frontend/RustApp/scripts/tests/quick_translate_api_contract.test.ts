@@ -7,12 +7,12 @@ const registry = source("src-tauri/src/commands/registry.rs");
 const commands = source("src-tauri/src/commands/text_translation.rs");
 const api = source("src/app/bridge/runtimeApi.ts");
 const product = source("src/app/bridge/runtimeProductFacade.ts");
-const productivity = source("src/components/runtime/ProductivityActions.svelte");
-const shortcuts = source("src/app/runtime/productCommandRegistry.ts");
+const textWorkspace = source("src/pages/Text.svelte");
+const quickAccess = source("src/pages/QuickAccess.svelte");
 
 test("quick clipboard and alternative wording have no frontend or native command entrypoints", () => {
-  assert.doesNotMatch(shortcuts, /quick-translate-clipboard|quickTranslateClipboard/);
-  assert.doesNotMatch(productivity, /quickTranslateClipboard|publishTranslationOverlay|navigator\.clipboard/);
+  assert.doesNotMatch(quickAccess, /quick-translate-clipboard|quickTranslateClipboard/);
+  assert.doesNotMatch(textWorkspace, /quickTranslateClipboard|publishTranslationOverlay/);
   assert.doesNotMatch(api, /quickTranslateText|translateTextAlternative/);
   assert.doesNotMatch(product, /runProductTranslationAlternative/);
   assert.doesNotMatch(registry, /quick_translate_text|translate_text_alternative/);

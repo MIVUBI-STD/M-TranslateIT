@@ -49,7 +49,7 @@ test("My Voice polling and audio reads cannot resume after view disposal", () =>
   assert.match(build, /disposed = true;\s*if \(timer\) clearTimeout\(timer\);/);
   assert.match(build, /if \(disposed \|\| reviewId !== build\.evaluation_review_id \|\| requestVersion !== audioRequestVersion\) return;/);
   assert.ok(page.includes("if (disposed) return;"));
-  assert.match(page, /disposed = true;\s*stopReplay\(\);/);
+  assert.match(page, /disposed = true;\s*selectedVoiceReadVersion \+= 1;\s*stopReplay\(\);/);
 });
 
 test("approved My Voice distinguishes selected actor from separately saved copy and preserves archive warnings", () => {

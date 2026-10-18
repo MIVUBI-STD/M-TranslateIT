@@ -60,7 +60,7 @@ test("voice and Meeting status use familiar labels without claiming delivery int
   assert.ok(build.includes("Retry status"));
   const meetingState = readFileSync(resolve(root, "src/app/bridge/productMeetingState.ts"), "utf8");
   assert.match(meetingState, /playing the English voice into the meeting microphone/i);
-  assert.match(activity, /case "output_complete": return "Played"/);
+  assert.match(activity, /case "output_complete": return "Local playback complete"/);
   assert.ok(!activity.includes("Other people in the call are hearing"));
   assert.ok(sidebar.includes("aria-label={item.label}"));
 });

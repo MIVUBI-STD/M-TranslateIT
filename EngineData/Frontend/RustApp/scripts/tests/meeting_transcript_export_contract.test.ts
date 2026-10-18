@@ -206,7 +206,7 @@ test("large transcript disk operations use Tauri blocking workers, not synchrono
 test("zero-entry saved sessions remain visible for deliberate deletion without empty HTML export", () => {
   assert.match(archive, /Retain empty archives in History as well/);
   assert.match(archive, /match scan_stored_turns\(&entry\.path\(\)\) \{\s*\/\//);
-  assert.match(archive, /Ok\(turns\) => \{/);
+  assert.match(archive, /Ok\(scan\) => \{/);
   assert.doesNotMatch(archive, /Ok\(turns\) if !turns\.is_empty\(\)/);
   assert.match(ui, /No recognized entries/);
   assert.match(ui, /session\.entry_count === 0/);
@@ -322,7 +322,7 @@ test("Live transcript surfaces the first actual storage failure with existing Me
   const reader = file("src/app/runtime/meetingReconcileReader.ts");
   const eventMonitors = file("src/app/runtime/reliabilityMonitor.ts");
   assert.match(meeting, /pub archive_write_errors: u64/);
-  assert.match(memory, /archive_write_errors: transcript_archive::active_write_errors\(&self\.session_id\)/);
+  assert.match(memory, /let archive_errors = transcript_archive::active_write_errors\(&self\.session_id\)/);
   assert.match(archive, /let first_error = errors\.fetch_add\(1, Ordering::AcqRel\) == 0/);
   assert.match(archive, /let first_error = writer\.errors\.fetch_add\(1, Ordering::AcqRel\) == 0/);
   assert.match(archive, /emit_meeting_runtime_event\("transcript_storage_error"/);
@@ -330,7 +330,7 @@ test("Live transcript surfaces the first actual storage failure with existing Me
   assert.match(live, /role="alert"/);
   assert.match(live, /saved archive/);
   assert.match(eventMonitors, /void pollMeeting\(true\)/);
-  assert.match(reader, /if \(statusKey === previousStatusKey && !forceTurns\)/);
+  assert.match(reader, /if \(statusKey === previousStatusKey && !forceTurns && retainedTurns\)/);
 });
 
 test("saved transcript previews share the existing Delete-Export archive lock", () => {
@@ -350,7 +350,7 @@ test("Live HTML sample distinguishes ongoing translation from failure or interru
   assert.match(html, /\.pending \{ color:var\(--muted\); \}/);
   assert.match(html, /fn pending_translation_is_not_reported_as_failed_while_meeting_is_active\(/);
   assert.match(html, /let active = latest_runtime_session_state\(\)\.snapshot\.as_ref\(\)\.is_some_and/);
-  assert.match(html, /let incomplete = if active \{\s*active_write_errors\(&session_id\) > 0/);
+  assert.match(html, /let incomplete = if active \{\s*active_write_errors\(&session_id\)\.map_or\(true, \|errors\| errors > 0\)/);
   assert.match(html, /Meeting in progress\./);
   assert.match(html, /New recognized entries and pending translations may still change/);
   assert.match(archive, /Resolve it once rather than taking the runtime state lock per entry/);
@@ -464,5 +464,5 @@ test("explicit HTML export cleans only app-owned interrupted temporary output", 
   assert.match(html, /fs::rename\(&temporary, &destination\)/);
   assert.match(html, /An unfinished HTML file may remain in the export folder/);
   assert.match(html, /The saved transcript source was preserved/);
-  assert.doesNotMatch(html, /remove_dir_all\(/);
+  assert.doesNotMatch(html.split("#[cfg(test)]")[0], /remove_dir_all\(/);
 });

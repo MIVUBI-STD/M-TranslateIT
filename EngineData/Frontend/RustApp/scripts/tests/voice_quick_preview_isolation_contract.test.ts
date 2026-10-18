@@ -329,7 +329,7 @@ test("My Voice keeps audio load feedback separate from verified playback and inv
   const preview = readFileSync(new URL("../../src/components/my-voice/QuickVoicePreview.svelte", import.meta.url), "utf8");
   const stop = ui.slice(ui.indexOf("function stopAudio()"), ui.indexOf("function schedulePoll()"));
   const quick = ui.slice(ui.indexOf("async function playQuickPreview("), ui.indexOf("async function startBuild("));
-  const evaluation = ui.slice(ui.indexOf("async function playEvaluation("), ui.indexOf("  $effect("));
+  const evaluation = ui.slice(ui.indexOf("async function playEvaluation("), ui.indexOf("  $effect(", ui.indexOf("async function playEvaluation(")));
   assert.match(ui, /let evaluationLoadingLineId = \$state<number \| null>\(null\)/);
   assert.match(ui, /let quickPreviewLoading = \$state\(false\)/);
   assert.match(stop, /audioRequestVersion \+= 1/);

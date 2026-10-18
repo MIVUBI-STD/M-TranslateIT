@@ -19,7 +19,7 @@ test("pre-Live rollback has one complete resource owner", () => {
 });
 
 test("Live commit failure uses the canonical rollback instead of a partial cleanup copy", () => {
-  const start = lifecycle.indexOf("let committed = commit_application_meeting_session_live");
+  const start = lifecycle.lastIndexOf("let committed = commit_application_meeting_session_live");
   const end = lifecycle.indexOf("update_outbound_status(", start);
   const block = lifecycle.slice(start, end);
   assert.match(block, /rollback_starting_meeting_resources\(generation, &session_id\)/);

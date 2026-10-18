@@ -90,8 +90,8 @@ test("device-aware CUDA resource and process controls fail closed at native boun
   assert.match(treeGuard, /ResumeThread/);
   assert.match(treeGuard, /const _: \[\(\); 48\] = \[\(\); std::mem::size_of::<JobAccounting>\(\)\]/);
   assert.match(treeGuard, /let _ = self\.terminate\(\);/);
-  const afterRoot = native.indexOf("drop(child);");
-  const verifyOwned = native.indexOf("terminate_and_verify_quiescence()");
+  const afterRoot = owner.indexOf("drop(child);");
+  const verifyOwned = owner.indexOf("terminate_and_verify_quiescence()");
   assert.ok(afterRoot >= 0 && afterRoot < verifyOwned);
   assert.match(supervisor, /_resume_owned_suspended_process\(proc\.pid\)/);
   assert.match(supervisor, /observer\.observe\(SafetySample/);

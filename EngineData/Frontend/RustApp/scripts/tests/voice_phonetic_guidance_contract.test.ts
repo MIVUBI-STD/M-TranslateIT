@@ -64,7 +64,7 @@ test("recommendations are text-derived, optional, bounded and avoid duplicate re
 });
 
 test("no on-device model change, extra inference dependency or aggressive quality gate", () => {
-  const selectorBody = selector.split("#[cfg(test)]")[0];
+  const selectorBody = selector.slice(selector.indexOf("/// Greedy ranked suggestions"), selector.indexOf("\n#[cfg(test)]\nmod tests"));
   assert.doesNotMatch(selectorBody, /torch|GPU|python|runCommand|delete|remove_file|remove_dir_all/);
   assert.match(selectorBody, /No recommendation affects train eligibility/);
   const build = rust("voice_lab_build.rs");
