@@ -137,13 +137,11 @@ jobs:
         working-directory: EngineData/Frontend/RustApp
         run: npm run build:frontend
 
-      - name: Python worker static checks and source tests
-        id: python_tests
+      - name: Install locked Python source-test dependencies
+        id: python_deps
         continue-on-error: true
         working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
         run: |
-          python -m compileall -q .
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
           $requirements = @(python -c $pinScript)
           if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 5) {
@@ -151,12 +149,33 @@ jobs:
           }
           python -m pip install @requirements
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m ruff check . --select E4,E7,E9,F,I
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m ruff format --check .
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m pytest -q
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Python syntax compilation
+        id: python_syntax
+        continue-on-error: true
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: python -m compileall -q .
+
+      - name: Python Ruff source lint
+        id: python_lint
+        if: always() && steps.python_deps.outcome == 'success'
+        continue-on-error: true
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: python -m ruff check . --select E4,E7,E9,F,I
+
+      - name: Python Ruff format check
+        id: python_format
+        if: always() && steps.python_deps.outcome == 'success'
+        continue-on-error: true
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: python -m ruff format --check .
+
+      - name: Python worker unit tests
+        id: python_tests
+        if: always() && steps.python_deps.outcome == 'success'
+        continue-on-error: true
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: python -m pytest -q
 
       - name: Rust and Tauri Windows compiler gate
         id: rust_compile
@@ -186,6 +205,10 @@ jobs:
           TYPECHECK: ${{ steps.typecheck.outcome }}
           FRONTEND_TESTS: ${{ steps.frontend_tests.outcome }}
           FRONTEND_BUNDLE: ${{ steps.frontend_bundle.outcome }}
+          PYTHON_DEPS: ${{ steps.python_deps.outcome }}
+          PYTHON_SYNTAX: ${{ steps.python_syntax.outcome }}
+          PYTHON_LINT: ${{ steps.python_lint.outcome }}
+          PYTHON_FORMAT: ${{ steps.python_format.outcome }}
           PYTHON_TESTS: ${{ steps.python_tests.outcome }}
           RUST_COMPILE: ${{ steps.rust_compile.outcome }}
           RUST_CLIPPY: ${{ steps.rust_clippy.outcome }}
@@ -204,7 +227,11 @@ jobs:
             'TypeScript/Svelte' = $env:TYPECHECK
             'Frontend regression tests' = $env:FRONTEND_TESTS
             'Frontend bundle' = $env:FRONTEND_BUNDLE
-            'Python worker source/tests' = $env:PYTHON_TESTS
+            'Python pinned test tools' = $env:PYTHON_DEPS
+            'Python compileall' = $env:PYTHON_SYNTAX
+            'Python Ruff lint' = $env:PYTHON_LINT
+            'Python Ruff formatting' = $env:PYTHON_FORMAT
+            'Python pytest' = $env:PYTHON_TESTS
             'Windows Tauri compiler' = $env:RUST_COMPILE
             'Rust Clippy' = $env:RUST_CLIPPY
             'Rust unit tests' = $env:RUST_TESTS
