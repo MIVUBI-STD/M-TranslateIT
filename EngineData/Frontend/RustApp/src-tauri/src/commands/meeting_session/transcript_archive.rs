@@ -332,10 +332,12 @@ pub(super) fn queue_turn(turn: MeetingCommittedTurn) {
     }
 }
 
-pub(super) fn active_write_errors(session_id: &str) -> u64 {
-    writer_store().lock().ok().and_then(|g| g.as_ref()
-        .filter(|w| w.session_id == session_id)
-        .map(|w| w.errors.load(Ordering::Acquire))).unwrap_or(0)
+pub(super) fn active_write_errors(session_id: &str) -> Result<u64, String> {
+    // An unavailable writer lock is unknown storage health, not zero errors.
+    let guard = writer_store().lock()
+        .map_err(|_| "Cannot verify saved transcript writer errors.".to_string())?;
+    Ok(guard.as_ref().filter(|w| w.session_id == session_id)
+        .map(|w| w.errors.load(Ordering::Acquire)).unwrap_or(0))
 }
 
 pub(super) fn ensure_saved_session_writer_finished(session_id: &str) -> Result<(), String> {
@@ -456,9 +458,16 @@ pub fn list_saved_sessions() -> SavedMeetingSessions {
     let mut result = SavedMeetingSessions {
         ok: true, sessions: Vec::new(), message: String::new(), active_write_errors: 0,
     };
-    let active = writer_store().lock().ok().and_then(|g| g.as_ref().map(|w| (
-        w.session_id.clone(), w.errors.load(Ordering::Acquire),
-    )));
+    let active = match writer_store().lock() {
+        Ok(guard) => guard.as_ref().map(|writer| (
+            writer.session_id.clone(), writer.errors.load(Ordering::Acquire),
+        )),
+        Err(_) => return SavedMeetingSessions {
+            ok: false,
+            message: "Saved transcript writer state could not be verified. Retry Stop or restart before trusting archive completeness.".to_string(),
+            ..result
+        },
+    };
     if let Some((_, errors)) = active.as_ref() { result.active_write_errors = *errors; }
     if !root.exists() {
         return result;
@@ -525,7 +534,7 @@ pub(super) fn saved_export_inventory(id: &str) -> Result<SavedExportInventory, S
         Ok(Some(expected)) if expected == scan.paths.len()
     );
     let incomplete = dir.join("storage_warning").exists()
-        || scan.has_unpublished_files || !finalized || active_write_errors(id) > 0;
+        || scan.has_unpublished_files || !finalized || active_write_errors(id)? > 0;
     Ok(SavedExportInventory { paths: scan.paths, incomplete })
 }
 
@@ -588,7 +597,7 @@ pub(super) fn session_warning(id: &str) -> Result<bool, String> {
     Ok(dir.join("storage_warning").exists()
         || scan.has_unpublished_files
         || !finalized
-        || active_write_errors(id) > 0)
+        || active_write_errors(id)? > 0)
 }
 
 fn admitted_preview_bytes(current: u64, next: u64, limit: u64) -> Option<u64> {

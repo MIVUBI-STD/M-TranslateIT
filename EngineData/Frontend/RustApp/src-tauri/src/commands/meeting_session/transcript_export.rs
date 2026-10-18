@@ -262,7 +262,7 @@ pub fn preview_saved_html(session_id: String) -> HtmlTranscriptPreview {
         session.owner_id == APPLICATION_MEETING_OWNER_ID && session.session_id == session_id
     );
     let incomplete = if active {
-        active_write_errors(&session_id) > 0
+        active_write_errors(&session_id).map_or(true, |errors| errors > 0)
     } else {
         session_warning(&session_id).unwrap_or(true)
     };

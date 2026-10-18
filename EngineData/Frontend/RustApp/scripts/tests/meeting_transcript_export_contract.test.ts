@@ -159,6 +159,27 @@ test("saved transcript Delete cannot bypass an unknown or active archive writer"
   assert.match(writerGate, /writer\.session_id == session_id/);
 });
 
+test("saved listing and preview fail closed when writer health cannot be read", () => {
+  const errorProbe = archive.slice(
+    archive.indexOf("pub(super) fn active_write_errors("),
+    archive.indexOf("pub(super) fn ensure_saved_session_writer_finished("),
+  );
+  assert.match(errorProbe, /-> Result<u64, String>/);
+  assert.match(errorProbe, /let guard = writer_store\(\)\.lock\(\)/);
+  assert.match(errorProbe, /\.map_err\(\|_\|/);
+  assert.doesNotMatch(errorProbe, /\.lock\(\)\.ok\(\)/);
+  const listing = archive.slice(
+    archive.indexOf("pub fn list_saved_sessions()"),
+    archive.indexOf("pub(super) struct SavedExportInventory"),
+  );
+  assert.match(listing, /let active = match writer_store\(\)\.lock\(\)/);
+  assert.match(listing, /Err\(_\) => return SavedMeetingSessions/);
+  assert.match(listing, /ok: false,/);
+  assert.doesNotMatch(listing, /writer_store\(\)\.lock\(\)\.ok\(\)/);
+  assert.match(archive, /active_write_errors\(id\)\? > 0/);
+  assert.match(html, /active_write_errors\(&session_id\)\.map_or\(true, \|errors\| errors > 0\)/);
+});
+
 test("large transcript disk operations use Tauri blocking workers, not synchronous UI commands", () => {
   for (const command of [
     "list_saved_meeting_transcripts",
