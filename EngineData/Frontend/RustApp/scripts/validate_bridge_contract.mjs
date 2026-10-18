@@ -73,14 +73,17 @@ function rustStructFields(relativePath, structName) {
 
 function tsTypeBlock(relativePath, typeName) {
   const body = source(relativePath);
-  const match = body.match(new RegExp(`export type ${typeName}\\s*=\\s*\\{([\\s\\S]*?)\\n\\};`, "m"));
+  // All registered DTO pairs are flat object types. A newline-only closing
+  // match accidentally consumed the NEXT type after an inline declaration.
+  const match = body.match(new RegExp(`export type ${typeName}\\s*=\\s*\\{([^{}]*)\\};`, "m"));
   if (!match) throw new Error(`bridge-contract: TypeScript type not found: ${relativePath}::${typeName}`);
   return match[1];
 }
 
 function tsTypeFields(relativePath, typeName) {
   const block = tsTypeBlock(relativePath, typeName);
-  return new Set([...block.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\??\s*:/gm)].map((item) => item[1]));
+  // Accept one-line semicolon-separated fields as well as multiline DTOs.
+  return new Set([...block.matchAll(/(?:^|[\n;])\s*([A-Za-z_][A-Za-z0-9_]*)\??\s*:/g)].map((item) => item[1]));
 }
 
 function sortedDifference(left, right) {
