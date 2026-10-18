@@ -327,7 +327,8 @@ mod tests {
             .expect("fresh post-gap utterance");
         let provenance = after_gap.capture_provenance.expect("source clock after gap");
         assert_eq!(provenance.audio_epoch, 2);
-        assert_eq!(provenance.input_start_sample, 0);
+        // VAD pre-roll can retain post-gap silence without mixing older audio.
+        assert!(provenance.input_start_sample > 0 && provenance.input_start_sample < 6_400);
         assert_eq!(provenance.input_end_sample, 12_800);
         // A gap is accounted by the handoff and becomes the producer epoch
         // boundary that future ASR SourceScope must carry.

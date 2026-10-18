@@ -34,11 +34,9 @@ from my_voice_gpu_identity import (
     sensor_executable,
     sensor_memory_mib,
 )
-from my_voice_resource_guard import (
-    ResourceGuardError,
-    check_start as check_system_resources,
-    snapshot as resource_snapshot,
-)
+from my_voice_resource_guard import ResourceGuardError
+from my_voice_resource_guard import check_start as check_system_resources
+from my_voice_resource_guard import snapshot as resource_snapshot
 from my_voice_stall_policy import EpochStallObserver
 
 SENSOR_INTERVAL_SECONDS = 5

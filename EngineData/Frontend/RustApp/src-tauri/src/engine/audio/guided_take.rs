@@ -253,7 +253,10 @@ fn recording_environment_hints(samples: &[f32], advice: &mut Vec<String>) {
     if frame_levels.len() < 15 {
         return;
     }
-    let peak = frame_levels.iter().copied().fold(0.0_f32, f32::max);
+    // Ignore isolated clipped transients when estimating representative speech energy.
+    let mut ordered_levels = frame_levels.clone();
+    ordered_levels.sort_by(f32::total_cmp);
+    let peak = ordered_levels[(ordered_levels.len() - 1) * 9 / 10];
     if peak <= MIN_ACTIVE_RMS {
         return;
     }

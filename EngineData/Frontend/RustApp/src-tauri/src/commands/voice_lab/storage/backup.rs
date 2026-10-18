@@ -548,6 +548,8 @@ pub(crate) fn export_backup(
         .map_err(|_| "voice_backup:manifest_create_failed")?;
     file.write_all(&manifest).map_err(|_| "voice_backup:manifest_write_failed")?;
     file.sync_all().map_err(|_| "voice_backup:manifest_sync_failed")?;
+    // Close the manifest before renaming its containing directory on Windows.
+    drop(file);
     let _ = read_manifest(&pending)?;
     fs::rename(&pending, &committed).map_err(|_| "voice_backup:finalize_failed")?;
     let _ = read_manifest(&committed)?;

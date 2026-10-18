@@ -292,10 +292,10 @@ def sovits_child_entry(rank: int, n_gpus: int, hps: Any, raw_plan: dict[str, Any
         os._exit(_EXIT_LOAD_FAILED)
     # Re-import the same pinned module only in the child. No parent-only hook
     # can silently claim that spawn's fresh interpreter loaded the checkpoint.
-    import torch
-
     import s2_train
+    import torch
     import utils
+
     from voice_lab_resume_validation import _engine_source
 
     expected_script = (Path(plan.source_root) / "GPT_SoVITS" / "s2_train.py").resolve()

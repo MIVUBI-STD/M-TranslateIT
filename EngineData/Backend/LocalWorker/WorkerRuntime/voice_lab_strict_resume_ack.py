@@ -123,14 +123,14 @@ class StrictResumeAcknowledgments:
             raise ResumeAckError("acknowledgment_fields_missing")
         if event["schema_version"] != 1:
             raise ResumeAckError("acknowledgment_schema_unsupported")
-        for field, expectation in (
+        for key, expectation in (
             ("run_token", self.expected.run_token),
             ("recovery_id", self.expected.recovery_id),
             ("dataset_id", self.expected.dataset_id),
             ("engine_revision", self.expected.engine_revision),
         ):
-            if event[field] != expectation:
-                raise ResumeAckError(f"acknowledgment_{field}_mismatch")
+            if event[key] != expectation:
+                raise ResumeAckError(f"acknowledgment_{key}_mismatch")
         pid = _positive_int(event["worker_pid"], "worker_pid")
         sequence = _positive_int(event["sequence"], "sequence")
         if sequence != self._last_sequence + 1 or sequence > _MAX_EVENTS:

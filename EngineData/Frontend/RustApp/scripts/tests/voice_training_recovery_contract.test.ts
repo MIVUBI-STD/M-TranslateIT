@@ -29,8 +29,8 @@ test("recoverable checkpoint capture is pinned to exact unchanged GPT-SoVITS sou
   assert.match(audit, /MAX_PARTS = 28/);
   assert.match(audit, /sovits_pair_receipt_hash_mismatch/);
   assert.match(audit, /resume_available": False/);
-  assert.match(pipeline, /run_stage\(source_root, assets\["sovits_train"\]/);
-  assert.match(pipeline, /run_stage\(source_root, assets\["gpt_train"\]/);
+  assert.match(pipeline, /run_stage\(\s*source_root,\s*assets\["sovits_train"\]/);
+  assert.match(pipeline, /run_stage\(\s*source_root,\s*assets\["gpt_train"\]/);
 });
 
 test("interrupted checkpoint capture blocks destructive old-work cleanup on failure", () => {

@@ -75,6 +75,16 @@ jobs:
         with:
           python-version: "3.12.10"
 
+      - name: Repository governance and source contracts
+        id: repository_contract
+        continue-on-error: true
+        run: python tools/verify_repository.py
+
+      - name: Repository tool regression tests
+        id: repository_tests
+        continue-on-error: true
+        run: python -m unittest discover -s tools/tests -p "test_*.py"
+
       - name: Record Windows runner and toolchain
         run: |
           Write-Host "Runner OS: $env:RUNNER_OS"
@@ -145,9 +155,9 @@ jobs:
         continue-on-error: true
         working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
         run: |
-          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
+          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python","nltk","scipy","torch"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
           $requirements = @(python -c $pinScript)
-          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 5) {
+          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 8) {
             throw 'Could not resolve all worker test dependencies from the canonical uv.lock.'
           }
           python -m pip install @requirements
@@ -204,6 +214,8 @@ jobs:
       - name: Summarize all validation outcomes and fail on incomplete proof
         if: always()
         env:
+          REPOSITORY_CONTRACT: ${{ steps.repository_contract.outcome }}
+          REPOSITORY_TESTS: ${{ steps.repository_tests.outcome }}
           SOURCE_CHECKS: ${{ steps.source_checks.outcome }}
           TYPECHECK: ${{ steps.typecheck.outcome }}
           FRONTEND_TESTS: ${{ steps.frontend_tests.outcome }}
@@ -226,6 +238,8 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '| Check | Outcome |'
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '|---|---|'
           $checks = [ordered]@{
+            'Repository source contracts' = $env:REPOSITORY_CONTRACT
+            'Repository tool unit tests' = $env:REPOSITORY_TESTS
             'Source validators' = $env:SOURCE_CHECKS
             'TypeScript/Svelte' = $env:TYPECHECK
             'Frontend regression tests' = $env:FRONTEND_TESTS

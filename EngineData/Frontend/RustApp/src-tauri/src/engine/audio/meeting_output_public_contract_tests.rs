@@ -146,7 +146,7 @@ fn malformed_wav_contracts_fail_before_device_access() {
     assert_parser_blocker(
         "riff-excludes-samples",
         &short_riff,
-        "meeting_output:wav_truncated",
+        "meeting_output:wav_riff_size_mismatch",
     );
 
     let mut long_riff = base.clone();
@@ -227,7 +227,6 @@ fn valid_pcm16_reaches_prepared_device_boundary_without_execution() {
     for (label, wav) in [
         ("valid-pcm16", base),
         ("valid-extensible-pcm16", extensible_pcm16_wav(16_000, 1, &[0, 8_000, -8_000, 0])),
-        ("valid-riff-with-outside-bytes", trailing),
     ] {
         let path = write_fixture(label, &wav);
         let report = deliver_meeting_output_wav(
@@ -242,4 +241,5 @@ fn valid_pcm16_reaches_prepared_device_boundary_without_execution() {
         let _ = fs::remove_file(path);
     }
     let _ = clear_runtime_session_state();
+    assert_parser_blocker("riff-with-outside-bytes", &trailing, "meeting_output:wav_riff_size_mismatch");
 }

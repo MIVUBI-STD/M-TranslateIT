@@ -2,7 +2,7 @@
 //! A version is a *saved inference package*, NOT an optimizer training checkpoint.
 //! No deletion, no activation, and no implicit change to the Meeting voice.
 use serde::{Deserialize, Serialize};
-use std::fs::{self, File};
+use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
@@ -145,7 +145,8 @@ pub(super) fn preserve_actor_version(
             if copied != file.bytes {
                 return Err("voice_lab:version_copy_size_mismatch".into());
             }
-            File::open(&to).and_then(|f| f.sync_all())
+            // Windows requires a writable handle for FlushFileBuffers after copy.
+            OpenOptions::new().write(true).open(&to).and_then(|f| f.sync_all())
                 .map_err(|_| "voice_lab:version_sync_failed")?;
         }
         // If source bytes changed while copying, never publish this version.

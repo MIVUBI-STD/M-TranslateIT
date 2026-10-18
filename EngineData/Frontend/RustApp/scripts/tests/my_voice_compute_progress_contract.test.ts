@@ -42,8 +42,8 @@ test("progress labels follow actual SoVITS and GPT stage transitions, not elapse
   const sovits = worker.indexOf('status_writer("training", "Learning voice characteristics');
   const gpt = worker.indexOf('status_writer("training", "Learning speech generation');
   assert.ok(sovits > 0 && gpt > sovits);
-  assert.ok(worker.indexOf('run_stage(source_root, assets["sovits_train"]', sovits) < gpt);
-  assert.ok(worker.indexOf('run_stage(source_root, assets["gpt_train"]', gpt) > gpt);
+  assert.match(worker.slice(sovits, gpt), /run_stage\(\s*source_root,\s*assets\["sovits_train"\]/);
+  assert.match(worker.slice(gpt), /run_stage\(\s*source_root,\s*assets\["gpt_train"\]/);
   assert.match(ui, /build\.message\.includes\("SoVITS training stage"\)/);
   assert.match(ui, /build\.message\.includes\("GPT training stage"\)/);
   assert.match(ui, /build\.message\.replace\(/);
@@ -208,7 +208,7 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(recovery, /MAX_FILES_PER_GROUP: usize = 12/);
   assert.match(recovery, /LIMIT_COUNT: usize = 28/);
   assert.doesNotMatch(adapter, /MyVoiceSafeStopOnCheckpoint/);
-  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_cooperative.py"), /epoch=\{epoch-1\}-step=/);
+  assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_cooperative.py"), /epoch=\{epoch\s*-\s*1\}-step=/);
   assert.match(adapter, /atomic_gpt_inference_save as my_save/);
   assert.match(adapter, /sovits_paired_optimizer_receipt/);
   assert.match(read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py"), /verified_pair_for_epoch/);

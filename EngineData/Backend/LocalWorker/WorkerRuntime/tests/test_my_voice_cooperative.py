@@ -113,8 +113,9 @@ def test_manual_cancel_is_run_and_generation_bound(tmp_path, monkeypatch):
 
 
 def test_manual_stop_rejects_malformed_signal(tmp_path, monkeypatch):
-    from my_voice_cooperative import GENERATION_ENV, MANUAL_STOP_ENV, manual_stop_requested
     import pytest
+
+    from my_voice_cooperative import GENERATION_ENV, MANUAL_STOP_ENV, manual_stop_requested
 
     signal = tmp_path / "stop.json"
     monkeypatch.setenv(TOKEN_ENV, "a" * 64)

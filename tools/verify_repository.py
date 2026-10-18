@@ -412,7 +412,8 @@ def check_workflows(errors: list[str]) -> None:
             if "on:\n  workflow_dispatch:\n" not in value:
                 fail(errors, f"{path.name} must have a manual workflow_dispatch trigger")
             if AUTO_WORKFLOW_EVENT_RE.search(value):
-                fail(errors, f"{path.name} must be manual-only (no push/PR/schedule/release trigger)")        for forbidden in ("contents: write", "pull-requests: write", "git push", "pull_request_target"):
+                fail(errors, f"{path.name} must be manual-only (no push/PR/schedule/release trigger)")
+        for forbidden in ("contents: write", "pull-requests: write", "git push", "pull_request_target"):
             if forbidden in value:
                 fail(errors, f"{path.name} contains forbidden verification behavior: {forbidden}")
 
