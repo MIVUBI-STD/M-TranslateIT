@@ -171,6 +171,37 @@ function Install-TranslateITPortableToolchain {
         if ($invalid.Count -gt 0) {
             throw "Portable tool groups remain incomplete: $(($invalid | ForEach-Object name) -join ', ')"
         }
+        # Existing groups must meet the same exact version requirements as
+        # newly provisioned ones. File presence alone never upgrades proof.
+        $env:CARGO_HOME=Join-Path $tools 'cargo'
+        $env:RUSTUP_HOME=Join-Path $tools 'rustup'
+        foreach ($check in @(
+            @('Node', (Join-Path $tools 'node/node.exe'), ('v'+$pins.node.version)),
+            @('Git', (Join-Path $tools 'git/cmd/git.exe'), ('git version '+$pins.git.version)),
+            @('uv', (Join-Path $tools 'uv/uv.exe'), ('uv '+$pins.uv.version))
+        )) {
+            $program=[string]$check[1]
+            $actual=(& $program --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $actual -ne [string]$check[2]) {
+                throw "Portable $($check[0]) does not match the pinned version."
+            }
+        }
+        $python=(Get-TranslateITPreferredTool -RepositoryRoot $root -Name 'python')
+        if ($python.state -ne 'SELECTED' -or $python.origin -ne 'workspace') {
+            throw 'Pinned managed Python was not resolved from this workspace.'
+        }
+        $pythonVersion=(& $python.path --version 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or $pythonVersion -ne ('Python '+$policy.python.version)) {
+            throw 'Portable managed Python version mismatches the canonical requirement.'
+        }
+        $rustVersion=(& (Join-Path $bin 'rustc.exe') --version 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $rustVersion.StartsWith(('rustc '+$pins.rust.version+' '))) {
+            throw 'Portable Rust compiler does not match the pinned distribution.'
+        }
+        $rustupVersion=(& (Join-Path $bin 'rustup.exe') --version 2>&1 | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $rustupVersion.StartsWith(('rustup '+$pins.rustup.version+' '))) {
+            throw 'Portable rustup version does not match the pinned bootstrap.'
+        }
         $finished=$true
         Write-Host 'Portable Node, Git, uv, managed Python, Rustup and Rust toolchain are prepared in the selected repository workspace.'
     } finally {
