@@ -81,7 +81,7 @@ function Get-TranslateITWorkspaceToolSelection {
             paths=@($group.files | ForEach-Object { Join-Path $folder $_ })
         }
     }
-    return ,$result
+    return $result
 }
 
 function Get-TranslateITPreferredTool {
