@@ -190,7 +190,10 @@ test("explicit compute checker remains in the release small-resource closure", (
   assert.match(stop, /cooperative_request_identity_mismatch/);
   const pair = read("../../Backend/LocalWorker/WorkerRuntime/my_voice_checkpoint_pair.py");
   assert.match(pair, /len\(matching\) != 1/);
-  assert.match(pair, /identity\(before\) != identity\(after\)/);
+  assert.match(pair, /path_identity\(before\) != path_identity\(after\)/);
+  assert.match(pair, /handle_identity\(opened\) != handle_identity\(closed\)/);
+  assert.match(pair, /before\.st_dev, before\.st_ino, before\.st_size/);
+  assert.match(pair, /opened\.st_dev, opened\.st_ino, opened\.st_size/);
   assert.match(supervisor, /proc\.pid, stage_nonce/);
   assert.match(progress, /def publish_epoch_activity/);
   assert.match(progress, /def read_epoch_activity/);
