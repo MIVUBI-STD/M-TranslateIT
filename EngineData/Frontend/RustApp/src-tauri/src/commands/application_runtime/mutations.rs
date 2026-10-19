@@ -89,18 +89,24 @@ pub fn approve_product_voice_candidate(
     })
 }
 
+// Installing a selected built-in voice can copy/checkpoint substantial local
+// model assets. Never perform that work on the native WebView event thread.
 #[tauri::command]
-pub fn select_product_builtin_voice(
+pub async fn select_product_builtin_voice(
     app: tauri::AppHandle,
     voice_id: String,
     authorized_voice_confirmed: bool,
-) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
-    emit_after(&app, "select_builtin_voice", || {
-        super::super::voice_lab_build::select_builtin_voice(
-            voice_id,
-            authorized_voice_confirmed,
-        )
+) -> Result<super::super::voice_lab_build::VoiceLabBuildActionResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        emit_after(&app, "select_builtin_voice", || {
+            super::super::voice_lab_build::select_builtin_voice(
+                voice_id,
+                authorized_voice_confirmed,
+            )
+        })
     })
+    .await
+    .map_err(|_| "Built-in voice selection worker was interrupted.".to_string())
 }
 
 
