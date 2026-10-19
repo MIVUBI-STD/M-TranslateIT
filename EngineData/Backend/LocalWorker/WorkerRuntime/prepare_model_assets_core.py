@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -149,13 +150,23 @@ def clean_huggingface_local_cache(directory: Path) -> None:
 
 
 def replace_target_from_snapshot(item: dict[str, Any]) -> dict[str, Any]:
-    target: Path = item["target"]
-    target.parent.mkdir(parents=True, exist_ok=True)
-    staging = target.parent / f".{target.name}.download-{os.getpid()}"
-    backup = target.parent / f".{target.name}.previous-{os.getpid()}"
-    shutil.rmtree(staging, ignore_errors=True)
-    shutil.rmtree(backup, ignore_errors=True)
+    """Admit a checked snapshot without destroying an interrupted rollback.
 
+    The final marker is part of the same staged directory as the model bytes.
+    Never reuse a PID-derived path: interrupted backups must not be deleted
+    merely because a new Python process happens to get the same PID.
+    """
+    target: Path = item["target"]
+    if target.is_symlink():
+        raise RuntimeError("Model target cannot be a filesystem symlink")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    transaction = uuid.uuid4().hex
+    staging = target.parent / f".{target.name}.download-{transaction}"
+    backup = target.parent / f".{target.name}.previous-{transaction}"
+
+    had_previous = target.exists()
+    moved_previous = False
+    promoted = False
     try:
         download_args: dict[str, Any] = {
             "repo_id": item["repo_id"],
@@ -169,17 +180,27 @@ def replace_target_from_snapshot(item: dict[str, Any]) -> dict[str, Any]:
         files = [path for path in staging.rglob("*") if path.is_file()]
         if not files:
             raise RuntimeError(f"Downloaded snapshot for {item['model_id']} contains no files")
-
-        had_previous = target.exists()
+        # The marker must be committed along with the snapshot, not written
+        # after replacing the live model. A crash cannot publish an unmarked
+        # model while claiming that the previous version was verified.
+        (staging / ".translateit_model_revision").write_text(
+            str(item["revision"]).strip() + "\n", encoding="utf-8"
+        )
         if had_previous:
             target.replace(backup)
+            moved_previous = True
         try:
             staging.replace(target)
+            promoted = True
         except Exception:
-            if had_previous and backup.exists() and not target.exists():
+            if moved_previous and backup.exists() and not target.exists():
                 backup.replace(target)
+                moved_previous = False
             raise
-        shutil.rmtree(backup, ignore_errors=True)
+        # Only retire the old version after the new directory and revision
+        # marker have both been moved into the final canonical location.
+        if moved_previous:
+            shutil.rmtree(backup)
         return {
             "model_id": item["model_id"],
             "repo_id": item["repo_id"],
@@ -188,8 +209,13 @@ def replace_target_from_snapshot(item: dict[str, Any]) -> dict[str, Any]:
             "replaced_existing": had_previous,
         }
     finally:
-        shutil.rmtree(staging, ignore_errors=True)
-        shutil.rmtree(backup, ignore_errors=True)
+        if promoted:
+            # Cleanup only this successfully committed transaction.
+            if staging.exists():
+                shutil.rmtree(staging)
+        # On failed download/promotion, preserve unverified staged files and
+        # especially any backup that could be required for manual recovery.
+        # The next transaction obtains a fresh UUID and cannot overwrite them.
 
 
 def stage_download_plan(
