@@ -60,12 +60,15 @@ The model download authority remains
 ## Exceptions and unfinished integration
 
 - Release staging now uses an isolated `UV_PROJECT_ENVIRONMENT` inside
-  `.workspace/staging/` and repository-owned uv/Hugging Face caches; it no
-  longer installs staging packages into system Python or overwrites the
-  developer `.venv`. **Model/runtime staging itself is still destructive and
-  is not yet transactional or resumable**. Do not invoke it implicitly from
-  `prepare`, delete existing runtime assets, or claim it is safe to retry
-  after an interruption.
+  `.workspace/staging/` and repository-owned uv/Hugging Face caches. The
+  release staging wrapper creates a unique private payload tree, verifies its
+  pinned inputs, then promotes only five approved runtime subtrees with backups
+  and rollback on ordinary failures. If the process is interrupted during
+  promotion, `release-rollback` remains a fail-closed recovery marker: **never
+  delete that marker automatically or retry staging until reviewed**.
+  Full GB-scale release execution, crash interruption, filesystem reparse
+  cases, installer payload consistency and model usability remain unexecuted;
+  no automatic invocation from developer `prepare` is permitted.
 - Rustup, Cargo, MSVC/Windows SDK, WebView2, Windows driver store and OS
   installer state are not yet relocated/verified. Zero system-drive writes
   cannot be guaranteed by setting process cache variables alone.

@@ -49,6 +49,10 @@ function Publish-TranslateITReleaseStage {
         throw "Untrusted release stage: $stage"
     }
     $backup = Join-Path $privateStaging "release-rollback"
+    $lock = Join-Path $privateStaging "release-active"
+    if (-not (Test-Path -LiteralPath $lock -PathType Container)) {
+        throw "Release promotion needs the exclusive staging reservation."
+    }
     if (Test-Path -LiteralPath $backup) {
         throw "Unfinished release rollback state is present: $backup"
     }
