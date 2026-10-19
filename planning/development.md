@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The last successful Windows CI candidate was `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`, before the Windows workspace migration. The current `Local` candidate requires matching CI proof, and real GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains final-only.
+The last successful Windows CI candidate was `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`, before the Windows workspace migration. The current `Local` candidate requires matching CI proof, and real GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains reserved for explicitly approved final releases.
 
 ## Active Boundary
 

@@ -84,19 +84,27 @@ def test_release_model_stage_uses_only_workspace_without_touching_canonical_targ
     stage = tmp_path / ".workspace/staging/release-candidate/payload-tree"
     (stage / "EngineData/Backend").mkdir(parents=True)
     redirected = module._core.stage_download_plan(items, stage)
-    assert redirected[0]["target"] == stage / "EngineData/Backend/RuntimeAssets/ASR/ModelData/example"
+    assert (
+        redirected[0]["target"] == stage / "EngineData/Backend/RuntimeAssets/ASR/ModelData/example"
+    )
     assert items[0]["target"] == canonical
     assert not canonical.exists()
 
 
-def test_release_model_stage_rejects_paths_outside_reserved_workspace(tmp_path: Path, monkeypatch) -> None:
+def test_release_model_stage_rejects_paths_outside_reserved_workspace(
+    tmp_path: Path, monkeypatch
+) -> None:
     module = load_module()
     monkeypatch.setattr(module._core, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(
         module._core, "RUNTIME_ASSETS_ROOT", tmp_path / "EngineData/Backend/RuntimeAssets"
     )
     model = module._core.RUNTIME_ASSETS_ROOT / "ASR/ModelData/example"
-    for forbidden in [tmp_path / "UserData", tmp_path / "EngineData", tmp_path / ".workspace/staging"]:
+    for forbidden in [
+        tmp_path / "UserData",
+        tmp_path / "EngineData",
+        tmp_path / ".workspace/staging",
+    ]:
         (forbidden / "EngineData/Backend").mkdir(parents=True, exist_ok=True)
         try:
             module._core.stage_download_plan([{"target": model}], forbidden)
@@ -117,13 +125,17 @@ def test_failed_model_download_preserves_existing_and_interrupted_backups(
     previous = tmp_path / ".model.previous-previous-process"
     previous.mkdir()
     (previous / "recover.bin").write_bytes(b"important")
+
     def fail_download(**kwargs) -> None:
         kwargs["local_dir"].mkdir()
         (kwargs["local_dir"] / "partial.bin").write_bytes(b"incomplete")
         raise RuntimeError("controlled download failure")
+
     monkeypatch.setattr(module._core, "snapshot_download", fail_download)
     item = {
-        "target": target, "model_id": "test", "repo_id": "offline/example",
+        "target": target,
+        "model_id": "test",
+        "repo_id": "offline/example",
         "revision": "a" * 40,
     }
     try:
@@ -144,13 +156,17 @@ def test_promoted_snapshot_has_revision_marker_before_directory_cutover(
     target = tmp_path / "model"
     target.mkdir()
     (target / "old.bin").write_bytes(b"old")
+
     def populate(**kwargs) -> None:
         staged = kwargs["local_dir"]
         staged.mkdir()
         (staged / "model.bin").write_bytes(b"new")
+
     monkeypatch.setattr(module._core, "snapshot_download", populate)
     item = {
-        "target": target, "model_id": "test", "repo_id": "offline/example",
+        "target": target,
+        "model_id": "test",
+        "repo_id": "offline/example",
         "revision": "b" * 40,
     }
     result = module._core.replace_target_from_snapshot(item)
@@ -167,19 +183,25 @@ def test_failed_promotion_restores_previous_model_without_deleting_backups(
     target = tmp_path / "model"
     target.mkdir()
     (target / "original.bin").write_bytes(b"original")
+
     def populate(**kwargs) -> None:
         staged = kwargs["local_dir"]
         staged.mkdir()
         (staged / "next.bin").write_bytes(b"next")
+
     monkeypatch.setattr(module._core, "snapshot_download", populate)
     original_replace = Path.replace
+
     def fail_new_model_cutover(self: Path, destination: Path) -> Path:
         if self.name.startswith(".model.download-"):
             raise OSError("simulated stage cutover failure")
         return original_replace(self, destination)
+
     monkeypatch.setattr(Path, "replace", fail_new_model_cutover)
     item = {
-        "target": target, "model_id": "test", "repo_id": "offline/example",
+        "target": target,
+        "model_id": "test",
+        "repo_id": "offline/example",
         "revision": "c" * 40,
     }
     try:

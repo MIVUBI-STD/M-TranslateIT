@@ -285,7 +285,7 @@ def check_branch_authority(errors: list[str]) -> None:
             fail(errors, f"GITHUB_RULES.md lost Local-development/main-final separation: {marker}")
     next_action = text("planning/development.md")
     if "GitHub default branch `main` remains reserved" not in next_action:
-        fail(errors, "next-action.md must preserve main as a final-only branch")
+        fail(errors, "planning/development.md must preserve main as a final-only branch")
     for rel in ("README.md", "AGENTS.md", "GITHUB_RULES.md", "CONTEXT.md", "CONTRIBUTING.md"):
         value = text(rel)
         if "Local-only" not in value:
