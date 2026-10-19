@@ -101,15 +101,16 @@ For ChatGPT source work use GitHub branch `Local`: `AGENTS.md` → `GITHUB_RULES
 | `GITHUB_RULES.md` | GitHub ref, mutation, evidence and retry | Existing root policy |
 | `CONTEXT.md` | Stable product/architecture orientation | No active work state |
 | `CONTRIBUTING.md`, `SECURITY.md` | Contribution and trust boundaries | Existing root contracts |
-| `toolchain.json`, `DEV.cmd` | Toolchain policy and optional thin launcher | [Tooling](tooling/README.md) |
+| `manage.cmd`, `tooling/windows/config/requirements.json` | Toolchain policy and optional thin launcher | [Tooling](tooling/README.md) |
 | `docs/` | Durable product/system/developer knowledge | [Documentation](docs/README.md) |
 | `planning/` | Current development intent/next action | [Development](planning/README.md) |
-| `EngineData/` | Tauri frontend, Rust runtime, Python AI worker/assets | [Source owners](docs/knowledge/source-ownership.md) |
+| `EngineData/` | Tauri frontend, Rust runtime, Python AI worker/assets |
+| `.workspace/` | Ignored development caches, downloads, tools and staging | [Workspace ownership](docs/system/windows-workspace-boundaries.md) | [Source owners](docs/knowledge/source-ownership.md) |
 | `UserData/` | Private runtime/user storage placeholders only | [Storage](UserData/README.md) |
 | `tools/` | Repository/quality validation and source-derived planning | [Tools](tools/README.md) |
 | `.agents/`, `.github/` | Skill/permission registry and GitHub configuration | [Agents](.agents/README.md) |
 
-Naming and update/move rules: [Canonical Naming](docs/system/canonical-naming.md). Source is one owner per behavior; Git history carries revisions. Do not fabricate parallel `workspace/` or `experiments/` folders for this Windows desktop product.
+Naming and update/move rules: [Canonical Naming](docs/system/canonical-naming.md). Source is one owner per behavior; Git history carries revisions. The ignored `.workspace/` is generated development data, not another source tree or a place for private recordings; see [workspace boundaries](docs/system/windows-workspace-boundaries.md).
 
 ## Repository operating model
 
@@ -175,15 +176,15 @@ Routine work lands directly on `Local` as one logical delivery. Do not create ta
 Canonical Windows developer surface:
 
 ```text
-DEV.cmd doctor
-DEV.cmd setup
-DEV.cmd check
-DEV.cmd build
-DEV.cmd test
-DEV.cmd package
+manage.cmd status
+manage.cmd prepare
+manage.cmd verify
+manage.cmd build
+manage.cmd test
+manage.cmd package
 ```
 
-`DEV.cmd` is an optional developer convenience, not a step ChatGPT assigns to the user's PC during development. Existing npm/Cargo/uv/release owners remain authoritative; it does not create a second build system. Supported toolchain policy is recorded in `toolchain.json`.
+`manage.cmd` is an optional developer convenience, not a step ChatGPT assigns to the user's PC during development. Existing npm/Cargo/uv/release owners remain authoritative; it does not create a second build system. Supported toolchain policy is recorded in `tooling/windows/config/requirements.json`.
 
 Direct subsystem commands belong to an explicitly available local execution environment; GitHub source review alone never proves a build or Windows acceptance.
 

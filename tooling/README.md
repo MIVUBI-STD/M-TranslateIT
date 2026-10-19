@@ -1,21 +1,34 @@
-# TranslateIT Tooling
+# TranslateIT Windows Developer Tooling
 
-Platform-specific optional developer routing, distinct from the Python repository/quality `tools/` family.
+`manage.cmd` is the **optional developer convenience** launcher, **not a step ChatGPT assigns** to a user's PC during routine source development.
 
 ```text
-DEV.cmd
-→ tooling/windows-toolchain/dev.ps1
-→ existing npm / Cargo / uv / packaging owners
+manage.cmd
+  -> tooling/windows/manage.ps1
+     -> tooling/windows/modules/Workspace.psm1
+     -> existing npm, Cargo, uv and signed release owners
 ```
 
-This is a **thin entrypoint**, not a competing build system, application runtime or mandatory ChatGPT workflow. Local Windows commands may be used by a developer who intentionally has a checkout; ChatGPT-owned repository work remains GitHub source-only and must not demand incremental user-PC commands.
+The only authoritative development requirements are
+`tooling/windows/config/requirements.json` and the existing Node, Cargo
+and Python lockfiles. These are review/pin inputs, not download destinations.
 
-### Developer local test (no release signing)
+| Command | Current meaning |
+|---|---|
+| `manage.cmd status` | Inspect required toolchain without installing or repairing |
+| `manage.cmd prepare` | Install locked frontend and Python **developer dependencies** into their existing local paths; cache under `.workspace` |
+| `manage.cmd verify` | Source/contract tests only, **not** model or device readiness |
+| `manage.cmd build` | Existing exact-SHA frontend and locked Tauri Rust compile gate |
+| `manage.cmd run` | Existing Tauri development app, needing real local models/audio |
+| `manage.cmd test` | Existing frontend, Rust and worker regression suites |
+| `manage.cmd package "<quality-report.json>"` | Controlled signed R3 release, separately gated; not a development setup shortcut |
 
-`DEV.cmd doctor` validates the existing pinned toolchains without installing anything. `DEV.cmd setup` explicitly installs the lock-resolved development dependencies once when required. `DEV.cmd check` runs the canonical source/test suite against the already-synced worker environment without silently syncing packages. `DEV.cmd build` uses the existing SHA/clean-tree guarded frontend+Rust compile check; set `TRANSLATEIT_EXPECTED_SHA` externally before the integrated acceptance build. `DEV.cmd run` launches the existing Tauri development app (`npm run dev:app`) for the one planned local functional test; actual local models/audio devices must already be available and runtime readiness must still prove itself.
+Process-scoped cache settings do not reinstall Rustup, Windows SDK, WebView2
+or VB-CABLE, and do not make installed app data portable. The unchanged R3
+staging flow still needs a separate safe environment/retry migration before
+`prepare` can include its downloads. Do not delete or reset any
+`UserData/SavedProject` content during build, verification or preparation.
 
-### Controlled signed release (separate gate)
-
-`DEV.cmd package "<quality-readiness-report.json>"` delegates to the existing release build with **explicit Quality Readiness evidence**. Signing keys, verified model/provider payload, third-party notices and all other release requirements remain mandatory; the developer test entrypoint is not a substitute for an installable package or E3–E6 evidence.
-
-[Toolchain policy](../toolchain.json) defines supported tools; [repository tools](../tools/README.md) own static governance verification. See the [integrated Windows acceptance runbook](../docs/knowledge/operations/target-windows-performance.md).
+[Workspace ownership](../docs/system/windows-workspace-boundaries.md) ·
+[Windows acceptance](../docs/knowledge/operations/target-windows-performance.md) ·
+[Repository tools](../tools/README.md).

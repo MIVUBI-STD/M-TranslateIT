@@ -15,6 +15,7 @@ This domain owns durable **repository and application system architecture**, not
 - [Authority model](./authority-model.md) — document/source/evidence classes and how ownership moves
 - [Application runtime architecture](./application-runtime.md) — current cross-feature lifecycle, snapshot, facade and controller boundaries
 - [Zero-waste execution](./zero-waste-execution.md) — affected review, bounded context and evidence-backed efficiency
+- [Windows workspace boundaries](./windows-workspace-boundaries.md) — source, development outputs, persistent runtime assets and protected UserData
 
 Related established owners, **not duplicates**:
 

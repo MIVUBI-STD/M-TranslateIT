@@ -28,7 +28,8 @@ A rename is a migration: identify its semantic owner and external/internal consu
 | `docs/system/` | distinct durable repository/application system architecture |
 | `planning/` | active/future development intent, not proof or implementation |
 | `tools/` | repository/quality Python validators and existing contract tooling |
-| `tooling/` | optional platform-specific developer entrypoint implementation |
+| `tooling/` | Windows developer routing under `tooling/windows/`; one `manage.cmd` entrypoint |
+| `.workspace/` | ignored/generated developer outputs, distinct from user-owned data |
 | `.agents/` | existing bounded skills, one registry, one permission policy, evaluation corpora |
 | `.github/` | GitHub service metadata and optional manual verification workflows |
 

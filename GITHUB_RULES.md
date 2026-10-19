@@ -90,7 +90,7 @@ Complete GitHub-source-verifiable changes and record their exact revision-scoped
 
 ### Integrated test-ready candidate gate
 
-**Never ask the user to run** incremental npm/Python/Cargo/`DEV.cmd` tests, clone or upload source, or reinstall for every change. GitHub owns source review and edits, **not program execution**. Missing compiler, model or device results are explicitly unexecuted, not fabricated PASS.
+**Never ask the user to run** incremental npm/Python/Cargo/`manage.cmd` tests, clone or upload source, or reinstall for every change. GitHub owns source review and edits, **not program execution**. Missing compiler, model or device results are explicitly unexecuted, not fabricated PASS.
 
 Enter one coordinated **local build → package → install → `TARGET_WINDOWS` acceptance phase** only when Meeting/Text/My Voice/Settings source is integrated, known source-contract blockers are resolved, locked build/package inputs are prepared and an explicit bounded test plan exists. An installable artifact is **not** claimed until the local build/package step actually succeeds. If source admission fails, continue GitHub repository work; if execution cannot yet run, retain `UNKNOWN / NOT EXECUTED`. Actual device/GPU/audio/meeting/install results require local observation. One owner for the gate: `docs/knowledge/operations/target-windows-performance.md`; no extra status ledger.
 

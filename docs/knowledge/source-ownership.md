@@ -25,8 +25,8 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Agent routing/procedure expectations + receipt scorer | `.agents/evals/` + `tools/repository_agent_evals.py` |
 | Skill package static admission | `tools/repository_skill_admission.py` |
 | Proof taxonomy / development discipline | `docs/knowledge/development-discipline.md` |
-| Toolchain policy | `toolchain.json` |
-| Unified Windows developer routing | `DEV.cmd` → `tooling/windows-toolchain/dev.ps1` |
+| Toolchain policy | `tooling/windows/config/requirements.json` |
+| Unified Windows developer routing | `manage.cmd` → `tooling/windows/manage.ps1` and `tooling/windows/modules/Workspace.psm1` |
 | Stable product facts | `CONTEXT.md` |
 | Product/system law | `docs/foundation/` |
 | Active continuation | `planning/development.md` |
