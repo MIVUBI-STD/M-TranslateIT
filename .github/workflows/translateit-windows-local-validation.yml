@@ -113,7 +113,9 @@ jobs:
             'EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1',
             'EngineData/Frontend/RustApp/scripts/stage_release_inputs.ps1',
             'EngineData/Frontend/RustApp/scripts/ReleaseStaging.psm1',
-            'EngineData/Frontend/RustApp/scripts/ReleaseStaging.Tests.ps1'
+            'EngineData/Frontend/RustApp/scripts/ReleaseStaging.Tests.ps1',
+            'EngineData/Frontend/RustApp/scripts/ReleaseDownloads.psm1',
+            'EngineData/Frontend/RustApp/scripts/ReleaseDownloads.Tests.ps1'
           )) {
             $tokens = $null
             $parseErrors = $null
@@ -130,6 +132,7 @@ jobs:
         shell: pwsh
         run: |
           .\EngineData\Frontend\RustApp\scripts\ReleaseStaging.Tests.ps1
+          .\EngineData\Frontend\RustApp\scripts\ReleaseDownloads.Tests.ps1
 
       - name: Repository governance and source contracts
         id: repository_contract

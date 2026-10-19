@@ -33,7 +33,7 @@ that installed TranslateIT or every Windows tool has become portable.
 ```text
 .workspace/
   tools/                 # portable tools once explicitly provisioned
-  downloads/             # verified archives/installers; may be reused
+  downloads/verified/    # SHA-256 verified reusable release archives (no private content)
   cache/npm/
   cache/uv/
   cache/pip/

@@ -40,9 +40,17 @@ function Assert-TextEquals([string]$Path, [string]$Expected, [string]$Label) {
     Write-Host "[release-stage][marker] $Label=$actual"
 }
 
-function Invoke-Download([string]$Url, [string]$Path) {
+Import-Module (Join-Path $PSScriptRoot 'ReleaseDownloads.psm1') -Force
+$ReleaseDownloadCache = Join-Path $RepoRoot '.workspace\downloads\verified'
+function Invoke-Download([string]$Url, [string]$Path, [string]$ExpectedSha256 = '') {
     Write-Host "[release-stage][download] $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $Path
+    if ($ExpectedSha256) {
+        $null = Get-VerifiedReleaseArchive -Url $Url -Destination $Path -ExpectedSha256 $ExpectedSha256 -CacheRoot $ReleaseDownloadCache
+    } else {
+        # GPT-SoVITS source archive currently has no independent archive hash
+        # contract; never cache an unchecked download as a verified input.
+        Invoke-WebRequest -Uri $Url -OutFile $Path
+    }
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Download missing: $Url" }
 }
 
@@ -60,7 +68,7 @@ foreach ($path in @($PythonRoot, $AsrRoot, $TranslationRoot, $VoiceSource, $VbPa
 
 Write-Host '[release-stage] Stage CPython 3.12.10 embeddable runtime'
 $pythonZip = Join-Path $Temp 'python-3.12.10-embed-amd64.zip'
-Invoke-Download 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip' $pythonZip
+Invoke-Download 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip' $pythonZip '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3'
 $pythonBytes = (Get-Item -LiteralPath $pythonZip).Length
 if ($pythonBytes -ne 11133606) { throw "CPython archive byte count mismatch: $pythonBytes" }
 $pythonMd5 = (Get-FileHash -Algorithm MD5 -LiteralPath $pythonZip).Hash.ToLowerInvariant()
@@ -251,7 +259,7 @@ foreach ($item in $nltkPackages) {
     $category = $item[0]; $name = $item[1]; $expected = $item[2]
     $zip = Join-Path $Temp "$name.zip"
     $url = "https://raw.githubusercontent.com/nltk/nltk_data/$nltkRevision/packages/$category/$name.zip"
-    Invoke-Download $url $zip
+    Invoke-Download $url $zip $expected
     Assert-Hash $zip $expected "NLTK $category/$name.zip"
     $nltkRecords += "$category/$name.zip sha256=$expected"
     Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $nltkRoot $category) -Force
@@ -271,7 +279,7 @@ $ffmpegAssetName = 'ffmpeg-n8.1.3-9-g29e619e767-win64-lgpl-8.1.zip'
 $ffmpegArchiveSha = '4a7642b2264c03e8a0ce8a3825b933ee5580656f45695a086fe7e294045ffc0a'
 $ffmpegDownloadUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/$ffmpegReleaseTag/$ffmpegAssetName"
 $ffmpegArchive = Join-Path $Temp 'ffmpeg.zip'
-Invoke-Download $ffmpegDownloadUrl $ffmpegArchive
+Invoke-Download $ffmpegDownloadUrl $ffmpegArchive $ffmpegArchiveSha
 Assert-Hash $ffmpegArchive $ffmpegArchiveSha 'FFmpeg pinned archive'
 $ffmpegExtract = Join-Path $Temp 'ffmpeg-extract'
 Expand-Archive -LiteralPath $ffmpegArchive -DestinationPath $ffmpegExtract -Force
@@ -317,7 +325,7 @@ integrity_source=pinned_release_asset_sha256
 
 Write-Host '[release-stage] Stage exact official VB-CABLE Pack45'
 $vbArchive = Join-Path $Temp 'VBCABLE_Driver_Pack45.zip'
-Invoke-Download 'https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip' $vbArchive
+Invoke-Download 'https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip' $vbArchive 'b950e39f01af1d04ea623c8f6d8eb9b6ea5c477c637295fabf20631c85116bfb'
 Assert-Hash $vbArchive 'b950e39f01af1d04ea623c8f6d8eb9b6ea5c477c637295fabf20631c85116bfb' 'VB-CABLE Pack45 archive'
 Remove-Item -LiteralPath $VbPackage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $VbPackage | Out-Null
@@ -350,4 +358,9 @@ foreach ($pair in @(
 
 Import-Module (Join-Path $PSScriptRoot 'ReleaseStaging.psm1') -Force
 Publish-TranslateITReleaseStage -RepositoryRoot $RepoRoot -StageRoot $PayloadRoot
+try {
+    Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction Stop
+} catch {
+    Write-Warning "Verified release was committed, but disposable staging cleanup requires attention: $Temp"
+}
 Write-Host '[release-stage] controlled release input staging -> PASS'
