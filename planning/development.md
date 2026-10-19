@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The Windows source CI on commit `14eaca42cd54eafacfd045e941bc26be7c43908e` completed successfully. This establishes frontend, Python, and Rust/Tauri source/compile/unit checks for that revision, not installed Windows acceptance. Any subsequent source or workflow change needs its own matching CI proof. The GitHub default branch `main` remains reserved for explicitly approved final releases.
+The last successful Windows CI candidate was `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`, before the Windows workspace migration. The current `Local` candidate requires matching CI proof, and real GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains final-only.
 
 ## Active Boundary
 
@@ -10,7 +10,7 @@ The owner-approved single hosted Windows source CI is permitted; it cannot exerc
 
 ## Next Step
 
-The last complete pre-migration source CI passed on `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`. The active work now migrates the Windows management launcher/requirements and isolates generated `.workspace` development files from retained `UserData`. The changed `Local` head requires its own fully successful Windows source CI. Do not request local PC execution until then. Remaining separate boundaries: portable system toolchain, verified model provisioning, transactional release staging and installed-app UserData relocation; signing/Setup remain release-only.
+The last complete pre-migration source CI passed on `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`. The active work now migrates the Windows management launcher/requirements and isolates generated `.workspace` development files from retained `UserData`. The changed `Local` head requires its own fully successful Windows source CI. Do not request local PC execution until then; reserve one integrated local Windows test after admission. Remaining separate boundaries: portable system toolchain, verified model provisioning, transactional release staging and installed-app UserData relocation; signing/Setup remain release-only.
 
 **Active:** Owner-approved automatic/manual Windows hosted **source validation** preceding the first integrated local Windows acceptance. **Branch:** `Local`. The existing successful compile/test evidence is revision-bound; GPU, installed app, VB-CABLE, native audio and actual Meeting reception remain `UNKNOWN / NOT EXECUTED`.
 

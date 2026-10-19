@@ -100,6 +100,11 @@ jobs:
             if ($parseErrors.Count -ne 0) { throw "Invalid workspace PowerShell syntax: $file" }
           }
 
+      - name: Exercise isolated Windows workspace contracts
+        shell: pwsh
+        run: |
+          .\tooling\windows\tests\Workspace.Tests.ps1
+
       - name: Repository governance and source contracts
         id: repository_contract
         continue-on-error: true

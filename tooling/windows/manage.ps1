@@ -30,11 +30,11 @@ function Require-Command {
 }
 
 function Show-Help {
-    Write-Host "TranslateIT developer entrypoint"
+    Write-Host "TranslateIT Windows development commands"
     Write-Host ""
-    Write-Host "  manage.cmd doctor   Inspect toolchain without installing or repairing"
-    Write-Host "  manage.cmd setup    Prepare locked frontend and Python development dependencies"
-    Write-Host "  manage.cmd check    Verify repository, frontend and Python source tests"
+    Write-Host "  manage.cmd status   Inspect toolchain without installing or repairing"
+    Write-Host "  manage.cmd prepare    Prepare locked frontend and Python development dependencies"
+    Write-Host "  manage.cmd verify    Verify repository, frontend and Python source tests"
     Write-Host "  manage.cmd build    Build frontend and compile-check Rust on one clean source SHA"
     Write-Host "  manage.cmd run      Start the local Tauri development app; no release signing"
     Write-Host "  manage.cmd test     Run frontend, Rust, and worker tests"

@@ -608,7 +608,7 @@ def check_chatgpt_execution_policy(errors: list[str]) -> None:
                                                       "Do not demand per-commit testing"),
         "docs/knowledge/flow.md": ("no user-PC handoff", "single grouped local build/package/native stage"),
         "planning/development.md": ("No per-change tests on the user's PC",
-                                         "integrated test-ready candidate"),
+                                         "one integrated local Windows test"),
         "docs/knowledge/current-validation.md": ("not an incremental user-PC request",
                                                  "UNKNOWN / NOT EXECUTED"),
         "docs/knowledge/operations/target-windows-performance.md": ("## Candidate admission",
@@ -691,7 +691,7 @@ def check_document_ownership_separation(errors: list[str]) -> None:
                                "development-brief"),
         "tools/README.md": ("repository_knowledge.py", "repository_impact.py", "repository_benchmark.py"),
         "docs/system/zero-waste-execution.md": ("tools/repository_benchmark.py", "Batch 5"),
-        "tooling/README.md": ("windows-toolchain/dev.ps1", "manage.cmd"),
+        "tooling/README.md": ("windows/manage.ps1", "manage.cmd"),
     }.items():
         for marker in markers:
             if marker not in text(rel):
