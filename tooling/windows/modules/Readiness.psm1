@@ -60,85 +60,15 @@ function Get-TranslateITReadiness {
     }
     $sha = $null
     $git = @($tools | Where-Object { $_.name -eq 'git' -and $_.state -eq 'DETECTED' })
-    # A disposable/non-Git workspace has no revision to prove; avoid running
-    # git there and accidentally leaking its exit code to the invoking shell.
+    # A disposable/non-Git folder cannot have a verifiable source revision.
+    # Do not execute git -C there and leak a failed native process exit code.
     if ($git.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path $root '.git'))) {
         try {
             $revision = (& $git[0].path -C $root rev-parse HEAD 2>$null | Out-String).Trim()
-            if ($revision -cmatch '^[0-9a-f]{40}
-    $managed = @($tools | Where-Object { $_.state -ne 'DETECTED' -or $_.origin -ne 'workspace' }).Count -eq 0
-    return [pscustomobject]@{
-        schema='translateit.windows.workspace_readiness.v1'
-        revision=$sha
-        workspace=[pscustomobject]@{
-            root=$workspace
-            exists=(Test-Path -LiteralPath $workspace -PathType Container)
-            toolchain_managed=$managed
-        }
-        declared_requirements=[pscustomobject]@{
-            node_major=$policy.node.major
-            python_version=$policy.python.version
-            rust_minimum=$policy.rust.minimum
-            uv_minimum=$policy.uv.minimum
-        }
-        tools=@($tools)
-        lockfiles=@($locks)
-        runtime_asset_presence=@($assets)
-        proof=[pscustomobject]@{
-            source_checks='NOT_EXECUTED_BY_STATUS'
-            model_integrity='NOT_EXECUTED'
-            gpu_inference='NOT_EXECUTED'
-            microphone_and_virtual_audio='NOT_EXECUTED'
-            installed_product='NOT_EXECUTED'
-        }
-    }
-}
-
-function Show-TranslateITReadiness {
-    param([Parameter(Mandatory=$true)][object]$Readiness)
-    Write-Host 'TranslateIT Windows workspace status (read-only)'
-    $revision = if ($Readiness.revision) { $Readiness.revision } else { 'UNKNOWN' }
-    Write-Host "Source commit: $revision"
-    foreach ($item in $Readiness.tools) {
-        Write-Host ('  {0,-7} {1,-11} {2,-9} {3}' -f $item.name,$item.state,$item.origin,$item.version)
-    }
-    $locksPresent=@($Readiness.lockfiles | Where-Object { $_.state -eq 'PRESENT' }).Count
-    $assetsPresent=@($Readiness.runtime_asset_presence | Where-Object { $_.state -eq 'PRESENT_UNVERIFIED' }).Count
-    Write-Host "Lockfiles: $locksPresent/$($Readiness.lockfiles.Count) present."
-    Write-Host "Runtime asset markers: $assetsPresent/$($Readiness.runtime_asset_presence.Count) present; integrity NOT VERIFIED."
-    if (-not $Readiness.workspace.toolchain_managed) {
-        Write-Host 'Fully workspace-managed toolchain: NOT PROVEN (external/missing tools).'
-    }
-    Write-Host 'AI/GPU, actual audio, driver and installed app: NOT EXECUTED.'
-}
-
-function Write-TranslateITReadinessReport {
-    [CmdletBinding()]
-    param([Parameter(Mandatory=$true)][object]$Readiness,
-          [Parameter(Mandatory=$true)][string]$WorkspaceRoot)
-    $dir=Join-Path $WorkspaceRoot 'reports'
-    if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
-        throw 'Workspace report directory is not initialized.'
-    }
-    $destination=Join-Path $dir 'readiness.json'
-    $temporary=Join-Path $dir ('readiness-'+[guid]::NewGuid().ToString('N')+'.tmp')
-    try {
-        $Readiness | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $temporary -Encoding UTF8
-        Move-Item -LiteralPath $temporary -Destination $destination -Force -ErrorAction Stop
-    } finally {
-        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
-    }
-    Write-Host "Workspace source-readiness report: $destination"
-    return $destination
-}
-
-Export-ModuleMember -Function Get-TranslateITReadiness,Show-TranslateITReadiness,Write-TranslateITReadinessReport
-) { $sha=$revision }
+            if ($revision -cmatch '^[0-9a-f]{40}$') { $sha=$revision }
         } catch {
             $sha = $null
         } finally {
-            # A failed read-only metadata probe must not become the calling
-            # command's process exit code; the report still states UNKNOWN.
             $global:LASTEXITCODE = 0
         }
     }
