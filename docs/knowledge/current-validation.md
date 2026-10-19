@@ -56,6 +56,8 @@ Fixed tested revision: `a2614711b51983161230910a0e0eec0d3364bc35` on `Local`, wi
 
 ### Diagnosis boundary and private evidence
 
+The user ended this acceptance session on 2026-10-19 before the public microphone test because they were not ready to proceed. Meeting remained Ready with Start Translation available and no saved conversation entries; no Meeting session was started. The idle developer app was closed. Further native acceptance requires a new explicit user instruction; completed evidence remains limited to the rows above.
+
 Diagnostics Check Again refreshes a snapshot; the inspected recovery intent does not start a worker already marked `blocked`. The isolated status response reported `voice_actor:approved_actor_missing` with fresh data, while the restarted application independently reached Text ready. This is not evidence that optional My Voice must be restored or trained for Text. Cold dependency import timing and blocked-worker recovery remain distinct unresolved observations; do not hide them with increased deadlines, automatic retries or archived-data restoration.
 
 Private evidence remains on the tested PC: `.workspace/reports/worker-targeted.xml`, `worker-suite.xml`, `worker-elevated-result.json`, the associated stdout/stderr logs, and `worker-status-probe.*.log`; `.tmp/validation/RuntimeTestReports/local-tauri-cargo-check.log` holds compile output. The archive retains its manifest and a local result receipt. These are retrieval hints, not uploaded GitHub artifacts. No raw logs, recordings, settings, credentials or personal paths are committed. Current continuation is owned only by `planning/development.md`.
