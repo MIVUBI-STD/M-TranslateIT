@@ -172,7 +172,11 @@ pub fn start_meeting_original() -> MeetingSessionActionResult {
     result
 }
 
+// Inventory traversals and validation receipts can touch many model assets;
+// do not serialize those disk operations on the WebView event thread.
 #[tauri::command]
-pub fn verify_models() -> ModelInventoryReport {
-    runtime_inventory::verify_models()
+pub async fn verify_models() -> Result<ModelInventoryReport, String> {
+    tauri::async_runtime::spawn_blocking(runtime_inventory::verify_models)
+        .await
+        .map_err(|_| "Model inventory check was interrupted.".to_string())
 }

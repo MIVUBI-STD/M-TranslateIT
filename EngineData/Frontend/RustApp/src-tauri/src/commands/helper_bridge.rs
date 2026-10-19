@@ -497,9 +497,13 @@ pub fn cancel_helper_bridge_meeting_session(session_id: &str) -> HelperBridgeAct
     }
 }
 
+// Worker status probes can import large AI dependencies. Keep them off
+// the native UI event thread while the canonical bridge serializes requests.
 #[tauri::command]
-pub fn helper_bridge_worker_status() -> HelperBridgeWorkerResponse {
-    send_worker_task("status", json!({}))
+pub async fn helper_bridge_worker_status() -> Result<HelperBridgeWorkerResponse, String> {
+    tauri::async_runtime::spawn_blocking(|| send_worker_task("status", json!({})))
+        .await
+        .map_err(|_| "Worker status probe was interrupted.".to_string())
 }
 
 #[cfg(test)]

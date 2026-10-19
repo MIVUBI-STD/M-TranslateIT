@@ -266,8 +266,16 @@ fn translate_with_persistent_helper(
     )
 }
 
+// Keep AI inference off the Tauri WebView event thread. The existing helper
+// scheduler still owns one request, deadlines, and stale response rejection.
 #[tauri::command]
-pub fn translate_text(source: String) -> TextTranslationResult {
+pub async fn translate_text(source: String) -> Result<TextTranslationResult, String> {
+    tauri::async_runtime::spawn_blocking(move || translate_text_blocking(source))
+        .await
+        .map_err(|_| "Text translation worker was interrupted.".to_string())
+}
+
+fn translate_text_blocking(source: String) -> TextTranslationResult {
     let started = trace_command_start(
         "translate_text",
         format!("source_chars={}", source.chars().count()),
