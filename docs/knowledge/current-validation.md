@@ -25,7 +25,13 @@ Use the latest completed matching verifier for the exact `Local` SHA and changed
 
 Do not preserve mutable “latest PASS” snapshots here. Historic GitHub Actions runs are not proof of the current `Local` commit.
 
-The Batch 2B.1/2B.2 PCM handoff and canonical-VAD replay adapter retain a **test-only/no production cutover** boundary. Windows source CI now compiles and executes the Rust unit suite, but this does not prove that the experimental consumer is wired into live capture or reduces callback latency; real-device performance remains TARGET_WINDOWS-only.
+The Batch 2B.1/2B.2 PCM handoff and canonical-VAD replay adapter retain a **test-only/no production cutover** boundary. The manual full Windows source CI can compile and execute the Rust unit suite, but targeted push CI does not; neither proves that the experimental consumer is wired into live capture or reduces callback latency; real-device performance remains TARGET_WINDOWS-only.
+
+## Post-acceptance targeted source repair — 2026-10-19
+
+Repository-level repairs occurred after the user paused the native session. Selected hosted CI source checks succeeded on fixed commits `0c99a4bb61e480d9508550fab7540b6dca968180` and `d24fa26b509279f918344ac26ff22ade7077c1bb`; consult those run/job identities for the exact tests performed. The native Tauri commands for ApplicationRuntime, standalone Text, worker status, model inventory, and built-in/saved/versioned voice selection now offload potentially blocking work. A manual worker recovery intent is restricted to a blocked helper without active audio/Meeting/build owners and uses the canonical native session check. Its emitted event forces refreshed worker and voice observations.
+
+**Proof limit:** No new on-device cold-start, Windows UI freeze, recovery fault injection, Meeting microphone, receiver, CUDA/VRAM performance, or installer test was executed. The latest targeted run did not compile/test Rust or exercise the real Python AI worker. Previously observed startup delay and transient Windows Not Responding remain open native-verification questions, not claimed fixes. A production-only npm audit previously found zero vulnerabilities, while the development dependency advisory reported by npm install remains untriaged.
 
 ## Integrated developer acceptance — 2026-10-19
 
