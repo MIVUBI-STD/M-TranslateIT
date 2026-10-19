@@ -1,0 +1,143 @@
+{
+  "schema": "translateit.audio_suite.v1",
+  "description": "Public controlled audio cases; asr_quality corpus is the sole reference/invariant owner.",
+  "cases": [
+    {
+      "id": "A01",
+      "kind": "speech",
+      "case_id": "asr-clean-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.35
+    },
+    {
+      "id": "A02",
+      "kind": "speech",
+      "text": "Ya, saya setuju.",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.5,
+      "suffix_ms": 500
+    },
+    {
+      "id": "A03",
+      "kind": "speech",
+      "case_id": "asr-negation-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A04",
+      "kind": "speech",
+      "case_id": "asr-correction-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A05",
+      "kind": "speech",
+      "case_id": "asr-number-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A06",
+      "kind": "speech",
+      "case_id": "asr-code-switch-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.5
+    },
+    {
+      "id": "A07",
+      "kind": "speech",
+      "case_id": "asr-fast-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.55,
+      "rate_wpm": 220
+    },
+    {
+      "id": "A08",
+      "kind": "speech",
+      "case_id": "asr-pause-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "comma_pause_ms": 1100
+    },
+    {
+      "id": "A09",
+      "kind": "speech",
+      "case_id": "asr-soft-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.6,
+      "gain_db": -19
+    },
+    {
+      "id": "A10",
+      "kind": "speech",
+      "case_id": "asr-noise-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.55,
+      "snr_db": 15
+    },
+    {
+      "id": "A11",
+      "kind": "speech",
+      "case_id": "asr-clipping-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.6,
+      "gain_db": 9,
+      "clip_amplitude": 0.78
+    },
+    {
+      "id": "A12",
+      "kind": "speech",
+      "text": "Please check the latest project update before the meeting ends.",
+      "language": "en",
+      "expect": "incoming",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A13",
+      "kind": "silence",
+      "duration_ms": 1800,
+      "language": "id",
+      "expect": "no_speech"
+    },
+    {
+      "id": "A14",
+      "kind": "noise",
+      "duration_ms": 2100,
+      "noise_amplitude": 0.08,
+      "language": "id",
+      "expect": "no_speech"
+    },
+    {
+      "id": "A15",
+      "kind": "tone",
+      "duration_ms": 61000,
+      "tone_hz": 220,
+      "tone_amplitude": 0.26,
+      "language": "id",
+      "expect": "numeric_overflow"
+    },
+    {
+      "id": "A16",
+      "kind": "speech",
+      "case_id": "asr-list-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.5,
+      "prefix_ms": 500,
+      "suffix_ms": 600
+    }
+  ]
+}
