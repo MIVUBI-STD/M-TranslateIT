@@ -77,6 +77,16 @@ $pythonSha = Get-Sha256 $pythonZip
 if ($pythonSha -ne '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3') { throw "CPython SHA-256 mismatch: $pythonSha" }
 Expand-Archive -LiteralPath $pythonZip -DestinationPath $PythonRoot -Force
 @('python312.zip', '.', '..\WorkerRuntime') | Set-Content -LiteralPath (Join-Path $PythonRoot 'python312._pth') -Encoding ascii
+# The private Python _pth deliberately imports its sibling WorkerRuntime.
+# Mirror only immutable source/config files for staged import verification;
+# never copy developer .venv, caches, tests, models or personal voice data.
+$StagedWorker = Join-Path $Backend 'LocalWorker\WorkerRuntime'
+New-Item -ItemType Directory -Force -Path $StagedWorker | Out-Null
+Get-ChildItem -LiteralPath $Worker -File | Where-Object { $_.Extension -in @('.py', '.json') } |
+    Copy-Item -Destination $StagedWorker -Force
+if (-not (Test-Path -LiteralPath (Join-Path $StagedWorker 'voice_lab_gpt_sovits.py') -PathType Leaf)) {
+    throw 'Staged private Python WorkerRuntime source closure missing.'
+}
 & (Join-Path $PythonRoot 'python.exe') --version
 if ($LASTEXITCODE -ne 0) { throw 'Embedded CPython did not start.' }
 @"

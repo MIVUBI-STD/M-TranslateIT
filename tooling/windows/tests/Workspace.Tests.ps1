@@ -46,6 +46,12 @@ try {
     } finally {
         Remove-Item -LiteralPath $collisionRoot -Recurse -Force
     }
+    # The private Python stage imports its own sibling source files, never the
+    # live worker .venv; development smoke must not mix these two owners.
+    $stagingSource = Get-Content -LiteralPath (Join-Path $repo "EngineData\Frontend\RustApp\scripts\stage_release_inputs_impl.ps1") -Raw
+    foreach ($marker in @("LocalWorker\WorkerRuntime", "StagedWorker", "voice_lab_gpt_sovits.py")) {
+        if (-not $stagingSource.Contains($marker)) { throw "Missing staged Python source contract: $marker" }
+    }
     # Release staging may stage a separate runtime, but must not mutate the
     # developer's Python environment or install packages in system Python.
     $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
