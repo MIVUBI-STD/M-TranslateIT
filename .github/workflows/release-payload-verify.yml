@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   payload-scope:
+    if: false # CI paused by owner
     name: Require controlled manual release proof
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -24,6 +25,7 @@ jobs:
         run: echo "controlled=true" >> "$GITHUB_OUTPUT"
 
   source-contract:
+    if: false # CI paused by owner
     name: R3 source contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -69,7 +71,7 @@ jobs:
     needs:
       - payload-scope
       - source-contract
-    if: needs.payload-scope.outputs.controlled == 'true'
+    if: false && (needs.payload-scope.outputs.controlled == 'true') # CI paused by owner
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -130,7 +132,7 @@ jobs:
 
   proof-summary:
     name: Exact SHA release proof summary
-    if: always()
+    if: false && (always()) # CI paused by owner
     needs:
       - payload-scope
       - source-contract

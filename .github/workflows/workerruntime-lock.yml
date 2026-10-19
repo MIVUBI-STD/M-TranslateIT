@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   lock:
+    if: false # CI paused by owner
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:

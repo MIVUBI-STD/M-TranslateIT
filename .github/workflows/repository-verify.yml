@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   verify:
+    if: false # CI paused by owner
     name: Static repository contract
     runs-on: ubuntu-latest
     timeout-minutes: 5

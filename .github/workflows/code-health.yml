@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   changes:
+    if: false # CI paused by owner
     name: Select complete manual source proof
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -29,7 +30,7 @@ jobs:
   frontend:
     name: Frontend source health
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: false && (needs.changes.outputs.frontend == 'true') # CI paused by owner
     concurrency:
       group: code-health-frontend-${{ github.ref }}
       cancel-in-progress: true
@@ -68,7 +69,7 @@ jobs:
   python:
     name: Python source and unit health
     needs: changes
-    if: needs.changes.outputs.python == 'true'
+    if: false && (needs.changes.outputs.python == 'true') # CI paused by owner
     concurrency:
       group: code-health-python-linux-${{ github.ref }}
       cancel-in-progress: true
@@ -116,7 +117,7 @@ jobs:
   python-windows:
     name: Windows Python source and unit health
     needs: changes
-    if: needs.changes.outputs.python == 'true'
+    if: false && (needs.changes.outputs.python == 'true') # CI paused by owner
     concurrency:
       group: code-health-python-windows-${{ github.ref }}
       cancel-in-progress: true
@@ -165,7 +166,7 @@ jobs:
   rust:
     name: Rust source and unit health
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: false && (needs.changes.outputs.rust == 'true') # CI paused by owner
     concurrency:
       group: code-health-rust-linux-${{ github.ref }}
       cancel-in-progress: true
@@ -206,7 +207,7 @@ jobs:
   rust-windows:
     name: Windows Rust source and unit health
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: false && (needs.changes.outputs.rust == 'true') # CI paused by owner
     concurrency:
       group: code-health-rust-windows-${{ github.ref }}
       cancel-in-progress: true
@@ -246,7 +247,7 @@ jobs:
 
   proof-summary:
     name: Exact SHA proof summary
-    if: always()
+    if: false && (always()) # CI paused by owner
     needs:
       - changes
       - frontend

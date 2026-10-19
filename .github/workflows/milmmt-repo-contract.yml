@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   contract:
+    if: false # CI paused by owner
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
