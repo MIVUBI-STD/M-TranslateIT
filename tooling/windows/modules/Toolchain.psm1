@@ -37,6 +37,10 @@ function Get-TranslateITWorkspaceToolSelection {
             names=@('node','npm'); files=@('node.exe','npm.cmd')
         },
         [pscustomobject]@{
+            name='git'; directory='git/cmd'
+            names=@('git'); files=@('git.exe')
+        },
+        [pscustomobject]@{
             name='python'; directory='python'
             names=@('python'); files=@('python.exe')
         },

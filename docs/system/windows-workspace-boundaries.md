@@ -34,6 +34,7 @@ that installed TranslateIT or every Windows tool has become portable.
 .workspace/
   tools/
     node/                 # pinned official Windows x64 Node/npm ZIP
+    git/cmd/              # pinned Git for Windows MinGit (Git CLI only)
     python/               # uv-managed pinned CPython 3.12.10 nested install
     uv/                   # pinned uv.exe ZIP
     cargo/bin/            # local rustup.exe, rustc.exe, cargo.exe proxies
@@ -48,7 +49,7 @@ that installed TranslateIT or every Windows tool has become portable.
   reports/
 ```
 
-Explicit `manage.cmd prepare` now uses `PortableToolchain.psm1` to fetch the pinned Windows x64 ZIP/executable archives through the SHA-256 checked workspace cache, install uv-managed Python, and bootstrap Rustup/Rust using project-local homes. Interrupted or partial installations fail closed; no system-wide PATH modification or user-owned data removal is permitted. Full first-install and MSVC interoperability on the target PC remain untested.
+Explicit `manage.cmd prepare` now uses `PortableToolchain.psm1` to fetch the pinned Node, MinGit and uv Windows x64 archives through the SHA-256 checked workspace cache, install uv-managed Python, and bootstrap Rustup/Rust using project-local homes. Interrupted or partial installations fail closed; no system-wide PATH modification or user-owned data removal is permitted. Full first-install and MSVC interoperability on the target PC remain untested.
 
 The `Toolchain.psm1` owner prefers **complete** tool bundles under
 `.workspace/tools/`. The read-only status shows `workspace`,

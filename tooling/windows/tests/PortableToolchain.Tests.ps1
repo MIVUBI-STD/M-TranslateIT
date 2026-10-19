@@ -46,6 +46,17 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $dest 'npm.cmd') -PathType Leaf)) {
         throw 'Verified local archive did not publish complete Node group.'
     }
+    # MinGit is a normal ZIP with cmd/git.exe at the root of the archive.
+    $gitSource = Join-Path $root 'git-fixture\cmd'
+    New-Item -ItemType Directory -Path $gitSource -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $gitSource 'git.exe') -Value 'fake git binary' -Encoding Ascii
+    $gitZip = Join-Path $root 'fake-git.zip'
+    Compress-Archive -Path (Join-Path $root 'git-fixture\*') -DestinationPath $gitZip
+    $gitTarget = Join-Path $root '.workspace\tools\git'
+    Publish-TranslateITPortableArchive -Archive $gitZip -Stage (Join-Path $root 'git-stage') -SourceFolder '.' -TargetFolder $gitTarget -RequiredFiles @('cmd/git.exe')
+    if (-not (Test-Path -LiteralPath (Join-Path $gitTarget 'cmd\git.exe') -PathType Leaf)) {
+        throw 'Portable Git archive did not preserve the expected cmd layout.'
+    }
     $rejected=$false
     try { Publish-TranslateITPortableArchive -Archive $archive -Stage (Join-Path $root 'second') -SourceFolder 'node-v22.23.3-win-x64' -TargetFolder $dest -RequiredFiles @('node.exe','npm.cmd') }
     catch { $rejected=$true }

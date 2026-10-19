@@ -116,6 +116,18 @@ function Install-TranslateITPortableToolchain {
             if ($LASTEXITCODE -ne 0 -or $actual -ne ('v'+$pins.node.version)) { throw 'Pinned portable Node version check failed.' }
         }
 
+        # MinGit is the reviewed Git for Windows command-line-only distribution.
+        # It is installed under this workspace and never writes an MSI/registry entry.
+        $git=Join-Path $tools 'git'
+        if (-not (Test-Path -LiteralPath $git)) {
+            $zip=Get-TranslateITVerifiedToolArchive -Url $pins.git.url -ExpectedSha256 $pins.git.sha256 -CacheRoot $cache
+            Publish-TranslateITPortableArchive -Archive $zip -Stage (Join-Path $run 'git') -SourceFolder '.' -TargetFolder $git -RequiredFiles @('cmd/git.exe')
+            $actual=(& (Join-Path $git 'cmd/git.exe') --version | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $actual -ne ('git version '+$pins.git.version)) {
+                throw 'Pinned portable Git version check failed.'
+            }
+        }
+
         $uv=Join-Path $tools 'uv'
         if (-not (Test-Path -LiteralPath $uv)) {
             $zip=Get-TranslateITVerifiedToolArchive -Url $pins.uv.url -ExpectedSha256 $pins.uv.sha256 -CacheRoot $cache
@@ -160,7 +172,7 @@ function Install-TranslateITPortableToolchain {
             throw "Portable tool groups remain incomplete: $(($invalid | ForEach-Object name) -join ', ')"
         }
         $finished=$true
-        Write-Host 'Portable Node, uv, managed Python, Rustup and Rust toolchain are prepared in the selected repository workspace.'
+        Write-Host 'Portable Node, Git, uv, managed Python, Rustup and Rust toolchain are prepared in the selected repository workspace.'
     } finally {
         # On any failure, preserve the reservation and staged artifacts as
         # an explicit recovery state. Do not overwrite a partial environment.

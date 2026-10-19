@@ -15,7 +15,7 @@ try {
     Set-Content -LiteralPath (Join-Path $protected 'keep.txt') -Value 'private' -Encoding Ascii
 
     $initial = @(Get-TranslateITWorkspaceToolSelection -RepositoryRoot $folder)
-    if ($initial.Count -ne 4 -or @($initial | Where-Object state -ne 'ABSENT').Count -ne 0) {
+    if ($initial.Count -ne 5 -or @($initial | Where-Object state -ne 'ABSENT').Count -ne 0) {
         throw 'An empty workspace should not claim a portable toolchain.'
     }
     if (Test-Path -LiteralPath (Join-Path $folder '.workspace')) {
@@ -50,6 +50,13 @@ try {
     if ($py.state -ne 'SELECTED' -or $py.origin -ne 'workspace' -or
         $py.path -ne (Join-Path $pyDir 'python.exe')) {
         throw 'uv-managed CPython must be selected without copying its interpreter to a flat path.'
+    }
+    $gitDir = Join-Path $folder '.workspace\tools\git\cmd'
+    New-Item -ItemType Directory -Path $gitDir -Force | Out-Null
+    New-Item -ItemType File -Path (Join-Path $gitDir 'git.exe') | Out-Null
+    $git = Get-TranslateITPreferredTool -RepositoryRoot $folder -Name git
+    if ($git.state -ne 'SELECTED' -or $git.origin -ne 'workspace') {
+        throw 'A complete workspace Git command-line distribution must be preferred.'
     }
     $rustDir = Join-Path $folder '.workspace\tools\cargo\bin'
     New-Item -ItemType Directory -Path $rustDir -Force | Out-Null
