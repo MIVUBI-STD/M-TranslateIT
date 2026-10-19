@@ -60,8 +60,20 @@ def changed_paths(before: str | None, head: str) -> tuple[list[str], str]:
             return [p.decode("utf-8") for p in raw.split(b"\0") if p], "exact push range"
         except subprocess.CalledProcessError:
             pass
-    # A missing/superseded before-SHA is never interpreted as a docs-only or
-    # empty push. The conservative tracked-file scope prevents false green.
+    # Manual targeted dispatch has no GitHub push.before. Scope it to the
+    # explicitly selected HEAD commit, not the entire repository; never assume
+    # this for a push with missing ancestry.
+    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch" and not before:
+        try:
+            parent = git("rev-parse", "HEAD^").decode("ascii").strip()
+            raw = git("diff", "--name-only", "-z", "--no-renames", parent, head)
+            selected = [p.decode("utf-8") for p in raw.split(b"\\0") if p]
+            if selected:
+                return selected, "manual selected commit"
+        except subprocess.CalledProcessError:
+            pass
+    # Unknown push ancestry or a root-commit dispatch must not masquerade
+    # as a docs-only or empty diff. Widen to tracked files and report it.
     raw = git("ls-files", "-z")
     return [p.decode("utf-8") for p in raw.split(b"\0") if p], "all tracked fallback"
 
