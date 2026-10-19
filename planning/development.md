@@ -245,22 +245,28 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-**Temporary FULL CI authorization (2026-10-18):** after each deliberate
-`Local` source commit, the existing `TranslateIT Windows Local Validation`
-workflow runs on `push` automatically, or can still be dispatched manually.
-GitHub pins `github.sha` and cancels superseded runs so one current SHA owns
-the Windows frontend, Python, Rust/Tauri source tests and aggregate proof.
-This permission is temporary until the owner revokes it; automatic CI is scoped
-to `Local` only, never `main`, release, schedules or PRs.
+**Current targeted CI policy (2026-10-19):** automatic `Local` push
+validation now selects only affected source domains in the existing
+`TranslateIT Windows Local Validation` workflow. The exact push range is
+inspected; unavailable range falls back conservatively to all tracked files.
+Governance, frontend/Rust bridge contracts and Python static checks run
+independently only when selected. This is PARTIAL SOURCE PROOF: targeted green
+does not mean Rust compiled, worker pytest/model inference ran or Meeting passed.
+The full hosted Windows source suite is explicitly manual-only using
+`workflow_dispatch` with `validation_level=full`. Superseded automatic
+source runs cancel, all other quality/release workflows remain manual-only,
+and neither mode uses private model assets, microphone, GPU inference,
+installers or releases. No green result is transferred from another SHA.
 
-Read each exact run/job log and fix demonstrable first-owner errors without
-silencing checks. A green hosted run proves source/build/test evidence only;
-private models, GPU behavior, physical microphone, VB-CABLE, actual Meeting
-delivery, installed app, native latency and release acceptance still require
-the existing integrated `TARGET_WINDOWS` phase. The eight other quality/release
-workflows remain manual-only. No cross-SHA proof composition or automatic model
-inference/packaging.
+**Source candidates awaiting relevant executed proof:** a blocked worker has an
+explicit resource-guarded Retry Worker action, and application snapshot/intents
+and built-in voice selection use blocking-task offload rather than performing
+heavy readiness/asset work on the WebView event thread. These are source
+changes, not claims of repaired cold imports, restored blocked-worker behavior,
+or native UI responsiveness. Do not increase deadlines or auto-restore My Voice
+to cover these symptoms. Observe selected CI results before claiming source
+checks passed; native Meeting acceptance remains paused at the user's request.
 
 **STOP boundary:** Do not start recurring cloud GPU/model jobs, change default
-branch or promote app source to `main`. When the temporary CI permission ends,
-restore `workflow_dispatch`-only and update this governance exception.
+branch or promote app source to `main`. If the owner revokes automatic targeted CI,
+restore `workflow_dispatch`-only and update the governance exception.
