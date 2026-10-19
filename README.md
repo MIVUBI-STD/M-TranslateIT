@@ -42,6 +42,8 @@ Normal lifecycle:
 Ready → Starting → Live → Stopping → Ended
 ```
 
+Meeting also supports **Original Microphone** passthrough over the same selected virtual device, with source switching between Original and TranslateIT audio, one native output Mute control, and Quick Access controls. These do not introduce a second capture/Meeting owner. Live only proves this app's session state, never external meeting-app reception.
+
 Meeting translation uses the current finalized utterance only; prior translated examples are not used as prompt context. Incoming remains context-free. Recognized Meeting turns are automatically retained in separate local session archives (not raw audio) until explicit saved-transcript deletion. A manual offline HTML export is a separate file and remains after source-archive Delete. Meeting Start fails closed if its required archive writer cannot start.
 
 ### Text
@@ -90,7 +92,7 @@ Historical development material is retained by Git history rather than exposed a
 
 ## Start here and file ownership
 
-For ChatGPT source work use GitHub branch `Local`: `AGENTS.md` → `GITHUB_RULES.md` → [Documentation](docs/README.md) → canonical owner → source review → STOP. **No cloud compute, cloud AI, hosted CI or hosted builds.** Local Windows build and acceptance are one later integrated phase, not incremental PC tasks.
+For ChatGPT source work use GitHub branch `Local`: `AGENTS.md` → `GITHUB_RULES.md` → [Documentation](docs/README.md) → canonical owner → source review → STOP. **No cloud inference or unrestricted hosted builds; the temporary owner-approved Windows source CI on `Local` is the only automatic Actions exception.** Local Windows build and acceptance are one later integrated phase, not incremental PC tasks.
 
 | Root path | Single responsibility | Detail |
 |---|---|---|
@@ -155,7 +157,7 @@ PIN
 
 ## GitHub Actions policy
 
-Eight GitHub Actions workflow definitions are retained as **manual-only, inactive templates**. Under the no-cloud decision, do not dispatch them or depend on hosted execution. `Local` owns development; default `main` is final-only and unchanged. Source review can close source-only work; compiler, package, AI model and device checks remain `NOT EXECUTED` until the planned integrated local build/test phase. Publication and promotion remain separate approvals.
+The temporary owner-approved **TranslateIT Windows Local Validation** workflow automatically checks each pushed `Local` SHA and is also manually dispatchable. Other quality and release workflows remain manual-only. A successful matching Windows run is **source, compiler and unit-test proof** only; it does not establish actual installed-app, private AI model inference, GPU/microphone/VB-CABLE reception, installer, or clean-machine behavior. `main` remains final-only and unchanged. Publication and promotion require separate approval.
 
 ## Branch model
 

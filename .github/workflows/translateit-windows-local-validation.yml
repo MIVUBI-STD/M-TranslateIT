@@ -75,6 +75,21 @@ jobs:
         with:
           python-version: "3.12.10"
 
+      - name: Install reviewed uv for worker lock consistency
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.12.1"
+
+      - name: Verify frozen worker lock consistency
+        id: worker_lock
+        continue-on-error: true
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+        run: |
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- pyproject.toml uv.lock
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Repository governance and source contracts
         id: repository_contract
         continue-on-error: true
@@ -97,6 +112,33 @@ jobs:
       - name: Install pinned frontend dependencies
         working-directory: EngineData/Frontend/RustApp
         run: npm ci
+
+      - name: Audit production npm dependencies
+        id: production_audit
+        continue-on-error: true
+        working-directory: EngineData/Frontend/RustApp
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verify offline AI quality contract tools
+        id: quality_contracts
+        continue-on-error: true
+        run: |
+          $checks = @(
+            @('tools/translation_quality/validate_canonical_milmmt_repo.py'),
+            @('tools/translation_quality/evaluate_translation_quality.py', 'validate-corpus', '--corpus', 'tools/translation_quality/corpus/translation_quality_v1.json'),
+            @('tools/translation_quality/evaluate_translation_quality.py', 'validate-corpus', '--corpus', 'tools/translation_quality/heldout/translation_quality_heldout_v1.json'),
+            @('tools/translation_quality/self_test.py'),
+            @('tools/asr_quality/evaluate_asr_quality.py', 'validate-corpus', '--corpus', 'tools/asr_quality/corpus/asr_quality_v1.json'),
+            @('tools/asr_quality/self_test.py'),
+            @('tools/tts_quality/evaluate_tts_quality.py', 'validate-corpus', '--corpus', 'tools/tts_quality/corpus/tts_quality_v1.json'),
+            @('tools/tts_quality/self_test.py'),
+            @('tools/quality_readiness/self_test.py'),
+            @('tools/quality_readiness/release_gate_self_test.py')
+          )
+          foreach ($check in $checks) {
+            python @check
+            if ($LASTEXITCODE -ne 0) { throw "Offline source quality contract failed: $($check -join ' ')" }
+          }
 
       - name: Sweep all frontend and bridge source validators
         id: source_checks
@@ -227,6 +269,9 @@ jobs:
       - name: Summarize all validation outcomes and fail on incomplete proof
         if: always()
         env:
+          WORKER_LOCK: ${{ steps.worker_lock.outcome }}
+          PRODUCTION_AUDIT: ${{ steps.production_audit.outcome }}
+          QUALITY_CONTRACTS: ${{ steps.quality_contracts.outcome }}
           REPOSITORY_CONTRACT: ${{ steps.repository_contract.outcome }}
           REPOSITORY_TESTS: ${{ steps.repository_tests.outcome }}
           SOURCE_CHECKS: ${{ steps.source_checks.outcome }}
@@ -252,6 +297,9 @@ jobs:
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '| Check | Outcome |'
           Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '|---|---|'
           $checks = [ordered]@{
+            'Frozen Python worker lock' = $env:WORKER_LOCK
+            'Production npm security audit' = $env:PRODUCTION_AUDIT
+            'Offline AI quality contracts' = $env:QUALITY_CONTRACTS
             'Repository source contracts' = $env:REPOSITORY_CONTRACT
             'Repository tool unit tests' = $env:REPOSITORY_TESTS
             'Source validators' = $env:SOURCE_CHECKS

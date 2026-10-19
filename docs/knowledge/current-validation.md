@@ -13,7 +13,7 @@ This file owns **proof interpretation**, not a run diary. Opt-in `tools/reposito
 
 ## Source Authority
 
-Repository: `MIVUBI-STD/M-TranslateIT`
+Repository: `OpenITStudios/M-TranslateIT` (same repository ID; earlier owner URLs are historical).
 
 **Local-only development/source authority:** `Local` owns active development, governance, source proof, continuation, and release-source validation. The GitHub default branch `main` is reserved for accepted final releases; do not use its status or older workflows as current `Local` proof.
 
@@ -25,7 +25,7 @@ Use the latest completed matching verifier for the exact `Local` SHA and changed
 
 Do not preserve mutable “latest PASS” snapshots here. Historic GitHub Actions runs are not proof of the current `Local` commit.
 
-The Batch 2B.1/2B.2 PCM handoff and canonical-VAD replay adapter are test-only on Local, with ten authored but unexecuted Rust tests and **no production capture activation**; it must not be described as reducing callback latency or improving browser audio until an exact-SHA compiler and device gate runs.
+The Batch 2B.1/2B.2 PCM handoff and canonical-VAD replay adapter retain a **test-only/no production cutover** boundary. Windows source CI now compiles and executes the Rust unit suite, but this does not prove that the experimental consumer is wired into live capture or reduces callback latency; real-device performance remains TARGET_WINDOWS-only.
 
 ## Meeting Performance Foundation — source audit (2026-10-12)
 

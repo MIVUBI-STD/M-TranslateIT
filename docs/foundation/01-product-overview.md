@@ -33,6 +33,8 @@ Indonesian speech
 
 Two built-in English voices allow day-one use without training. My Voice is an optional high-fidelity upgrade created from the user's authorized recordings.
 
+Alternate **Original Microphone** mode passes physical microphone audio to the same selected virtual microphone without AI. A single Meeting session may switch Original ↔ TranslateIT; native Mute gates both outputs. Source changes never grant permission to reuse stale translated audio. Quick Access provides the same Meeting controls and existing caption window without creating an independent runtime owner.
+
 ### Meeting — optional incoming
 
 ```text
@@ -192,7 +194,7 @@ My Voice
 Settings
 ```
 
-Meeting uses one state-dependent action (Start/Stop, or contextual setup recovery) and displays finalized dialogue when Live. Text is source/swap/Translate/Copy/Clear. Settings offers a Discord-like left navigation with Voice & Audio, Meeting Captions and Help. All technical internals stay in Help/Diagnostics.
+Meeting uses one state-dependent Start/Stop action, an Original/TranslateIT microphone source selector and contextual setup recovery; finalized dialogue appears when Live. One Quick Access popup exposes contextual Meeting controls and caption visibility without adding a second audio owner. Text is source/swap/Translate/Copy/Clear. Settings uses categorized Voice & Audio, Meeting Captions and Help sections. All technical internals stay in Help/Diagnostics.
 
 ## Proof standard
 

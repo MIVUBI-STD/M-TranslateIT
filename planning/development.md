@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Source verification on the exact `Local` SHA is authoritative only after all matching Windows source CI checks finish successfully; a failed or running job is not acceptance. The GitHub default branch `main` remains reserved for explicitly approved final releases. This is not target-PC acceptance.
+The Windows source CI on commit `14eaca42cd54eafacfd045e941bc26be7c43908e` completed successfully. This establishes frontend, Python, and Rust/Tauri source/compile/unit checks for that revision, not installed Windows acceptance. Any subsequent source or workflow change needs its own matching CI proof. The GitHub default branch `main` remains reserved for explicitly approved final releases.
 
 ## Active Boundary
 
@@ -10,9 +10,9 @@ The owner-approved single hosted Windows source CI is permitted; it cannot exerc
 
 ## Next Step
 
-Fix failing source checks and rerun the matching `Local` CI workflow. Once the exact candidate passes, prepare a single integrated test-ready candidate for developer-mode local Windows testing, keeping release packaging and signing separate from developer acceptance.
+Close pre-local source evidence gaps on a single `Local` SHA: check WorkerRuntime lock consistency, production npm security advisories, ASR/translation/TTS quality-evaluator contracts, and documentation/source flow parity. Require a completed successful aggregate Windows CI on the resulting SHA. Then prepare one integrated test-ready candidate for developer-mode Windows testing: `DEV.cmd doctor` → locked `setup` → `check`/`build` → app startup → real GPU/models/audio/Meeting acceptance. Installed Setup/signing/release proof remains a separate conditional gate; do not ask for incremental user-PC tests.
 
-**Active:** Owner-approved manual Windows hosted source validation preceding the first integrated local Windows acceptance. **Date:** 2026-10-18. **Branch:** `Local`. **Proof:** `STATIC_SOURCE` only until a completed matching workflow run exists; frontend/Rust/Python/native execution `UNKNOWN / NOT EXECUTED`. This is workflow configuration, **not** a compiler/runtime PASS or release.
+**Active:** Owner-approved automatic/manual Windows hosted **source validation** preceding the first integrated local Windows acceptance. **Branch:** `Local`. The existing successful compile/test evidence is revision-bound; GPU, installed app, VB-CABLE, native audio and actual Meeting reception remain `UNKNOWN / NOT EXECUTED`.
 
 **Active source candidate:** Persistent local Meeting transcript archives remain available across Stop, restart and HTML export until explicit user Delete. A versioned finalization receipt records the saved entry count; the Saved Transcripts label now explicitly distinguishes finalization **count verification** from content verification. Orphaned `.tmp` files, count mismatches and legacy markers remain unverified rather than silently accepted or deleted.
 

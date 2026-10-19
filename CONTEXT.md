@@ -47,6 +47,8 @@ English Meeting Sound
 
 Incoming failure must not block otherwise healthy outbound translation.
 
+Alternate Meeting source: **Original Microphone** passes the selected physical microphone through the same virtual output without requiring AI. Original and TranslateIT can switch within one Meeting generation; Mute gates the shared virtual output. Quick Access provides contextual Meeting actions and caption visibility, not a second engine or a second audio owner.
+
 ## Current product locks
 
 - Windows only for the current product boundary.
@@ -56,7 +58,7 @@ Incoming failure must not block otherwise healthy outbound translation.
 - Incoming translation remains context-free.
 - Text is paste/type only; document/file translation is removed.
 - Full English UI copy.
-- Session Listening is the normal Meeting capture mode; Push to Talk and Pause/Resume are outside current scope.
+- Session Listening is the normal Meeting translation capture mode; Original Microphone passthrough and source switching share the same session. Push to Talk and Pause/Resume are outside current scope.
 - Two ready built-in English voices allow day-one Meeting use without My Voice training.
 - My Voice is an optional trained GPT-SoVITS V2ProPlus upgrade created from authorized user recordings.
 - No silent cloud fallback or parallel normal AI engine.
@@ -112,7 +114,7 @@ Release-source validation runs from current `Local`. Normal users do not install
 
 ```text
 REMOTE_GITHUB
-→ GitHub source/version history and static inspection only; no hosted compute
+→ GitHub source/version history and static inspection; separately approved Windows source CI runs on Local pushes, but never hosted model/device acceptance
 
 LOCAL_CODE
 → exact Local checkout/toolchain/build/generator/filesystem proof
