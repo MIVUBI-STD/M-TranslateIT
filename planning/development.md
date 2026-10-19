@@ -2,17 +2,19 @@
 
 ## Current Status
 
-The most recent fully successful Windows source CI baseline is `ffd54df0068562ab8a22a954f855ca00aca44b58` (run `39246895800`). The explicit portable-toolchain bootstrap and its offline fixtures now require a matching full Windows source CI PASS. No first-install/toolchain build on the user's Windows machine has been claimed. GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains reserved for explicitly approved final releases.
+The user-authorized integrated Windows developer session tested clean `Local` revision `a2614711b51983161230910a0e0eec0d3364bc35` on 2026-10-19. Toolchain/dependency preparation, repository/frontend contracts, strict Svelte, 418 frontend tests, worker compile/lint, 316 worker tests (2 skipped), evaluator self-tests, frontend build and locked Rust compile check passed. Native Text translated public prompts in both directions. Full proof and limitations are in [Current Validation](../docs/knowledge/current-validation.md#integrated-developer-acceptance--2026-10-19). The user requested recording this progress before further tests. This is partial developer acceptance, not release approval; `main` remains unchanged.
 
 ## Active Boundary
 
-The owner-approved single hosted Windows source CI is permitted; it cannot exercise CUDA hardware, private models, live microphone, VB-CABLE, native audio, or installed application behavior. No per-change tests on the user's PC: all native checks belong in one planned, integrated Windows session after source admission.
+No per-change tests on the user's PC: this remains one integrated local Windows test phase explicitly authorized by the user. GitHub default branch `main` remains reserved for explicitly approved final releases.
+
+Continue only the existing integrated acceptance on the tested revision. Old application data is privately archived with verified hashes; do not restore it automatically. Initial worker status timed out at 30 seconds during dependency imports; an isolated probe finished in 28.36 seconds and one controlled restart reached Text ready. Cold-start reliability remains unresolved; neither deadlines nor runtime source were changed. Meeting remains Setup Needed and has not been exercised. The owner-approved hosted source workflow is separate from these local/native observations.
 
 ## Next Step
 
-The last complete pre-migration source CI passed on `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`. The active work now migrates the Windows management launcher/requirements and isolates generated `.workspace` development files from retained `UserData`. The changed `Local` head requires its own fully successful Windows source CI. Do not request local PC execution until then; reserve one integrated local Windows test after admission. Remaining separate boundaries: portable system toolchain, verified model provisioning, transactional release staging and installed-app UserData relocation; signing/Setup remain release-only.
+Complete the existing Meeting first setup and bounded built-in-voice native acceptance in the same integrated session: verify the physical microphone and virtual route, then actual receiver delivery and Start/Stop behavior. Retain cold-start import/recovery as unresolved; STOP at the first reproducible blocker. Do not repeat passed source checks unless the tested source or claim changes. Signing, installer, hosted CI dispatch and `main` promotion remain outside this continuation.
 
-**Active:** Owner-approved automatic/manual Windows hosted **source validation** preceding the first integrated local Windows acceptance. **Branch:** `Local`. The existing successful compile/test evidence is revision-bound; GPU, installed app, VB-CABLE, native audio and actual Meeting reception remain `UNKNOWN / NOT EXECUTED`.
+**Active:** Partial integrated developer acceptance, with progress recorded at the user's request. **Branch:** `Local`. Runtime proof is pinned to `a2614711b51983161230910a0e0eec0d3364bc35`; later documentation-only commits do not create new runtime proof. Earlier source notes below are background, not additional next actions.
 
 **Active source candidate:** Persistent local Meeting transcript archives remain available across Stop, restart and HTML export until explicit user Delete. A versioned finalization receipt records the saved entry count; the Saved Transcripts label now explicitly distinguishes finalization **count verification** from content verification. Orphaned `.tmp` files, count mismatches and legacy markers remain unverified rather than silently accepted or deleted.
 

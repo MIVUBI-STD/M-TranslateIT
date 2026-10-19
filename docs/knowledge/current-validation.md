@@ -27,6 +27,38 @@ Do not preserve mutable “latest PASS” snapshots here. Historic GitHub Action
 
 The Batch 2B.1/2B.2 PCM handoff and canonical-VAD replay adapter retain a **test-only/no production cutover** boundary. Windows source CI now compiles and executes the Rust unit suite, but this does not prove that the experimental consumer is wired into live capture or reduces callback latency; real-device performance remains TARGET_WINDOWS-only.
 
+## Integrated developer acceptance — 2026-10-19
+
+Fixed tested revision: `a2614711b51983161230910a0e0eec0d3364bc35` on `Local`, with a clean tracked checkout and unchanged npm/Cargo/uv lockfiles. The user explicitly authorized this integrated Windows developer session, then requested that its progress be recorded before further testing. These observations do not establish release or full native acceptance. This documentation-only update does not rerun or transfer proof to changed runtime source.
+
+### Preparation and executed proof
+
+- Old application data was moved to a private archive outside the checkout: 18 entries / 1,635 files, with file counts, sizes and SHA-256 verified. Tracked structural README files, engine/model assets and existing backups were retained. Archive contents and absolute machine paths are not repository inputs or public evidence.
+- Canonical `manage.ps1 prepare` passed with pinned workspace Node 22.23.3, Git 2.56.0.windows.2, uv 0.12.1, Python 3.12.10 and Rust 1.88.0. Locked frontend and 121 worker packages were installed. npm reported one high-severity advisory; exploitability/remediation was not established and no dependency upgrade was performed.
+- Bootstrap corrections are `952f511c` (accept exact uv version plus official build metadata), `91d83516` (preserve informational rustup stderr without bypassing exit/version checks), and `a2614711` (retain selector commands after nested forced imports). The offline bootstrap fixture and real tool version checks passed in Windows PowerShell 5.1. An earlier `Get-FileHash` autoload failure was not reproduced in isolated probes; subsequent preparation explicitly loaded the Utility module. Do not claim the original launcher autoload condition was repaired.
+
+| Check / scenario | Observed result | Proof and limit |
+|---|---|---|
+| Repository and frontend source contracts | PASS | EXECUTED_SOURCE on fixed revision |
+| Strict Svelte check | PASS | 0 errors, 0 warnings |
+| Frontend runtime tests | PASS | 418 passed |
+| Worker compile / Ruff | PASS | Source checks, not inference |
+| Worker pytest | 316 passed, 2 skipped | Initially two fixture symlink creations failed with Windows error 1314. A dedicated UAC-approved elevated child ran those same two tests successfully, then the full suite. Two POSIX process-group cleanup tests were skipped on Windows. Tests and OS security policy were not weakened; skipped cases are not PASS. |
+| Translation / ASR / TTS evaluator self-tests | PASS | 180 regression + 40 held-out / 60 / 30 cases; evaluator correctness only |
+| `manage.ps1 build` with expected SHA | PASS | Frontend bundle and `cargo check --locked`; 11 Rust warnings. Rust unit suite was NOT EXECUTED in this session. |
+| Required ASR and MiLMMT assets | PASS, bounded integrity | Existing manifest revisions and 7 ASR / 10 translation SHA-256 pins matched; no model substitution. GPT-SoVITS source/checkpoint integrity was not revalidated in this session. |
+| Developer application launch / clean setup | PASS, bounded | Native app built and opened first setup without restoring archived settings or personal voice. Deferred setup survived one controlled restart. A transient unresponsive startup window was observed. |
+| Live Text ID→EN and EN→ID | PASS, bounded | Public synthetic prompts translated by the canonical local model and rendered in native UI. ID→EN Rust command trace: 6,329 ms; this is not Meeting latency or a quality benchmark. Swap was observed; Copy, Clear, in-flight rejection and full settings persistence were not accepted in this session. |
+| Cold worker startup | UNRESOLVED | Initial status exceeded the existing 30,000 ms response deadline. Isolated worker ping/status completed in 28.36 seconds; captured stacks showed dependency imports through faster-whisper / CTranslate2 / Transformers / PyTorch. One controlled application restart reached Text ready. This does not prove cold-start reliability or a permanent fix. Runtime code and deadlines were not changed. |
+| Meeting, real audio and personal voice | NOT EXECUTED | Meeting remains initial Setup Needed. No physical microphone/VAD, built-in voice synthesis/listening, actual meeting receiver, incoming isolation, five Start/Stop cycles, measured resource/latency baseline or My Voice approval in this session. |
+| Signing / Setup / installed app / clean machine / release | NOT EXECUTED — out of scope | Developer build and Text results do not prove these boundaries. No hosted CI was executed for this local session. |
+
+### Diagnosis boundary and private evidence
+
+Diagnostics Check Again refreshes a snapshot; the inspected recovery intent does not start a worker already marked `blocked`. The isolated status response reported `voice_actor:approved_actor_missing` with fresh data, while the restarted application independently reached Text ready. This is not evidence that optional My Voice must be restored or trained for Text. Cold dependency import timing and blocked-worker recovery remain distinct unresolved observations; do not hide them with increased deadlines, automatic retries or archived-data restoration.
+
+Private evidence remains on the tested PC: `.workspace/reports/worker-targeted.xml`, `worker-suite.xml`, `worker-elevated-result.json`, the associated stdout/stderr logs, and `worker-status-probe.*.log`; `.tmp/validation/RuntimeTestReports/local-tauri-cargo-check.log` holds compile output. The archive retains its manifest and a local result receipt. These are retrieval hints, not uploaded GitHub artifacts. No raw logs, recordings, settings, credentials or personal paths are committed. Current continuation is owned only by `planning/development.md`.
+
 ## Meeting Performance Foundation — source audit (2026-10-12)
 
 - Audited source baseline: `77f95bc65630a46c7f86d6a79667fc64b1ea1044` on `Local`.
