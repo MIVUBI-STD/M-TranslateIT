@@ -37,6 +37,7 @@ pub fn dispatch(intent: &str) -> IntentOutcome {
             outcome(readiness.ok, readiness.state, readiness.message)
         }
         "ensure_runtime_ready" => ensure_runtime_ready(),
+        "retry_blocked_worker" => retry_blocked_worker(),
         _ => outcome(
             false,
             "unsupported_intent".to_string(),
@@ -63,6 +64,34 @@ fn ensure_runtime_ready() -> IntentOutcome {
         helper.state,
         "Application runtime is not ready yet.".to_string(),
     )
+}
+
+// Explicit user recovery only. Ordinary snapshots and ensure_runtime_ready never
+// restart a blocked worker; active capture or GPU training cannot be interrupted.
+fn retry_blocked_worker() -> IntentOutcome {
+    let helper = helper_bridge::get_helper_bridge_status();
+    if helper.state != "blocked" {
+        return outcome(
+            false,
+            helper.state,
+            "Retry Worker is available only when the worker is blocked.".to_string(),
+        );
+    }
+    let snapshot = super::current_application_snapshot();
+    if snapshot.summaries.meeting.has_session
+        || snapshot.resources.audio_locked
+        || snapshot.active_owner.is_some()
+        || snapshot.summaries.voice.build_active
+    {
+        return outcome(
+            false,
+            "resource_busy".to_string(),
+            "Cannot retry the blocked worker while audio, Meeting or voice training is active."
+                .to_string(),
+        );
+    }
+    let started = helper_bridge::start_helper_bridge();
+    outcome(started.ok, started.state, started.message)
 }
 
 fn fix_setup() -> IntentOutcome {
