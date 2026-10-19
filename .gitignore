@@ -9,6 +9,9 @@ desktop.ini
 .env.*
 !.env.example
 
+# Generated development workspace; never source or user data
+/.workspace/
+
 # Generic caches, logs, temp, reports
 *.log
 *.tmp

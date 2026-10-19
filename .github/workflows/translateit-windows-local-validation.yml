@@ -57,7 +57,7 @@ jobs:
             'EngineData/Frontend/RustApp/package-lock.json',
             'EngineData/Frontend/RustApp/src-tauri/Cargo.lock',
             'EngineData/Backend/LocalWorker/WorkerRuntime/uv.lock',
-            'toolchain.json'
+            'tooling/windows/config/requirements.json'
           )) {
             if (-not (Test-Path $file -PathType Leaf)) {
               throw "Required candidate input missing: $file"
@@ -89,6 +89,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git diff --exit-code -- pyproject.toml uv.lock
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Parse Windows workspace scripts
+        shell: pwsh
+        run: |
+          foreach ($file in @('tooling/windows/manage.ps1', 'tooling/windows/modules/Workspace.psm1')) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count -ne 0) { throw "Invalid workspace PowerShell syntax: $file" }
+          }
 
       - name: Repository governance and source contracts
         id: repository_contract

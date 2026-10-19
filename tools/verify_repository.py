@@ -14,9 +14,9 @@ REQUIRED_PATHS = (
     "CONTEXT.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
-    "DEV.cmd",
-    "toolchain.json",
-    "tooling/windows-toolchain/dev.ps1",
+    "manage.cmd",
+    "tooling/windows/config/requirements.json",
+    "tooling/windows/manage.ps1",
     ".editorconfig",
     ".gitattributes",
     ".gitignore",
@@ -227,8 +227,8 @@ def check_development_foundation(errors: list[str]) -> None:
     agents = text("AGENTS.md")
     discipline = text("docs/knowledge/development-discipline.md")
     ownership = text("docs/knowledge/source-ownership.md")
-    toolchain = text("toolchain.json")
-    dev = text("tooling/windows-toolchain/dev.ps1")
+    toolchain = text("tooling/windows/config/requirements.json")
+    dev = text("tooling/windows/manage.ps1")
 
     for marker in ("REPO_READ", "REPO_WRITE", "LOCAL_SHELL", "CI_CONTROL", "ARTIFACT_ACCESS", "NATIVE_HOST"):
         if marker not in agents:
@@ -241,11 +241,11 @@ def check_development_foundation(errors: list[str]) -> None:
             fail(errors, f"development discipline missing minimum-flow marker: {marker}")
     for marker in ('"major": 22', '"version": "3.12.10"', '"minimum": "1.88.0"', '"minimum": "0.12.0"'):
         if marker not in toolchain:
-            fail(errors, f"toolchain.json missing repository-derived policy: {marker}")
-    for marker in ('"doctor"', '"setup"', '"check"', '"build"', '"run"', '"test"', '"package"'):
+            fail(errors, f"requirements.json missing repository-derived policy: {marker}")
+    for marker in ('"status"', '"prepare"', '"verify"', '"build"', '"run"', '"test"', '"package"'):
         if marker not in dev:
             fail(errors, f"developer router missing command: {marker}")
-    if "doctorMustNotInstallOrRepairAutomatically" not in toolchain or "No installation or repair was performed." not in dev:
+    if "statusMustNotInstallOrRepairAutomatically" not in toolchain or "No installation or repair was performed." not in dev:
         fail(errors, "developer doctor must remain observation-only")
     rust_manifest = text("EngineData/Frontend/RustApp/src-tauri/Cargo.toml")
     if 'rust-version = "1.88.0"' not in rust_manifest:
@@ -691,7 +691,7 @@ def check_document_ownership_separation(errors: list[str]) -> None:
                                "development-brief"),
         "tools/README.md": ("repository_knowledge.py", "repository_impact.py", "repository_benchmark.py"),
         "docs/system/zero-waste-execution.md": ("tools/repository_benchmark.py", "Batch 5"),
-        "tooling/README.md": ("windows-toolchain/dev.ps1", "DEV.cmd"),
+        "tooling/README.md": ("windows-toolchain/dev.ps1", "manage.cmd"),
     }.items():
         for marker in markers:
             if marker not in text(rel):

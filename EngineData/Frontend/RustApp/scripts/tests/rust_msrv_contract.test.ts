@@ -6,7 +6,7 @@ import { evaluateRustMsrv } from "../validate_rust_manifest_preflight.mjs";
 const root = new URL("../../", import.meta.url);
 const manifest = readFileSync(new URL("src-tauri/Cargo.toml", root), "utf8");
 const lock = readFileSync(new URL("src-tauri/Cargo.lock", root), "utf8");
-const policy = JSON.parse(readFileSync(new URL("../../../toolchain.json", root), "utf8"));
+const policy = JSON.parse(readFileSync(new URL("../../../tooling/windows/config/requirements.json", root), "utf8"));
 const compile = readFileSync(new URL("../run_local_tauri_compile_check.mjs", import.meta.url), "utf8");
 
 test("reviewed locked dependency MSRV is aligned with Cargo and toolchain", () => {
@@ -65,11 +65,11 @@ test("integrated Cargo source check uses exact SHA, fresh frontend and locked de
 
 test("MSRV policy URL resolves from its explicit RustApp root, not the test module", () => {
   const validator = readFileSync(new URL("../validate_test_reference_reachability.mjs", import.meta.url), "utf8");
-  const correct = new URL("../../../toolchain.json", root).href;
-  assert.equal(correct, new URL("../../../../../toolchain.json", import.meta.url).href);
+  const correct = new URL("../../../tooling/windows/config/requirements.json", root).href;
+  assert.equal(correct, new URL("../../../../../tooling/windows/config/requirements.json", import.meta.url).href);
   // Deliberately wrong base: keep the negative fixture dynamic so the static
   // reference validator does not mistake it for a required source file.
-  const wrongBaseRelative = ["..", "..", "..", "toolchain.json"].join("/");
+  const wrongBaseRelative = ["..", "..", "..", "requirements.json"].join("/");
   assert.notEqual(correct, new URL(wrongBaseRelative, import.meta.url).href);
   assert.match(validator, /const directoryAliases = new Map\(\)/);
   assert.match(validator, /directoryAliases\.set\(match\[1\], resolve\(testDirectory, match\[2\]\)\)/);

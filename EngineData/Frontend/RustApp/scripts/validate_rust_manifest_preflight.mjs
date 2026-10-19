@@ -7,7 +7,7 @@ const appRoot = resolve(scriptDir, "..");
 const repoRoot = resolve(appRoot, "..", "..", "..");
 const manifestPath = join(appRoot, "src-tauri", "Cargo.toml");
 const lockPath = join(appRoot, "src-tauri", "Cargo.lock");
-const policyPath = join(repoRoot, "toolchain.json");
+const policyPath = join(repoRoot, "tooling", "windows", "config", "requirements.json");
 
 // These are minimum-version *review facts* for selected exact locked crates,
 // not a substitute for Cargo's dependency resolution, compilation or MSRV proof.
@@ -51,8 +51,8 @@ export function evaluateRustMsrv(manifest, policy, lock) {
   const declared = manifest.match(/^rust-version\s*=\s*"([^"]+)"/m)?.[1] ?? null;
   const policyVersion = policy?.rust?.minimum;
   if (!versionParts(declared)) failures.push("invalid or missing Cargo.toml rust-version");
-  if (!versionParts(policyVersion)) failures.push("invalid or missing toolchain.json rust.minimum");
-  if (declared !== policyVersion) failures.push("Cargo.toml and toolchain.json Rust minimum diverge");
+  if (!versionParts(policyVersion)) failures.push("invalid or missing requirements.json rust.minimum");
+  if (declared !== policyVersion) failures.push("Cargo.toml and requirements.json Rust minimum diverge");
 
   for (const [name, reviewedVersion, minimum] of reviewedLockFacts) {
     const current = lockedVersion(lock, name);

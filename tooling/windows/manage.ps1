@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "doctor", "setup", "check", "build", "run", "test", "package")]
+    [ValidateSet("help", "status", "prepare", "verify", "build", "run", "test", "package")]
     [string]$Command = "help",
     [Parameter(Position = 1)]
     [string]$QualityReadinessEvidence
@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $Frontend = Join-Path $Root "EngineData\Frontend\RustApp"
 $Worker = Join-Path $Root "EngineData\Backend\LocalWorker\WorkerRuntime"
+Import-Module (Join-Path $PSScriptRoot "modules\Workspace.psm1") -Force
 
 function Invoke-Step {
     param([string]$Label, [scriptblock]$Body)
@@ -31,16 +32,16 @@ function Require-Command {
 function Show-Help {
     Write-Host "TranslateIT developer entrypoint"
     Write-Host ""
-    Write-Host "  DEV.cmd doctor   Check required toolchain; never installs or repairs"
-    Write-Host "  DEV.cmd setup    Install locked frontend + worker development dependencies"
-    Write-Host "  DEV.cmd check    Run repository + quick frontend + worker source checks"
-    Write-Host "  DEV.cmd build    Build frontend and compile-check Rust on one clean source SHA"
-    Write-Host "  DEV.cmd run      Start the local Tauri development app; no release signing"
-    Write-Host "  DEV.cmd test     Run frontend, Rust, and worker tests"
-    Write-Host '  DEV.cmd package "<quality-evidence.json>"  Build controlled signed release only'
+    Write-Host "  manage.cmd doctor   Inspect toolchain without installing or repairing"
+    Write-Host "  manage.cmd setup    Prepare locked frontend and Python development dependencies"
+    Write-Host "  manage.cmd check    Verify repository, frontend and Python source tests"
+    Write-Host "  manage.cmd build    Build frontend and compile-check Rust on one clean source SHA"
+    Write-Host "  manage.cmd run      Start the local Tauri development app; no release signing"
+    Write-Host "  manage.cmd test     Run frontend, Rust, and worker tests"
+    Write-Host '  manage.cmd package "<quality-evidence.json>"  Build controlled signed release only'
 }
 
-function Invoke-Doctor {
+function Assert-DevelopmentPrerequisites {
     Require-Command node | Out-Null
     Require-Command npm | Out-Null
     Require-Command rustc | Out-Null
@@ -60,7 +61,7 @@ function Invoke-Doctor {
         throw "Python 3.12.10 required; found $pythonVersion"
     }
 
-    $policyPath = Join-Path $Root "toolchain.json"
+    $policyPath = Join-Path $PSScriptRoot "config\requirements.json"
     $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
     $minimumRust = [Version]::Parse([string]$policy.rust.minimum)
     $minimumUv = [Version]::Parse([string]$policy.uv.minimum)
@@ -86,20 +87,24 @@ function Invoke-Doctor {
     Write-Host "Python: $pythonVersion"
     Write-Host "Rust:   $rustVersion (minimum $minimumRust)"
     Write-Host "uv:     $uvVersion (minimum $minimumUv)"
-    Write-Host "Doctor passed. No installation or repair was performed."
+    Write-Host "Prerequisites passed. No installation or repair was performed."
 }
 
 Set-Location $Root
+# Generated caches are scoped to this process and child tools, never Windows-wide.
+if ($Command -notin @("help", "status")) {
+    Set-TranslateITWorkspaceEnvironment -RepositoryRoot $Root
+}
 
 switch ($Command) {
     "help" { Show-Help }
-    "doctor" { Invoke-Doctor }
-    "setup" {
-        Invoke-Doctor
+    "status" { Assert-DevelopmentPrerequisites }
+    "prepare" {
+        Assert-DevelopmentPrerequisites
         Invoke-Step "Install locked frontend dependencies" { Set-Location $Frontend; npm ci }
         Invoke-Step "Sync locked worker development dependencies" { Set-Location $Worker; uv sync --dev --frozen }
     }
-    "check" {
+    "verify" {
         Invoke-Step "Repository contract" { Set-Location $Root; python tools\verify_repository.py }
         Invoke-Step "Frontend quick validation" { Set-Location $Frontend; npm run validate:quick }
         Invoke-Step "Worker compile/static/tests" {
@@ -130,7 +135,7 @@ switch ($Command) {
     }
     "package" {
         if ([string]::IsNullOrWhiteSpace($QualityReadinessEvidence)) {
-            throw 'Signed release requires an explicit Quality Readiness report. Usage: DEV.cmd package "<quality-evidence.json>"'
+            throw 'Signed release requires an explicit Quality Readiness report. Usage: manage.cmd package "<quality-evidence.json>"'
         }
         if (-not (Test-Path -LiteralPath $QualityReadinessEvidence -PathType Leaf)) {
             throw "Quality Readiness evidence file was not found: $QualityReadinessEvidence"

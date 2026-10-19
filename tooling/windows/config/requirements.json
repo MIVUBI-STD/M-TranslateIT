@@ -1,8 +1,11 @@
 {
   "schemaVersion": 1,
-  "package": "TranslateIT Windows Development Toolchain",
+  "package": "TranslateIT Windows Development Requirements",
   "target": {
-    "os": ["Windows 10 x64", "Windows 11 x64"],
+    "os": [
+      "Windows 10 x64",
+      "Windows 11 x64"
+    ],
     "architecture": "x86_64",
     "productRuntime": "Windows desktop"
   },
@@ -10,7 +13,7 @@
     "localOnlyRepositoryAuthority": true,
     "lockfilesRequired": true,
     "endUserMustNotRequireDeveloperToolchain": true,
-    "doctorMustNotInstallOrRepairAutomatically": true
+    "statusMustNotInstallOrRepairAutomatically": true
   },
   "node": {
     "major": 22,
