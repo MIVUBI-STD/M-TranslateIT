@@ -13,6 +13,8 @@ $sentinel = Join-Path $protected "private.txt"
 Set-Content -LiteralPath $sentinel -Value "do not change" -Encoding Ascii
 try {
     $first = Get-TranslateITReadiness -RepositoryRoot $temp
+    if ($first.revision) { throw "A directory without Git metadata has no known SHA." }
+    if ($LASTEXITCODE -ne 0) { throw "Read-only inventory leaked a native exit code." }
     if ($first.schema -ne "translateit.windows.workspace_readiness.v1") { throw "Readiness schema drifted." }
     if (Test-Path -LiteralPath (Join-Path $temp ".workspace")) {
         throw "A read-only inventory created a workspace."
