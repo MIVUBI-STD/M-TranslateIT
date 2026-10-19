@@ -2,8 +2,16 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
-$Backend = Join-Path $RepoRoot 'EngineData\Backend'
-$Worker = Join-Path $Backend 'LocalWorker\WorkerRuntime'
+# The release wrapper reserves a unique private stage. This implementation
+# never prepares or deletes the canonical runtime directories until promotion.
+$Temp = $env:TRANSLATEIT_RELEASE_STAGE_ROOT
+if (-not $Temp -or -not $Temp.StartsWith((Join-Path $RepoRoot '.workspace\staging') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Release input staging must start from stage_release_inputs.ps1.'
+}
+$PayloadRoot = Join-Path $Temp 'payload-tree'
+$SourceBackend = Join-Path $RepoRoot 'EngineData\Backend'
+$Worker = Join-Path $SourceBackend 'LocalWorker\WorkerRuntime'
+$Backend = Join-Path $PayloadRoot 'EngineData\Backend'
 $PythonRoot = Join-Path $Backend 'LocalWorker\PythonRuntime'
 $Assets = Join-Path $Backend 'RuntimeAssets'
 $AsrRoot = Join-Path $Assets 'ASR\ModelData'
@@ -12,10 +20,8 @@ $VoiceSource = Join-Path $Assets 'Voice\GPTSoVITS\Source'
 $VbPackage = Join-Path $Assets 'AudioProvider\VBCABLE\Package'
 # Runtime asset and release staging files belong to the same chosen repository root.
 # A hosted runner may use its disposable runner temp, never the user's data root.
-$TempBase = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { Join-Path $RepoRoot '.workspace\staging' }
 $env:UV_CACHE_DIR = Join-Path $RepoRoot '.workspace\cache\uv'
-New-Item -ItemType Directory -Force -Path $TempBase, $env:UV_CACHE_DIR | Out-Null
-$Temp = Join-Path $TempBase 'translateit-release-stage'
+New-Item -ItemType Directory -Force -Path $env:UV_CACHE_DIR | Out-Null
 
 function Get-Sha256([string]$Path) {
     return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
@@ -47,10 +53,8 @@ function Copy-Tree([string]$Source, [string]$Destination) {
     if ($code -gt 7) { throw "robocopy failed ($code): $Source -> $Destination" }
 }
 
-Remove-Item -LiteralPath $Temp -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $Temp | Out-Null
+New-Item -ItemType Directory -Path $Temp -ErrorAction Stop | Out-Null
 foreach ($path in @($PythonRoot, $AsrRoot, $TranslationRoot, $VoiceSource, $VbPackage)) {
-    Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path $path | Out-Null
 }
 
@@ -110,7 +114,7 @@ $env:HF_HUB_CACHE = Join-Path $env:HF_HOME 'hub'
 $env:HF_XET_CACHE = Join-Path $env:HF_HOME 'xet'
 New-Item -ItemType Directory -Force -Path $env:HF_HOME | Out-Null
 $modelAcquirer = Join-Path $Worker 'prepare_model_assets.py'
-& $stagePython $modelAcquirer --model-id 'faster-whisper-large-v3-turbo' --model-id 'milmmt-46-1b-v1.0'
+& $stagePython $modelAcquirer --model-id 'faster-whisper-large-v3-turbo' --model-id 'milmmt-46-1b-v1.0' --destination-root $PayloadRoot
 if ($LASTEXITCODE -ne 0) { throw 'Canonical required model acquisition failed.' }
 
 $asrRevisionMarker = Join-Path $AsrRoot 'faster-whisper-large-v3-turbo\.translateit_model_revision'
@@ -138,7 +142,7 @@ foreach ($model in $manifest.models) {
     if ($model.required -ne $true) { continue }
     if ($model.source_type -ne 'huggingface') { continue }
     if (-not $model.artifact_hashes) { throw "artifact_hashes_missing:$($model.model_id)" }
-    $modelRoot = Join-Path $RepoRoot ($model.expected_path -replace '/', '\')
+    $modelRoot = Join-Path $PayloadRoot ($model.expected_path -replace '/', '\')
     foreach ($property in $model.artifact_hashes.PSObject.Properties) {
         $artifactPath = Join-Path $modelRoot ($property.Name -replace '/', '\')
         if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) {
@@ -152,7 +156,7 @@ foreach ($model in $manifest.models) {
 }
 Write-Host '[release-stage][sha256] ASR + MiLMMT artifact hashes PASS'
 Write-Host '[release-stage] Verify repository-owned built-in voice references'
-$builtInRoot = Join-Path $Assets 'Voice\BuiltInVoices'
+$builtInRoot = Join-Path $RepoRoot 'EngineData\Backend\RuntimeAssets\Voice\BuiltInVoices'
 $builtInSources = Join-Path $builtInRoot 'SOURCES.json'
 if (-not (Test-Path -LiteralPath $builtInSources -PathType Leaf)) { throw 'BuiltInVoices/SOURCES.json missing' }
 $builtInRecord = Get-Content -LiteralPath $builtInSources -Raw | ConvertFrom-Json
@@ -344,4 +348,6 @@ foreach ($pair in @(
     Write-Host "[release-stage][size] $($pair[0]) bytes=$bytes"
 }
 
+Import-Module (Join-Path $PSScriptRoot 'ReleaseStaging.psm1') -Force
+Publish-TranslateITReleaseStage -RepositoryRoot $RepoRoot -StageRoot $PayloadRoot
 Write-Host '[release-stage] controlled release input staging -> PASS'

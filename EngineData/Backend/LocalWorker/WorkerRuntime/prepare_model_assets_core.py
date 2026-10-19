@@ -192,6 +192,24 @@ def replace_target_from_snapshot(item: dict[str, Any]) -> dict[str, Any]:
         shutil.rmtree(backup, ignore_errors=True)
 
 
+def stage_download_plan(
+    items: list[dict[str, Any]], destination_root: Path
+) -> list[dict[str, Any]]:
+    """Redirect only vetted manifest targets into a private release staging tree."""
+    root = destination_root.resolve()
+    safe_parent = (PROJECT_ROOT / ".workspace" / "staging").resolve()
+    if root == safe_parent or not root.is_relative_to(safe_parent):
+        raise RuntimeError("Release model staging must stay below .workspace/staging")
+    if not (root / "EngineData" / "Backend").is_dir():
+        raise RuntimeError("Release staging Backend root must already exist")
+    redirected: list[dict[str, Any]] = []
+    for item in items:
+        relative = item["target"].relative_to(RUNTIME_ASSETS_ROOT)
+        target = root / "EngineData" / "Backend" / "RuntimeAssets" / relative
+        redirected.append({**item, "target": target})
+    return redirected
+
+
 def serializable_plan(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     output: list[dict[str, Any]] = []
     for item in items:
@@ -225,6 +243,11 @@ def main() -> int:
         help="Acquire only a specific manifest model_id. May be repeated.",
     )
     parser.add_argument(
+        "--destination-root",
+        type=Path,
+        help="Release-only isolated model target beneath .workspace/staging.",
+    )
+    parser.add_argument(
         "--plan",
         action="store_true",
         help="Validate and print the pinned acquisition plan without downloading files.",
@@ -234,6 +257,8 @@ def main() -> int:
     requested = set(args.model_id) if args.model_id else None
     manifest = load_manifest()
     selected, manual_required = build_plan(manifest, args.include_optional, requested)
+    if args.destination_root is not None:
+        selected = stage_download_plan(selected, args.destination_root)
     output: dict[str, Any] = {
         "schema": "translateit.developer_model_acquisition.v1",
         "manifest_schema": manifest["schema"],

@@ -69,3 +69,38 @@ def test_specific_model_selection_rejects_manual_asset() -> None:
         raise AssertionError(
             "manual GPT-SoVITS asset must not be promoted to Hugging Face acquisition"
         )
+
+
+def test_release_model_stage_uses_only_workspace_without_touching_canonical_targets(
+    tmp_path: Path, monkeypatch
+) -> None:
+    module = load_module()
+    monkeypatch.setattr(module._core, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        module._core, "RUNTIME_ASSETS_ROOT", tmp_path / "EngineData/Backend/RuntimeAssets"
+    )
+    canonical = module._core.RUNTIME_ASSETS_ROOT / "ASR/ModelData/example"
+    items = [{"model_id": "example", "target": canonical, "revision": "a" * 40}]
+    stage = tmp_path / ".workspace/staging/release-candidate/payload-tree"
+    (stage / "EngineData/Backend").mkdir(parents=True)
+    redirected = module._core.stage_download_plan(items, stage)
+    assert redirected[0]["target"] == stage / "EngineData/Backend/RuntimeAssets/ASR/ModelData/example"
+    assert items[0]["target"] == canonical
+    assert not canonical.exists()
+
+
+def test_release_model_stage_rejects_paths_outside_reserved_workspace(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    monkeypatch.setattr(module._core, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        module._core, "RUNTIME_ASSETS_ROOT", tmp_path / "EngineData/Backend/RuntimeAssets"
+    )
+    model = module._core.RUNTIME_ASSETS_ROOT / "ASR/ModelData/example"
+    for forbidden in [tmp_path / "UserData", tmp_path / "EngineData", tmp_path / ".workspace/staging"]:
+        (forbidden / "EngineData/Backend").mkdir(parents=True, exist_ok=True)
+        try:
+            module._core.stage_download_plan([{"target": model}], forbidden)
+        except RuntimeError as exc:
+            assert "below .workspace/staging" in str(exc)
+        else:
+            raise AssertionError("Model acquisition must not stage into runtime/user roots")
