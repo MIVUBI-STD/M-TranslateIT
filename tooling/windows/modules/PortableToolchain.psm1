@@ -143,7 +143,12 @@ function Install-TranslateITPortableToolchain {
             if (Test-Path -LiteralPath $rustup) {
                 throw 'Incomplete portable Rustup home requires explicit recovery, not replacement.'
             }
-            $bootstrap=Get-TranslateITVerifiedToolArchive -Url $pins.rustup.url -ExpectedSha256 $pins.rustup.sha256 -CacheRoot $cache
+            $verified=Get-TranslateITVerifiedToolArchive -Url $pins.rustup.url -ExpectedSha256 $pins.rustup.sha256 -CacheRoot $cache
+            # rustup-init is a multi-call executable; preserve its required
+            # basename when executing instead of invoking the SHA cache name.
+            New-Item -ItemType Directory -Path $run -Force | Out-Null
+            $bootstrap=Join-Path $run 'rustup-init.exe'
+            Copy-Item -LiteralPath $verified -Destination $bootstrap -ErrorAction Stop
             $env:CARGO_HOME=$cargo
             $env:RUSTUP_HOME=$rustup
             & $bootstrap -y --no-modify-path --profile minimal --default-host $pins.rust.host --default-toolchain $pins.rust.version
