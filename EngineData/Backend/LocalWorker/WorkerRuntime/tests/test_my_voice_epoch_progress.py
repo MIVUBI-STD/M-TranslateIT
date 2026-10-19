@@ -15,6 +15,9 @@ def setup(monkeypatch, tmp_path: Path):
     monkeypatch.setenv(STAGE_ENV, "sovits")
     monkeypatch.setenv("TRANSLATEIT_MYVOICE_STAGE_NONCE", "b" * 32)
     monkeypatch.setenv(
+        "TRANSLATEIT_MYVOICE_EPOCH_ACTIVITY_PATH", str(tmp_path / "epoch_activity.json")
+    )
+    monkeypatch.setenv(
         "TRANSLATEIT_MYVOICE_EPOCH_PROGRESS_PATH", str(tmp_path / "epoch_progress.json")
     )
 

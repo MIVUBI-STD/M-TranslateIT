@@ -108,7 +108,8 @@ class DevelopmentContextTests(unittest.TestCase):
         self.assertIn("docs/knowledge/development-discipline.md", p["context"]["REQUIRED"])
         self.assertIsNone(p["activeSpecialist"])
         self.assertEqual(len(p["context"]["REQUIRED"]), len(set(p["context"]["REQUIRED"])))
-        self.assertIn("planning/development.md", p["context"]["REQUIRED"])
+        self.assertNotIn("planning/development.md", p["context"]["REQUIRED"])
+        self.assertIn("planning/development.md", [item["path"] for item in p["context"]["CONDITIONAL"]])
 
     def test_exclusive_specialist_activation_uses_registered_skill(self):
         p = plan_context(

@@ -155,9 +155,9 @@ jobs:
         continue-on-error: true
         working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
         run: |
-          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python","nltk","scipy"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
+          $pinScript = 'import tomllib;from pathlib import Path;wanted={"pytest","ruff","numpy","huggingface-hub","ffmpeg-python","nltk","scipy","soundfile"};lock=tomllib.loads(Path("uv.lock").read_text(encoding="utf-8"));found={p["name"]:p["version"] for p in lock["package"] if p["name"] in wanted};missing=wanted-set(found);assert not missing,f"Missing pinned tools: {missing}";print("\n".join(f"{name}=={found[name]}" for name in sorted(wanted)))'
           $requirements = @(python -c $pinScript)
-          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 7) {
+          if ($LASTEXITCODE -ne 0 -or $requirements.Count -lt 8) {
             throw 'Could not resolve all worker test dependencies from the canonical uv.lock.'
           }
           python -m pip install @requirements

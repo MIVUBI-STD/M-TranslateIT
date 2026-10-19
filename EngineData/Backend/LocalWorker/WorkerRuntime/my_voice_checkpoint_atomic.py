@@ -41,7 +41,7 @@ def atomic_gpt_inference_save(payload: Any, path: str) -> None:
     torch.save(payload, str(staged))
     if not 4096 < staged.stat().st_size <= MAX_CHECKPOINT_BYTES:
         raise RuntimeError("my_voice:gpt_inference_checkpoint_size_invalid")
-    with staged.open("rb") as stream:
+    with staged.open("r+b") as stream:
         os.fsync(stream.fileno())
     if target.exists() or target.is_symlink():
         raise RuntimeError("my_voice:gpt_inference_checkpoint_collision")
@@ -72,7 +72,7 @@ def atomic_sovits_save(payload: Any, path: str, torch_module: Any) -> None:
         size = staged.stat().st_size
         if not 4096 < size <= MAX_CHECKPOINT_BYTES:
             raise RuntimeError("my_voice:optimizer_checkpoint_size_invalid")
-        with staged.open("rb") as stream:
+        with staged.open("r+b") as stream:
             os.fsync(stream.fileno())
         # No publication of a partially-written filename. Distinct global
         # step names avoid overwriting a previously complete checkpoint.
@@ -123,7 +123,7 @@ def atomic_sovits_inference_save(
     original_save(payload, str(staged), model_version)
     if not 4096 < staged.stat().st_size <= MAX_CHECKPOINT_BYTES:
         raise RuntimeError("my_voice:sovits_inference_checkpoint_size_invalid")
-    with staged.open("rb") as stream:
+    with staged.open("r+b") as stream:
         os.fsync(stream.fileno())
     if target.exists() or target.is_symlink():
         raise RuntimeError("my_voice:sovits_inference_checkpoint_collision")

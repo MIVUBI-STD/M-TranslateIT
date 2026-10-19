@@ -81,24 +81,14 @@ def test_voice_provider_keeps_heavy_upstream_stage_off_worker_import_path() -> N
     assert "from voice_lab_upstream_stage import install_headless_my_utils" in create_runtime
 
 
-def test_terminology_source_match_respects_word_boundaries() -> None:
-    assert (
-        milmmt_translation_provider.source_term_occurs(
-            "Program API ini akan diperbarui besok.", "ram"
-        )
-        is False
+def test_translation_prompt_does_not_inject_retired_terminology_preferences() -> None:
+    prompt = milmmt_translation_provider.build_prompt("id", "en", "Program API ini diperbarui.")
+    assert prompt == (
+        "Translate this from Indonesian to English:\n"
+        "Indonesian: Program API ini diperbarui.\n"
+        "English:"
     )
-    assert (
-        milmmt_translation_provider.source_term_occurs(
-            "Program API ini akan diperbarui besok.", "API"
-        )
-        is True
-    )
-    assert (
-        milmmt_translation_provider.source_term_occurs("Nama produk ini tetap sama.", "nama produk")
-        is True
-    )
-    assert milmmt_translation_provider.source_term_occurs("APIx", "API") is False
+    assert "preferred terms" not in prompt.lower()
 
 
 def test_translate_routes_to_milmmt_without_legacy_mode_output(monkeypatch) -> None:
@@ -348,36 +338,17 @@ def test_gpu_probe_uses_cpu_only_for_known_unavailable_capability(monkeypatch) -
     assert gpu["fallback_reason"] == "cuda_unavailable"
 
 
-def test_build_prompt_embeds_rolling_context_pairs_in_official_format() -> None:
+def test_translation_prompt_uses_only_current_text_without_prior_pairs() -> None:
     from milmmt_translation_provider import build_prompt
 
-    prompt = build_prompt(
-        "id",
-        "en",
-        "Besok dia memimpin rapat.",
-        [("Itu kakak saya.", "That is my older brother.")],
-    )
+    prompt = build_prompt("id", "en", "Besok dia memimpin rapat.")
     assert prompt == (
         "Translate this from Indonesian to English:\n"
-        "Indonesian: Itu kakak saya.\n"
-        "English: That is my older brother.\n"
         "Indonesian: Besok dia memimpin rapat.\n"
         "English:"
     )
+    assert "Itu kakak saya." not in prompt
     assert prompt.count("Translate this from") == 1
-
-
-def test_normalize_context_pairs_caps_at_three_and_sanitizes() -> None:
-    from milmmt_translation_provider import MAX_CONTEXT_PAIRS, normalize_context_pairs
-
-    host = {"compact_runtime_text": lambda value, limit: str(value or "")[:limit]}
-    raw = [[f"s{i}", f"t{i}"] for i in range(5)]
-    pairs = normalize_context_pairs(raw, host)
-    assert len(pairs) == MAX_CONTEXT_PAIRS
-    assert pairs[0] == ("s2", "t2")
-    assert pairs[-1] == ("s4", "t4")
-    assert normalize_context_pairs("not-a-list", host) == []
-    assert normalize_context_pairs([[1, 2, 3], ["a", None]], host) == []
 
 
 def test_warm_translation_runtime_skips_redundant_model_asset_scan(monkeypatch) -> None:
@@ -597,23 +568,15 @@ def test_gpu_capability_snapshot_is_reused_until_probe_implementation_changes(mo
     assert first["capability_probe_count"] >= 1
 
 
-def test_formal_translation_style_adds_one_bounded_register_instruction() -> None:
+def test_translation_prompt_has_no_user_selectable_register() -> None:
     from milmmt_translation_provider import build_prompt
 
-    natural = build_prompt("id", "en", "Terima kasih atas waktunya.")
-    formal = build_prompt(
-        "id",
-        "en",
-        "Terima kasih atas waktunya.",
-        translation_style="formal",
-    )
-
-    assert "formal, professional register" not in natural
-    assert formal.count("formal, professional register") == 1
-    assert "preserving the source meaning, names, numbers, and factual details exactly" in formal
+    prompt = build_prompt("id", "en", "Terima kasih atas waktunya.")
+    assert "formal, professional register" not in prompt
+    assert "Terima kasih atas waktunya." in prompt
 
 
-def test_unknown_translation_style_falls_back_to_natural(monkeypatch) -> None:
+def test_legacy_translation_style_input_cannot_reactivate_style_mode(monkeypatch) -> None:
     worker = load_worker_module()
     fake_torch = types.SimpleNamespace(inference_mode=_FakeInferenceMode)
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
@@ -630,4 +593,4 @@ def test_unknown_translation_style_falls_back_to_natural(monkeypatch) -> None:
     )
 
     assert result["ok"] is True
-    assert result["translation_style"] == "natural"
+    assert "translation_style" not in result

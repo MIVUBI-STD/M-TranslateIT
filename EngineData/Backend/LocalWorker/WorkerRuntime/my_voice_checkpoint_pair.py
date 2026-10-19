@@ -28,7 +28,10 @@ def file_identity(path: Path) -> dict[str, Any]:
     but this guard also catches unexpected external modification or a path
     swap while reading. The Rust archive independently verifies copied bytes.
     """
-    before = path.lstat()
+    try:
+        before = path.lstat()
+    except OSError as exc:
+        raise RuntimeError("my_voice:pair_file_unavailable") from exc
     if not stat.S_ISREG(before.st_mode) or not 4096 < before.st_size <= MAX_FULL_BYTES:
         raise RuntimeError("my_voice:pair_file_untrusted")
     digest = hashlib.sha256()
@@ -55,16 +58,27 @@ def file_identity(path: Path) -> dict[str, Any]:
             closed = os.fstat(stream.fileno())
     except OSError as exc:
         raise RuntimeError("my_voice:pair_file_unavailable") from exc
-    after = path.lstat()
+    try:
+        after = path.lstat()
+    except OSError as exc:
+        raise RuntimeError("my_voice:pair_file_changed_during_read") from exc
 
-    def identity(meta: Any) -> tuple[int, int, int, int, int]:
+    # Windows path-stat and open-handle stat can expose different timestamp
+    # metadata for the very same file. Compare path snapshots and handle
+    # snapshots independently, and require matching file IDs and sizes across
+    # the path/handle boundary. Do not discard mutation/swap detection.
+    def path_identity(meta: Any) -> tuple[int, int, int, int, int]:
         return (meta.st_dev, meta.st_ino, meta.st_size, meta.st_mtime_ns, meta.st_ctime_ns)
+
+    def handle_identity(meta: Any) -> tuple[int, int, int, int]:
+        return (meta.st_dev, meta.st_ino, meta.st_size, meta.st_mtime_ns)
 
     if (
         not stat.S_ISREG(after.st_mode)
-        or identity(before) != identity(after)
-        or identity(before) != identity(opened)
-        or identity(before) != identity(closed)
+        or path_identity(before) != path_identity(after)
+        or handle_identity(opened) != handle_identity(closed)
+        or (before.st_dev, before.st_ino, before.st_size)
+        != (opened.st_dev, opened.st_ino, opened.st_size)
         or length != before.st_size
     ):
         raise RuntimeError("my_voice:pair_file_changed_during_read")
