@@ -67,7 +67,7 @@ def changed_paths(before: str | None, head: str) -> tuple[list[str], str]:
         try:
             parent = git("rev-parse", "HEAD^").decode("ascii").strip()
             raw = git("diff", "--name-only", "-z", "--no-renames", parent, head)
-            selected = [p.decode("utf-8") for p in raw.split(b"\\0") if p]
+            selected = [p.decode("utf-8") for p in raw.split(b"\0") if p]
             if selected:
                 return selected, "manual selected commit"
         except subprocess.CalledProcessError:
