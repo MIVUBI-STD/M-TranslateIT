@@ -10,7 +10,11 @@ $AsrRoot = Join-Path $Assets 'ASR\ModelData'
 $TranslationRoot = Join-Path $Assets 'Translation\ModelData'
 $VoiceSource = Join-Path $Assets 'Voice\GPTSoVITS\Source'
 $VbPackage = Join-Path $Assets 'AudioProvider\VBCABLE\Package'
-$TempBase = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { Join-Path $RepoRoot '.translateit-release-temp' }
+# Runtime asset and release staging files belong to the same chosen repository root.
+# A hosted runner may use its disposable runner temp, never the user's data root.
+$TempBase = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { Join-Path $RepoRoot '.workspace\staging' }
+$env:UV_CACHE_DIR = Join-Path $RepoRoot '.workspace\cache\uv'
+New-Item -ItemType Directory -Force -Path $TempBase, $env:UV_CACHE_DIR | Out-Null
 $Temp = Join-Path $TempBase 'translateit-release-stage'
 
 function Get-Sha256([string]$Path) {
@@ -72,16 +76,27 @@ archive_md5=$pythonMd5
 archive_sha256=$pythonSha
 "@ | Set-Content -LiteralPath (Join-Path $PythonRoot 'PYTHON_SOURCE.txt') -Encoding ascii
 
-Write-Host '[release-stage] Build frozen WorkerRuntime dependency environment'
-$hostPython = (Get-Command python).Source
-& $hostPython -m pip install --disable-pip-version-check uv==0.12.0 huggingface-hub==0.36.2 hf-xet==1.6.0
-if ($LASTEXITCODE -ne 0) { throw 'Pinned release staging tools failed to install.' }
-Push-Location $Worker
+Write-Host '[release-stage] Build isolated frozen release Python dependency environment'
+$hostPython = (Get-Command python -ErrorAction Stop).Source
+$null = Get-Command uv -ErrorAction Stop
+$stagingVenv = Join-Path $Temp 'worker-release-venv'
+$previousProjectEnvironment = [Environment]::GetEnvironmentVariable('UV_PROJECT_ENVIRONMENT', 'Process')
 try {
-    uv sync --frozen --no-dev --python $hostPython
-    if ($LASTEXITCODE -ne 0) { throw 'uv sync failed.' }
-} finally { Pop-Location }
-$sitePackages = Join-Path $Worker '.venv\Lib\site-packages'
+    # Never mutate WorkerRuntime/.venv or the system Python/pip environment.
+    $env:UV_PROJECT_ENVIRONMENT = $stagingVenv
+    Push-Location $Worker
+    try {
+        uv sync --frozen --no-dev --python $hostPython
+        if ($LASTEXITCODE -ne 0) { throw 'Isolated release uv sync failed.' }
+    } finally { Pop-Location }
+} finally {
+    [Environment]::SetEnvironmentVariable('UV_PROJECT_ENVIRONMENT', $previousProjectEnvironment, 'Process')
+}
+$stagePython = Join-Path $stagingVenv 'Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $stagePython -PathType Leaf)) { throw 'Isolated release Python missing.' }
+& $stagePython -c "import huggingface_hub, torch; print('[release-stage][venv] isolated release imports PASS', torch.__version__)"
+if ($LASTEXITCODE -ne 0) { throw 'Isolated release Python imports failed.' }
+$sitePackages = Join-Path $stagingVenv 'Lib\site-packages'
 if (-not (Test-Path -LiteralPath $sitePackages -PathType Container)) { throw 'Frozen WorkerRuntime site-packages missing.' }
 Copy-Tree $sitePackages $PythonRoot
 $privatePython = Join-Path $PythonRoot 'python.exe'
@@ -90,11 +105,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Private Python runtime import smoke failed.' }
 
 Write-Host '[release-stage] Acquire required Hugging Face models from canonical manifest'
 $env:HF_HUB_DISABLE_TELEMETRY = '1'
-$env:HF_HOME = Join-Path $Temp 'hf-home'
-$env:HF_HUB_CACHE = Join-Path $Temp 'hf-cache'
-$env:HF_XET_CACHE = Join-Path $Temp 'hf-xet'
+$env:HF_HOME = Join-Path $RepoRoot '.workspace\cache\huggingface'
+$env:HF_HUB_CACHE = Join-Path $env:HF_HOME 'hub'
+$env:HF_XET_CACHE = Join-Path $env:HF_HOME 'xet'
+New-Item -ItemType Directory -Force -Path $env:HF_HOME | Out-Null
 $modelAcquirer = Join-Path $Worker 'prepare_model_assets.py'
-& $hostPython $modelAcquirer --model-id 'faster-whisper-large-v3-turbo' --model-id 'milmmt-46-1b-v1.0'
+& $stagePython $modelAcquirer --model-id 'faster-whisper-large-v3-turbo' --model-id 'milmmt-46-1b-v1.0'
 if ($LASTEXITCODE -ne 0) { throw 'Canonical required model acquisition failed.' }
 
 $asrRevisionMarker = Join-Path $AsrRoot 'faster-whisper-large-v3-turbo\.translateit_model_revision'
@@ -186,7 +202,7 @@ if cache.exists():
     shutil.rmtree(cache)
 print("[release-stage][hf] GPT-SoVITS pretrained snapshot PASS")
 '@ | Set-Content -LiteralPath $downloadGptAssets -Encoding utf8NoBOM
-& $hostPython $downloadGptAssets
+& $stagePython $downloadGptAssets
 if ($LASTEXITCODE -ne 0) { throw 'GPT-SoVITS Hugging Face snapshot staging failed.' }
 
 Write-Host '[release-stage] Stage pinned GPT-SoVITS source revision'

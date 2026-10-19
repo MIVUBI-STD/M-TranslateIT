@@ -50,7 +50,7 @@ Rust toolchain (cargo/rustc)
 Visual Studio 2022 C++ Build Tools
 ```
 
-It stages the private Python/dependencies, ASR, MiLMMT, GPT-SoVITS assets/source, NLTK data, FFmpeg, and VB-CABLE, then `stage_release_license_material.py` completes reviewed license material. The first preparation may download several GB. Do not manually copy models, install a second Python runtime into the product, or bypass the staged identity/hash checks.
+It stages the private Python/dependencies, ASR, MiLMMT, GPT-SoVITS assets/source, NLTK data, FFmpeg, and VB-CABLE, then `stage_release_license_material.py` completes reviewed license material. Its package environment is now isolated from developer `.venv` and system pip; shared downloads/cache live under the repository `.workspace`. **The asset staging replacement path is not yet fully transactional/restart-safe** and must not be run automatically by development `prepare`. The first preparation may download several GB. Do not manually copy models, install a second Python runtime into the product, or bypass the staged identity/hash checks.
 
 Windows PowerShell 5.1 cannot run `Set-Content -Encoding utf8NoBOM`; staging keeps an explicit compatibility boundary in which PowerShell 7+ executes the implementation unchanged while 5.1 executes a temporary same-directory copy with only the unsupported encoding enum replaced for the temporary generated Python helper. Runtime/model sources, revisions, hashes, identity, and staging behavior are otherwise unchanged.
 

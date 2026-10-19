@@ -93,7 +93,11 @@ jobs:
       - name: Parse Windows workspace scripts
         shell: pwsh
         run: |
-          foreach ($file in @('tooling/windows/manage.ps1', 'tooling/windows/modules/Workspace.psm1')) {
+          foreach ($file in @(
+            'tooling/windows/manage.ps1',
+            'tooling/windows/modules/Workspace.psm1',
+            'EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1'
+          )) {
             $tokens = $null
             $parseErrors = $null
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$parseErrors)

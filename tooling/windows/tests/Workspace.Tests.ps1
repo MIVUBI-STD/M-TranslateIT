@@ -38,6 +38,16 @@ try {
     } finally {
         Remove-Item -LiteralPath $collisionRoot -Recurse -Force
     }
+    # Release staging may stage a separate runtime, but must not mutate the
+    # developer's Python environment or install packages in system Python.
+    $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
+    $releaseStage = Get-Content -LiteralPath (Join-Path $repo "EngineData\Frontend\RustApp\scripts\stage_release_inputs_impl.ps1") -Raw
+    foreach ($marker in @("UV_PROJECT_ENVIRONMENT", "worker-release-venv", ".workspace\cache\uv", ".workspace\cache\huggingface")) {
+        if (-not $releaseStage.Contains($marker)) { throw "Missing isolated staging marker: $marker" }
+    }
+    if ($releaseStage.Contains("-m pip install") -or $releaseStage.Contains('Join-Path $Worker ''.venv')) {
+        throw "Release staging must not install system packages or consume the developer .venv."
+    }
     Write-Host "Windows workspace isolation and idempotence: PASS"
 } finally {
     foreach ($key in $keys) { [Environment]::SetEnvironmentVariable($key,$previous[$key],"Process") }
