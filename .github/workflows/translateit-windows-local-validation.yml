@@ -115,6 +115,8 @@ jobs:
             'tooling/windows/modules/Workspace.psm1',
             'tooling/windows/modules/Readiness.psm1',
             'tooling/windows/modules/Toolchain.psm1',
+            'tooling/windows/modules/PortableToolchain.psm1',
+            'tooling/windows/tests/PortableToolchain.Tests.ps1',
             'tooling/windows/tests/Toolchain.Tests.ps1',
             'tooling/windows/tests/Readiness.Tests.ps1',
             'EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1',
@@ -136,6 +138,7 @@ jobs:
           .\tooling\windows\tests\Workspace.Tests.ps1
           .\tooling\windows\tests\Readiness.Tests.ps1
           .\tooling\windows\tests\Toolchain.Tests.ps1
+          .\tooling\windows\tests\PortableToolchain.Tests.ps1
 
       - name: Test release staging promotion and rollback contracts
         shell: pwsh

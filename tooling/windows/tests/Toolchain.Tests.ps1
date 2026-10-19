@@ -42,6 +42,15 @@ try {
         $localNode.state -ne 'SELECTED' -or $localNpm.state -ne 'SELECTED') {
         throw 'Complete Node/npm group must be selected together.'
     }
+    # uv-managed CPython appears below an exact-version nested folder.
+    $pyDir = Join-Path $folder '.workspace\tools\python\cpython-3.12.10-windows-x86_64-none'
+    New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
+    New-Item -ItemType File -Path (Join-Path $pyDir 'python.exe') | Out-Null
+    $py = Get-TranslateITPreferredTool -RepositoryRoot $folder -Name python
+    if ($py.state -ne 'SELECTED' -or $py.origin -ne 'workspace' -or
+        $py.path -ne (Join-Path $pyDir 'python.exe')) {
+        throw 'uv-managed CPython must be selected without copying its interpreter to a flat path.'
+    }
     $rustDir = Join-Path $folder '.workspace\tools\cargo\bin'
     New-Item -ItemType Directory -Path $rustDir -Force | Out-Null
     foreach ($exe in @('rustc.exe','cargo.exe','rustup.exe')) {
