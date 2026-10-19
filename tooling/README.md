@@ -6,6 +6,8 @@
 manage.cmd
   -> tooling/windows/manage.ps1
      -> tooling/windows/modules/Workspace.psm1
+     -> tooling/windows/modules/Toolchain.psm1
+     -> tooling/windows/modules/Readiness.psm1
      -> existing npm, Cargo, uv and signed release owners
 ```
 
@@ -23,7 +25,7 @@ and Python lockfiles. These are review/pin inputs, not download destinations.
 | `manage.cmd test` | Existing frontend, Rust and worker regression suites |
 | `manage.cmd package "<quality-report.json>"` | Controlled signed R3 release, separately gated; not a development setup shortcut |
 
-The single `Readiness.psm1` module owns the read-only toolchain/asset inventory. Its report is local diagnostic evidence only, never an automatically promoted release-readiness receipt or native acceptance proof.
+The `Toolchain.psm1` module selects complete existing workspace bundles (Node/npm, Python, uv and Rust) before any modifying developer command; incomplete bundles fail closed and external fallback is reported explicitly. This is not an automatic download or a guarantee that external MSVC/Windows dependencies are portable. The single `Readiness.psm1` module owns the read-only toolchain/asset inventory. Its report is local diagnostic evidence only, never an automatically promoted release-readiness receipt or native acceptance proof.
 
 Process-scoped cache settings do not reinstall Rustup, Windows SDK, WebView2
 or VB-CABLE, and do not make installed app data portable. The unchanged R3

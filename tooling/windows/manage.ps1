@@ -12,6 +12,7 @@ $Frontend = Join-Path $Root "EngineData\Frontend\RustApp"
 $Worker = Join-Path $Root "EngineData\Backend\LocalWorker\WorkerRuntime"
 Import-Module (Join-Path $PSScriptRoot "modules\Workspace.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\Readiness.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\Toolchain.psm1") -Force
 
 function Invoke-Step {
     param([string]$Label, [scriptblock]$Body)
@@ -94,7 +95,8 @@ function Assert-DevelopmentPrerequisites {
 Set-Location $Root
 # Generated caches are scoped to this process and child tools, never Windows-wide.
 if ($Command -notin @("help", "status")) {
-    Set-TranslateITWorkspaceEnvironment -RepositoryRoot $Root
+    $null = Set-TranslateITWorkspaceEnvironment -RepositoryRoot $Root
+    Use-TranslateITWorkspaceToolchain -RepositoryRoot $Root
 }
 
 switch ($Command) {

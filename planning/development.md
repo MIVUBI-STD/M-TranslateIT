@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The last successful Windows CI candidate was `5cf92b9c0166e2531562987d5f3ab2d1a39f864a`, before the Windows workspace migration. The current `Local` candidate requires matching CI proof, and real GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains reserved for explicitly approved final releases.
+The most recent fully successful Windows source CI baseline is `aec4008954eb0c0a64085f734afcdb57da80a869` (run `39240984722`). The source-only workspace toolchain-selection changes after that baseline must earn a new exact-SHA CI PASS. GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains reserved for explicitly approved final releases.
 
 ## Active Boundary
 

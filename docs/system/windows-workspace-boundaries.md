@@ -32,7 +32,12 @@ that installed TranslateIT or every Windows tool has become portable.
 
 ```text
 .workspace/
-  tools/                 # portable tools once explicitly provisioned
+  tools/
+    node/                 # complete node.exe + npm.cmd, not optional fragments
+    python/               # one Python 3.12.10 executable
+    uv/                   # one uv.exe
+    cargo/bin/            # coherent rustup.exe, rustc.exe, cargo.exe proxies
+    rustup/toolchains/    # rustup-managed installed toolchain (not auto-downloaded)
   downloads/verified/    # SHA-256 verified reusable release archives (no private content)
   cache/npm/
   cache/uv/
@@ -42,6 +47,15 @@ that installed TranslateIT or every Windows tool has become portable.
   temp/
   reports/
 ```
+
+The `Toolchain.psm1` owner prefers **complete** tool bundles under
+`.workspace/tools/`. The read-only status shows `workspace`,
+`external`, or `INCOMPLETE_LOCAL` without silently mixing local and
+system executables. A partial local bundle fails closed before any
+developer command mutates dependency files. `CARGO_HOME` routes Cargo
+registry/git downloads to `.workspace/tools/cargo/`; `RUSTUP_HOME`
+is set there only when a complete local Rust proxy/toolchain exists.
+This selection is **not** a tool installer or evidence of full portability.
 
 `tooling/windows/modules/Workspace.psm1` assigns per-process `TEMP`,
 `TMP`, `npm_config_cache`, `UV_CACHE_DIR`, `PIP_CACHE_DIR`,

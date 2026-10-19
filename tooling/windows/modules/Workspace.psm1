@@ -26,6 +26,9 @@ function Set-TranslateITWorkspaceEnvironment {
     $env:npm_config_cache = Join-Path $workspace "cache/npm"
     $env:UV_CACHE_DIR = Join-Path $workspace "cache/uv"
     $env:PIP_CACHE_DIR = Join-Path $workspace "cache/pip"
+    # Cargo registries/git downloads remain inside the repository even when the
+    # already-installed Rust compiler itself is still external.
+    $env:CARGO_HOME = Join-Path $workspace "tools/cargo"
     $env:HF_HOME = Join-Path $workspace "cache/huggingface"
     $env:HF_HUB_CACHE = Join-Path $env:HF_HOME "hub"
     $env:HF_XET_CACHE = Join-Path $env:HF_HOME "xet"

@@ -1,16 +1,19 @@
 # Read-only Windows workspace inventory. Never infer AI/device acceptance.
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'Toolchain.psm1') -Force
 
 function Get-TranslateITToolObservation {
     param([string]$Name, [string]$WorkspaceRoot)
-    $found = Get-Command -Name $Name -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandType -eq 'Application' } | Select-Object -First 1
-    if ($null -eq $found) {
-        return [pscustomobject]@{ name=$Name; state='MISSING'; origin='none'; version=$null; path=$null }
+    $root = Split-Path -Parent $WorkspaceRoot
+    $choice = Get-TranslateITPreferredTool -RepositoryRoot $root -Name $Name
+    if ($choice.state -ne 'SELECTED') {
+        return [pscustomobject]@{
+            name=$Name; state=$choice.state; origin=$choice.origin
+            version=$null; path=$null
+        }
     }
-    $path = [IO.Path]::GetFullPath($found.Source)
-    $prefix = $WorkspaceRoot.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-    $origin = if ($path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { 'workspace' } else { 'external' }
+    $path = $choice.path
+    $origin = $choice.origin
     $version = $null
     try {
         $output = (& $path --version 2>&1 | Out-String).Trim()
