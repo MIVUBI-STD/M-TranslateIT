@@ -73,6 +73,9 @@
     <div class="ti-action-row mt-4">
       <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading} onclick={() => void onRefreshDiagnostics()}><RefreshCw size={15} /> {diagnosticsLoading || setupBusy ? "Refreshing..." : "Check Again"}</button>
       <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading} onclick={() => void onSetupAction("verify-models")}><Bug size={15} /> Check AI Files</button>
+      {#if snapshot.helper?.state === "blocked"}
+        <button type="button" class="ti-button ti-button-secondary" disabled={setupBusy || diagnosticsLoading || snapshot.meetingSession?.has_session || snapshot.voiceBuildActive} onclick={() => void onSetupAction("retry-worker")}><RefreshCw size={15} /> Retry Worker</button>
+      {/if}
     </div>
   </article>
 
