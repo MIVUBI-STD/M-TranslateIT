@@ -2,10 +2,19 @@ import { applicationRuntimeApi } from "./applicationRuntimeApi";
 import { runtimeApi } from "./runtimeApi";
 import { compact } from "../shared/state";
 
-export type ProductSetupAction = "check-readiness" | "verify-models";
+export type ProductSetupAction = "check-readiness" | "verify-models" | "retry-worker";
 export type ProductRecoveryAction = "fix-setup";
 
 export async function runProductSetupAction(action: ProductSetupAction): Promise<string> {
+  if (action === "retry-worker") {
+    const result = await applicationRuntimeApi.dispatchIntent("retry_blocked_worker").catch(() => null);
+    return compact(
+      result?.message,
+      result?.ok
+        ? "Worker restarted. Check Again to verify current capabilities."
+        : "Worker recovery failed. Check Again for the current status.",
+    );
+  }
   if (action === "check-readiness") {
     const result = await applicationRuntimeApi.dispatchIntent("check_readiness").catch(() => null);
     return result?.ok
