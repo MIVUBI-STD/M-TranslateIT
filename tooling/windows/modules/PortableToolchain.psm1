@@ -249,7 +249,8 @@ function Install-TranslateITPortableToolchain {
         if ($LASTEXITCODE -ne 0 -or -not $rustVersion.StartsWith(('rustc '+$pins.rust.version+' '))) {
             throw 'Portable Rust compiler does not match the pinned distribution.'
         }
-        $rustupVersion=(& (Join-Path $bin 'rustup.exe') --version 2>&1 | Out-String).Trim()
+        # rustup writes informational diagnostics to stderr even on success.
+        $rustupVersion=(& (Join-Path $bin 'rustup.exe') --version | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or -not $rustupVersion.StartsWith(('rustup '+$pins.rustup.version+' '))) {
             throw 'Portable rustup version does not match the pinned bootstrap.'
         }
