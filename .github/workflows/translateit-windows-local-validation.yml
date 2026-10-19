@@ -19,7 +19,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: translateit-windows-local-${{ github.ref }}
+  # A newer push can supersede targeted work, but must not cancel a separately
+  # authorized manual full-source run.
+  group: translateit-windows-local-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.validation_level == 'full' && 'full' || 'targeted' }}
   cancel-in-progress: true
 
 jobs:
@@ -167,6 +169,10 @@ jobs:
           if [[ "$REPO" == true ]]; then test "$REPO_RESULT" = success; fi
           if [[ "$UI" == true || "$RUST" == true ]]; then test "$UI_RESULT" = success; fi
           if [[ "$WORKER" == true ]]; then test "$WORKER_RESULT" = success; fi
+          if [[ "$REVIEW" == true ]]; then
+            echo "::error::Unrecognized ownership/model asset change requires explicit review; selected checks cannot certify this scope."
+            exit 1
+          fi
 
   windows-source-validation:
     name: Full Windows source and integration contracts (manual only)
