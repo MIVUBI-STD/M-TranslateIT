@@ -91,5 +91,8 @@ test("AI preparation and native snapshots use bounded asynchronous Tauri command
   assert.match(applicationModule, /spawn_blocking\(current_application_snapshot\)/);
   assert.match(applicationModule, /spawn_blocking\(move \|\| \{/);
   assert.match(mutationOwner, /pub async fn select_product_builtin_voice\(/);
+  for (const selection of ["select_product_saved_personal_voice", "select_product_voice_version"]) {
+    assert.ok(mutationOwner.includes(`pub async fn ${selection}(`), selection);
+  }
   assert.match(mutationOwner, /spawn_blocking\(move \|\| \{/);
 });

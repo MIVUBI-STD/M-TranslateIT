@@ -111,26 +111,34 @@ pub async fn select_product_builtin_voice(
 
 
 #[tauri::command]
-pub fn select_product_saved_personal_voice(
+pub async fn select_product_saved_personal_voice(
     app: tauri::AppHandle,
-) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
-    emit_after(&app, "select_saved_personal_voice", || {
-        super::super::voice_lab_build::select_stored_personal_voice()
+) -> Result<super::super::voice_lab_build::VoiceLabBuildActionResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        emit_after(&app, "select_saved_personal_voice", || {
+            super::super::voice_lab_build::select_stored_personal_voice()
+        })
     })
+    .await
+    .map_err(|_| "Saved voice selection worker was interrupted.".to_string())
 }
 
 
 #[tauri::command]
-pub fn select_product_voice_version(
+pub async fn select_product_voice_version(
     app: tauri::AppHandle,
     version_id: String,
     replace_confirmed: bool,
-) -> super::super::voice_lab_build::VoiceLabBuildActionResult {
-    emit_after(&app, "select_voice_version", || {
-        super::super::voice_lab_build::select_archived_personal_voice_version(
-            version_id, replace_confirmed,
-        )
+) -> Result<super::super::voice_lab_build::VoiceLabBuildActionResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        emit_after(&app, "select_voice_version", || {
+            super::super::voice_lab_build::select_archived_personal_voice_version(
+                version_id, replace_confirmed,
+            )
+        })
     })
+    .await
+    .map_err(|_| "Voice version selection worker was interrupted.".to_string())
 }
 
 #[tauri::command]
