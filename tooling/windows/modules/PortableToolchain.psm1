@@ -4,6 +4,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Toolchain.psm1') -Force
 
+function Test-TranslateITUvVersionOutput {
+    param([string]$Output, [string]$ExpectedVersion)
+    # Official uv builds append commit, date and target metadata to the version.
+    return $Output -cmatch ('\Auv ' + [regex]::Escape($ExpectedVersion) + '(?: \([^\r\n()]+\))?\z')
+}
+
 function Get-TranslateITVerifiedToolArchive {
     [CmdletBinding()]
     param([Parameter(Mandatory=$true)][string]$Url,
@@ -173,7 +179,7 @@ function Install-TranslateITPortableToolchain {
             $installationStarted=$true
             Publish-TranslateITPortableArchive -Archive $zip -Stage (Join-Path $run 'uv') -SourceFolder '.' -TargetFolder $uv -RequiredFiles @('uv.exe')
             $actual=(& (Join-Path $uv 'uv.exe') --version | Out-String).Trim()
-            if ($LASTEXITCODE -ne 0 -or $actual -ne ('uv '+$pins.uv.version)) { throw 'Pinned portable uv version check failed.' }
+            if ($LASTEXITCODE -ne 0 -or -not (Test-TranslateITUvVersionOutput -Output $actual -ExpectedVersion $pins.uv.version)) { throw 'Pinned portable uv version check failed.' }
         }
 
         # Existing locally-managed Python is acquired by the selected, pinned uv.
@@ -224,7 +230,10 @@ function Install-TranslateITPortableToolchain {
         )) {
             $program=[string]$check[1]
             $actual=(& $program --version 2>&1 | Out-String).Trim()
-            if ($LASTEXITCODE -ne 0 -or $actual -ne [string]$check[2]) {
+            $versionMatches = if ($check[0] -eq 'uv') {
+                Test-TranslateITUvVersionOutput -Output $actual -ExpectedVersion $pins.uv.version
+            } else { $actual -ceq [string]$check[2] }
+            if ($LASTEXITCODE -ne 0 -or -not $versionMatches) {
                 throw "Portable $($check[0]) does not match the pinned version."
             }
         }

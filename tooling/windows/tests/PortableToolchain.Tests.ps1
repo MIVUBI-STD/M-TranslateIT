@@ -3,6 +3,19 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot '..\modules\PortableToolchain.psm1') -Force
 
+& (Get-Module PortableToolchain) {
+    foreach ($output in @('uv 0.12.1', 'uv 0.12.1 (329541a50 2026-07-31 x86_64-pc-windows-msvc)')) {
+        if (-not (Test-TranslateITUvVersionOutput -Output $output -ExpectedVersion '0.12.1')) {
+            throw 'Pinned uv version with optional build metadata was rejected.'
+        }
+    }
+    foreach ($output in @('uv 0.12.10', 'uv 0.12.0 (build)', 'uv 0.12.1-preview', 'uv 0.12.1 unexpected', "uv 0.12.1`nextra")) {
+        if (Test-TranslateITUvVersionOutput -Output $output -ExpectedVersion '0.12.1') {
+            throw 'Mismatched or malformed uv version was accepted.'
+        }
+    }
+}
+
 $root=Join-Path $env:RUNNER_TEMP ('translateit-portable-bootstrap-fixture-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 try {
