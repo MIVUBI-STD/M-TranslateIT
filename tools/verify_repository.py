@@ -408,6 +408,14 @@ def check_workflows(errors: list[str]) -> None:
                 fail(errors, f"{path.name} may only auto-trigger from Local push")
             if "cancel-in-progress: true" not in value:
                 fail(errors, f"{path.name} must cancel superseded source runs")
+            # Targeted push checks must not silently execute the expensive
+            # Windows suite or describe partial checks as full acceptance.
+            if "python tools/ci_local_scope.py" not in value:
+                fail(errors, f"{path.name} must route targeted Local changes")
+            if "github.event_name == 'workflow_dispatch' && inputs.validation_level == 'full'" not in value:
+                fail(errors, f"{path.name} must restrict full validation to manual dispatch")
+            if "NOT EXECUTED: Rust" not in value:
+                fail(errors, f"{path.name} must disclose omitted targeted proof")
         else:
             if "on:\n  workflow_dispatch:\n" not in value:
                 fail(errors, f"{path.name} must have a manual workflow_dispatch trigger")
