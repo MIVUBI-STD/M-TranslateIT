@@ -13,6 +13,7 @@ $Worker = Join-Path $Root "EngineData\Backend\LocalWorker\WorkerRuntime"
 Import-Module (Join-Path $PSScriptRoot "modules\Workspace.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\Readiness.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\Toolchain.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\PortableToolchain.psm1") -Force
 
 function Invoke-Step {
     param([string]$Label, [scriptblock]$Body)
@@ -35,7 +36,7 @@ function Show-Help {
     Write-Host "TranslateIT Windows development commands"
     Write-Host ""
     Write-Host "  manage.cmd status   Inspect toolchain without installing or repairing"
-    Write-Host "  manage.cmd prepare    Prepare locked frontend and Python development dependencies"
+    Write-Host "  manage.cmd prepare    Install pinned portable tools, then locked development dependencies"
     Write-Host "  manage.cmd verify    Verify repository, frontend and Python source tests"
     Write-Host "  manage.cmd build    Build frontend and compile-check Rust on one clean source SHA"
     Write-Host "  manage.cmd run      Start the local Tauri development app; no release signing"
@@ -96,6 +97,9 @@ Set-Location $Root
 # Generated caches are scoped to this process and child tools, never Windows-wide.
 if ($Command -notin @("help", "status")) {
     $null = Set-TranslateITWorkspaceEnvironment -RepositoryRoot $Root
+    if ($Command -eq 'prepare') {
+        Install-TranslateITPortableToolchain -RepositoryRoot $Root
+    }
     Use-TranslateITWorkspaceToolchain -RepositoryRoot $Root
 }
 

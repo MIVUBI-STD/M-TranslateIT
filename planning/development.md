@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The most recent fully successful Windows source CI baseline is `aec4008954eb0c0a64085f734afcdb57da80a869` (run `39240984722`). The source-only workspace toolchain-selection changes after that baseline must earn a new exact-SHA CI PASS. GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains reserved for explicitly approved final releases.
+The most recent fully successful Windows source CI baseline is `ffd54df0068562ab8a22a954f855ca00aca44b58` (run `39246895800`). The explicit portable-toolchain bootstrap and its offline fixtures now require a matching full Windows source CI PASS. No first-install/toolchain build on the user's Windows machine has been claimed. GPU/model/audio/installer acceptance remains unexecuted. The GitHub default branch `main` remains reserved for explicitly approved final releases.
 
 ## Active Boundary
 

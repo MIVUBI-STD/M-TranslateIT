@@ -7,6 +7,7 @@ manage.cmd
   -> tooling/windows/manage.ps1
      -> tooling/windows/modules/Workspace.psm1
      -> tooling/windows/modules/Toolchain.psm1
+     -> tooling/windows/modules/PortableToolchain.psm1
      -> tooling/windows/modules/Readiness.psm1
      -> existing npm, Cargo, uv and signed release owners
 ```
@@ -18,14 +19,14 @@ and Python lockfiles. These are review/pin inputs, not download destinations.
 | Command | Current meaning |
 |---|---|
 | `manage.cmd status` | Read-only tool inventory with workspace/external origins and asset-marker presence |
-| `manage.cmd prepare` | Install locked frontend and Python **developer dependencies** into their existing local paths; cache under `.workspace` |
+| `manage.cmd prepare` | Install pinned Node, uv, managed Python and Rustup/Rust in `.workspace/tools`; then install locked developer dependencies |
 | `manage.cmd verify` | Execute source contracts and save ignored `.workspace/reports/readiness.json`; native device/model proof remains unknown |
 | `manage.cmd build` | Existing exact-SHA frontend and locked Tauri Rust compile gate |
 | `manage.cmd run` | Existing Tauri development app, needing real local models/audio |
 | `manage.cmd test` | Existing frontend, Rust and worker regression suites |
 | `manage.cmd package "<quality-report.json>"` | Controlled signed R3 release, separately gated; not a development setup shortcut |
 
-The `Toolchain.psm1` module selects complete existing workspace bundles (Node/npm, Python, uv and Rust) before any modifying developer command; incomplete bundles fail closed and external fallback is reported explicitly. This is not an automatic download or a guarantee that external MSVC/Windows dependencies are portable. The single `Readiness.psm1` module owns the read-only toolchain/asset inventory. Its report is local diagnostic evidence only, never an automatically promoted release-readiness receipt or native acceptance proof.
+The `Toolchain.psm1` module selects complete existing workspace bundles (Node/npm, Python, uv and Rust) before any modifying developer command; incomplete bundles fail closed and external fallback is reported explicitly. This module prefers the local bundles. The separate `PortableToolchain.psm1` provisions pinned bundles only on explicit `prepare`, verifies downloaded hashes and refuses incomplete installations; it never installs Windows drivers or MSVC automatically. The single `Readiness.psm1` module owns the read-only toolchain/asset inventory. Its report is local diagnostic evidence only, never an automatically promoted release-readiness receipt or native acceptance proof.
 
 Process-scoped cache settings do not reinstall Rustup, Windows SDK, WebView2
 or VB-CABLE, and do not make installed app data portable. The unchanged R3

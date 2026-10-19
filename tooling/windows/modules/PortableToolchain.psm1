@@ -54,8 +54,9 @@ function Publish-TranslateITPortableArchive {
           [Parameter(Mandatory=$true)][string[]]$RequiredFiles)
     if (Test-Path -LiteralPath $TargetFolder) { throw "Portable target already exists; never overwrite: $TargetFolder" }
     New-Item -ItemType Directory -Path $Stage -ErrorAction Stop | Out-Null
-    Expand-Archive -LiteralPath $Archive -DestinationPath $Stage -ErrorAction Stop
-    $source = Join-Path $Stage $SourceFolder
+    $unpacked = Join-Path $Stage 'unpacked'
+    Expand-Archive -LiteralPath $Archive -DestinationPath $unpacked -ErrorAction Stop
+    $source = if ($SourceFolder -eq '.') { $unpacked } else { Join-Path $unpacked $SourceFolder }
     if (-not (Test-Path -LiteralPath $source -PathType Container)) {
         throw "Unexpected pinned portable archive structure: $SourceFolder"
     }
@@ -84,7 +85,9 @@ function Install-TranslateITPortableToolchain {
     $tools=Join-Path $workspace 'tools'
     $cache=Join-Path $workspace 'downloads/verified'
     $stageRoot=Join-Path $workspace 'staging'
-    foreach ($path in @($tools,$cache,$stageRoot)) {
+    # These parent directories are created by the canonical workspace owner.
+    # Reject redirections at each named boundary, not just the final cache.
+    foreach ($path in @($workspace,$tools,$cache,$stageRoot)) {
         if (-not (Test-Path -LiteralPath $path -PathType Container)) {
             New-Item -ItemType Directory -Path $path -Force | Out-Null
         }
@@ -137,8 +140,8 @@ function Install-TranslateITPortableToolchain {
         $rustup=Join-Path $tools 'rustup'
         $bin=Join-Path $cargo 'bin'
         if (-not (Test-Path -LiteralPath $bin)) {
-            if ((Test-Path -LiteralPath $cargo) -or (Test-Path -LiteralPath $rustup)) {
-                throw 'Incomplete portable Rust homes require explicit recovery, not replacement.'
+            if (Test-Path -LiteralPath $rustup) {
+                throw 'Incomplete portable Rustup home requires explicit recovery, not replacement.'
             }
             $bootstrap=Get-TranslateITVerifiedToolArchive -Url $pins.rustup.url -ExpectedSha256 $pins.rustup.sha256 -CacheRoot $cache
             $env:CARGO_HOME=$cargo

@@ -64,6 +64,26 @@ function Get-TranslateITWorkspaceToolSelection {
             $found += [bool](Assert-TranslateITRegularPath -Path $full)
         }
         $present = @($found | Where-Object { $_ }).Count
+        $commandFolder = $folder
+        $resolvedPaths = @($group.files | ForEach-Object { Join-Path $folder $_ })
+        if ($group.name -eq 'python' -and $present -eq 0 -and
+            (Test-Path -LiteralPath $folder -PathType Container)) {
+            # uv installs the managed CPython layout below UV_PYTHON_INSTALL_DIR,
+            # not into a flat tools/python/python.exe shim.
+            $managed = @(Get-ChildItem -LiteralPath $folder -Directory -Filter 'cpython-3.12.10-*')
+            if ($managed.Count -eq 1) {
+                $commandFolder = $managed[0].FullName
+                $python = Join-Path $commandFolder 'python.exe'
+                if (Assert-TranslateITRegularPath -Path $python) {
+                    $present = 1
+                    $resolvedPaths = @($python)
+                } else {
+                    $present = -1
+                }
+            } elseif ($managed.Count -gt 1) {
+                $present = -1
+            }
+        }
         $complete = $present -eq $group.files.Count
         if ($group.name -eq 'rust' -and $present -gt 0) {
             $rustup = Join-Path $toolsRoot 'rustup'
@@ -76,9 +96,9 @@ function Get-TranslateITWorkspaceToolSelection {
         $result += [pscustomobject]@{
             name=$group.name
             state=$state
-            directory=$folder
+            directory=$commandFolder
             programs=@($group.names)
-            paths=@($group.files | ForEach-Object { Join-Path $folder $_ })
+            paths=$resolvedPaths
         }
     }
     return $result
