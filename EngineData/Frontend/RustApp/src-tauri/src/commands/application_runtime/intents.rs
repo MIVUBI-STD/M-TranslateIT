@@ -90,7 +90,9 @@ fn retry_blocked_worker() -> IntentOutcome {
                 .to_string(),
         );
     }
-    let started = helper_bridge::start_helper_bridge();
+    // Re-check the canonical native runtime ownership immediately at admission.
+    // This also refuses a session that became active after snapshot collection.
+    let started = runtime::start_helper_bridge();
     outcome(started.ok, started.state, started.message)
 }
 
