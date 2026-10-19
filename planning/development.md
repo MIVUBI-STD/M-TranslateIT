@@ -14,6 +14,10 @@ Exact-SHA targeted CI completed successfully on `0c99a4bb61e480d9508550fab7540b6
 
 ## Automated audio test harness work — CI suspended
 
+Source implementation is now under `tools/audio_validation/`: 16 public scenarios, explicitly invoked offline eSpeak fixture synthesis to PCM16 mono 16 kHz, WAV/reference SHA-256 and suite/audio fingerprints, immutable fixture manifests, strict required-stage result grading and matched-fixture baseline/candidate comparison. The explicit `worker_runner.py` starts only the existing pinned WorkerRuntime on a clean externally pinned `Local` SHA; it does not drive Meeting. The existing canonical `tools/asr_quality/` retains WER/CER/critical cues and `engine/audio/` retains VAD authority. New source/contract files are unexecuted in this session; CI remains paused.
+
+**Residual work, not yet accepted:** execute the offline source tests and generate fixture WAV files in a matching environment; perform real local ASR/MiLMMT/voice smoke only on a prepared pinned machine when explicitly authorized; integrate a bounded receipt-producing test-only canonical Rust VAD replay; separately validate real Windows audio-route receiver and natural microphone. Direct worker tests never certify VAD. Numeric 61-second tone tests buffer boundaries, not continuous natural speech.
+
 Owner approved a long-term, offline-first audio scenario/fixture/testing framework. This is test tooling only: no second VAD/ASR/translation engine, no production capture injection, no user microphone recording, no cloud inference. Fixture creation may be performed with a separately installed offline TTS executable; explicit worker execution requires locally staged pinned models, and native receiver verification remains a separately authorized Windows phase.
 
 **CI is fully paused at owner request (2026-10-20):** all nine GitHub Actions workflow jobs are hard-gated off and the former Local push trigger is removed. Do not cite unexecuted checks as green or turn CI back on as part of the audio work.

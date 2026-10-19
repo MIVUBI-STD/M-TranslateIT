@@ -12,6 +12,7 @@ Repository-owned Python tools for **source-derived verification, routing, impact
 - `repository_permissions.py`, `repository_agent_evals.py`, `repository_skill_admission.py` — scoped preflight, evaluation and skill package admission
 - `repository_contracts.py` and `interop-contracts.json` — bridge contract location, not duplicate Rust/TS/Python semantics
 - `translation_quality/`, `asr_quality/`, `tts_quality/`, `quality_readiness/` — independent current quality contracts; baseline fixture presence is not real inference PASS
+- `audio_validation/` — offline deterministic WAV scenario generation, hashed fixture inspection, strict observation grading and explicit pinned local-worker smoke; never cloud/CI inference or production capture injection
 - `tests/` — regression tests for these existing tools
 
 `tooling/windows-toolchain/` contains the separate optional developer launcher invoked by root `DEV.cmd`. Source/product ownership is in [Implementation Map](../docs/knowledge/source-ownership.md); repository policy in [GitHub Rules](../GITHUB_RULES.md). No scripts are assigned to the user's PC for incremental ChatGPT-owned development.

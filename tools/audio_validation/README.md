@@ -1,41 +1,41 @@
 # Offline Audio Regression Harness (developer tool)
 
-**Scope:** Reproducible public audio fixtures and evidence-scoped regression checks. This is **not** a new production VAD, ASR, translator, or TTS engine. The 60-case corpus and all canonical ASR reference/invariant logic remain in \`tools/asr_quality/\`. This harness selects 16 initial scenarios and adds audio-file provenance.
+**Scope:** Reproducible public audio fixtures and evidence-scoped regression checks. This is **not** a new production VAD, ASR, translator, or TTS engine. The 60-case corpus and all canonical ASR reference/invariant logic remain in `tools/asr_quality/`. This harness selects 16 initial scenarios and adds audio-file provenance.
 
 ## Safety / execution boundary
 
 - **GitHub CI is paused by owner.** No GitHub Actions job, model inference, Windows microphone, device capture or cloud service runs automatically.
-- \`harness.py validate/generate/inspect/score/compare\` never starts a model or microphone. \`generate\` only runs an explicitly supplied installed offline **eSpeak-compatible** executable. Check its license and language voices in your environment.
-- \`worker_runner.py\` is **explicit opt-in**, requires a clean checkout at an externally pinned \`Local\` SHA and an existing pinned WorkerRuntime Python interpreter/model assets. It starts only the canonical persistent worker, with forced offline Hugging Face flags. It **does not** run Meeting, native VAD, virtual microphone, speaker playback, receiver delivery or training.
-- Use **public test utterances** only. Do not commit user speech, private recordings, selected personal-voice data, model binaries, or generated WAVs. Use \`UserData/CacheData/audio_validation/<unique-run>\` for generated fixtures and \`UserData/LogData/\` for local observations.
-- The test-only Rust PCM/VAD replay exists at \`EngineData/Frontend/RustApp/src-tauri/src/engine/audio/pcm_handoff_replay.rs\`. It has **no production capture cutover**. No direct worker smoke can be counted as VAD/meeting-route acceptance.
+- `harness.py validate/generate/inspect/score/compare` never starts a model or microphone. `generate` only runs an explicitly supplied installed offline **eSpeak-compatible** executable. Check its license and language voices in your environment.
+- `worker_runner.py` is **explicit opt-in**, requires a clean checkout at an externally pinned `Local` SHA and an existing pinned WorkerRuntime Python interpreter/model assets. It starts only the canonical persistent worker, with forced offline Hugging Face flags. It **does not** run Meeting, native VAD, virtual microphone, speaker playback, receiver delivery or training.
+- Use **public test utterances** only. Do not commit user speech, private recordings, selected personal-voice data, model binaries, or generated WAVs. Use `UserData/CacheData/audio_validation/<unique-run>` for generated fixtures and `UserData/LogData/` for local observations.
+- The test-only Rust PCM/VAD replay exists at `EngineData/Frontend/RustApp/src-tauri/src/engine/audio/pcm_handoff_replay.rs`. It has **no production capture cutover**. No direct worker smoke can be counted as VAD/meeting-route acceptance.
 
 ## Workflow
 
 From repository root, with Python 3.12 and an installed offline eSpeak-compatible synthesizer:
 
-\`\`\`powershell
+```powershell
 python tools/audio_validation/harness.py validate
 python tools/audio_validation/harness.py generate --tts-exe espeak-ng --fixtures UserData/CacheData/audio_validation/public-v1
 python tools/audio_validation/harness.py inspect --fixtures UserData/CacheData/audio_validation/public-v1
-\`\`\`
+```
 
-Use \`espeak\` instead of \`espeak-ng\` **only** if it is the explicitly installed, reviewed offline executable supporting \`id\` and \`en\`. Fixture generation records the version, deterministic seed, canonical corpus/scenario fingerprint, SHA-256 of reference text and every WAV, plus PCM metrics. It refuses to overwrite prior output. The deterministic linear resampler is solely for smoke-fixture conversion, **not** an audio-quality benchmark of the application.
+Use `espeak` instead of `espeak-ng` **only** if it is the explicitly installed, reviewed offline executable supporting `id` and `en`. Fixture generation records the version, deterministic seed, canonical corpus/scenario fingerprint, SHA-256 of reference text and every WAV, plus PCM metrics. It refuses to overwrite prior output. The deterministic linear resampler is solely for smoke-fixture conversion, **not** an audio-quality benchmark of the application.
 
 To exercise the existing AI worker on the user's **already prepared** local Windows test environment after explicit acceptance authorization (no downloads, no microphone), supply the pinned interpreter and SHA:
 
-\`\`\`powershell
+```powershell
 python tools/audio_validation/worker_runner.py --fixtures UserData/CacheData/audio_validation/public-v1 --python EngineData/Backend/LocalWorker/WorkerRuntime/.venv/Scripts/python.exe --source-sha <40-char-clean-Local-SHA> --ids A01 A03 A04 A12 --output UserData/LogData/audio_validation-worker-v1.json
 python tools/audio_validation/harness.py score --fixtures UserData/CacheData/audio_validation/public-v1 --observations UserData/LogData/audio_validation-worker-v1.json
-\`\`\`
+```
 
-Add \`--include-voice\` only to run selected voice synthesis; it does not replace actual receiver listening checks. \`score\` refuses unbound audio hashes, missing scenario coverage, mismatched source/scenario fingerprints, wrong translation direction, missing EOS, invalid TTS receipts and declared ASR critical cue regressions. A \`PASS\` label applies only to the *named observed stages*; the report always records the explicit proof ceiling. \`vad_asr\`, \`no_speech\` and \`numeric_overflow\` remain **UNVERIFIED** until a real offline Rust VAD/WAV-writer replay receipt exists.
+Add `--include-voice` only to run selected voice synthesis; it does not replace actual receiver listening checks. `score` refuses unbound audio hashes, missing scenario coverage, mismatched source/scenario fingerprints, wrong translation direction, missing EOS, invalid TTS receipts and declared ASR critical cue regressions. A `PASS` label applies only to the *named observed stages*; the report always records the explicit proof ceiling. `vad_asr`, `no_speech` and `numeric_overflow` remain **UNVERIFIED** until a real offline Rust VAD/WAV-writer replay receipt exists.
 
 Compare results from an identical fixture set:
 
-\`\`\`powershell
+```powershell
 python tools/audio_validation/harness.py compare --baseline <scored-baseline.json> --candidate <scored-candidate.json>
-\`\`\`
+```
 
 A change of generator, WAV bytes, corpus or scenario version blocks a direct comparison rather than silently presenting unrelated measurements as an improvement.
 
@@ -46,7 +46,7 @@ A change of generator, WAV bytes, corpus or scenario version blocks a direct com
 | L0 | Schema and case validation | Source implemented; must be executed to claim PASS |
 | L1 | PCM16 mono 16-kHz WAV, SHA-256 fixture identity | Explicit offline generation/inspection |
 | L2 | Canonical Rust VAD/finalizer/WAV writer replay | Existing test-only module; no harness receipts yet |
-| L3 | Real pinned worker ASR → MiLMMT → optional selected TTS | Explicit local \`worker_runner.py\`; never automatic |
+| L3 | Real pinned worker ASR → MiLMMT → optional selected TTS | Explicit local `worker_runner.py`; never automatic |
 | L4 | Windows virtual route → separate actual meeting-app receiver | NOT IMPLEMENTED / NOT EXECUTED in harness |
 | L5 | Real physical microphone and ambient conditions | Native/manual acceptance still required |
 
@@ -54,4 +54,4 @@ Numeric 61-second tone A15 tests a buffer/overflow **boundary only**, never natu
 
 ## Extension rules
 
-Add scenarios to \`scenarios.json\` with a unique ID and explicit expectation; prefer referencing \`tools/asr_quality/corpus/asr_quality_v1.json\` instead of duplicating speech text. Keep the generator deterministic, provenance append-only, outputs bounded and private, and model/receiver proof independently labeled. Do not inject test audio into the production capture path or change VAD thresholds simply to pass synthetic sound fixtures. Future L2/L4 automation requires separate target-lane ownership and device/receipt review.
+Add scenarios to `scenarios.json` with a unique ID and explicit expectation; prefer referencing `tools/asr_quality/corpus/asr_quality_v1.json` instead of duplicating speech text. Keep the generator deterministic, provenance append-only, outputs bounded and private, and model/receiver proof independently labeled. Do not inject test audio into the production capture path or change VAD thresholds simply to pass synthetic sound fixtures. Future L2/L4 automation requires separate target-lane ownership and device/receipt review.
