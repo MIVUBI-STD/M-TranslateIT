@@ -12,7 +12,7 @@ Continue only the existing integrated acceptance on the tested revision. Old app
 
 ## Next Step
 
-Complete the existing Meeting first setup and bounded built-in-voice native acceptance in the same integrated session: verify the physical microphone and virtual route, then actual receiver delivery and Start/Stop behavior. Retain cold-start import/recovery as unresolved; STOP at the first reproducible blocker. Do not repeat passed source checks unless the tested source or claim changes. Signing, installer, hosted CI dispatch and `main` promotion remain outside this continuation.
+Meeting first setup now completed: physical Triton microphone saved through Windows Default, standard VB-CABLE route available and Built-in Male functional readiness passed. The app recovered from a Not Responding interval during voice preparation. Await the user's readiness for the public microphone test, then perform one Meeting Start → speak → Stop and observe a separate receiver before repeated cycles. Meeting has not been started; no live delivery is claimed. Retain cold-start import/recovery as unresolved; STOP at the first reproducible blocker. Do not repeat passed source checks unless the tested source or claim changes. Signing, installer, hosted CI dispatch and `main` promotion remain outside this continuation.
 
 **Active:** Partial integrated developer acceptance, with progress recorded at the user's request. **Branch:** `Local`. Runtime proof is pinned to `a2614711b51983161230910a0e0eec0d3364bc35`; later documentation-only commits do not create new runtime proof. Earlier source notes below are background, not additional next actions.
 
