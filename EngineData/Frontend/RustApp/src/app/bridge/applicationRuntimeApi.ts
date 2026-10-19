@@ -16,7 +16,8 @@ export type ProductIntent =
   | "stop_mic_test"
   | "fix_setup"
   | "check_readiness"
-  | "ensure_runtime_ready";
+  | "ensure_runtime_ready"
+  | "retry_blocked_worker";
 
 export type ApplicationProblem = {
   code: string;
