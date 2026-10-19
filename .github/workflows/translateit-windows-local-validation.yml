@@ -1,13 +1,12 @@
 name: TranslateIT Windows Local Validation
 
+# CI PAUSED BY OWNER (2026-10-20): no automatic or manual test execution.
+# Restore events and job conditions only after explicit user approval.
 on:
-  push:
-    branches:
-      - Local
   workflow_dispatch:
     inputs:
       validation_level:
-        description: "Targeted source checks or explicit full Windows source admission"
+        description: "PAUSED: all jobs are disabled pending owner approval"
         required: true
         type: choice
         default: targeted
@@ -27,7 +26,7 @@ concurrency:
 jobs:
   changed-domains:
     name: Route exact-SHA affected checks
-    if: github.event_name == 'push' || inputs.validation_level == 'targeted'
+    if: false && (github.event_name == 'push' || inputs.validation_level == 'targeted')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -51,7 +50,7 @@ jobs:
   targeted-repository:
     name: Relevant governance and repository contracts
     needs: changed-domains
-    if: needs.changed-domains.outputs.repository == 'true'
+    if: false && (needs.changed-domains.outputs.repository == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -67,7 +66,7 @@ jobs:
   targeted-frontend:
     name: Relevant frontend and Rust interface contracts
     needs: changed-domains
-    if: needs.changed-domains.outputs.frontend == 'true' || needs.changed-domains.outputs.rust == 'true'
+    if: false && (needs.changed-domains.outputs.frontend == 'true' || needs.changed-domains.outputs.rust == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -106,7 +105,7 @@ jobs:
   targeted-worker:
     name: Relevant Python worker syntax and style
     needs: changed-domains
-    if: needs.changed-domains.outputs.worker == 'true'
+    if: false && (needs.changed-domains.outputs.worker == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -131,7 +130,7 @@ jobs:
 
   targeted-summary:
     name: Exact SHA partial-proof summary
-    if: always() && needs.changed-domains.result != 'skipped'
+    if: false && (always() && needs.changed-domains.result != 'skipped')
     needs: [changed-domains, targeted-repository, targeted-frontend, targeted-worker]
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -176,7 +175,7 @@ jobs:
 
   windows-source-validation:
     name: Full Windows source and integration contracts (manual only)
-    if: github.event_name == 'workflow_dispatch' && inputs.validation_level == 'full'
+    if: false && (github.event_name == 'workflow_dispatch' && inputs.validation_level == 'full')
     runs-on: windows-2025
     timeout-minutes: 65
     env:
