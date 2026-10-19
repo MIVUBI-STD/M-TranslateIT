@@ -15,10 +15,11 @@ function Assert-TranslateITReleaseStagingAvailable {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 
-    $workspace = Join-Path $RepositoryRoot ".workspace/staging"
+    $workspaceRoot = Join-Path $RepositoryRoot ".workspace"
+    $workspace = Join-Path $workspaceRoot "staging"
     $backup = Join-Path $workspace "release-rollback"
     $lock = Join-Path $workspace "release-active"
-    foreach ($p in @($workspace, $backup, $lock)) {
+    foreach ($p in @($workspaceRoot, $workspace, $backup, $lock)) {
         if (Test-Path -LiteralPath $p) {
             $item = Get-Item -LiteralPath $p -Force
             if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
@@ -43,7 +44,14 @@ function Publish-TranslateITReleaseStage {
 
     $repo = (Resolve-Path -LiteralPath $RepositoryRoot).Path
     $stage = (Resolve-Path -LiteralPath $StageRoot).Path
-    $privateStaging = Join-Path $repo ".workspace/staging"
+    $workspaceRoot = Join-Path $repo ".workspace"
+    $privateStaging = Join-Path $workspaceRoot "staging"
+    foreach ($p in @($workspaceRoot, $privateStaging, $stage)) {
+        $dir = Get-Item -LiteralPath $p -Force
+        if (-not $dir.PSIsContainer -or ($dir.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw "Release promotion forbids redirected staging paths: $p"
+        }
+    }
     if (-not $stage.StartsWith($privateStaging + [IO.Path]::DirectorySeparatorChar,
             [StringComparison]::OrdinalIgnoreCase)) {
         throw "Untrusted release stage: $stage"

@@ -197,7 +197,12 @@ def stage_download_plan(
 ) -> list[dict[str, Any]]:
     """Redirect only vetted manifest targets into a private release staging tree."""
     root = destination_root.resolve()
+    project_root = PROJECT_ROOT.resolve()
+    if any((PROJECT_ROOT / name).is_symlink() for name in (".workspace",)):
+        raise RuntimeError("Release staging cannot use a redirected workspace root")
     safe_parent = (PROJECT_ROOT / ".workspace" / "staging").resolve()
+    if not safe_parent.is_relative_to(project_root):
+        raise RuntimeError("Release staging cannot leave the repository volume")
     if root == safe_parent or not root.is_relative_to(safe_parent):
         raise RuntimeError("Release model staging must stay below .workspace/staging")
     if not (root / "EngineData" / "Backend").is_dir():
