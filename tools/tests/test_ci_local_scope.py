@@ -4,9 +4,10 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ci_local_scope import route
+from ci_local_scope import changed_paths, route
 
 
 class LocalScopeTests(unittest.TestCase):
@@ -40,6 +41,47 @@ class LocalScopeTests(unittest.TestCase):
         result = route(["EngineData/Backend/RuntimeAssets/Translation/README.md"])
         self.assertTrue(result["worker"])
         self.assertTrue(result["review"])
+
+    def test_manual_targeted_dispatch_checks_only_selected_commit(self):
+        head = "a" * 40
+        parent = "b" * 40
+
+        def fake_git(*args):
+            if args == ("rev-parse", "HEAD"):
+                return head.encode()
+            if args == ("rev-parse", "HEAD^"):
+                return parent.encode()
+            if args == ("diff", "--name-only", "-z", "--no-renames", parent, head):
+                return b"docs/knowledge/current-validation.md\\0"
+            raise AssertionError(f"Unexpected git command: {args}")
+
+        with patch.dict("os.environ", {"GITHUB_EVENT_NAME": "workflow_dispatch"}):
+            with patch("ci_local_scope.git", side_effect=fake_git):
+                paths, scope = changed_paths(None, head)
+        self.assertEqual(paths, ["docs/knowledge/current-validation.md"])
+        self.assertEqual(scope, "manual selected commit")
+
+    def test_push_without_before_does_not_assume_selected_commit(self):
+        head = "a" * 40
+
+        def fake_git(*args):
+            if args == ("rev-parse", "HEAD"):
+                return head.encode()
+            if args == ("ls-files", "-z"):
+                return b"docs/a.md\\0EngineData/Frontend/RustApp/src/app/a.ts\\0"
+            raise AssertionError(f"Unexpected git command: {args}")
+
+        with patch.dict("os.environ", {"GITHUB_EVENT_NAME": "push"}):
+            with patch("ci_local_scope.git", side_effect=fake_git):
+                paths, scope = changed_paths(None, head)
+        self.assertEqual(len(paths), 2)
+        self.assertEqual(scope, "all tracked fallback")
+
+    def test_targeted_workflow_never_starts_full_on_push_or_hides_unknown_owner(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/translateit-windows-local-validation.yml").read_text(encoding="utf-8")
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.validation_level == 'full'", workflow)
+        self.assertIn('if [[ "$REVIEW" == true ]]; then', workflow)
+        self.assertIn("'full' || 'targeted'", workflow)
 
     def test_mixed_changes_union_scopes(self):
         result = route(["AGENTS.md",
