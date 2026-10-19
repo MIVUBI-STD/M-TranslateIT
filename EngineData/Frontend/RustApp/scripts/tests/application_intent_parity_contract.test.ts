@@ -44,7 +44,8 @@ test("Tauri mutation commands register at their defining module, not a function-
   assert.match(mutationModule, /pub\(crate\) mod mutations;/);
   assert.doesNotMatch(mutationModule, /pub use mutations::/);
   for (const name of ["select_product_audio_device","save_product_settings","start_product_voice_recording","stop_product_voice_recording","start_product_voice_build","cancel_product_voice_build","approve_product_voice_candidate","select_product_builtin_voice"]) {
-    assert.ok(mutationOwner.includes(`#[tauri::command]\npub fn ${name}(`), name);
+    const declaration = name === "select_product_builtin_voice" ? "pub async fn" : "pub fn";
+    assert.ok(mutationOwner.includes(`#[tauri::command]\n${declaration} ${name}(`), name);
     assert.ok(tauriRegistry.includes(`crate::commands::application_runtime::mutations::${name},`), name);
   }
 });
@@ -66,4 +67,16 @@ test("blocked worker recovery is explicit and guarded by active owners", () => {
   assert.match(recoveryFacade, /dispatchIntent\("retry_blocked_worker"\)/);
   assert.match(diagnosticsPage, /snapshot\.helper\?\.state === "blocked"/);
   assert.match(diagnosticsPage, /onSetupAction\("retry-worker"\)/);
+});
+
+const applicationModule = readFileSync(new URL("../../src-tauri/src/commands/application_runtime/mod.rs", import.meta.url), "utf8");
+
+test("AI preparation and native snapshots use bounded asynchronous Tauri command entrypoints", () => {
+  for (const command of ["get_application_snapshot", "dispatch_product_intent"]) {
+    assert.ok(applicationModule.includes(`pub async fn ${command}(`), command);
+  }
+  assert.match(applicationModule, /spawn_blocking\(current_application_snapshot\)/);
+  assert.match(applicationModule, /spawn_blocking\(move \|\| \{/);
+  assert.match(mutationOwner, /pub async fn select_product_builtin_voice\(/);
+  assert.match(mutationOwner, /spawn_blocking\(move \|\| \{/);
 });
