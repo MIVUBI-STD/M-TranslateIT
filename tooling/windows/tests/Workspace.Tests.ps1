@@ -5,6 +5,10 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot "..\modules\Workspace.psm1") -Force
 $testRoot = Join-Path $env:RUNNER_TEMP ("translateit-workspace-test-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $testRoot | Out-Null
+$protected = Join-Path $testRoot "UserData\SavedProject\VoiceLab"
+New-Item -ItemType Directory -Path $protected -Force | Out-Null
+$sentinel = Join-Path $protected "keep-private-data.txt"
+Set-Content -LiteralPath $sentinel -Value "protected user-owned data" -Encoding Utf8
 $keys = @("TRANSLATEIT_WORKSPACE_ROOT","TEMP","TMP","npm_config_cache","UV_CACHE_DIR",
     "PIP_CACHE_DIR","HF_HOME","HF_HUB_CACHE","HF_XET_CACHE",
     "UV_PYTHON_INSTALL_DIR","UV_TOOL_DIR","UV_TOOL_BIN_DIR")
@@ -21,11 +25,15 @@ try {
             throw "Workspace path escaped the owned root: $key"
         }
     }
-    if (Test-Path -LiteralPath (Join-Path $testRoot "UserData")) {
-        throw "Workspace setup must not create user data."
+    if (-not (Test-Path -LiteralPath $sentinel -PathType Leaf) -or
+        (Get-Content -LiteralPath $sentinel -Raw).Trim() -ne "protected user-owned data") {
+        throw "Development workspace modified protected saved user data."
     }
     $again = Set-TranslateITWorkspaceEnvironment -RepositoryRoot $testRoot
     if ($again -ne $root) { throw "Workspace setup is not idempotent." }
+    if ((Get-Content -LiteralPath $sentinel -Raw).Trim() -ne "protected user-owned data") {
+        throw "Repeated workspace preparation modified private data."
+    }
 
     $collisionRoot = Join-Path $env:RUNNER_TEMP ("translateit-workspace-collision-" + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $collisionRoot | Out-Null

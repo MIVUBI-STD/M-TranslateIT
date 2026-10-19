@@ -75,6 +75,20 @@ jobs:
         with:
           python-version: "3.12.10"
 
+      - name: Prove management CLI help and read-only status
+        shell: pwsh
+        run: |
+          if (Test-Path -LiteralPath '.workspace') {
+            throw 'A source checkout must not create a development workspace before management runs.'
+          }
+          & .\manage.cmd
+          if ($LASTEXITCODE -ne 0) { throw 'manage.cmd help failed.' }
+          & .\manage.cmd status
+          if ($LASTEXITCODE -ne 0) { throw 'manage.cmd status failed.' }
+          if (Test-Path -LiteralPath '.workspace') {
+            throw 'Read-only status created a development workspace.'
+          }
+
       - name: Install reviewed uv for worker lock consistency
         uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
