@@ -7,14 +7,14 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 **Local-only development model:** `Local` owns current development, source, verification planning, governance, and continuation. The GitHub default branch `main` is reserved for finalized outcomes only; it must not be modified or used as development/CI fallback before explicit release approval.
 
 - Material GitHub work follows root `GITHUB_RULES.md`.
-- **Temporary owner-approved FULL CI exception (2026-10-18):** `.github/workflows/translateit-windows-local-validation.yml` runs on each `Local` push and remains manually dispatchable. It tests the exact pushed SHA on hosted Windows; superseded runs are cancelled. All other workflows stay manual-only. The registration copy on `main` is for workflow discovery only, not source promotion. No hosted model inference, private assets, real-device claims, automatic release or packaging are authorized. Owner may revoke the temporary exception.
+- **Owner-approved targeted CI policy (2026-10-19):** only `.github/workflows/translateit-windows-local-validation.yml` may auto-run on `Local` pushes. Auto-runs select affected governance, frontend/Rust interface, and Python static checks on the exact pushed SHA; expensive full Windows source validation requires a deliberate manual `workflow_dispatch` with `validation_level=full`. A green targeted run is partial proof, never Rust compile, Python inference, device, installer, or release acceptance. Superseded runs are cancelled; other workflows remain manual-only. The registration copy on `main` is discovery-only, not source promotion. Owner may revoke this exception.
 - Do not fall back to `main` or another branch for current source, proof, or continuation.
 - Do not create alternate development branches as part of the normal method.
 - Historical branches/reports are recovery evidence only and are not current task or product authority.
 
 ## ChatGPT source boundary
 
-ChatGPT uses GitHub `Local` for **source/version control only**. Cloud AI and remote model inference remain prohibited; only the temporary owner-approved automatic `Local` Windows source CI gate above is permitted. Its results cannot prove target-PC behavior. Do not request the user's PC for incremental testing. Unexecuted checks remain `UNKNOWN / NOT EXECUTED` until one integrated local build-and-acceptance phase. See `GITHUB_RULES.md`.
+ChatGPT uses GitHub `Local` for **source/version control only**. Cloud AI and remote model inference remain prohibited; only the owner-approved affected-source `Local` CI gate above is permitted. Its results cannot prove target-PC behavior. Do not request the user's PC for incremental testing. Unexecuted checks remain `UNKNOWN / NOT EXECUTED` until one integrated local build-and-acceptance phase. See `GITHUB_RULES.md`.
 
 ## Capability Gate
 
@@ -24,12 +24,12 @@ Resolve actual capability before choosing execution mechanics. Capability descri
 REPO_READ       = inspect current repository source/history/docs
 REPO_WRITE      = mutate the authoritative Local ref
 LOCAL_SHELL     = execute commands against an exact local checkout/toolchain
-CI_CONTROL      = inspect source/history; temporary owner-approved Windows source CI on Local push and manual dispatch
+CI_CONTROL      = inspect source/history; owner-approved targeted source CI on Local push; full source CI only on explicit manual dispatch
 ARTIFACT_ACCESS = inspect/download exact build or proof artifacts
 NATIVE_HOST     = exercise installed TranslateIT on the target Windows machine
 ```
 
-Capabilities are additive: `REPO_WRITE` does not imply local execution. Hosted CI is prohibited outside the temporary, narrowly approved automatic/manual Windows source gate above. Finish GitHub source work before recording execution gaps.
+Capabilities are additive: `REPO_WRITE` does not imply local execution. Hosted CI is prohibited outside the temporary, narrowly approved targeted-auto/full-manual source gate above. Finish GitHub source work before recording execution gaps.
 
 ## Execution Context Gate
 
@@ -261,7 +261,7 @@ UNKNOWN             = evidence cannot yet separate the owner; name the next sepa
 UNSUPPORTED         = required capability is unavailable
 ```
 
-Build success is not runtime success. Only the temporary owner-approved Windows hosted **source** workflow may execute on `Local` push or manual dispatch; GPU/audio/device/installed-app Windows acceptance is not authorized on hosted runners. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
+Build success is not runtime success. Only the owner-approved **targeted source** workflow may run automatically on `Local` push; full Windows source CI is manual-only; GPU/audio/device/installed-app Windows acceptance is not authorized on hosted runners. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
 
 ## User-facing reporting
 
