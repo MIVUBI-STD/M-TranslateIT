@@ -17,7 +17,7 @@
   },
   "node": {
     "major": 22,
-    "source": ".github/workflows/code-health.yml",
+    "source": ".github/workflows/translateit-windows-local-validation.yml",
     "lockfile": "EngineData/Frontend/RustApp/package-lock.json"
   },
   "rust": {

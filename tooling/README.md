@@ -15,13 +15,15 @@ and Python lockfiles. These are review/pin inputs, not download destinations.
 
 | Command | Current meaning |
 |---|---|
-| `manage.cmd status` | Inspect required toolchain without installing or repairing |
+| `manage.cmd status` | Read-only tool inventory with workspace/external origins and asset-marker presence |
 | `manage.cmd prepare` | Install locked frontend and Python **developer dependencies** into their existing local paths; cache under `.workspace` |
-| `manage.cmd verify` | Source/contract tests only, **not** model or device readiness |
+| `manage.cmd verify` | Execute source contracts and save ignored `.workspace/reports/readiness.json`; native device/model proof remains unknown |
 | `manage.cmd build` | Existing exact-SHA frontend and locked Tauri Rust compile gate |
 | `manage.cmd run` | Existing Tauri development app, needing real local models/audio |
 | `manage.cmd test` | Existing frontend, Rust and worker regression suites |
 | `manage.cmd package "<quality-report.json>"` | Controlled signed R3 release, separately gated; not a development setup shortcut |
+
+The single `Readiness.psm1` module owns the read-only toolchain/asset inventory. Its report is local diagnostic evidence only, never an automatically promoted release-readiness receipt or native acceptance proof.
 
 Process-scoped cache settings do not reinstall Rustup, Windows SDK, WebView2
 or VB-CABLE, and do not make installed app data portable. The unchanged R3

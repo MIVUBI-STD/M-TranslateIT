@@ -11,6 +11,7 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $Frontend = Join-Path $Root "EngineData\Frontend\RustApp"
 $Worker = Join-Path $Root "EngineData\Backend\LocalWorker\WorkerRuntime"
 Import-Module (Join-Path $PSScriptRoot "modules\Workspace.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\Readiness.psm1") -Force
 
 function Invoke-Step {
     param([string]$Label, [scriptblock]$Body)
@@ -98,7 +99,7 @@ if ($Command -notin @("help", "status")) {
 
 switch ($Command) {
     "help" { Show-Help }
-    "status" { Assert-DevelopmentPrerequisites }
+    "status" { Show-TranslateITReadiness -Readiness (Get-TranslateITReadiness -RepositoryRoot $Root) }
     "prepare" {
         Assert-DevelopmentPrerequisites
         Invoke-Step "Install locked frontend dependencies" { Set-Location $Frontend; npm ci }
@@ -115,6 +116,9 @@ switch ($Command) {
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             uv run --frozen --no-sync pytest -q
         }
+        if ($LASTEXITCODE -ne 0) { throw "Worker validation was incomplete." }
+        $readiness = Get-TranslateITReadiness -RepositoryRoot $Root
+        $null = Write-TranslateITReadinessReport -Readiness $readiness -WorkspaceRoot (Join-Path $Root ".workspace")
     }
     "build" {
         Invoke-Step "Pinned frontend and Rust compile check" {

@@ -50,7 +50,7 @@ It must never change global `USERPROFILE`, `APPDATA` or `LOCALAPPDATA`
 nor route private runtime data into `.workspace`. Existing workspace
 directories that are reparse points are rejected instead of followed.
 
-The current `manage.cmd status` is read-only. `prepare` installs locked
+The current `manage.cmd status` is read-only and reports actual workspace versus external tool origins; `verify` can write an ignored local source-readiness JSON report. Neither claims models, GPU, native audio or system components have been tested. `prepare` installs locked
 **development dependencies**, not AI models or Windows audio drivers.
 `verify` runs source-level tests, not live GPU/Meeting/device readiness.
 The model download authority remains
