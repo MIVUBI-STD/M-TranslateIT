@@ -5,6 +5,15 @@ on:
     branches:
       - Local
   workflow_dispatch:
+    inputs:
+      validation_level:
+        description: "Targeted source checks or explicit full Windows source admission"
+        required: true
+        type: choice
+        default: targeted
+        options:
+          - targeted
+          - full
 
 permissions:
   contents: read
@@ -14,8 +23,154 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changed-domains:
+    name: Route exact-SHA affected checks
+    if: github.event_name == 'push' || inputs.validation_level == 'targeted'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      repository: ${{ steps.scope.outputs.repository }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      rust: ${{ steps.scope.outputs.rust }}
+      worker: ${{ steps.scope.outputs.worker }}
+      review: ${{ steps.scope.outputs.review }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: scope
+        name: Select from exact push range; unknown range widens scope
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          python tools/ci_local_scope.py --head "$GITHUB_SHA" --before "$PUSH_BEFORE" --output "$GITHUB_OUTPUT"
+
+  targeted-repository:
+    name: Relevant governance and repository contracts
+    needs: changed-domains
+    if: needs.changed-domains.outputs.repository == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+      - run: python tools/verify_repository.py
+      - run: python -m unittest discover -s tools/tests -p "test_*.py"
+
+  targeted-frontend:
+    name: Relevant frontend and Rust interface contracts
+    needs: changed-domains
+    if: needs.changed-domains.outputs.frontend == 'true' || needs.changed-domains.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: EngineData/Frontend/RustApp
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: EngineData/Frontend/RustApp/package-lock.json
+      - run: npm ci
+      - name: Cross-language source contract gates
+        run: |
+          npm run validate:bridge-contract
+          npm run validate:tauri-command-args
+          npm run validate:application-runtime
+          npm run validate:runtime-api-usage
+          npm run validate:test-references
+          npm run validate:test-ci-routing
+          npm run validate:dependency-usage
+          npm run validate:rust-dependency-usage
+          npm run check:rust
+      - name: Frontend typecheck and regression suite
+        if: needs.changed-domains.outputs.frontend == 'true'
+        run: |
+          npm run typecheck
+          npm run test:frontend-runtime
+      - name: Rust-facing targeted regression cases
+        if: needs.changed-domains.outputs.rust == 'true' && needs.changed-domains.outputs.frontend != 'true'
+        run: node --experimental-strip-types --test scripts/tests/application_intent_parity_contract.test.ts scripts/tests/worker_status_protocol_contract.test.ts scripts/tests/bridge_fallback_policy.test.ts
+
+  targeted-worker:
+    name: Relevant Python worker syntax and style
+    needs: changed-domains
+    if: needs.changed-domains.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: EngineData/Backend/LocalWorker/WorkerRuntime
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12.10"
+      - name: Resolve only Ruff from canonical uv lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          pin=$(python -c 'import pathlib,tomllib; p=[x["version"] for x in tomllib.loads(pathlib.Path("uv.lock").read_text())["package"] if x["name"]=="ruff"]; assert len(p)==1; print("ruff=="+p[0])')
+          python -m pip install "$pin"
+      - run: python -m compileall -q .
+      - run: python -m ruff check . --select E4,E7,E9,F,I
+      - run: python -m ruff format --check .
+
+  targeted-summary:
+    name: Exact SHA partial-proof summary
+    if: always() && needs.changed-domains.result != 'skipped'
+    needs: [changed-domains, targeted-repository, targeted-frontend, targeted-worker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      SELECTED: ${{ needs.changed-domains.result }}
+      REPO: ${{ needs.changed-domains.outputs.repository }}
+      UI: ${{ needs.changed-domains.outputs.frontend }}
+      RUST: ${{ needs.changed-domains.outputs.rust }}
+      WORKER: ${{ needs.changed-domains.outputs.worker }}
+      REVIEW: ${{ needs.changed-domains.outputs.review }}
+      REPO_RESULT: ${{ needs.targeted-repository.result }}
+      UI_RESULT: ${{ needs.targeted-frontend.result }}
+      WORKER_RESULT: ${{ needs.targeted-worker.result }}
+    steps:
+      - name: Report only executed source checks; fail on selected failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Exact SHA targeted source proof"
+            echo "SHA: $GITHUB_SHA"
+            echo "Ref: $GITHUB_REF"
+            echo "| Domain | Selected | Result |"
+            echo "|---|---|---|"
+            echo "| Governance | $REPO | $REPO_RESULT |"
+            echo "| Frontend source | $UI | $UI_RESULT |"
+            echo "| Rust API/source contracts | $RUST | $UI_RESULT |"
+            echo "| Python worker static | $WORKER | $WORKER_RESULT |"
+            echo "Unknown or uncovered sources require review: $REVIEW"
+            echo "NOT EXECUTED: Rust compilation and unit suite, worker pytest, AI inference, installed app, real microphone/GPU, release."
+            echo "Passing targeted CI is PARTIAL SOURCE PROOF on the exact SHA, never full acceptance."
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$GITHUB_REF" = refs/heads/Local
+          test "$SELECTED" = success
+          if [[ "$REPO" == true ]]; then test "$REPO_RESULT" = success; fi
+          if [[ "$UI" == true || "$RUST" == true ]]; then test "$UI_RESULT" = success; fi
+          if [[ "$WORKER" == true ]]; then test "$WORKER_RESULT" = success; fi
+
   windows-source-validation:
-    name: Windows source and integration contracts
+    name: Full Windows source and integration contracts (manual only)
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_level == 'full'
     runs-on: windows-2025
     timeout-minutes: 65
     env:
