@@ -88,8 +88,11 @@ jobs:
           }
           & .\manage.cmd
           if ($LASTEXITCODE -ne 0) { throw 'manage.cmd help failed.' }
-          & .\manage.cmd status
+          $statusText = & .\manage.cmd status | Out-String
           if ($LASTEXITCODE -ne 0) { throw 'manage.cmd status failed.' }
+          if ($statusText -notmatch 'NOT EXECUTED' -or $statusText -notmatch 'external') {
+            throw 'CLI status must expose native proof limits and external toolchain.'
+          }
           if (Test-Path -LiteralPath '.workspace') {
             throw 'Read-only status created a development workspace.'
           }
@@ -110,6 +113,8 @@ jobs:
           foreach ($file in @(
             'tooling/windows/manage.ps1',
             'tooling/windows/modules/Workspace.psm1',
+            'tooling/windows/modules/Readiness.psm1',
+            'tooling/windows/tests/Readiness.Tests.ps1',
             'EngineData/Frontend/RustApp/scripts/stage_release_inputs_impl.ps1',
             'EngineData/Frontend/RustApp/scripts/stage_release_inputs.ps1',
             'EngineData/Frontend/RustApp/scripts/ReleaseStaging.psm1',
@@ -127,6 +132,7 @@ jobs:
         shell: pwsh
         run: |
           .\tooling\windows\tests\Workspace.Tests.ps1
+          .\tooling\windows\tests\Readiness.Tests.ps1
 
       - name: Test release staging promotion and rollback contracts
         shell: pwsh
