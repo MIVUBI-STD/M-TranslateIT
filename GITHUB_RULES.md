@@ -52,7 +52,7 @@ A label is intent, not proof.
 - `REMOTE_GITHUB` may implement source changes and source/static review only; the separately authorized automatic/manual Actions run is a distinct hosted source-test context, never native evidence.
 - `LOCAL_CODE` additionally owns local generators, dependency/toolchain execution, filesystem-sensitive builds and tests.
 - `TARGET_WINDOWS` is required for physical microphone, actual GPU practicality, VB-CABLE/device behavior, installed-runtime, meeting-app delivery, end-to-end latency, speaker-quality, and clean-machine claims.
-- Hosted CI is prohibited by default. **Owner-approved targeted CI (2026-10-19):** the single `.github/workflows/translateit-windows-local-validation.yml` workflow may run on `Local` push with path-relevant source checks only. Full hosted Windows source integration is permitted **only** by explicit `workflow_dispatch` with `validation_level=full`; no push may execute that full job. Unknown/unmatched paths require conservative review. Superseded runs cancel on new pushes. All other workflows remain manual-only. A green targeted source run leaves unselected Rust compiler, Python tests/inference, Windows hardware, installed models and release claims unverified. No proof transfers across unrelated SHAs; remove push trigger if owner revokes permission.
+- **Current owner override (2026-10-20): ALL CI PAUSED.** No workflow jobs may run automatically or by manual dispatch. The former Local targeted/full exception is suspended. All nine workflow definitions are retained with job-level `if: false`; the previously automatic workflow also has no push trigger. Do not launch/retry workflows, create new ones or infer proof while paused. Re-enable only on explicit instruction. Historic CI is not fresh proof.
 
 ### GitHub-first execution partition
 
@@ -84,7 +84,7 @@ Rules:
 
 Missing execution proof is not a user-PC to-do; retain it as unexecuted until the authorized integrated acceptance phase.
 
-For ChatGPT-owned TranslateIT work, `Local` is the **GitHub source/version-control branch only**, not an application execution platform or a user-PC folder. **No cloud inference or unrestricted hosted CI/builds.** The owner has temporarily approved the single targeted-automatic/full-manual source/contract gate above; this is not model/GPU execution or a target-PC test. Use GitHub to read, edit and version source. Never ask the user to clone/download source, install tools, run incremental tests, supply private audio/data or operate Windows/GPU/meeting apps as a workaround for repository tooling limitations.
+For ChatGPT-owned TranslateIT work, `Local` is the **GitHub source/version-control branch only**, not an application execution platform or a user-PC folder. **No cloud inference or unrestricted hosted CI/builds.** The earlier CI exception is suspended; this is not model/GPU execution or a target-PC test. Use GitHub to read, edit and version source. Never ask the user to clone/download source, install tools, run incremental tests, supply private audio/data or operate Windows/GPU/meeting apps as a workaround for repository tooling limitations.
 
 Complete GitHub-source-verifiable changes and record their exact revision-scoped evidence. Checks requiring a compiler, package toolchain, running models or devices remain `UNKNOWN / NOT EXECUTED`; do not invent PASS or assign incremental user-PC tasks. Local AI/audio/GPU and installed-package acceptance require actual execution later. Developer-initiated local work is optional, never a prerequisite to repository changes.
 

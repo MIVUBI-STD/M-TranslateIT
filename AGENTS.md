@@ -7,14 +7,14 @@ Repository state is authoritative. Chat history and old evidence are supporting 
 **Local-only development model:** `Local` owns current development, source, verification planning, governance, and continuation. The GitHub default branch `main` is reserved for finalized outcomes only; it must not be modified or used as development/CI fallback before explicit release approval.
 
 - Material GitHub work follows root `GITHUB_RULES.md`.
-- **Owner-approved targeted CI policy (2026-10-19):** only `.github/workflows/translateit-windows-local-validation.yml` may auto-run on `Local` pushes. Auto-runs select affected governance, frontend/Rust interface, and Python static checks on the exact pushed SHA; expensive full Windows source validation requires a deliberate manual `workflow_dispatch` with `validation_level=full`. A green targeted run is partial proof, never Rust compile, Python inference, device, installer, or release acceptance. Superseded runs are cancelled; other workflows remain manual-only. The registration copy on `main` is discovery-only, not source promotion. Owner may revoke this exception.
+- **Owner override 2026-10-20: ALL GitHub Actions CI PAUSED.** No automatic `Local` push runs and all workflow jobs are disabled, including manual dispatch. Workflow definitions remain for later review. Do not trigger CI or claim any new hosted proof. Re-enable only after explicit owner instruction.
 - Do not fall back to `main` or another branch for current source, proof, or continuation.
 - Do not create alternate development branches as part of the normal method.
 - Historical branches/reports are recovery evidence only and are not current task or product authority.
 
 ## ChatGPT source boundary
 
-ChatGPT uses GitHub `Local` for **source/version control only**. Cloud AI and remote model inference remain prohibited; only the owner-approved affected-source `Local` CI gate above is permitted. Its results cannot prove target-PC behavior. Do not request the user's PC for incremental testing. Unexecuted checks remain `UNKNOWN / NOT EXECUTED` until one integrated local build-and-acceptance phase. See `GITHUB_RULES.md`.
+ChatGPT uses GitHub `Local` for **source/version control only**. Cloud AI and remote model inference remain prohibited; CI is paused even for previously authorized affected-source workflows. Its results cannot prove target-PC behavior. Do not request the user's PC for incremental testing. Unexecuted checks remain `UNKNOWN / NOT EXECUTED` until one integrated local build-and-acceptance phase. See `GITHUB_RULES.md`.
 
 ## Capability Gate
 

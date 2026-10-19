@@ -12,6 +12,12 @@ Exact-SHA targeted CI completed successfully on `0c99a4bb61e480d9508550fab7540b6
 
 **Remaining diagnostic boundaries:** cold Python dependency import can exceed the existing 30-second status deadline; the app's historical Not Responding period during voice preparation must be remeasured on Windows. The manual retry code addresses recovery admission, not the underlying cold-start timing. Historic `npm ci` reported one high-severity advisory, while the successful hosted production-only `npm audit --omit=dev --audit-level=high` returned zero vulnerabilities; the development advisory has not been individually identified or remediated. Do not alter deadlines, model identities or dependency locks merely to force green status.
 
+## Automated audio test harness work — CI suspended
+
+Owner approved a long-term, offline-first audio scenario/fixture/testing framework. This is test tooling only: no second VAD/ASR/translation engine, no production capture injection, no user microphone recording, no cloud inference. Fixture creation may be performed with a separately installed offline TTS executable; explicit worker execution requires locally staged pinned models, and native receiver verification remains a separately authorized Windows phase.
+
+**CI is fully paused at owner request (2026-10-20):** all nine GitHub Actions workflow jobs are hard-gated off and the former Local push trigger is removed. Do not cite unexecuted checks as green or turn CI back on as part of the audio work.
+
 ## Active Boundary
 
 No per-change tests on the user's PC: this remains one integrated local Windows test phase explicitly authorized by the user. GitHub default branch `main` remains reserved for explicitly approved final releases.
