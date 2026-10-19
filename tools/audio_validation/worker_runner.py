@@ -6,10 +6,8 @@ This exercises direct worker ASR/translation/optional selected voice only.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
-from pathlib import Path
 import queue
 import re
 import shutil
@@ -18,11 +16,9 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 
-from harness import (
-    CORPUS, ROOT, SUITE, RESULT_SCHEMA, decode_wave, inspect,
-    specs, fingerprint,
-)
+from harness import RESULT_SCHEMA, ROOT, decode_wave, fingerprint, inspect, specs
 
 WORKER = ROOT / "EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker.py"
 MAX_FRAME = 1_000_000

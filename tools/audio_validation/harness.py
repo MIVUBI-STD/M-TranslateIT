@@ -12,7 +12,6 @@ import hashlib
 import json
 import math
 import os
-from pathlib import Path
 import random
 import re
 import shutil
@@ -20,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import wave
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
