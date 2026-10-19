@@ -31,6 +31,29 @@ try {
     catch { $rejected=$true }
     if (-not $rejected) { throw 'Poisoned cache must fail closed without overwriting.' }
 
+
+    # Cache-only preflight checks every missing component before tool promotion.
+    [IO.File]::WriteAllBytes($cached,$bytes)
+    $pins=[pscustomobject]@{
+        node=[pscustomobject]@{url=$url;sha256=$digest}
+        git=[pscustomobject]@{url=$url;sha256=$digest}
+        uv=[pscustomobject]@{url=$url;sha256=$digest}
+        rustup=[pscustomobject]@{url=$url;sha256=$digest}
+    }
+    $toolsRoot=Join-Path $root '.workspace\tools'
+    $preflight=Get-TranslateITPortableDownloadPlan -Pins $pins -ToolsRoot $toolsRoot -CacheRoot $cache
+    if ($preflight.Count -ne 4 -or (Test-Path -LiteralPath $toolsRoot)) {
+        throw 'Archive preflight published tools before validation.'
+    }
+    [IO.File]::WriteAllBytes($cached,[byte[]](9,8,7))
+    $rejected=$false
+    try { $null=Get-TranslateITPortableDownloadPlan -Pins $pins -ToolsRoot $toolsRoot -CacheRoot $cache }
+    catch { $rejected=$true }
+    if (-not $rejected -or (Test-Path -LiteralPath $toolsRoot)) {
+        throw 'Poisoned multi-download preflight mutated tool targets.'
+    }
+    [IO.File]::WriteAllBytes($cached,$bytes)
+
     # Build a harmless archive with the public Node distribution's folder shape.
     $source=Join-Path $root 'fixture\node-v22.23.3-win-x64'
     New-Item -ItemType Directory -Path $source -Force | Out-Null

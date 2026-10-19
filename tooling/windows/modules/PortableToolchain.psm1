@@ -73,6 +73,32 @@ function Publish-TranslateITPortableArchive {
     Move-Item -LiteralPath $source -Destination $TargetFolder -ErrorAction Stop
 }
 
+
+function Get-TranslateITPortableDownloadPlan {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)][object]$Pins,
+        [Parameter(Mandatory=$true)][string]$ToolsRoot,
+        [Parameter(Mandatory=$true)][string]$CacheRoot
+    )
+    # Hash-check every missing public archive before publishing any tool.
+    # A transient download failure cannot leave half the toolchain installed.
+    $plan = @{}
+    foreach ($entry in @(
+        [pscustomobject]@{ name='node'; root='node'; pin=$Pins.node },
+        [pscustomobject]@{ name='git'; root='git'; pin=$Pins.git },
+        [pscustomobject]@{ name='uv'; root='uv'; pin=$Pins.uv },
+        [pscustomobject]@{ name='rustup'; root='cargo/bin'; pin=$Pins.rustup }
+    )) {
+        if (Test-Path -LiteralPath (Join-Path $ToolsRoot $entry.root)) { continue }
+        if ($null -eq $entry.pin -or -not $entry.pin.url -or -not $entry.pin.sha256) {
+            throw "Missing pinned portable tool source: $($entry.name)"
+        }
+        $plan[$entry.name] = Get-TranslateITVerifiedToolArchive -Url $entry.pin.url -ExpectedSha256 $entry.pin.sha256 -CacheRoot $CacheRoot
+    }
+    return $plan
+}
+
 function Install-TranslateITPortableToolchain {
     [CmdletBinding()]
     param([Parameter(Mandatory=$true)][string]$RepositoryRoot)
@@ -102,15 +128,27 @@ function Install-TranslateITPortableToolchain {
     New-Item -ItemType Directory -Path $reservation -ErrorAction Stop | Out-Null
     $run=Join-Path $stageRoot ('portable-toolchain-'+[guid]::NewGuid().ToString('N'))
     $finished=$false
+    $installationStarted=$false
     try {
         $policy=Get-Content -LiteralPath (Join-Path $root 'tooling/windows/config/requirements.json') -Raw | ConvertFrom-Json
         $pins=$policy.portable
         if (-not $pins) { throw 'Portable tool pins are missing from canonical requirements.' }
+        $existing = @(Get-TranslateITWorkspaceToolSelection -RepositoryRoot $root)
+        $incomplete = @($existing | Where-Object { $_.state -eq 'INCOMPLETE' })
+        if ($incomplete.Count -gt 0) {
+            throw "Existing portable groups require review: $(($incomplete | ForEach-Object name) -join ', ')"
+        }
+        if ((Test-Path -LiteralPath (Join-Path $tools 'rustup')) -and
+            -not (Test-Path -LiteralPath (Join-Path $tools 'cargo/bin'))) {
+            throw 'Interrupted portable Rustup home requires explicit review.'
+        }
+        $archives = Get-TranslateITPortableDownloadPlan -Pins $pins -ToolsRoot $tools -CacheRoot $cache
 
         $node=Join-Path $tools 'node'
         if (-not (Test-Path -LiteralPath $node)) {
-            $zip=Get-TranslateITVerifiedToolArchive -Url $pins.node.url -ExpectedSha256 $pins.node.sha256 -CacheRoot $cache
+            $zip=$archives.node
             $source='node-v'+$pins.node.version+'-win-x64'
+            $installationStarted=$true
             Publish-TranslateITPortableArchive -Archive $zip -Stage (Join-Path $run 'node') -SourceFolder $source -TargetFolder $node -RequiredFiles @('node.exe','npm.cmd')
             $actual=(& (Join-Path $node 'node.exe') --version).Trim()
             if ($LASTEXITCODE -ne 0 -or $actual -ne ('v'+$pins.node.version)) { throw 'Pinned portable Node version check failed.' }
@@ -120,7 +158,8 @@ function Install-TranslateITPortableToolchain {
         # It is installed under this workspace and never writes an MSI/registry entry.
         $git=Join-Path $tools 'git'
         if (-not (Test-Path -LiteralPath $git)) {
-            $zip=Get-TranslateITVerifiedToolArchive -Url $pins.git.url -ExpectedSha256 $pins.git.sha256 -CacheRoot $cache
+            $zip=$archives.git
+            $installationStarted=$true
             Publish-TranslateITPortableArchive -Archive $zip -Stage (Join-Path $run 'git') -SourceFolder '.' -TargetFolder $git -RequiredFiles @('cmd/git.exe')
             $actual=(& (Join-Path $git 'cmd/git.exe') --version | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $actual -ne ('git version '+$pins.git.version)) {
@@ -130,7 +169,8 @@ function Install-TranslateITPortableToolchain {
 
         $uv=Join-Path $tools 'uv'
         if (-not (Test-Path -LiteralPath $uv)) {
-            $zip=Get-TranslateITVerifiedToolArchive -Url $pins.uv.url -ExpectedSha256 $pins.uv.sha256 -CacheRoot $cache
+            $zip=$archives.uv
+            $installationStarted=$true
             Publish-TranslateITPortableArchive -Archive $zip -Stage (Join-Path $run 'uv') -SourceFolder '.' -TargetFolder $uv -RequiredFiles @('uv.exe')
             $actual=(& (Join-Path $uv 'uv.exe') --version | Out-String).Trim()
             if ($LASTEXITCODE -ne 0 -or $actual -ne ('uv '+$pins.uv.version)) { throw 'Pinned portable uv version check failed.' }
@@ -143,6 +183,7 @@ function Install-TranslateITPortableToolchain {
         $env:UV_PYTHON_INSTALL_BIN = '0'
         $env:UV_PYTHON_PREFERENCE = 'only-managed'
         $uvexe=Join-Path $uv 'uv.exe'
+        $installationStarted=$true
         & $uvexe python install $policy.python.version --no-bin
         if ($LASTEXITCODE -ne 0) { throw 'Pinned uv-managed Python download/install failed.' }
 
@@ -155,7 +196,8 @@ function Install-TranslateITPortableToolchain {
             if (Test-Path -LiteralPath $rustup) {
                 throw 'Incomplete portable Rustup home requires explicit recovery, not replacement.'
             }
-            $verified=Get-TranslateITVerifiedToolArchive -Url $pins.rustup.url -ExpectedSha256 $pins.rustup.sha256 -CacheRoot $cache
+            $verified=$archives.rustup
+            $installationStarted=$true
             # rustup-init is a multi-call executable; preserve its required
             # basename when executing instead of invoking the SHA cache name.
             New-Item -ItemType Directory -Path $run -Force | Out-Null
@@ -205,13 +247,17 @@ function Install-TranslateITPortableToolchain {
         $finished=$true
         Write-Host 'Portable Node, Git, uv, managed Python, Rustup and Rust toolchain are prepared in the selected repository workspace.'
     } finally {
-        # On any failure, preserve the reservation and staged artifacts as
-        # an explicit recovery state. Do not overwrite a partial environment.
         if ($finished) {
             if (Test-Path -LiteralPath $run) { Remove-Item -LiteralPath $run -Recurse -Force }
             Remove-Item -LiteralPath $reservation -Recurse -Force
+        } elseif (-not $installationStarted) {
+            # No public tool was modified. Keep unfinished download bytes for
+            # diagnosis but allow a normal prepare retry after network failure.
+            Remove-Item -LiteralPath $reservation -Recurse -Force
         }
+        # If live installation started, retain the reservation; no overwrite
+        # of an unverified partly installed toolchain is ever automatic.
     }
 }
 
-Export-ModuleMember -Function Get-TranslateITVerifiedToolArchive,Publish-TranslateITPortableArchive,Install-TranslateITPortableToolchain
+Export-ModuleMember -Function Get-TranslateITVerifiedToolArchive,Get-TranslateITPortableDownloadPlan,Publish-TranslateITPortableArchive,Install-TranslateITPortableToolchain
