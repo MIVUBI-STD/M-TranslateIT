@@ -48,3 +48,22 @@ test("Tauri mutation commands register at their defining module, not a function-
     assert.ok(tauriRegistry.includes(`crate::commands::application_runtime::mutations::${name},`), name);
   }
 });
+
+const recoveryFacade = readFileSync(new URL("../../src/app/bridge/productSetupFacade.ts", import.meta.url), "utf8");
+const diagnosticsPage = readFileSync(new URL("../../src/components/settings/SettingsDiagnostics.svelte", import.meta.url), "utf8");
+
+test("blocked worker recovery is explicit and guarded by active owners", () => {
+  assert.match(backend, /"retry_blocked_worker"\s*=>\s*retry_blocked_worker\(\)/);
+  assert.match(backend, /if helper\.state != "blocked"/);
+  for (const guard of [
+    "snapshot.summaries.meeting.has_session",
+    "snapshot.resources.audio_locked",
+    "snapshot.active_owner.is_some()",
+    "snapshot.summaries.voice.build_active",
+  ]) {
+    assert.ok(backend.includes(guard), `recovery missing guard ${guard}`);
+  }
+  assert.match(recoveryFacade, /dispatchIntent\("retry_blocked_worker"\)/);
+  assert.match(diagnosticsPage, /snapshot\.helper\?\.state === "blocked"/);
+  assert.match(diagnosticsPage, /onSetupAction\("retry-worker"\)/);
+});
