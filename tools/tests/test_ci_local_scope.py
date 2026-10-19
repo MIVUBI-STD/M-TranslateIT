@@ -52,7 +52,7 @@ class LocalScopeTests(unittest.TestCase):
             if args == ("rev-parse", "HEAD^"):
                 return parent.encode()
             if args == ("diff", "--name-only", "-z", "--no-renames", parent, head):
-                return b"docs/knowledge/current-validation.md\\0"
+                return b"docs/knowledge/current-validation.md\0"
             raise AssertionError(f"Unexpected git command: {args}")
 
         with patch.dict("os.environ", {"GITHUB_EVENT_NAME": "workflow_dispatch"}):
@@ -68,7 +68,7 @@ class LocalScopeTests(unittest.TestCase):
             if args == ("rev-parse", "HEAD"):
                 return head.encode()
             if args == ("ls-files", "-z"):
-                return b"docs/a.md\\0EngineData/Frontend/RustApp/src/app/a.ts\\0"
+                return b"docs/a.md\0EngineData/Frontend/RustApp/src/app/a.ts\0"
             raise AssertionError(f"Unexpected git command: {args}")
 
         with patch.dict("os.environ", {"GITHUB_EVENT_NAME": "push"}):
