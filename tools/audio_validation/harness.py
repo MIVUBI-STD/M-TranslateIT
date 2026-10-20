@@ -270,6 +270,13 @@ def inspect(target: Path, suite_path: Path = SUITE,
             raise ValueError(f"{name}: fixture hash/reference/WAV differs")
     if meta.get("audio_fingerprint") != fixture_digest(rows):
         raise ValueError("fixture set fingerprint differs")
+    # The set is closed: reject hidden/extra WAVs instead of implicitly
+    # omitting them from a successful integrity report.
+    directory = target / "samples"
+    actual = {entry.name for entry in directory.iterdir()}
+    wanted = {f"{case_id}.wav" for case_id in expected}
+    if actual != wanted:
+        raise ValueError("fixture sample directory has missing or untracked files")
     return meta
 
 
@@ -315,10 +322,15 @@ def score(target: Path, observations: Path, suite_path: Path = SUITE,
     if not isinstance(rows, list) or len(rows) != len(cases):
         raise ValueError("observations need one row per case, including unexecuted")
     by_id = {}
+    expected_ids = {case["id"] for case in cases}
     for row in rows:
-        if not isinstance(row, dict) or row.get("scenario_id") in by_id:
-            raise ValueError("duplicate/malformed observation")
+        if not isinstance(row, dict) or not isinstance(row.get("scenario_id"), str):
+            raise ValueError("malformed observation row")
+        if row["scenario_id"] in by_id:
+            raise ValueError("duplicate observation")
         by_id[row["scenario_id"]] = row
+    if set(by_id) != expected_ids:
+        raise ValueError("observations contain unknown or missing scenario IDs")
     wavs = {r["id"]: r["sha256"] for r in fixture["fixtures"]}
     results = []
     for case in cases:
