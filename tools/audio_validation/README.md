@@ -85,3 +85,7 @@ This uses the canonical worker wire-response parser and WAV validator but does n
 ## Bounded worker transport fault coverage
 
 F01–F05 use simulated queue timeout/EOF to test the same bounded wait helper as the local worker runner. This checks transport classification only, not actual child-process recovery, model imports or native UI responsiveness. F06/F07/F14 cover protocol and WAV rejection. Eight fault IDs have offline contract implementations; twenty require owner-specific injectors. Execution remains unverified until these tests actually run.
+
+## Critical translation/TTS result gate
+
+F08 and F10 now exercise fail-closed contract helpers for missing EOS, wrong direction, empty translation, silent WAV receipts and missing preflight. These are *offline result-envelope checks*, not real model quality or selected-actor identity tests. Ten cases have offline contract code, eighteen require owner-level fault injectors. Run manually with `python tools/audio_validation/fault_runner.py` when an appropriate checkout exists; CI stays disabled.
