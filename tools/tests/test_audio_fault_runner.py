@@ -34,6 +34,26 @@ class OfflineAudioFaultContracts(unittest.TestCase):
             with self.assertRaises(WorkerTransportError):
                 validate_response_frame(raw, request_id="fixture-1", command="ping")
 
+    def test_handler_error_is_owned_failure_not_transport_corruption(self):
+        import json
+        failed = {"ok": False, "stage": "worker_error",
+                  "blocker": "worker:handler_failed:RuntimeError",
+                  "request_id": "fixture-1"}
+        raw = (json.dumps(failed) + "\n").encode()
+        self.assertFalse(validate_response_frame(
+            raw, request_id="fixture-1", command="transcribe"
+        )["ok"])
+        for corrupt in (
+            {**failed, "ok": True},
+            {**failed, "blocker": ""},
+            {**failed, "request_id": "fixture-old"},
+        ):
+            with self.assertRaises(WorkerTransportError):
+                validate_response_frame(
+                    (json.dumps(corrupt) + "\n").encode(),
+                    request_id="fixture-1", command="transcribe"
+                )
+
     def test_unknown_fault_id_is_rejected(self):
         with self.assertRaises(ValueError):
             execute({"F99"})
