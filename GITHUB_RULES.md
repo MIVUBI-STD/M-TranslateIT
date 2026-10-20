@@ -49,7 +49,7 @@ TARGET_WINDOWS = LOCAL_CODE + installed TranslateIT + real Windows GPU/audio/dev
 
 A label is intent, not proof.
 
-- `REMOTE_GITHUB` may implement source changes and source/static review only; the separately authorized automatic/manual Actions run is a distinct hosted source-test context, never native evidence.
+- `REMOTE_GITHUB` may implement source changes and static review only. Former automatic/manual Actions authorization is suspended and must not be used as a new proof source.
 - `LOCAL_CODE` additionally owns local generators, dependency/toolchain execution, filesystem-sensitive builds and tests.
 - `TARGET_WINDOWS` is required for physical microphone, actual GPU practicality, VB-CABLE/device behavior, installed-runtime, meeting-app delivery, end-to-end latency, speaker-quality, and clean-machine claims.
 - **Current owner override (2026-10-20): ALL CI PAUSED.** No workflow jobs may run automatically or by manual dispatch. The former Local targeted/full exception is suspended. All nine workflow definitions are retained with job-level `if: false`; the previously automatic workflow also has no push trigger. Do not launch/retry workflows, create new ones or infer proof while paused. Re-enable only on explicit instruction. Historic CI is not fresh proof.
@@ -63,7 +63,7 @@ GitHub-verifiable
 → exact-source diagnosis/design
 → source implementation that needs no unavailable generated/native output
 → regression/static/integration contracts
-→ inspect existing CI definitions + security/provenance; permit only the owner-approved Local source workflow
+→ inspect existing CI definitions + security/provenance; do not execute GitHub Actions while suspended
 → deterministic harness/evidence preparation
 
 higher-context residue
@@ -96,7 +96,7 @@ Enter one coordinated **local build → package → install → `TARGET_WINDOWS`
 
 ### Source acceptance
 
-For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. The existing Code Health definition remains manual; the owner-approved Local Validation workflow runs only affected source checks on each `Local` push; full Windows source admission is manual-only and unmatched proof remains outstanding. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.
+For uncertain or cross-language affected verification, `tools/repository_impact.py` is an **optional read-only decision aid**. It uses registered contracts plus a bounded, ephemeral Rust/TypeScript/Python import graph. Static import edges are not a complete call graph, compile result, or permission to skip unmatched tests; missing evidence widens review. The existing Code Health and Local Validation definitions are disabled, including manual dispatch; unmatched proof remains outstanding. For on-demand executable source evidence, `tools/repository_verification.py` may run a bounded allowlist of **existing** validators/tests only from a clean pinned `Local` checkout, with an explicit `--execute` action. Planning cannot run commands. This is neither CI dispatch nor a release/target-Windows gate; unresolved graph edges or omitted checks remain unresolved even if selected tests pass.
 
 
 Normal development uses the smallest owning verifier on the exact `Local` SHA under discussion.
@@ -395,8 +395,8 @@ Branch/tag deletion, PR merge/close, release publication/deletion, repository se
 - CI result is evidence; branch protection/rulesets are enforcement. Never infer one from the other.
 - If `Local` is unprotected or has no required-check ruleset, a successful workflow still counts only as exact-SHA evidence, not as proof that GitHub prevented unchecked writes.
 - Workflows are verification/deployment/artifact infrastructure, not a source editor or remote shell.
-- **Targeted automated source verification:** eight existing quality/release workflows remain manual-only. Only `translateit-windows-local-validation.yml` may use `push` restricted to `Local` and `workflow_dispatch`. Push selects affected source owners, never the full Windows job. Full source admission requires manual `validation_level=full`; neither result proves native acceptance. No PR, schedule, workflow_run, main, automatic tag/release triggers or repository writes. Matching run/job ID required before PASS.
-- **Owner exception only:** the single approved targeted source CI remains active until revoked; full Windows source tests are manual and all other hosted/inference/release workflows remain untriggered by default. Keep the default branch `main` unchanged; registration-only workflow updates are not application promotion. A temporary CI failure is evidence, not a reason to weaken tests or merge into `main`.
+- **All nine workflows currently inactive:** the former targeted/full exception is revoked. Each job is gated with `if: false`; the former Local push trigger is removed. Do not manually dispatch, retry or enable jobs until the owner explicitly changes this policy. No automatic PR, schedule, workflow_run, tag, release or repository writes.
+- **Historic results remain revision-scoped:** no prior successful run proves source changes made while CI is paused. Retain the default branch `main` unchanged and preserve full workflow definitions for a later authorized re-enable.
 - A workflow file, check name or historical run is not current executable proof or branch protection. Only actually completed exact-SHA selected checks are accepted as partial hosted source proof. Local build/package tests remain part of the later controlled integration phase; publishing remains separately authorized.
 - Workflow definitions retain least-privilege permissions, immutable action pins, controlled release behavior, and exact-SHA result identity.
 - Verification workflows are read-only by default and never commit/push back.

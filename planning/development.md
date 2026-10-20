@@ -265,18 +265,20 @@ These are future **acceptance scenarios**, not tests performed or runtime result
 
 ## Single next step
 
-**Current targeted CI policy (2026-10-19):** automatic `Local` push
-validation now selects only affected source domains in the existing
-`TranslateIT Windows Local Validation` workflow. The exact push range is
-inspected; unavailable range falls back conservatively to all tracked files.
-Governance, frontend/Rust bridge contracts and Python static checks run
-independently only when selected. This is PARTIAL SOURCE PROOF: targeted green
-does not mean Rust compiled, worker pytest/model inference ran or Meeting passed.
-The full hosted Windows source suite is explicitly manual-only using
-`workflow_dispatch` with `validation_level=full`. Superseded automatic
-source runs cancel, all other quality/release workflows remain manual-only,
-and neither mode uses private model assets, microphone, GPU inference,
-installers or releases. No green result is transferred from another SHA.
+**Current owner override (2026-10-20): all CI fully paused.**
+Every job in the nine retained workflows has `if: false`, and Local push
+validation no longer has a push trigger. No manual workflow invocation,
+re-run, model inference or build runs are authorized as part of routine
+ChatGPT source work. Previous targeted results are historical exact-SHA
+evidence only and do not apply to subsequent audio harness commits.
+
+**Active next development gate:** run the authored offline Python harness
+regression tests and ignored canonical Rust VAD/PCM16 fixture replay on one
+prepared, clean, pinned `Local` checkout when local execution is available;
+then gather matching real local-worker ASR/MiLMMT/TTS receipts. No such execution
+has yet been performed for the current audio harness source. Preserve the
+production-only boundary, then independently accept receiver and physical
+microphone in TARGET_WINDOWS when authorized.
 
 **Source candidates awaiting relevant executed proof:** a blocked worker has an
 explicit resource-guarded Retry Worker action, and application snapshot/intents
@@ -284,9 +286,8 @@ and built-in voice selection use blocking-task offload rather than performing
 heavy readiness/asset work on the WebView event thread. These are source
 changes, not claims of repaired cold imports, restored blocked-worker behavior,
 or native UI responsiveness. Do not increase deadlines or auto-restore My Voice
-to cover these symptoms. Observe selected CI results before claiming source
-checks passed; native Meeting acceptance remains paused at the user's request.
+to cover these symptoms. Do not claim unexecuted source tests as passed; native Meeting acceptance remains paused at the user's request.
 
 **STOP boundary:** Do not start recurring cloud GPU/model jobs, change default
-branch or promote app source to `main`. If the owner revokes automatic targeted CI,
-restore `workflow_dispatch`-only and update the governance exception.
+branch or promote app source to `main`. Re-enable any GitHub Actions
+job only after a new explicit owner instruction, not merely a source-code update.

@@ -24,12 +24,12 @@ Resolve actual capability before choosing execution mechanics. Capability descri
 REPO_READ       = inspect current repository source/history/docs
 REPO_WRITE      = mutate the authoritative Local ref
 LOCAL_SHELL     = execute commands against an exact local checkout/toolchain
-CI_CONTROL      = inspect source/history; owner-approved targeted source CI on Local push; full source CI only on explicit manual dispatch
+CI_CONTROL      = inspect workflow definitions and historical run metadata; all GitHub Actions job execution is suspended
 ARTIFACT_ACCESS = inspect/download exact build or proof artifacts
 NATIVE_HOST     = exercise installed TranslateIT on the target Windows machine
 ```
 
-Capabilities are additive: `REPO_WRITE` does not imply local execution. Hosted CI is prohibited outside the temporary, narrowly approved targeted-auto/full-manual source gate above. Finish GitHub source work before recording execution gaps.
+Capabilities are additive: `REPO_WRITE` does not imply local execution. All hosted CI execution is suspended by the 2026-10-20 owner override. Finish GitHub source work before recording execution gaps.
 
 ## Execution Context Gate
 
@@ -261,7 +261,7 @@ UNKNOWN             = evidence cannot yet separate the owner; name the next sepa
 UNSUPPORTED         = required capability is unavailable
 ```
 
-Build success is not runtime success. Only the owner-approved **targeted source** workflow may run automatically on `Local` push; full Windows source CI is manual-only; GPU/audio/device/installed-app Windows acceptance is not authorized on hosted runners. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
+Build success is not runtime success. GitHub Actions are fully suspended, including former targeted and full Windows jobs; GPU/audio/device/installed-app acceptance remains target-Windows-only. Historical proof is not current proof unless the claim and source identity still match. Canonical diagnosis and proof rules live in `docs/knowledge/development-discipline.md`.
 
 ## User-facing reporting
 
