@@ -40,3 +40,7 @@ Do not claim that a noise or gain filter reproduces `Zoom/Teams/Meet` codecs, re
 ## Preview package boundary
 
 The independent `translateit_audio_preview_48.zip` supplied in chat is a convenience **PREVIEW** generated with the installed offline `espeak` executable, 48 public texts and deterministic source processing. It includes a preview manifest (not the official `translateit.audio_fixtures.v1` generator manifest) and is **not** committed into the GitHub repository. The official fixtures are generated via `harness.py generate` and their hashes are newly derived at that time. No claim is made that ASR, VAD, MiLMMT, TTS or Meeting playback passed.
+
+## Fail-closed generator admission
+
+The canonical `harness.py generate` now calls the same offline executable/ID+EN voice preflight as `generation_doctor.py` before creating any WAV. It invokes the resolved executable path and refuses to replace an existing fixture directory. Only a complete generated directory is promoted; failed synthesis leaves no published partial fixture. Source changes do not prove that the target Windows installation has the required voices or that the generated pronunciation is faithful. The preview ZIP remains outside the canonical fixture identity.

@@ -32,6 +32,8 @@ Owner approved a long-term, offline-first audio scenario/fixture/testing framewo
 
 **Pre-localtest hardening (2026-10-20):** The offline fixture inspector now rejects all extra/untracked entries in the sample directory, not only modified named WAVs. The audio scorer requires an exact one-to-one set of scenario IDs rather than trusting result count alone; unknown or omitted IDs block grading. A regression test covers the result-identity rejection. These are source fixes on `Local`, not executed verification. CI remains fully disabled. Before any real local/native acceptance, complete the remaining supported source tests in one pinned clean environment and generate official WAV fixtures, then run canonical Rust VAD and AI receipts; no user microphone input is required for these developer checks. The acceptance proof status remains NOT EXECUTED.
 
+**Offline fixture generation hardening:** canonical generator now automatically verifies eSpeak ID and EN voice availability before any synthesis, calls the resolved offline executable, and rejects concurrent fixture destination creation. Regression source coverage was added for missing-language refusal. Source change only; fixture publication and any local/native test remain unexecuted. CI still fully disabled.
+
 ## Active Boundary
 
 No per-change tests on the user's PC: this remains one integrated local Windows test phase explicitly authorized by the user. GitHub default branch `main` remains reserved for explicitly approved final releases.
