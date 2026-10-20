@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 import queue
+import subprocess
+import sys
 import tempfile
 import wave
 from pathlib import Path
@@ -180,12 +182,51 @@ def test_tts_silent_or_wrong_actor() -> dict:
             "boundary": "SOURCE_RECEIPT_ONLY_NO_REAL_ACTOR_OR_WAV"}
 
 
+
+def test_real_child_process_exit() -> dict:
+    """Launch an isolated Python child, then observe a real process EOF.
+
+    This checks bounded process and pipe behavior only. It deliberately does
+    not kill or replace the pinned AI worker, nor claim native recovery.
+    """
+    script = "import os, sys; sys.stdout.flush(); os._exit(17)"
+    child = subprocess.Popen([sys.executable, "-I", "-u", "-c", script],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        frame = child.stdout.readline(1024) if child.stdout else b""
+        exit_code = child.wait(timeout=5)
+        if exit_code != 17 or frame:
+            raise AssertionError("isolated child did not exit before a response")
+        assert_rejected(frame, command="status")
+        return {"exit_code": exit_code, "response": "EOF_REJECTED",
+                "boundary": "REAL_ISOLATED_PYTHON_CHILD_NOT_CANONICAL_AI_WORKER"}
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=5)
+        if child.stdout:
+            child.stdout.close()
+
+
+def test_translation_context_isolation() -> dict:
+    """Inspect source-owned canonical prompt policy; do not invoke MiLMMT."""
+    from pathlib import Path
+    provider = (Path(__file__).resolve().parents[2] /
+                "EngineData/Backend/LocalWorker/WorkerRuntime/milmmt_translation_provider.py")
+    text = provider.read_text(encoding="utf-8")
+    if "def build_prompt(" not in text:
+        raise AssertionError("canonical prompt builder missing")
+    # Semantic output behavior still requires real inference. Never report
+    # this source inspection as proof of isolation across executed sessions.
+    return {"owner": "milmmt_translation_provider.build_prompt",
+            "boundary": "SOURCE_DISCOVERY_ONLY_NO_TRANSLATION_ISOLATION_PROOF"}
+
 # Only implemented, actually executed fault checks may return PASS. Remaining
 # cases stay NOT_EXECUTED by construction until their owning injector exists.
 RUNNERS = {
     "malformed_response": test_worker_malformed_response,
     "cold_start_timeout": test_worker_timeout,
-    "worker_exit_on_status": test_worker_exit,
+    "worker_exit_on_status": test_real_child_process_exit,
     "worker_exit_on_asr": test_worker_exit,
     "worker_exit_on_translation": test_worker_exit,
     "worker_exit_on_tts": test_worker_exit,
@@ -193,6 +234,7 @@ RUNNERS = {
     "rate_channel_mismatch": test_wav_format_rejection,
     "missing_eos": test_translation_missing_eos,
     "silent_tts_wrong_actor": test_tts_silent_or_wrong_actor,
+    "translation_context_leak": test_translation_context_isolation,
 }
 
 
