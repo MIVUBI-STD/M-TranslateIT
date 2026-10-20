@@ -58,6 +58,20 @@ def validate_response_frame(frame: bytes | None, *, request_id: str, command: st
         raise WorkerTransportError("worker request identity/stage/boolean mismatch")
     return response
 
+
+def await_worker_frame(messages: queue.Queue[bytes | None], timeout: float) -> bytes:
+    """Shared bounded transport wait; EOF and timeout are explicit failures."""
+    if not 0 < timeout <= 600:
+        raise ValueError("transport wait must have a positive bounded deadline")
+    try:
+        frame = messages.get(timeout=timeout)
+    except queue.Empty as exc:
+        raise WorkerTransportError("worker:response_deadline_exceeded") from exc
+    if frame is None:
+        raise WorkerTransportError("worker:stdout_closed")
+    return frame
+
+
 class Worker:
     def __init__(self, python: Path, timeout: float):
         if not python.is_file() or not WORKER.is_file():
@@ -98,10 +112,13 @@ class Worker:
         try:
             self.child.stdin.write((json.dumps(body, ensure_ascii=False) + "\n").encode("utf-8"))
             self.child.stdin.flush()
-            frame = self.messages.get(timeout=self.deadline)
-        except (BrokenPipeError, OSError, queue.Empty) as exc:
+            frame = await_worker_frame(self.messages, self.deadline)
+        except WorkerTransportError:
             self.close()
-            raise WorkerTransportError("persistent worker write/read timed out or closed") from exc
+            raise
+        except (BrokenPipeError, OSError) as exc:
+            self.close()
+            raise WorkerTransportError("persistent worker write failed") from exc
         try:
             return validate_response_frame(frame, request_id=request_id, command=command)
         except WorkerTransportError:
