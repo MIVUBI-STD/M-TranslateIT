@@ -273,6 +273,33 @@ def inspect(target: Path, suite_path: Path = SUITE,
     return meta
 
 
+
+def translation_receipt_complete(stage: dict, direction: str) -> bool:
+    """Result contract only; semantic adequacy requires separate evaluation."""
+    return (stage.get("ok") is True
+            and stage.get("direction_pair") == direction
+            and stage.get("complete") is True
+            and stage.get("finished_with_eos") is True
+            and isinstance(stage.get("translated_text"), str)
+            and bool(stage["translated_text"].strip()))
+
+
+def voice_receipt_valid(stage: dict, preflight: dict | None) -> bool:
+    """No voice success without preflight and non-silent WAV evidence."""
+    return (stage.get("ok") is True
+            and isinstance(preflight, dict)
+            and preflight.get("ok") is True
+            and HASH.fullmatch(str(stage.get("wav_sha256", ""))) is not None
+            and type(stage.get("duration_ms")) in (int, float)
+            and 0 < stage["duration_ms"] <= 120_000
+            and type(stage.get("rms")) in (int, float)
+            and 0.0005 < stage["rms"] < 1
+            and type(stage.get("peak")) in (int, float)
+            and 0 < stage["peak"] <= 1
+            and type(stage.get("rate_hz")) is int
+            and 8000 <= stage["rate_hz"] <= 48000)
+
+
 def score(target: Path, observations: Path, suite_path: Path = SUITE,
           corpus_path: Path = CORPUS) -> dict:
     fixture = inspect(target, suite_path, corpus_path)
@@ -332,24 +359,12 @@ def score(target: Path, observations: Path, suite_path: Path = SUITE,
                     status, detail["cause"] = "FAIL", "ASR WER over threshold"
         trans = stages.get("translation")
         if isinstance(trans, dict) and trans.get("ok") is True:
-            if (trans.get("direction_pair") != ("id->en" if case["language"] == "id" else "en->id")
-                    or trans.get("complete") is not True or trans.get("finished_with_eos") is not True
-                    or not str(trans.get("translated_text", "")).strip()):
+            direction = "id->en" if case["language"] == "id" else "en->id"
+            if not translation_receipt_complete(trans, direction):
                 status, detail["cause"] = "FAIL", "incomplete/wrong-direction translation"
         tts = stages.get("tts")
         if isinstance(tts, dict) and tts.get("ok") is True:
-            voice_preflight = stages.get("voice_preflight")
-            if (not isinstance(voice_preflight, dict)
-                    or voice_preflight.get("ok") is not True
-                    or not HASH.fullmatch(str(tts.get("wav_sha256", "")))
-                    or type(tts.get("duration_ms")) not in (int, float)
-                    or tts["duration_ms"] <= 0
-                    or type(tts.get("rms")) not in (int, float)
-                    or not 0.0005 < tts["rms"] < 1
-                    or type(tts.get("peak")) not in (int, float)
-                    or not 0 < tts["peak"] <= 1
-                    or type(tts.get("rate_hz")) is not int
-                    or not 8000 <= tts["rate_hz"] <= 48000):
+            if not voice_receipt_valid(tts, stages.get("voice_preflight")):
                 status, detail["cause"] = "FAIL", "TTS preflight/identity/non-silent WAV evidence missing"
         vad = stages.get("vad")
         # An arbitrary {ok:true, count:1} dictionary is NOT canonical VAD
