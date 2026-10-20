@@ -42,6 +42,22 @@ def pinned_source(expected: str) -> None:
             raise ValueError("Local checkout branch/SHA/clean tracked status mismatch")
 
 
+
+def validate_response_frame(frame: bytes | None, *, request_id: str, command: str) -> dict:
+    """Strict, pure protocol guard for deterministic offline failure cases."""
+    if not frame or len(frame) > MAX_FRAME or not frame.endswith(bytes([10])):
+        raise WorkerTransportError("worker returned empty, oversized or partial response")
+    try:
+        response = json.loads(frame)
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise WorkerTransportError("invalid worker JSON frame") from exc
+    expected = "local_realtime_worker_preflight" if command == "status" else command
+    if (not isinstance(response, dict) or response.get("request_id") != request_id
+            or response.get("stage") != expected
+            or type(response.get("ok")) is not bool):
+        raise WorkerTransportError("worker request identity/stage/boolean mismatch")
+    return response
+
 class Worker:
     def __init__(self, python: Path, timeout: float):
         if not python.is_file() or not WORKER.is_file():
@@ -86,20 +102,11 @@ class Worker:
         except (BrokenPipeError, OSError, queue.Empty) as exc:
             self.close()
             raise WorkerTransportError("persistent worker write/read timed out or closed") from exc
-        if not frame or len(frame) > MAX_FRAME or not frame.endswith(b"\n"):
-            self.close()
-            raise WorkerTransportError("worker returned an empty/oversized/partial response")
         try:
-            response = json.loads(frame)
-        except (UnicodeError, json.JSONDecodeError) as exc:
+            return validate_response_frame(frame, request_id=request_id, command=command)
+        except WorkerTransportError:
             self.close()
-            raise WorkerTransportError("invalid worker JSON frame") from exc
-        if (not isinstance(response, dict) or response.get("request_id") != request_id
-                or response.get("stage") not in (command, "local_realtime_worker_preflight")
-                or type(response.get("ok")) is not bool):
-            self.close()
-            raise WorkerTransportError("worker request identity/stage/boolean mismatch")
-        return response
+            raise
 
     def close(self) -> None:
         if self.child.poll() is None:
