@@ -70,3 +70,14 @@ Add scenarios to `scenarios.json` with a unique ID and explicit expectation; pre
 ## Deep test strategy
 
 The full G0–G5 proof ladder, scenario boundaries and 28 planned fault cases are documented in [DEEP_ACCEPTANCE.md](DEEP_ACCEPTANCE.md) and [fault_matrix.json](fault_matrix.json). These are test specifications, not executed proof. The original 16-WAV preview is not the expanded 48-case canonical fixture set. Only generate the new set on explicit local tooling execution, preserving SHA/model identity.
+
+## Fault execution (source-only, CI remains disabled)
+
+The additional `fault_runner.py` executes **three** deterministic failure contracts without AI model, audio device, or GitHub Actions: F07 malformed worker protocol, F06 empty ASR transport result, and F14 stereo/truncated WAV rejection. Other planned F01–F28 cases remain explicitly `NOT_EXECUTED`; no synthetic or stub outcome is presented as a production resilience pass.
+
+```powershell
+python tools/audio_validation/fault_runner.py --output UserData/LogData/audio_validation_faults_001.json
+python -m unittest tools.tests.test_audio_fault_runner
+```
+
+This uses the canonical worker wire-response parser and WAV validator but does not exercise the real worker lifecycle or model. A `PASS` means only its named offline contract executed. The fault matrix is an implementation backlog with owners, not 28 completed injections.

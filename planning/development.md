@@ -26,6 +26,8 @@ Owner approved a long-term, offline-first audio scenario/fixture/testing framewo
 
 **Deep system-first acceptance expansion (2026-10-20):** The audio suite now defines 48 reproducible scenarios using the existing 60-case ASR corpus. A separate 28-case fault matrix documents stage ownership and a G0–G5 proof ladder so device/human testing becomes the last, small acceptance gate. These additions are specifications only: the expanded WAVs, model inference, Rust VAD replay, fault injection and independent receiver execution have not been performed; CI remains fully disabled. Do not treat scenario count or file presence as PASS. See `tools/audio_validation/DEEP_ACCEPTANCE.md`.
 
+**Fault-execution advancement:** `tools/audio_validation/fault_runner.py` now contains deterministic source-only injectors for F06 empty ASR, F07 worker reply corruption, and F14 rejected noncanonical WAV. The full 28-case matrix still records `NOT_EXECUTED` for unavailable owners. Source-test execution and integration evidence remain unverified; no CI was enabled. Implement remaining owner-specific injectors only when the matching local/source or Windows environment can provide honest receipts.
+
 ## Active Boundary
 
 No per-change tests on the user's PC: this remains one integrated local Windows test phase explicitly authorized by the user. GitHub default branch `main` remains reserved for explicitly approved final releases.
