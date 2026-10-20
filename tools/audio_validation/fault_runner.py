@@ -7,6 +7,7 @@ simulate successful model inference, or claim Windows/native device proof.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import queue
 import subprocess
@@ -208,6 +209,37 @@ def test_real_child_process_exit() -> dict:
             child.stdout.close()
 
 
+
+def test_translation_context_isolation() -> dict:
+    """Execute the canonical prompt builder with reordered current utterances.
+
+    This exercises the real source-owned prompt function, not MiLMMT inference
+    or runtime-session isolation. No private history is ever supplied.
+    """
+    provider_path = (Path(__file__).resolve().parents[2] /
+                     "EngineData/Backend/LocalWorker/WorkerRuntime/milmmt_translation_provider.py")
+    module_spec = importlib.util.spec_from_file_location("audio_fault_milmmt_provider", provider_path)
+    if module_spec is None or module_spec.loader is None:
+        raise AssertionError("canonical translation prompt provider unavailable")
+    provider = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(provider)
+    a = "Saya tidak setuju dengan perubahan itu."
+    b = "Maksud saya lima belas, bukan lima puluh."
+    first_a = provider.build_prompt("id", "en", a)
+    first_b = provider.build_prompt("id", "en", b)
+    again_a = provider.build_prompt("id", "en", a)
+    if first_a != again_a or b in first_a or a in first_b:
+        raise AssertionError("canonical prompt contains prior/foreign utterance")
+    if not all(text in prompt for text, prompt in ((a, first_a), (b, first_b))):
+        raise AssertionError("current utterance missing from canonical prompt")
+    opposite = provider.build_prompt("en", "id", "Please do not delete it.")
+    if ("Please do not delete it." not in opposite or a in opposite or b in opposite):
+        raise AssertionError("reverse-direction prompt carries unexpected context")
+    return {"owner": "milmmt_translation_provider.build_prompt",
+            "checks": ["repeat_determinism", "reordering", "current_only", "reverse_direction"],
+            "boundary": "REAL_CANONICAL_PROMPT_BUILDER_NO_MODEL_OR_SESSION_INFERENCE"}
+
+
 # Only implemented, actually executed fault checks may return PASS. Remaining
 # cases stay NOT_EXECUTED by construction until their owning injector exists.
 RUNNERS = {
@@ -221,6 +253,7 @@ RUNNERS = {
     "rate_channel_mismatch": test_wav_format_rejection,
     "missing_eos": test_translation_missing_eos,
     "silent_tts_wrong_actor": test_tts_silent_or_wrong_actor,
+    "translation_context_leak": test_translation_context_isolation,
 }
 
 
