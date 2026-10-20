@@ -20,11 +20,11 @@ class OfflineAudioFaultContracts(unittest.TestCase):
 
     def test_actual_offline_injectors_run_and_record_partial_scope(self):
         selected = {row["id"] for row in matrix_cases() if row["slug"] in RUNNERS}
-        self.assertEqual(len(selected), 10)
+        self.assertEqual(len(selected), 11)
         report = execute(selected)
-        self.assertEqual(report["counts"]["PASS"], 10)
+        self.assertEqual(report["counts"]["PASS"], 11)
         self.assertEqual(report["counts"]["FAIL"], 0)
-        self.assertEqual(report["counts"]["NOT_EXECUTED"], 18)
+        self.assertEqual(report["counts"]["NOT_EXECUTED"], 17)
         self.assertTrue(all(r["proof"] == "OFFLINE_CONTRACT_ONLY_NOT_NATIVE"
                             for r in report["cases"] if r["status"] == "PASS"))
 

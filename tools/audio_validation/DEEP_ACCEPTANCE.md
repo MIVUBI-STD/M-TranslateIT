@@ -44,3 +44,7 @@ Once G0–G4 have *actually passed*, a user only needs a short integrated accept
 ## Current limitation
 
 The 48 cases are **specifications**, not 48 newly generated/accepted WAVs. The earlier 16 WAV preview is separate from the repository. The fault matrix includes eight offline queue/protocol/WAV injectors via `fault_runner.py`; they do not prove actual worker/model/device fault handling. The remaining 20 cases are implementation plans, not executed tests. GitHub Actions remains disabled.
+
+## Latest offline fault execution coverage
+
+F09 tests the canonical prompt builder deterministically by invoking the existing MiLMMT Python function, without model weights or a Meeting session. F02 uses an intentionally disposable Python child process to establish a real child EOF, while the other worker-exit cases remain queue-only simulations. This does not establish translation quality, real GPU recovery, or stale-output prevention. Current authored offline coverage is 11/28; the remaining 17 are pending executors, and no exact-SHA runtime proof is implied by the code's presence.

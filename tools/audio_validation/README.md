@@ -89,3 +89,7 @@ F01–F05 use simulated queue timeout/EOF to test the same bounded wait helper a
 ## Critical translation/TTS result gate
 
 F08 and F10 now exercise fail-closed contract helpers for missing EOS, wrong direction, empty translation, silent WAV receipts and missing preflight. These are *offline result-envelope checks*, not real model quality or selected-actor identity tests. Ten cases have offline contract code, eighteen require owner-level fault injectors. Run manually with `python tools/audio_validation/fault_runner.py` when an appropriate checkout exists; CI stays disabled.
+
+## Canonical prompt isolation and isolated process faults
+
+F09 now invokes the *actual pinned MiLMMT source prompt builder* on reordered public utterances and checks that the current request contains no previous sentence. This is a real source-function test, not executed model inference. F02 uses a real short-lived **disposable Python child** that exits before replying; F01/F03/F04/F05 still exercise bounded queue timeout/EOF classification, not a real AI worker crash. Eleven fault cases have offline implementations, seventeen remain owner-specific plans. No Windows behavior is inferred.
