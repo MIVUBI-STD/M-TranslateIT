@@ -36,7 +36,7 @@ This file maps semantic responsibility to the current owner. It does not carry p
 | Cross-language contract/test binding | `tools/interop-contracts.json` + `tools/repository_contracts.py` |
 | Changed-path impact/test planning | `tools/repository_impact.py` |
 | Opt-in affected verification execution | `tools/repository_verification.py` (fixed existing test/validator commands only; execution never automatic) |
-| Offline audio fixture/test harness (not a runtime owner) | `tools/audio_validation/scenarios.json`, `harness.py`, `worker_runner.py`; ASR truth remains owned by `tools/asr_quality/`; canonical PCM/VAD remains owned by `engine/audio/` |
+| Offline audio fixture/test harness (not a runtime owner) | `tools/audio_validation/scenarios.json`, `harness.py`, `worker_runner.py`, `vad_runner.py`, test-only `engine/audio/audio_fixture_replay_tests.rs`; ASR truth remains owned by `tools/asr_quality/`; canonical PCM/VAD remains owned by `engine/audio/` |
 | Derived source-import relationships | `tools/repository_dependencies.py` (ephemeral Rust/TS/Python graph; partial, not semantic authority) |
 | Task-mode context projection / handoff | `tools/repository_context.py` (read-only composition; mode policy remains in `AGENTS.md`) |
 | Frontend source/bridge contracts | `EngineData/Frontend/RustApp/scripts/` validators |

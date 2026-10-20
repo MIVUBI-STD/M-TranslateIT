@@ -9,13 +9,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 from harness import (
-    RESULT_SCHEMA, ROOT, SUITE, CORPUS, inspect, specs,
+    RESULT_SCHEMA, ROOT, inspect, specs,
 )
 from worker_runner import pinned_source
 
