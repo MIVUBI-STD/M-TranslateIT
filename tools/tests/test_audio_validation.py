@@ -112,6 +112,27 @@ class AudioFixtureContractTests(unittest.TestCase):
                 report = harness.score(Path(folder), obs)
             self.assertEqual(report["results"][0]["status"], "UNVERIFIED")
 
+    def test_unknown_result_ids_fail_instead_of_silent_coverage(self):
+        fixture = {"audio_fingerprint": "b"*64,
+                   "fixtures": [{"id": "A01", "sha256": "c"*64}]}
+        case = {"id": "A01", "kind": "speech", "language": "id",
+                "reference": "Halo", "expect": "asr_mt_tts", "max_wer": 0.5}
+        with tempfile.TemporaryDirectory() as folder:
+            obs = Path(folder) / "observations.json"
+            obs.write_text(json.dumps({
+                "schema": harness.RESULT_SCHEMA,
+                "scenario_fingerprint": "a"*64,
+                "audio_fingerprint": "b"*64,
+                "source_identity": {"local_sha": "1"*40},
+                "results": [{"scenario_id": "A99", "audio_sha256": "c"*64,
+                             "stages": {}}],
+            }), encoding="utf-8")
+            with patch.object(harness, "inspect", return_value=fixture), \
+                 patch.object(harness, "specs", return_value=([case], "a"*64)), \
+                 patch.object(harness, "load_corpus", return_value={"cases": []}):
+                with self.assertRaisesRegex(ValueError, "unknown or missing"):
+                    harness.score(Path(folder), obs)
+
     def test_compare_refuses_audio_substitution(self):
         base = {"schema": harness.SCORE_SCHEMA,
                 "scenario_fingerprint": "A"*64,
