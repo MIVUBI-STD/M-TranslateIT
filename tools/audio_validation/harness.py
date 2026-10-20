@@ -343,7 +343,19 @@ def score(target: Path, observations: Path, suite_path: Path = SUITE,
                     or tts["duration_ms"] <= 0):
                 status, detail["cause"] = "FAIL", "TTS WAV receipt missing"
         vad = stages.get("vad")
-        if isinstance(vad, dict) and vad.get("ok") is True:
+        # An arbitrary {ok:true, count:1} dictionary is NOT canonical VAD
+        # evidence. Require the exact test-only Rust receipt provenance.
+        if isinstance(vad, dict) and vad.get("ok") is True and (
+            vad.get("claim") != "CANONICAL_INCOMING_VAD_AND_PCM16_WRITER_OFFLINE_ONLY"
+            or vad.get("test_only") is not True
+            or type(vad.get("test_added_quiet_ms")) is not int
+            or type(vad.get("writer_attempts")) is not int
+            or type(vad.get("writer_valid")) is not int
+            or type(vad.get("evicted_count")) is not int
+        ):
+            status = "UNVERIFIED"
+            detail["cause"] = "canonical Rust VAD receipt provenance missing"
+        elif isinstance(vad, dict) and vad.get("ok") is True:
             n = vad.get("finalized_count")
             if type(n) is not int or n < 0:
                 status, detail["cause"] = "FAIL", "VAD finalized count missing"
