@@ -15,6 +15,8 @@ pub mod meeting_sound_capture;
 mod pcm_handoff;
 #[cfg(test)]
 mod pcm_handoff_replay;
+#[cfg(test)]
+mod audio_fixture_replay_tests;
 pub mod vad;
 
 #[cfg(test)]
