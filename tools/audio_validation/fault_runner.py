@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
-import sys
+import queue
 import tempfile
 import wave
+from pathlib import Path
 
 from harness import decode_wave, write_wave
-from worker_runner import WorkerTransportError, validate_response_frame
+from worker_runner import WorkerTransportError, await_worker_frame, validate_response_frame
 
 MATRIX = Path(__file__).with_name("fault_matrix.json")
 RECEIPT_SCHEMA = "translateit.audio_fault_results.v1"
@@ -23,7 +23,7 @@ RECEIPT_SCHEMA = "translateit.audio_fault_results.v1"
 def matrix_cases(path: Path = MATRIX) -> list[dict]:
     source = json.loads(path.read_text(encoding="utf-8"))
     rows = source.get("cases") if isinstance(source, dict) else None
-    if source.get("schema") != "translateit.audio_fault_plan.v1" or not isinstance(rows, list):
+    if not isinstance(source, dict) or source.get("schema") != "translateit.audio_fault_plan.v1" or not isinstance(rows, list):
         raise ValueError("invalid canonical audio fault matrix")
     seen = set()
     for row in rows:
@@ -110,10 +110,44 @@ def test_wav_format_rejection() -> dict:
     return {"rejected": ["wrong_channel_count", "truncated_riff"]}
 
 
+
+def test_worker_timeout() -> dict:
+    # Empty bounded queue models transport non-response; does not start AI.
+    inbox: queue.Queue[bytes | None] = queue.Queue()
+    try:
+        await_worker_frame(inbox, 0.001)
+    except WorkerTransportError as exc:
+        if "deadline_exceeded" not in str(exc):
+            raise AssertionError("timeout was not classified correctly") from exc
+    else:
+        raise AssertionError("missing response was not rejected")
+    return {"failure": "worker:response_deadline_exceeded",
+            "boundary": "SIMULATED_QUEUE_ONLY_NO_NATIVE_COLD_START"}
+
+
+def test_worker_exit() -> dict:
+    inbox: queue.Queue[bytes | None] = queue.Queue()
+    inbox.put_nowait(None)
+    try:
+        await_worker_frame(inbox, 0.01)
+    except WorkerTransportError as exc:
+        if "stdout_closed" not in str(exc):
+            raise AssertionError("EOF was not classified correctly") from exc
+    else:
+        raise AssertionError("closed worker stdout was not rejected")
+    return {"failure": "worker:stdout_closed",
+            "boundary": "SIMULATED_QUEUE_ONLY_NO_NATIVE_PROCESS_EXIT"}
+
+
 # Only implemented, actually executed fault checks may return PASS. Remaining
 # cases stay NOT_EXECUTED by construction until their owning injector exists.
 RUNNERS = {
     "malformed_response": test_worker_malformed_response,
+    "cold_start_timeout": test_worker_timeout,
+    "worker_exit_on_status": test_worker_exit,
+    "worker_exit_on_asr": test_worker_exit,
+    "worker_exit_on_translation": test_worker_exit,
+    "worker_exit_on_tts": test_worker_exit,
     "empty_asr": test_asr_empty_response,
     "rate_channel_mismatch": test_wav_format_rejection,
 }
