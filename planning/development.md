@@ -30,6 +30,8 @@ Owner approved a long-term, offline-first audio scenario/fixture/testing framewo
 
 **Source hardening while user cannot local-test:** the explicit worker runner now accepts the canonical Python dispatcher's unsuccessful `worker_error` response only when bound to the active request ID and a `worker:handler_failed:...` blocker. Forged success or wrong ID remains a transport failure. A dedicated source regression was added. No local Python/Cargo/model run or native acceptance has executed; CI remains disabled. Remaining integration work requires the exact local toolchain and fixture bytes, not user speech during ordinary development.
 
+**Pre-localtest hardening (2026-10-20):** The offline fixture inspector now rejects all extra/untracked entries in the sample directory, not only modified named WAVs. The audio scorer requires an exact one-to-one set of scenario IDs rather than trusting result count alone; unknown or omitted IDs block grading. A regression test covers the result-identity rejection. These are source fixes on `Local`, not executed verification. CI remains fully disabled. Before any real local/native acceptance, complete the remaining supported source tests in one pinned clean environment and generate official WAV fixtures, then run canonical Rust VAD and AI receipts; no user microphone input is required for these developer checks. The acceptance proof status remains NOT EXECUTED.
+
 ## Active Boundary
 
 No per-change tests on the user's PC: this remains one integrated local Windows test phase explicitly authorized by the user. GitHub default branch `main` remains reserved for explicitly approved final releases.
