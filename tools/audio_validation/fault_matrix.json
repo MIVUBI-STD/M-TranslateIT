@@ -1,0 +1,286 @@
+{
+  "schema": "translateit.audio_fault_plan.v1",
+  "description": "Fault-injection acceptance plan, not executed proof.",
+  "cases": [
+    {
+      "id": "F01",
+      "family": "Worker and transport",
+      "slug": "cold_start_timeout",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce cold start timeout in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F02",
+      "family": "Worker and transport",
+      "slug": "worker_exit_on_status",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce worker exit on status in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F03",
+      "family": "Worker and transport",
+      "slug": "worker_exit_on_asr",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce worker exit on asr in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F04",
+      "family": "Worker and transport",
+      "slug": "worker_exit_on_translation",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce worker exit on translation in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F05",
+      "family": "Worker and transport",
+      "slug": "worker_exit_on_tts",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce worker exit on tts in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F06",
+      "family": "Worker and transport",
+      "slug": "empty_asr",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce empty asr in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F07",
+      "family": "Worker and transport",
+      "slug": "malformed_response",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce malformed response in an isolated disposable test environment",
+      "expected_evidence": "worker/protocol state, request IDs, explicit bounded failure",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F08",
+      "family": "Translation and synthesis",
+      "slug": "missing_eos",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce missing eos in an isolated disposable test environment",
+      "expected_evidence": "no incomplete or stale output, canonical actor-bound WAV",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F09",
+      "family": "Translation and synthesis",
+      "slug": "context_isolation",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce context isolation in an isolated disposable test environment",
+      "expected_evidence": "no incomplete or stale output, canonical actor-bound WAV",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F10",
+      "family": "Translation and synthesis",
+      "slug": "silent_tts_wrong_actor",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce silent tts wrong actor in an isolated disposable test environment",
+      "expected_evidence": "no incomplete or stale output, canonical actor-bound WAV",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F11",
+      "family": "VAD and PCM",
+      "slug": "short_segment_writer_rejection",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce short segment writer rejection in an isolated disposable test environment",
+      "expected_evidence": "canonical finalizer counts, drop/overflow, writer blocker",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F12",
+      "family": "VAD and PCM",
+      "slug": "unbroken_61s_overflow",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce unbroken 61s overflow in an isolated disposable test environment",
+      "expected_evidence": "canonical finalizer counts, drop/overflow, writer blocker",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F13",
+      "family": "VAD and PCM",
+      "slug": "callback_drop",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce callback drop in an isolated disposable test environment",
+      "expected_evidence": "canonical finalizer counts, drop/overflow, writer blocker",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F14",
+      "family": "VAD and PCM",
+      "slug": "rate_channel_mismatch",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce rate channel mismatch in an isolated disposable test environment",
+      "expected_evidence": "canonical finalizer counts, drop/overflow, writer blocker",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F15",
+      "family": "VAD and PCM",
+      "slug": "noise_false_positive",
+      "minimum_context": "LOCAL_CODE",
+      "stimulus": "Induce noise false positive in an isolated disposable test environment",
+      "expected_evidence": "canonical finalizer counts, drop/overflow, writer blocker",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F16",
+      "family": "Meeting route and ownership",
+      "slug": "source_switch",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce source switch in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F17",
+      "family": "Meeting route and ownership",
+      "slug": "stop_during_asr",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce stop during asr in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F18",
+      "family": "Meeting route and ownership",
+      "slug": "stop_during_tts",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce stop during tts in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F19",
+      "family": "Meeting route and ownership",
+      "slug": "rapid_start_stop",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce rapid start stop in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F20",
+      "family": "Meeting route and ownership",
+      "slug": "device_unplug",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce device unplug in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F21",
+      "family": "Meeting route and ownership",
+      "slug": "independent_receiver",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce independent receiver in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F22",
+      "family": "Meeting route and ownership",
+      "slug": "feedback_loop",
+      "minimum_context": "TARGET_WINDOWS",
+      "stimulus": "Induce feedback loop in an isolated disposable test environment",
+      "expected_evidence": "session generation, route ownership, independent receiver proof",
+      "execution": "NOT_EXECUTED",
+      "gate": "G4"
+    },
+    {
+      "id": "F23",
+      "family": "Persistence and long-running",
+      "slug": "archive_disk_failure",
+      "minimum_context": "LOCAL_CODE_OR_TARGET_WINDOWS",
+      "stimulus": "Induce archive disk failure in an isolated disposable test environment",
+      "expected_evidence": "archive receipts, P50/P95, scheduling, no stale ownership",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F24",
+      "family": "Persistence and long-running",
+      "slug": "cold_warm_latency",
+      "minimum_context": "LOCAL_CODE_OR_TARGET_WINDOWS",
+      "stimulus": "Induce cold warm latency in an isolated disposable test environment",
+      "expected_evidence": "archive receipts, P50/P95, scheduling, no stale ownership",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F25",
+      "family": "Persistence and long-running",
+      "slug": "unicode_long_session",
+      "minimum_context": "LOCAL_CODE_OR_TARGET_WINDOWS",
+      "stimulus": "Induce unicode long session in an isolated disposable test environment",
+      "expected_evidence": "archive receipts, P50/P95, scheduling, no stale ownership",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F26",
+      "family": "Persistence and long-running",
+      "slug": "outbound_priority",
+      "minimum_context": "LOCAL_CODE_OR_TARGET_WINDOWS",
+      "stimulus": "Induce outbound priority in an isolated disposable test environment",
+      "expected_evidence": "archive receipts, P50/P95, scheduling, no stale ownership",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F27",
+      "family": "Persistence and long-running",
+      "slug": "blocked_worker_retry",
+      "minimum_context": "LOCAL_CODE_OR_TARGET_WINDOWS",
+      "stimulus": "Induce blocked worker retry in an isolated disposable test environment",
+      "expected_evidence": "archive receipts, P50/P95, scheduling, no stale ownership",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    },
+    {
+      "id": "F28",
+      "family": "Persistence and long-running",
+      "slug": "original_without_models",
+      "minimum_context": "LOCAL_CODE_OR_TARGET_WINDOWS",
+      "stimulus": "Induce original without models in an isolated disposable test environment",
+      "expected_evidence": "archive receipts, P50/P95, scheduling, no stale ownership",
+      "execution": "NOT_EXECUTED",
+      "gate": "G3"
+    }
+  ]
+}
