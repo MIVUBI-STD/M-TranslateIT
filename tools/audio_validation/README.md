@@ -1,6 +1,6 @@
 # Offline Audio Regression Harness (developer tool)
 
-**Scope:** Reproducible public audio fixtures and evidence-scoped regression checks. This is **not** a new production VAD, ASR, translator, or TTS engine. The 60-case corpus and all canonical ASR reference/invariant logic remain in `tools/asr_quality/`. This harness selects 16 initial scenarios and adds audio-file provenance.
+**Scope:** Reproducible public audio fixtures and evidence-scoped regression checks. This is **not** a new production VAD, ASR, translator, or TTS engine. The 60-case corpus and all canonical ASR reference/invariant logic remain in `tools/asr_quality/`. This harness selects 48 versioned scenarios and adds audio-file provenance.
 
 ## Safety / execution boundary
 
@@ -66,3 +66,7 @@ Numeric 61-second tone A15 tests a buffer/overflow **boundary only**, never natu
 ## Extension rules
 
 Add scenarios to `scenarios.json` with a unique ID and explicit expectation; prefer referencing `tools/asr_quality/corpus/asr_quality_v1.json` instead of duplicating speech text. Keep the generator deterministic, provenance append-only, outputs bounded and private, and model/receiver proof independently labeled. Do not inject test audio into the production capture path or change VAD thresholds simply to pass synthetic sound fixtures. L4 automation still requires separate target-lane ownership and receiver/device evidence review.
+
+## Deep test strategy
+
+The full G0–G5 proof ladder, scenario boundaries and 28 planned fault cases are documented in [DEEP_ACCEPTANCE.md](DEEP_ACCEPTANCE.md) and [fault_matrix.json](fault_matrix.json). These are test specifications, not executed proof. The original 16-WAV preview is not the expanded 48-case canonical fixture set. Only generate the new set on explicit local tooling execution, preserving SHA/model identity.

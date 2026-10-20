@@ -24,6 +24,8 @@ Owner approved a long-term, offline-first audio scenario/fixture/testing framewo
 
 **CI is fully paused at owner request (2026-10-20):** all nine GitHub Actions workflow jobs are hard-gated off and the former Local push trigger is removed. Do not cite unexecuted checks as green or turn CI back on as part of the audio work.
 
+**Deep system-first acceptance expansion (2026-10-20):** The audio suite now defines 48 reproducible scenarios using the existing 60-case ASR corpus. A separate 28-case fault matrix documents stage ownership and a G0–G5 proof ladder so device/human testing becomes the last, small acceptance gate. These additions are specifications only: the expanded WAVs, model inference, Rust VAD replay, fault injection and independent receiver execution have not been performed; CI remains fully disabled. Do not treat scenario count or file presence as PASS. See `tools/audio_validation/DEEP_ACCEPTANCE.md`.
+
 ## Active Boundary
 
 No per-change tests on the user's PC: this remains one integrated local Windows test phase explicitly authorized by the user. GitHub default branch `main` remains reserved for explicitly approved final releases.

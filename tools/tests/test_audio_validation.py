@@ -17,8 +17,9 @@ import harness  # noqa: E402
 class AudioFixtureContractTests(unittest.TestCase):
     def test_scenarios_bound_to_canonical_corpus(self):
         cases, fingerprint = harness.specs()
-        self.assertEqual(len(cases), 16)
+        self.assertEqual(len(cases), 48)
         self.assertEqual(len({r["id"] for r in cases}), len(cases))
+        self.assertEqual(cases[-1]["id"], "A48")
         self.assertEqual(len(fingerprint), 64)
         self.assertEqual(next(x for x in cases if x["id"] == "A03")["reference"],
                          "Saya tidak setuju dengan perubahan itu.")
