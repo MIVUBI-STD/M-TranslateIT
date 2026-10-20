@@ -1,6 +1,6 @@
 {
   "schema": "translateit.audio_suite.v1",
-  "description": "Public controlled audio cases; asr_quality corpus is the sole reference/invariant owner.",
+  "description": "48 public deterministic cases. Source text and critical invariants remain owned by the 60-case canonical ASR corpus. Acoustic manipulations are simulated proxies, never actual accent, headset, compression, packet-loss or speaker overlap proof.",
   "cases": [
     {
       "id": "A01",
@@ -138,6 +138,278 @@
       "max_wer": 0.5,
       "prefix_ms": 500,
       "suffix_ms": 600
+    },
+    {
+      "id": "A17",
+      "kind": "speech",
+      "case_id": "asr-date-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.35
+    },
+    {
+      "id": "A18",
+      "kind": "speech",
+      "case_id": "asr-time-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.35
+    },
+    {
+      "id": "A19",
+      "kind": "speech",
+      "case_id": "asr-version-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A20",
+      "kind": "speech",
+      "case_id": "asr-api-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.45
+    },
+    {
+      "id": "A21",
+      "kind": "speech",
+      "case_id": "asr-name-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.45
+    },
+    {
+      "id": "A22",
+      "kind": "speech",
+      "case_id": "asr-id-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.35
+    },
+    {
+      "id": "A23",
+      "kind": "speech",
+      "case_id": "asr-filler-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "comma_pause_ms": 300
+    },
+    {
+      "id": "A24",
+      "kind": "speech",
+      "case_id": "asr-negation-noise-002",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.45,
+      "snr_db": 12
+    },
+    {
+      "id": "A25",
+      "kind": "speech",
+      "case_id": "asr-number-noise-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.45,
+      "snr_db": 12
+    },
+    {
+      "id": "A26",
+      "kind": "speech",
+      "case_id": "asr-correction-fast-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.45,
+      "rate_wpm": 230
+    },
+    {
+      "id": "A27",
+      "kind": "speech",
+      "case_id": "asr-fast-code-switch-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.55,
+      "rate_wpm": 225
+    },
+    {
+      "id": "A28",
+      "kind": "speech",
+      "case_id": "asr-fast-code-switch-002",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.55,
+      "rate_wpm": 225
+    },
+    {
+      "id": "A29",
+      "kind": "speech",
+      "case_id": "asr-acronym-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.5
+    },
+    {
+      "id": "A30",
+      "kind": "speech",
+      "case_id": "asr-acronym-002",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.5
+    },
+    {
+      "id": "A31",
+      "kind": "speech",
+      "case_id": "asr-list-002",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.45,
+      "comma_pause_ms": 850
+    },
+    {
+      "id": "A32",
+      "kind": "speech",
+      "case_id": "asr-long-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.45
+    },
+    {
+      "id": "A33",
+      "kind": "speech",
+      "case_id": "asr-long-002",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.45
+    },
+    {
+      "id": "A34",
+      "kind": "speech",
+      "case_id": "asr-low-gain-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.6,
+      "gain_db": -24
+    },
+    {
+      "id": "A35",
+      "kind": "speech",
+      "case_id": "asr-keyboard-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.6,
+      "snr_db": 9
+    },
+    {
+      "id": "A36",
+      "kind": "speech",
+      "case_id": "asr-laptop-fan-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.6,
+      "snr_db": 8
+    },
+    {
+      "id": "A37",
+      "kind": "speech",
+      "case_id": "asr-code-switch-noise-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.6,
+      "snr_db": 10
+    },
+    {
+      "id": "A38",
+      "kind": "speech",
+      "case_id": "asr-jakarta-casual-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.45
+    },
+    {
+      "id": "A39",
+      "kind": "speech",
+      "case_id": "asr-formal-id-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A40",
+      "kind": "speech",
+      "case_id": "asr-formal-id-002",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.4
+    },
+    {
+      "id": "A41",
+      "kind": "speech",
+      "case_id": "asr-zoom-compressed-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "snr_db": 14
+    },
+    {
+      "id": "A42",
+      "kind": "speech",
+      "case_id": "asr-meet-compressed-002",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "snr_db": 14
+    },
+    {
+      "id": "A43",
+      "kind": "speech",
+      "case_id": "asr-network-artifact-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "snr_db": 12
+    },
+    {
+      "id": "A44",
+      "kind": "speech",
+      "case_id": "asr-network-artifact-002",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "snr_db": 12
+    },
+    {
+      "id": "A45",
+      "kind": "speech",
+      "case_id": "asr-overlap-light-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5
+    },
+    {
+      "id": "A46",
+      "kind": "speech",
+      "case_id": "asr-overlap-light-002",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5
+    },
+    {
+      "id": "A47",
+      "kind": "speech",
+      "case_id": "asr-speakerphone-001",
+      "language": "id",
+      "expect": "vad_asr",
+      "max_wer": 0.5,
+      "gain_db": -10
+    },
+    {
+      "id": "A48",
+      "kind": "speech",
+      "case_id": "asr-usb-mic-001",
+      "language": "id",
+      "expect": "asr_mt_tts",
+      "max_wer": 0.45
     }
   ]
 }
