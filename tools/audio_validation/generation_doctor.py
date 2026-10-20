@@ -40,8 +40,12 @@ def doctor(tts_exe: str) -> dict:
         observed = subprocess.run([executable, f"--voices={language}"],
                                   capture_output=True, text=True, timeout=10, check=False)
         lines = observed.stdout.splitlines()
-        voices[language] = (observed.returncode == 0 and len(lines) > 1
-                            and any(language in line.split()[:3] for line in lines[1:]))
+        # eSpeak may report en-gb/en-us rather than a bare "en" line.
+        languages = [tokens[1].lower() for line in lines[1:]
+                     if (tokens := line.split()) and len(tokens) >= 3]
+        voices[language] = (observed.returncode == 0
+                            and any(code == language or code.startswith(language + "-")
+                                    for code in languages))
     results["generator"]["voices"] = voices
     results["ok"] = all(voices.values())
     if not results["ok"]:
