@@ -338,10 +338,18 @@ def score(target: Path, observations: Path, suite_path: Path = SUITE,
                 status, detail["cause"] = "FAIL", "incomplete/wrong-direction translation"
         tts = stages.get("tts")
         if isinstance(tts, dict) and tts.get("ok") is True:
-            if (not HASH.fullmatch(str(tts.get("wav_sha256", "")))
+            voice_preflight = stages.get("voice_preflight")
+            if (not isinstance(voice_preflight, dict)
+                    or voice_preflight.get("ok") is not True
+                    or not HASH.fullmatch(str(tts.get("wav_sha256", "")))
                     or type(tts.get("duration_ms")) not in (int, float)
-                    or tts["duration_ms"] <= 0):
-                status, detail["cause"] = "FAIL", "TTS WAV receipt missing"
+                    or tts["duration_ms"] <= 0
+                    or type(tts.get("rms")) not in (int, float)
+                    or not 0.0005 < tts["rms"] < 1
+                    or type(tts.get("peak")) not in (int, float)
+                    or not 0 < tts["peak"] <= 1
+                    or tts.get("rate_hz") not in (16000, 24000, 32000, 44100, 48000)):
+                status, detail["cause"] = "FAIL", "TTS preflight/identity/non-silent WAV evidence missing"
         vad = stages.get("vad")
         # An arbitrary {ok:true, count:1} dictionary is NOT canonical VAD
         # evidence. Require the exact test-only Rust receipt provenance.

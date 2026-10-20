@@ -18,7 +18,7 @@ import threading
 import time
 from pathlib import Path
 
-from harness import RESULT_SCHEMA, ROOT, decode_wave, fingerprint, inspect, specs
+from harness import RESULT_SCHEMA, ROOT, fingerprint, inspect, metrics, specs
 
 WORKER = ROOT / "EngineData/Backend/LocalWorker/WorkerRuntime/realtime_local_worker.py"
 MAX_FRAME = 1_000_000
@@ -183,7 +183,11 @@ def run(fixtures: Path, python: Path, expected_sha: str,
                         if voice and case["language"] == "id" and translated["ok"]:
                             preflight = worker.invoke("voice_actor_preflight")
                             record["stages"]["voice_preflight"] = stage_result(preflight, "voice")
-                            if preflight["ok"]:
+                            if not preflight["ok"]:
+                                record["stages"]["tts"] = {
+                                    "ok": False, "blocker": "voice_actor:preflight_unavailable",
+                                }
+                            else:
                                 wav_out = working/f"{ident}-tts.wav"
                                 produced = worker.invoke(
                                     "voice_actor_synthesize",
@@ -192,11 +196,25 @@ def run(fixtures: Path, python: Path, expected_sha: str,
                                     expected_actor_token=preflight.get("actor_token", ""),
                                 )
                                 result = stage_result(produced, "tts")
-                                if produced["ok"] and wav_out.is_file():
-                                    _, rate = decode_wave(wav_out)
-                                    result["wav_sha256"] = fingerprint(wav_out)
-                                    with __import__("wave").open(str(wav_out), "rb") as w:
-                                        result["duration_ms"] = round(w.getnframes()*1000/rate)
+                                # Synthesis must identify the exact actor and intended
+                                # output, not an unrelated or stale WAV on the host.
+                                actor_ok = (isinstance(preflight.get("actor_token"), str)
+                                            and bool(preflight["actor_token"])
+                                            and produced.get("actor_token") == preflight["actor_token"])
+                                path_ok = (produced.get("output_path") == str(wav_out))
+                                if produced["ok"] and actor_ok and path_ok and wav_out.is_file():
+                                    measure = metrics(wav_out)
+                                    result.update({
+                                        "wav_sha256": fingerprint(wav_out),
+                                        "duration_ms": measure["duration_ms"],
+                                        "rms": measure["rms"],
+                                        "peak": measure["peak"],
+                                        "rate_hz": measure["rate_hz"],
+                                    })
+                                    if measure["rms"] <= 0.0005:
+                                        result.update({"ok": False, "blocker": "voice_actor:silent_audio"})
+                                elif produced["ok"]:
+                                    result.update({"ok": False, "blocker": "voice_actor:output_identity_invalid"})
                                 record["stages"]["tts"] = result
                 except (WorkerTransportError, OSError) as exc:
                     record["transport_error"] = type(exc).__name__
