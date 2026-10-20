@@ -221,9 +221,15 @@ def generate(target: Path, tts: str, seed: int, suite_path: Path = SUITE,
         raise ValueError("fixture directory already exists; never overwrite prior evidence")
     if not tts or not shutil.which(tts):
         raise ValueError("explicit offline espeak-compatible --tts-exe is required")
+    # Verify required speech languages before writing any fixture. A missing
+    # Indonesian/English voice must not silently use the synthesizer default.
+    from generation_doctor import doctor
+    readiness = doctor(tts)
+    if not readiness["ok"]:
+        raise ValueError("offline synthesizer is missing a required language voice")
     items, suite_hash = specs(suite_path, corpus_path)
-    version = subprocess.run([tts, "--version"], check=True, capture_output=True,
-                             text=True, timeout=10).stdout.strip()[:160]
+    version = readiness["generator"]["version"]
+    executable = readiness["generator"]["executable"]
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="audio-fixtures-", dir=target.parent) as tmpdir:
         temp = Path(tmpdir)
@@ -231,7 +237,7 @@ def generate(target: Path, tts: str, seed: int, suite_path: Path = SUITE,
         rows = []
         for item in items:
             wav = temp/"samples"/f"{item['id']}.wav"
-            write_wave(wav, generate_samples(item, tts, temp, seed))
+            write_wave(wav, generate_samples(item, executable, temp, seed))
             rows.append({"id": item["id"], "file": f"samples/{item['id']}.wav",
                          "sha256": fingerprint(wav),
                          "reference_sha256": hashlib.sha256(item["reference"].encode()).hexdigest(),
@@ -243,7 +249,11 @@ def generate(target: Path, tts: str, seed: int, suite_path: Path = SUITE,
                   "fixtures": rows,
                   "proof": "GENERATED_WAV_ONLY_NOT_SPEECH_RECOGNITION_OR_NATIVE_PROOF"}
         (temp/"fixtures.json").write_text(json.dumps(result, indent=2, ensure_ascii=False)+"\n", encoding="utf-8")
-        os.replace(temp, target)
+        # Atomic directory promotion only after the full set is generated.
+        # A concurrently created target must never be overwritten.
+        if target.exists() or target.is_symlink():
+            raise ValueError("fixture destination appeared during generation")
+        temp.rename(target)
     return result
 
 
