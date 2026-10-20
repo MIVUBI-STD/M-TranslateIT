@@ -81,3 +81,7 @@ python -m unittest tools.tests.test_audio_fault_runner
 ```
 
 This uses the canonical worker wire-response parser and WAV validator but does not exercise the real worker lifecycle or model. A `PASS` means only its named offline contract executed. The fault matrix is an implementation backlog with owners, not 28 completed injections.
+
+## Bounded worker transport fault coverage
+
+F01–F05 use simulated queue timeout/EOF to test the same bounded wait helper as the local worker runner. This checks transport classification only, not actual child-process recovery, model imports or native UI responsiveness. F06/F07/F14 cover protocol and WAV rejection. Eight fault IDs have offline contract implementations; twenty require owner-specific injectors. Execution remains unverified until these tests actually run.

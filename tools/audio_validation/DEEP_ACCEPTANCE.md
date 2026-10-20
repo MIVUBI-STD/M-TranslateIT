@@ -35,7 +35,7 @@ A gate may advance **only** after all mandatory cases have been executed on a ma
 | Windows Meeting route | F16–F22 | Stop generation, route, independent receiving app |
 | Persistence/performance/priority | F23–F28 | archive, device memory/timing, scheduler, retry |
 
-See [fault_matrix.json](fault_matrix.json) for machine-readable cases. F06/F07/F14 now have explicit offline contract injectors (not executed on the target machine). The other 25 scenarios remain planned without executable injectors; **all are unverified until execution**. Do not set synthetic fault results to PASS without running those exact owners and capturing receipts.
+See [fault_matrix.json](fault_matrix.json) for machine-readable cases. F01–F05 have simulated timeout/EOF queue contract checks; F06/F07/F14 have offline protocol/WAV injectors (not executed on the target machine). The other 20 scenarios remain planned without executable injectors; **all are unverified until execution**. Do not set synthetic fault results to PASS without running those exact owners and capturing receipts.
 
 ## Final manual workload
 
@@ -43,4 +43,4 @@ Once G0–G4 have *actually passed*, a user only needs a short integrated accept
 
 ## Current limitation
 
-The 48 cases are **specifications**, not 48 newly generated/accepted WAVs. The earlier 16 WAV preview is separate from the repository. The fault matrix includes three offline protocol/WAV injectors via `fault_runner.py`; they do not prove actual worker/model/device fault handling. The remaining 25 cases are implementation plans, not executed tests. GitHub Actions remains disabled.
+The 48 cases are **specifications**, not 48 newly generated/accepted WAVs. The earlier 16 WAV preview is separate from the repository. The fault matrix includes eight offline queue/protocol/WAV injectors via `fault_runner.py`; they do not prove actual worker/model/device fault handling. The remaining 20 cases are implementation plans, not executed tests. GitHub Actions remains disabled.
