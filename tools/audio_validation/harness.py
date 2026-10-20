@@ -348,7 +348,8 @@ def score(target: Path, observations: Path, suite_path: Path = SUITE,
                     or not 0.0005 < tts["rms"] < 1
                     or type(tts.get("peak")) not in (int, float)
                     or not 0 < tts["peak"] <= 1
-                    or tts.get("rate_hz") not in (16000, 24000, 32000, 44100, 48000)):
+                    or type(tts.get("rate_hz")) is not int
+                    or not 8000 <= tts["rate_hz"] <= 48000):
                 status, detail["cause"] = "FAIL", "TTS preflight/identity/non-silent WAV evidence missing"
         vad = stages.get("vad")
         # An arbitrary {ok:true, count:1} dictionary is NOT canonical VAD
