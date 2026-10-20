@@ -13,7 +13,7 @@ import tempfile
 import wave
 from pathlib import Path
 
-from harness import decode_wave, write_wave
+from harness import decode_wave, write_wave, translation_receipt_complete, voice_receipt_valid
 from worker_runner import WorkerTransportError, await_worker_frame, validate_response_frame
 
 MATRIX = Path(__file__).with_name("fault_matrix.json")
@@ -139,6 +139,47 @@ def test_worker_exit() -> dict:
             "boundary": "SIMULATED_QUEUE_ONLY_NO_NATIVE_PROCESS_EXIT"}
 
 
+
+def test_translation_missing_eos() -> dict:
+    correct = {"ok": True, "direction_pair": "id->en",
+               "complete": True, "finished_with_eos": True,
+               "translated_text": "Please do not delete the data."}
+    if not translation_receipt_complete(correct, "id->en"):
+        raise AssertionError("valid translation contract was rejected")
+    for broken in (
+        {**correct, "complete": False},
+        {**correct, "finished_with_eos": False},
+        {**correct, "direction_pair": "en->id"},
+        {**correct, "translated_text": "  "},
+    ):
+        if translation_receipt_complete(broken, "id->en"):
+            raise AssertionError("partial/wrong-direction translation accepted")
+    return {"rejected": ["missing_complete", "missing_eos",
+                          "wrong_direction", "blank_translation"],
+            "boundary": "SOURCE_RECEIPT_ONLY_NO_REAL_TRANSLATION_INFERENCE"}
+
+
+def test_tts_silent_or_wrong_actor() -> dict:
+    good = {"ok": True, "wav_sha256": "a" * 64,
+            "duration_ms": 1500, "rms": 0.09, "peak": 0.65,
+            "rate_hz": 32000}
+    preflight = {"ok": True}
+    if not voice_receipt_valid(good, preflight):
+        raise AssertionError("valid synthetic TTS receipt contract rejected")
+    for broken, gate in (
+        ({**good, "rms": 0.0}, preflight),
+        ({**good, "wav_sha256": ""}, preflight),
+        ({**good, "duration_ms": 0}, preflight),
+        (good, {"ok": False}),
+        (good, None),
+    ):
+        if voice_receipt_valid(broken, gate):
+            raise AssertionError("unsupported TTS receipt accepted")
+    return {"rejected": ["silent_wave", "missing_hash", "zero_duration",
+                          "preflight_failure", "preflight_missing"],
+            "boundary": "SOURCE_RECEIPT_ONLY_NO_REAL_ACTOR_OR_WAV"}
+
+
 # Only implemented, actually executed fault checks may return PASS. Remaining
 # cases stay NOT_EXECUTED by construction until their owning injector exists.
 RUNNERS = {
@@ -150,6 +191,8 @@ RUNNERS = {
     "worker_exit_on_tts": test_worker_exit,
     "empty_asr": test_asr_empty_response,
     "rate_channel_mismatch": test_wav_format_rejection,
+    "missing_eos": test_translation_missing_eos,
+    "silent_tts_wrong_actor": test_tts_silent_or_wrong_actor,
 }
 
 
