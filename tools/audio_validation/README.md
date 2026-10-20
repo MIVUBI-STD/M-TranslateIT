@@ -93,3 +93,9 @@ F08 and F10 now exercise fail-closed contract helpers for missing EOS, wrong dir
 ## Canonical prompt isolation and isolated process faults
 
 F09 now invokes the *actual pinned MiLMMT source prompt builder* on reordered public utterances and checks that the current request contains no previous sentence. This is a real source-function test, not executed model inference. F02 uses a real short-lived **disposable Python child** that exits before replying; F01/F03/F04/F05 still exercise bounded queue timeout/EOF classification, not a real AI worker crash. Eleven fault cases have offline implementations, seventeen remain owner-specific plans. No Windows behavior is inferred.
+
+## Pre-local-test source hardening
+
+The Python worker dispatcher emits `stage=worker_error` on a raised handler exception and retains the original request ID. The harness now classifies this envelope as an explicit unsuccessful stage (with a `worker:handler_failed:...` blocker), not as corrupt transport, while still refusing a forged successful `worker_error`. This behavior is source-derived and protected by an authored regression; no model or Windows host test has been performed.
+
+**Preflight boundaries before any user testing:** the local host must have an exact clean Local checkout, pinned Python/Cargo, real model assets and permitted output paths. A source-only contract result cannot certify native Meeting reception. The 48-case WAV suite is not yet generated as the canonical fixture set; the preview ZIP of 16 WAVs is not automatically imported. Actual latency, power, device ownership and receiver results remain unknown until executable evidence exists.
