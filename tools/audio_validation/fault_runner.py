@@ -208,19 +208,6 @@ def test_real_child_process_exit() -> dict:
             child.stdout.close()
 
 
-def test_translation_context_isolation() -> dict:
-    """Inspect source-owned canonical prompt policy; do not invoke MiLMMT."""
-    from pathlib import Path
-    provider = (Path(__file__).resolve().parents[2] /
-                "EngineData/Backend/LocalWorker/WorkerRuntime/milmmt_translation_provider.py")
-    text = provider.read_text(encoding="utf-8")
-    if "def build_prompt(" not in text:
-        raise AssertionError("canonical prompt builder missing")
-    # Semantic output behavior still requires real inference. Never report
-    # this source inspection as proof of isolation across executed sessions.
-    return {"owner": "milmmt_translation_provider.build_prompt",
-            "boundary": "SOURCE_DISCOVERY_ONLY_NO_TRANSLATION_ISOLATION_PROOF"}
-
 # Only implemented, actually executed fault checks may return PASS. Remaining
 # cases stay NOT_EXECUTED by construction until their owning injector exists.
 RUNNERS = {
@@ -234,7 +221,6 @@ RUNNERS = {
     "rate_channel_mismatch": test_wav_format_rejection,
     "missing_eos": test_translation_missing_eos,
     "silent_tts_wrong_actor": test_tts_silent_or_wrong_actor,
-    "translation_context_leak": test_translation_context_isolation,
 }
 
 
