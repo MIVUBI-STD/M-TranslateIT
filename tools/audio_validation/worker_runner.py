@@ -53,9 +53,16 @@ def validate_response_frame(frame: bytes | None, *, request_id: str, command: st
         raise WorkerTransportError("invalid worker JSON frame") from exc
     expected = "local_realtime_worker_preflight" if command == "status" else command
     if (not isinstance(response, dict) or response.get("request_id") != request_id
-            or response.get("stage") != expected
             or type(response.get("ok")) is not bool):
-        raise WorkerTransportError("worker request identity/stage/boolean mismatch")
+        raise WorkerTransportError("worker request identity/boolean mismatch")
+    # The canonical Python request dispatcher deliberately maps raised handler
+    # exceptions to stage=worker_error (ok=false). This is an owned failure,
+    # not an invalid transport frame. Never treat worker_error as a success.
+    if response.get("stage") == "worker_error":
+        if response["ok"] or not str(response.get("blocker", "")).startswith("worker:handler_failed:"):
+            raise WorkerTransportError("invalid worker handler failure envelope")
+    elif response.get("stage") != expected:
+        raise WorkerTransportError("worker response stage mismatch")
     return response
 
 
